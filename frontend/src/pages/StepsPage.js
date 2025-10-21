@@ -222,9 +222,10 @@ const StepsPage = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Top Container: Video + Booking (for Step 1) OR Video + Action Card (for other steps) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Video Section */}
-          <div className="lg:col-span-2" data-testid="video-section">
+          <div data-testid="video-section">
             <Card className="glass-dark border-0 shadow-xl overflow-hidden">
               <div className="aspect-video bg-gray-900">
                 <ReactPlayer
@@ -237,43 +238,43 @@ const StepsPage = () => {
                 />
               </div>
             </Card>
-
-            {/* Description Card */}
-            <Card className="glass-dark border-0 shadow-lg mt-6" data-testid="description-card">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
-                <p className="text-gray-600">{stepInfo.description}</p>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Action Section */}
-          <div className="space-y-6">
-            {/* Action Card */}
-            <Card className="glass-dark border-0 shadow-xl" data-testid="action-card">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">YOUR ACTION STEP:</h3>
-                <p className="text-xl font-semibold text-blue-700 mb-6">{stepInfo.action}</p>
-
-                {/* Booking Calendar for Step 1 */}
-                {currentStep === 1 && (
-                  <div className="mb-6" data-testid="booking-calendar">
-                    <div className="bg-white rounded-lg p-4 border-2 border-blue-600">
-                      <Calendar className="mx-auto text-blue-600 mb-3" size={48} />
-                      <p className="text-center text-gray-700 font-medium mb-4">Book Your Consultation</p>
-                      <iframe
-                        src="https://link.drjasonshumard.com/widget/booking/gBmaT3IK8LcQxmzpaf96"
-                        style={{ width: '100%', border: 'none', minHeight: '500px' }}
-                        scrolling="no"
-                        id="msgsndr-calendar"
-                        title="Booking Calendar"
-                      />
-                    </div>
+          {/* Right Section: Booking for Step 1, Action Card for others */}
+          <div>
+            {currentStep === 1 ? (
+              /* Booking Calendar for Step 1 */
+              <Card className="glass-dark border-0 shadow-xl" data-testid="booking-card">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">YOUR ACTION STEP:</h3>
+                  <p className="text-xl font-semibold text-blue-700 mb-4">{stepInfo.action}</p>
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600" data-testid="booking-calendar">
+                    <Calendar className="mx-auto text-blue-600 mb-3" size={48} />
+                    <p className="text-center text-gray-700 font-medium mb-4">Book Your Consultation</p>
+                    <iframe
+                      src="https://link.drjasonshumard.com/widget/booking/gBmaT3IK8LcQxmzpaf96"
+                      style={{ width: '100%', border: 'none', minHeight: '500px' }}
+                      scrolling="no"
+                      id="msgsndr-calendar"
+                      title="Booking Calendar"
+                    />
                   </div>
-                )}
+                  <Button
+                    onClick={() => handleTaskComplete('book_consultation')}
+                    className="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
+                    data-testid="submit-button"
+                  >
+                    Mark as Complete
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              /* Action Card for other steps */
+              <Card className="glass-dark border-0 shadow-xl" data-testid="action-card">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">YOUR ACTION STEP:</h3>
+                  <p className="text-xl font-semibold text-blue-700 mb-6">{stepInfo.action}</p>
 
-                {/* Generic Task Completion for other steps */}
-                {currentStep !== 1 && (
                   <div className="space-y-3" data-testid="task-list">
                     {stepInfo.tasks.map((task, idx) => (
                       <Button
@@ -297,36 +298,62 @@ const StepsPage = () => {
                       </Button>
                     ))}
                   </div>
-                )}
 
-                {/* Submit Button */}
-                <Button
-                  onClick={currentStep === 1 ? () => handleTaskComplete('book_consultation') : handleAdvanceStep}
-                  className="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
-                  data-testid="submit-button"
-                >
-                  {currentStep === 7 ? 'Complete Program' : 'Continue to Next Step'}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Health Advocate Card */}
-            <Card className="glass-dark border-0 shadow-lg" data-testid="advocate-card">
-              <CardContent className="p-6">
-                <div className="text-center">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-4 flex items-center justify-center">
-                    <UserIcon className="text-blue-600" size={48} />
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">YOUR HEALTH ADVOCATE</h3>
-                  <p className="text-gray-600 mb-1">Dr. Jason Shumard</p>
-                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                    <Phone size={16} />
-                    <span>Available for support</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <Button
+                    onClick={handleAdvanceStep}
+                    className="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
+                    data-testid="submit-button"
+                  >
+                    {currentStep === 7 ? 'Complete Program' : 'Continue to Next Step'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
+        </div>
+
+        {/* Bottom Container: Description + Health Advocate */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Description Card */}
+          <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
+            <CardContent className="p-6">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
+              <p className="text-gray-600 mb-4">{stepInfo.description}</p>
+              {currentStep === 1 && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-gray-800 mb-2">Welcome to Your Diabetes Wellness Journey</h4>
+                  <p className="text-sm text-gray-600">
+                    We're thrilled to have you here! This comprehensive program is designed to guide you through essential 
+                    steps for better health and diabetes management. Your first step is to watch the welcome video and 
+                    schedule your one-on-one consultation with our health advocate. Together, we'll create a personalized 
+                    plan for your wellness journey.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Health Advocate Card */}
+          <Card className="glass-dark border-0 shadow-lg" data-testid="advocate-card">
+            <CardContent className="p-6">
+              <div className="text-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-4 flex items-center justify-center">
+                  <UserIcon className="text-blue-600" size={48} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">YOUR HEALTH ADVOCATE</h3>
+                <p className="text-gray-800 font-medium mb-1">Dr. Jason Shumard</p>
+                <p className="text-sm text-gray-600 mb-3">Certified Diabetes Educator</p>
+                <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-4">
+                  <Phone size={16} />
+                  <span>Available for support</span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Dr. Shumard is here to guide you through every step of your journey. With years of experience 
+                  in diabetes management, he'll provide personalized support and answer all your questions.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
