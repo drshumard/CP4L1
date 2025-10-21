@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import StepsPage from './pages/StepsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import ResetPassword from './pages/ResetPassword';
+import OutcomePage from './pages/OutcomePage';
 import { Toaster } from './components/ui/sonner';
 import './App.css';
 
