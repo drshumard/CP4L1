@@ -25,6 +25,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/steps" element={<PrivateRoute><StepsPage /></PrivateRoute>} />
+          <Route path="/outcome" element={<PrivateRoute><OutcomePage /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         </Routes>
         <Toaster position="top-right" />
