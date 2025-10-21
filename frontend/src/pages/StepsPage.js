@@ -119,12 +119,12 @@ const StepsPage = () => {
     }
   };
 
-  const handleAdvanceStep = async () => {
+  const handleAdvanceStep = async (skipValidation = false) => {
     const currentStep = progressData.current_step;
     const requiredTasks = STEP_DATA[currentStep].tasks;
     const allTasksCompleted = requiredTasks.every(task => completedTasks.has(task));
 
-    if (!allTasksCompleted) {
+    if (!skipValidation && !allTasksCompleted) {
       toast.error('Please complete all tasks before advancing');
       return;
     }
@@ -142,6 +142,32 @@ const StepsPage = () => {
       await fetchData();
     } catch (error) {
       toast.error('Failed to advance step');
+    }
+  };
+
+  const handleStep1Complete = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      // Mark task as complete
+      await axios.post(
+        `${API}/user/complete-task`,
+        { task_id: 'book_consultation' },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      // Advance to next step
+      await axios.post(
+        `${API}/user/advance-step`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success('Step 1 completed! Moving to Step 2...');
+      setCompletedTasks(new Set());
+      await fetchData();
+    } catch (error) {
+      toast.error('Failed to complete step');
     }
   };
 
