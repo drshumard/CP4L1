@@ -116,14 +116,25 @@ const Dashboard = () => {
                 <p className="text-lg text-gray-600 mb-6">
                   You're on Step {progressData?.current_step} of your diabetes wellness journey.
                 </p>
-                <Button 
-                  onClick={handleStartJourney}
-                  className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
-                  data-testid="continue-journey-button"
-                >
-                  Continue Your Journey
-                  <ArrowRight size={20} />
-                </Button>
+                {progressData?.current_step === 7 && completedSteps === 7 ? (
+                  <Button 
+                    onClick={() => navigate('/outcome')}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
+                    data-testid="view-outcome-button"
+                  >
+                    🎉 View Your Achievement
+                    <Trophy size={20} />
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={handleStartJourney}
+                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
+                    data-testid="continue-journey-button"
+                  >
+                    Continue Your Journey
+                    <ArrowRight size={20} />
+                  </Button>
+                )}
               </div>
               <div className="w-full md:w-auto">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 min-w-[250px]">
