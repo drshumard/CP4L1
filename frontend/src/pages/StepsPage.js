@@ -225,9 +225,9 @@ const StepsPage = () => {
         {/* Top Container: Video + Booking (for Step 1) OR Video + Action Card (for other steps) */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Video Section */}
-          <div data-testid="video-section">
-            <Card className="glass-dark border-0 shadow-xl overflow-hidden">
-              <div className="aspect-video bg-gray-900">
+          <div data-testid="video-section" style={{ height: '600px' }}>
+            <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full">
+              <div className="h-full bg-gray-900">
                 <ReactPlayer
                   url={stepInfo.videoUrl}
                   width="100%"
@@ -241,31 +241,24 @@ const StepsPage = () => {
           </div>
 
           {/* Right Section: Booking for Step 1, Action Card for others */}
-          <div>
+          <div style={{ height: '600px' }}>
             {currentStep === 1 ? (
               /* Booking Calendar for Step 1 */
-              <Card className="glass-dark border-0 shadow-xl" data-testid="booking-card">
-                <CardContent className="p-6">
+              <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="booking-card">
+                <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
                   <h3 className="text-lg font-bold text-gray-800 mb-2">YOUR ACTION STEP:</h3>
                   <p className="text-xl font-semibold text-blue-700 mb-4">{stepInfo.action}</p>
-                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600" data-testid="booking-calendar">
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600 flex-1 overflow-auto" data-testid="booking-calendar" style={{ maxHeight: 'calc(600px - 150px)' }}>
                     <Calendar className="mx-auto text-blue-600 mb-3" size={48} />
                     <p className="text-center text-gray-700 font-medium mb-4">Book Your Consultation</p>
                     <iframe
                       src="https://link.drjasonshumard.com/widget/booking/gBmaT3IK8LcQxmzpaf96"
                       style={{ width: '100%', border: 'none', minHeight: '500px' }}
-                      scrolling="no"
+                      scrolling="yes"
                       id="msgsndr-calendar"
                       title="Booking Calendar"
                     />
                   </div>
-                  <Button
-                    onClick={() => handleTaskComplete('book_consultation')}
-                    className="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
-                    data-testid="submit-button"
-                  >
-                    Mark as Complete
-                  </Button>
                 </CardContent>
               </Card>
             ) : (
