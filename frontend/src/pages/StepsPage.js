@@ -313,15 +313,29 @@ const StepsPage = () => {
               <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
               <p className="text-gray-600 mb-4">{stepInfo.description}</p>
               {currentStep === 1 && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <h4 className="font-semibold text-gray-800 mb-2">Welcome to Your Diabetes Wellness Journey</h4>
-                  <p className="text-sm text-gray-600">
-                    We're thrilled to have you here! This comprehensive program is designed to guide you through essential 
-                    steps for better health and diabetes management. Your first step is to watch the welcome video and 
-                    schedule your one-on-one consultation with our health advocate. Together, we'll create a personalized 
-                    plan for your wellness journey.
-                  </p>
-                </div>
+                <>
+                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
+                    <h4 className="font-semibold text-gray-800 mb-2">Welcome to Your Diabetes Wellness Journey</h4>
+                    <p className="text-sm text-gray-600">
+                      We're thrilled to have you here! This comprehensive program is designed to guide you through essential 
+                      steps for better health and diabetes management. Your first step is to watch the welcome video and 
+                      schedule your one-on-one consultation with our health advocate. Together, we'll create a personalized 
+                      plan for your wellness journey.
+                    </p>
+                  </div>
+                  <div className="border-t pt-6">
+                    <p className="text-sm text-gray-600 mb-3 italic">
+                      ⚠️ Only click this once you have booked the call
+                    </p>
+                    <Button
+                      onClick={() => handleTaskComplete('book_consultation')}
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
+                      data-testid="submit-button"
+                    >
+                      Mark as Complete
+                    </Button>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
