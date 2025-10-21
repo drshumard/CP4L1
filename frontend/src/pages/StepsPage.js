@@ -137,6 +137,13 @@ const StepsPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      // If completing step 7, redirect to outcome page
+      if (currentStep === 7) {
+        toast.success('Congratulations! Program complete!');
+        setTimeout(() => navigate('/outcome'), 1500);
+        return;
+      }
+
       toast.success('Advanced to next step!');
       setCompletedTasks(new Set());
       await fetchData();
