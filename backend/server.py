@@ -36,6 +36,9 @@ security = HTTPBearer()
 # Resend Configuration
 resend.api_key = os.environ.get('RESEND_API_KEY', '')
 
+# Webhook Secret
+WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
