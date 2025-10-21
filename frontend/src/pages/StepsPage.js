@@ -328,11 +328,14 @@ const StepsPage = () => {
                       ⚠️ Only click this once you have booked the call
                     </p>
                     <Button
-                      onClick={() => handleTaskComplete('book_consultation')}
+                      onClick={async () => {
+                        await handleTaskComplete('book_consultation');
+                        await handleAdvanceStep();
+                      }}
                       className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
                       data-testid="submit-button"
                     >
-                      Mark as Complete
+                      Mark as Complete & Continue
                     </Button>
                   </div>
                 </>
