@@ -291,7 +291,7 @@ async def request_password_reset(request: PasswordResetRequest):
         
         try:
             resend.Emails.send({
-                "from": "DrJason Portal <noreply@drjasonshumard.com>",
+                "from": "DrJason Portal <onboarding@resend.dev>",
                 "to": request.email,
                 "subject": "Password Reset Request",
                 "html": f"""
