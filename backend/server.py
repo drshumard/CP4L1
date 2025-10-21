@@ -154,8 +154,16 @@ async def get_admin_user(current_user: dict = Depends(get_current_user)):
 
 # Routes
 @api_router.post("/webhook/ghl")
-async def ghl_webhook(data: GHLWebhookData):
-    """Receive webhook from GHL after purchase"""
+async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
+    """Receive webhook from GHL after purchase - Protected by webhook secret"""
+    
+    # Validate webhook secret
+    if not WEBHOOK_SECRET or webhook_secret != WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook secret"
+        )
+    
     # Check if user already exists
     existing_user = await db.users.find_one({"email": data.email}, {"_id": 0})
     if existing_user:
