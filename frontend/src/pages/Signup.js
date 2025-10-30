@@ -39,13 +39,13 @@ const Signup = () => {
         const response = await axios.post(`${API}/auth/signup`, {
           email: userEmail,
           name: userName,
-          password: 'auto-generated' // Backend will ignore this and generate its own
+          password: 'auto-generated'
         });
 
         localStorage.setItem('access_token', response.data.access_token);
         localStorage.setItem('refresh_token', response.data.refresh_token);
         
-        setStage(2); // Password sent
+        setStage(2); // Already sent (password was sent via webhook)
       } catch (error) {
         toast.error(error.response?.data?.detail || 'Signup failed');
         setTimeout(() => navigate('/login'), 2000);
