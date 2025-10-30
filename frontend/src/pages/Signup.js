@@ -262,13 +262,23 @@ const Signup = () => {
             >
               <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
                 <motion.div
-                  animate={{ scale: [1, 1.1, 1] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="inline-block mb-6"
+                  className="inline-block mb-6 relative"
                 >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto shadow-xl">
-                    <Sparkles className="text-white" size={48} />
-                  </div>
+                  <motion.div
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity }}
+                    className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center mx-auto shadow-xl"
+                  >
+                    <Activity className="text-white" size={48} />
+                  </motion.div>
+                  <motion.div
+                    animate={{ 
+                      scale: [1, 1.3, 1],
+                      opacity: [0.3, 0, 0.3]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 rounded-full border-2 border-green-500"
+                  />
                 </motion.div>
                 
                 <h2 className="text-3xl font-bold mb-2 text-gray-800">
