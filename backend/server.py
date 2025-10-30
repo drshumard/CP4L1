@@ -184,7 +184,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
 
 @api_router.post("/auth/signup", response_model=TokenResponse)
 async def signup(request: SignupRequest):
-    """Complete signup by setting password"""
+    """Complete signup by auto-generating password and sending via email"""
     # Check if user exists (from GHL webhook)
     user = await db.users.find_one({"email": request.email}, {"_id": 0})
     
@@ -195,19 +195,72 @@ async def signup(request: SignupRequest):
         )
     
     if user.get("password_hash"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Account already activated. Please login."
+        # User already has password, just login them
+        access_token = create_access_token(
+            data={"sub": user["id"]},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        refresh_token = create_refresh_token(data={"sub": user["id"]})
+        
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token
         )
     
-    # Update user with password and name
-    hashed_password = get_password_hash(request.password)
+    # Generate secure random password (12 characters)
+    import string
+    import random
+    password_chars = string.ascii_letters + string.digits + "!@#$%"
+    generated_password = ''.join(random.choice(password_chars) for _ in range(12))
+    
+    # Hash and store password
+    hashed_password = get_password_hash(generated_password)
     await db.users.update_one(
         {"email": request.email},
         {"$set": {"password_hash": hashed_password, "name": request.name}}
     )
     
-    # Create tokens
+    # Send password via email
+    try:
+        resend.Emails.send({
+            "from": "Dr. Shumard Portal <noreply@portal.drshumard.com>",
+            "to": request.email,
+            "subject": "Welcome to Your Diabetes Wellness Journey",
+            "html": f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f8fafc;">
+                    <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <h1 style="color: #2563EB; margin-bottom: 10px;">Welcome, {request.name}! 🎉</h1>
+                        <p style="color: #64748b; font-size: 16px; line-height: 1.6;">
+                            We're excited to have you start your diabetes wellness journey with us!
+                        </p>
+                        
+                        <div style="background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border-radius: 8px; padding: 24px; margin: 24px 0;">
+                            <h2 style="color: #1e40af; margin-top: 0;">Your Login Credentials</h2>
+                            <p style="color: #475569; margin: 8px 0;"><strong>Email:</strong> {request.email}</p>
+                            <p style="color: #475569; margin: 8px 0;"><strong>Password:</strong> <span style="font-family: monospace; background: white; padding: 4px 8px; border-radius: 4px; font-size: 18px; font-weight: bold;">{generated_password}</span></p>
+                        </div>
+                        
+                        <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
+                            <strong>Important:</strong> Please save this password securely. You can change it later in your account settings.
+                        </p>
+                        
+                        <a href="{os.environ.get('FRONTEND_URL')}/login" style="display: inline-block; margin-top: 24px; padding: 14px 28px; background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">Access Your Portal</a>
+                        
+                        <p style="color: #94a3b8; font-size: 13px; margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+                            If you have any questions, feel free to reach out to our support team.
+                        </p>
+                    </div>
+                </body>
+            </html>
+            """
+        })
+        logging.info(f"Welcome email with password sent to {request.email}")
+    except Exception as e:
+        logging.error(f"Failed to send welcome email: {e}")
+        # Continue even if email fails - user can still use password reset
+    
+    # Create tokens and auto-login
     access_token = create_access_token(
         data={"sub": user["id"]},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
