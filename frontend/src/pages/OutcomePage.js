@@ -186,7 +186,7 @@ const OutcomePage = () => {
               WebkitTextFillColor: 'transparent',
             }}
           >
-            You Did It, {userData?.name}!
+            Great Start, {userData?.name}!
           </motion.h1>
 
           <motion.p
@@ -195,7 +195,7 @@ const OutcomePage = () => {
             transition={{ delay: 0.6 }}
             className="text-xl text-gray-700 max-w-2xl mx-auto mb-8"
           >
-            You've successfully completed your diabetes wellness journey. This is just the beginning of your healthier, happier life!
+            You've successfully completed the first step of your diabetes wellness journey. Make sure you prepare everything for your consultation call!
           </motion.p>
 
           <motion.div
@@ -204,9 +204,9 @@ const OutcomePage = () => {
             transition={{ delay: 0.8 }}
             className="flex items-center justify-center gap-2"
           >
-            <Sparkles className="text-yellow-500" size={24} />
-            <span className="text-2xl font-semibold text-gray-800">Program Complete</span>
-            <Sparkles className="text-yellow-500" size={24} />
+            <Sparkles className="text-green-500" size={24} />
+            <span className="text-2xl font-semibold text-gray-800">Step 1 Complete</span>
+            <Sparkles className="text-green-500" size={24} />
           </motion.div>
         </motion.div>
 
