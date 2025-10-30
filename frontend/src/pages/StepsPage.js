@@ -272,12 +272,12 @@ const StepsPage = () => {
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentStep === 1 ? (
           /* Step 1: Video + Health Advocate on Left, Booking Calendar on Right */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
             {/* Left: Video + Health Advocate Details + Button */}
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6 h-full">
               {/* Video Section */}
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden" data-testid="video-section">
-                <div className="aspect-video bg-gray-900">
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section" style={{ height: '45%' }}>
+                <div className="h-full bg-gray-900">
                   <ReactPlayer
                     url={stepInfo.videoUrl}
                     width="100%"
@@ -290,22 +290,22 @@ const StepsPage = () => {
               </Card>
 
               {/* Health Advocate Card */}
-              <Card className="glass-dark border-0 shadow-lg" data-testid="advocate-card">
-                <CardContent className="p-6">
-                  <div className="text-center mb-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-4 flex items-center justify-center">
-                      <UserIcon className="text-blue-600" size={48} />
+              <Card className="glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="advocate-card">
+                <CardContent className="p-6 h-full flex flex-col justify-center">
+                  <div className="text-center mb-4">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-3 flex items-center justify-center">
+                      <UserIcon className="text-blue-600" size={40} />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">YOUR HEALTH ADVOCATE</h3>
-                    <p className="text-lg text-gray-800 font-semibold mb-1">Dr. Jason Shumard</p>
-                    <p className="text-sm text-gray-600 mb-3">Certified Diabetes Educator</p>
-                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
-                      <Phone size={16} />
+                    <h3 className="text-lg font-bold text-gray-800 mb-1">YOUR HEALTH ADVOCATE</h3>
+                    <p className="text-base text-gray-800 font-semibold mb-1">Dr. Jason Shumard</p>
+                    <p className="text-xs text-gray-600 mb-2">Certified Diabetes Educator</p>
+                    <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+                      <Phone size={14} />
                       <span>Available for support</span>
                     </div>
                   </div>
                   
-                  <p className="text-gray-700 text-center leading-relaxed">
+                  <p className="text-sm text-gray-700 text-center leading-relaxed">
                     Dr. Shumard is here to guide you through every step of your journey. With years of experience 
                     in diabetes management, he'll provide personalized support and answer all your questions.
                   </p>
@@ -313,14 +313,14 @@ const StepsPage = () => {
               </Card>
 
               {/* Complete Button */}
-              <Card className="glass-dark border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <p className="text-sm text-gray-600 mb-3 italic text-center">
+              <Card className="glass-dark border-0 shadow-lg flex-shrink-0">
+                <CardContent className="p-4">
+                  <p className="text-xs text-gray-600 mb-2 italic text-center">
                     ⚠️ Only click this once you have booked your consultation
                   </p>
                   <Button
                     onClick={handleStep1Complete}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-5 rounded-xl shadow-lg"
                     data-testid="submit-button"
                   >
                     Mark as Complete & Continue
@@ -330,13 +330,13 @@ const StepsPage = () => {
             </div>
 
             {/* Right: Booking Calendar - Full Height */}
-            <div>
-              <Card className="glass-dark border-0 shadow-xl" data-testid="booking-card">
-                <CardContent className="p-6">
+            <div className="h-full">
+              <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="booking-card">
+                <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
                   <h3 className="text-lg font-bold text-gray-800 mb-2">BOOK YOUR CONSULTATION</h3>
                   <p className="text-xl font-semibold text-blue-700 mb-4">{stepInfo.action}</p>
                   
-                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600" data-testid="booking-calendar">
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600 flex-1 overflow-hidden" data-testid="booking-calendar">
                     <div className="flex items-center justify-center gap-3 mb-4">
                       <Calendar className="text-blue-600" size={32} />
                       <p className="text-gray-700 font-medium text-lg">Select Your Appointment Time</p>
@@ -347,6 +347,7 @@ const StepsPage = () => {
                       .better-inline-booking-widget {
                         position: relative;
                         overflow: hidden;
+                        height: 100%;
                       }
                       .better-inline-booking-widget iframe {
                         position: absolute;
@@ -363,7 +364,7 @@ const StepsPage = () => {
                       data-hash="601a127b2a9c2406dcc94437" 
                       data-theme="246af4" 
                       data-theme-accent="f57f1b" 
-                      style={{ width: '100%', maxWidth: '100%', height: '700px', margin: '0 auto' }} 
+                      style={{ width: '100%', maxWidth: '100%', height: 'calc(100% - 60px)' }} 
                       data-scrollbar-visible="false"
                     />
                   </div>
