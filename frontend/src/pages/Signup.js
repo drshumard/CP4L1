@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, Mail, CheckCircle2, Lock } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -14,143 +11,270 @@ const API = `${BACKEND_URL}/api`;
 const Signup = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [formData, setFormData] = useState({
-    email: '',
-    name: '',
-    password: '',
-    confirmPassword: ''
-  });
-  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState(0); // 0: welcome, 1: setting up, 2: password sent, 3: redirecting
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
-    if (emailParam) {
-      setFormData(prev => ({ ...prev, email: emailParam }));
-    }
-  }, [searchParams]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+    const nameParam = searchParams.get('name') || 'there';
     
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
+    if (emailParam) {
+      setEmail(emailParam);
+      setName(nameParam);
+      startSignupProcess(emailParam, nameParam);
+    } else {
+      toast.error('Invalid signup link');
+      navigate('/login');
     }
+  }, [searchParams, navigate]);
 
-    if (formData.password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
+  const startSignupProcess = async (userEmail, userName) => {
+    // Stage 0: Welcome animation (1.5s)
+    setTimeout(() => setStage(1), 1500);
+    
+    // Stage 1: Setting up account (1.5s) - Call API
+    setTimeout(async () => {
+      try {
+        const response = await axios.post(`${API}/auth/signup`, {
+          email: userEmail,
+          name: userName,
+          password: 'auto-generated' // Backend will ignore this and generate its own
+        });
 
-    setLoading(true);
-
-    try {
-      const response = await axios.post(`${API}/auth/signup`, {
-        email: formData.email,
-        name: formData.name,
-        password: formData.password
-      });
-
-      localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('refresh_token', response.data.refresh_token);
-      
-      toast.success('Account created successfully!');
-      navigate('/');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Signup failed');
-    } finally {
-      setLoading(false);
-    }
+        localStorage.setItem('access_token', response.data.access_token);
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+        
+        setStage(2); // Password sent
+      } catch (error) {
+        toast.error(error.response?.data?.detail || 'Signup failed');
+        setTimeout(() => navigate('/login'), 2000);
+        return;
+      }
+    }, 1500);
+    
+    // Stage 2: Password sent message (2s)
+    setTimeout(() => setStage(3), 5000);
+    
+    // Stage 3: Redirecting message (1s) then navigate
+    setTimeout(() => navigate('/'), 6000);
   };
 
-  const emailParam = searchParams.get('email');
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-width: 480px"
-      >
-        <Card className="glass-dark shadow-2xl border-0 max-w-md mx-auto" data-testid="signup-card">
-          <CardHeader className="space-y-1 text-center pb-6">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">DS</span>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 180, 360],
+            opacity: [0.1, 0.2, 0.1],
+          }}
+          transition={{ duration: 20, repeat: Infinity }}
+          className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-blue-400 blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.3, 1],
+            rotate: [360, 180, 0],
+            opacity: [0.1, 0.2, 0.1],
+          }}
+          transition={{ duration: 25, repeat: Infinity }}
+          className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-purple-400 blur-3xl"
+        />
+      </div>
+
+      {/* Main Content */}
+      <div className="relative z-10 w-full max-w-2xl">
+        <AnimatePresence mode="wait">
+          {stage === 0 && (
+            <motion.div
+              key="welcome"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.1 }}
+              transition={{ duration: 0.5 }}
+              className="text-center"
+            >
+              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
+                <motion.div
+                  animate={{ rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="inline-block mb-6"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto shadow-xl">
+                    <Sparkles className="text-white" size={48} />
+                  </div>
+                </motion.div>
+                
+                <motion.h1
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-5xl font-bold mb-4"
+                  style={{
+                    background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  Welcome to Dr. Shumard Portal
+                </motion.h1>
+                
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-xl text-gray-700"
+                >
+                  {name}, we're thrilled to have you here!
+                </motion.p>
               </div>
-            </div>
-            <CardTitle className="text-3xl font-bold" style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Create Your Account</CardTitle>
-            <CardDescription className="text-base">Complete your signup to access your wellness journey</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4" data-testid="signup-form">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  data-testid="email-input"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  disabled={!!emailParam}
-                  className={emailParam ? 'bg-gray-100' : ''}
-                  required
+            </motion.div>
+          )}
+
+          {stage === 1 && (
+            <motion.div
+              key="setting-up"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+              className="text-center"
+            >
+              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  className="inline-block mb-6"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto shadow-xl">
+                    <div className="w-20 h-20 rounded-full border-4 border-white border-t-transparent" />
+                  </div>
+                </motion.div>
+                
+                <h2 className="text-4xl font-bold mb-4 text-gray-800">
+                  Setting Up Your Account
+                </h2>
+                
+                <p className="text-lg text-gray-600 mb-6">
+                  We're creating your personalized wellness portal...
+                </p>
+                
+                <div className="flex items-center justify-center gap-2">
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0 }}
+                    className="w-2 h-2 rounded-full bg-blue-500"
+                  />
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                    className="w-2 h-2 rounded-full bg-blue-500"
+                  />
+                  <motion.div
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                    className="w-2 h-2 rounded-full bg-blue-500"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {stage === 2 && (
+            <motion.div
+              key="password-sent"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.1 }}
+              transition={{ duration: 0.5 }}
+              className="text-center"
+            >
+              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0 relative overflow-hidden">
+                {/* Success Animation Background */}
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 2, opacity: [0, 0.3, 0] }}
+                  transition={{ duration: 1 }}
+                  className="absolute inset-0 bg-gradient-to-br from-green-400 to-blue-500 rounded-3xl"
                 />
+                
+                <div className="relative z-10">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+                    className="inline-block mb-6"
+                  >
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center mx-auto shadow-xl">
+                      <CheckCircle2 className="text-white" size={56} />
+                    </div>
+                  </motion.div>
+                  
+                  <motion.h2
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-4xl font-bold mb-4 text-gray-800"
+                  >
+                    Account Created Successfully!
+                  </motion.h2>
+                  
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6"
+                  >
+                    <div className="flex items-center justify-center gap-3 mb-3">
+                      <Mail className="text-blue-600" size={28} />
+                      <Lock className="text-purple-600" size={28} />
+                    </div>
+                    <p className="text-lg font-semibold text-gray-800 mb-2">
+                      Your Login Credentials Have Been Sent
+                    </p>
+                    <p className="text-gray-600">
+                      Check your email at <span className="font-semibold text-blue-600">{email}</span>
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      We've sent your secure password to get started
+                    </p>
+                  </motion.div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  data-testid="name-input"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+            </motion.div>
+          )}
+
+          {stage === 3 && (
+            <motion.div
+              key="redirecting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="text-center"
+            >
+              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
+                <motion.div
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="inline-block mb-6"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto shadow-xl">
+                    <Sparkles className="text-white" size={48} />
+                  </div>
+                </motion.div>
+                
+                <h2 className="text-3xl font-bold mb-2 text-gray-800">
+                  Taking You to Your Portal...
+                </h2>
+                <p className="text-gray-600">Get ready to start your wellness journey!</p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  data-testid="password-input"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  data-testid="confirm-password-input"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-6 rounded-lg shadow-lg"
-                disabled={loading}
-                data-testid="signup-submit-button"
-              >
-                {loading ? 'Creating Account...' : 'Create Account'}
-              </Button>
-            </form>
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Already have an account?{' '}
-                <Link to="/login" className="text-blue-600 hover:text-blue-700 font-semibold" data-testid="login-link">
-                  Login here
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };
