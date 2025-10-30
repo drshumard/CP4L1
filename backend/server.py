@@ -338,12 +338,12 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             <body>
                 <div class="container">
                     <div class="header">
-                        <div class="logo">DS</div>
+                        <div class="logo"></div>
                         <h1>Welcome to Your Wellness Portal</h1>
                     </div>
                     
                     <div class="content">
-                        <div class="greeting">Hello {data.name}! 🎉</div>
+                        <div class="greeting">Hello {data.name}!</div>
                         
                         <p class="message">
                             We're thrilled to have you begin your diabetes wellness journey with us! Your account has been created and is ready to go.
@@ -368,7 +368,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         </div>
                         
                         <center>
-                            <a href="{signup_url}" class="button">
+                            <a href="portal.drshumard.com/login" class="button">
                                 Access Your Portal Now →
                             </a>
                         </center>
