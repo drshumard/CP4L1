@@ -270,35 +270,89 @@ const StepsPage = () => {
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Top Container: Video + Booking (for Step 1) OR Video + Action Card (for other steps) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
-          {/* Video Section */}
-          <div data-testid="video-section" style={{ height: '500px' }}>
-            <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full">
-              <div className="h-full bg-gray-900">
-                <ReactPlayer
-                  url={stepInfo.videoUrl}
-                  width="100%"
-                  height="100%"
-                  controls
-                  onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
-                  data-testid="video-player"
-                />
-              </div>
-            </Card>
-          </div>
+        {currentStep === 1 ? (
+          /* Step 1: Health Advocate + Booking Calendar Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left: Health Advocate Details */}
+            <div>
+              <Card className="glass-dark border-0 shadow-lg h-full" data-testid="advocate-card">
+                <CardContent className="p-8">
+                  <div className="text-center mb-8">
+                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-6 flex items-center justify-center">
+                      <UserIcon className="text-blue-600" size={64} />
+                    </div>
+                    <h2 className="text-3xl font-bold text-gray-800 mb-3">YOUR HEALTH ADVOCATE</h2>
+                    <h3 className="text-2xl text-gray-800 font-semibold mb-2">Dr. Jason Shumard</h3>
+                    <p className="text-lg text-gray-600 mb-4">Certified Diabetes Educator</p>
+                    <div className="flex items-center justify-center gap-2 text-gray-600 mb-6">
+                      <Phone size={20} />
+                      <span>Available for support</span>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 mb-6">
+                    <h4 className="font-bold text-gray-800 mb-3 text-lg">About Dr. Shumard</h4>
+                    <p className="text-gray-700 mb-4 leading-relaxed">
+                      Dr. Shumard is here to guide you through every step of your wellness journey. With years of experience 
+                      in diabetes management, he provides personalized support and answers all your questions.
+                    </p>
+                    <p className="text-gray-700 leading-relaxed">
+                      Your first step is to schedule your one-on-one consultation using the calendar. Together, 
+                      you'll create a personalized plan for your diabetes wellness journey.
+                    </p>
+                  </div>
 
-          {/* Right Section: Booking for Step 1, Action Card for others */}
-          <div style={{ height: '500px' }}>
-            {currentStep === 1 ? (
-              /* Booking Calendar for Step 1 */
-              <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="booking-card">
-                <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
-                  <h3 className="text-lg font-bold text-gray-800 mb-2">YOUR ACTION STEP:</h3>
+                  <div className="border-t pt-6">
+                    <h4 className="font-semibold text-gray-800 mb-3">What to Expect:</h4>
+                    <ul className="space-y-2 text-gray-700">
+                      <li className="flex items-start gap-2">
+                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
+                        <span>Personalized health assessment</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
+                        <span>Customized wellness plan creation</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
+                        <span>Answer all your questions</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
+                        <span>Set goals for your journey</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="mt-8">
+                    <p className="text-sm text-gray-600 mb-3 italic text-center">
+                      ⚠️ Only click this once you have booked your consultation
+                    </p>
+                    <Button
+                      onClick={handleStep1Complete}
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
+                      data-testid="submit-button"
+                    >
+                      Mark as Complete & Continue
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right: Booking Calendar - Full Height */}
+            <div>
+              <Card className="glass-dark border-0 shadow-xl" data-testid="booking-card">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-2">BOOK YOUR CONSULTATION</h3>
                   <p className="text-xl font-semibold text-blue-700 mb-4">{stepInfo.action}</p>
-                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600 flex-1 overflow-auto" data-testid="booking-calendar" style={{ maxHeight: 'calc(500px - 150px)' }}>
-                    <Calendar className="mx-auto text-blue-600 mb-3" size={48} />
-                    <p className="text-center text-gray-700 font-medium mb-4">Book Your Consultation</p>
+                  
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600" data-testid="booking-calendar">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <Calendar className="text-blue-600" size={32} />
+                      <p className="text-gray-700 font-medium text-lg">Select Your Appointment Time</p>
+                    </div>
+                    
                     {/* Practice Better Booking Widget */}
                     <style dangerouslySetInnerHTML={{__html: `
                       .better-inline-booking-widget {
@@ -320,13 +374,36 @@ const StepsPage = () => {
                       data-hash="601a127b2a9c2406dcc94437" 
                       data-theme="246af4" 
                       data-theme-accent="f57f1b" 
-                      style={{ width: '100%', maxWidth: '550px', height: '800px', margin: '0 auto' }} 
+                      style={{ width: '100%', maxWidth: '100%', height: '700px', margin: '0 auto' }} 
                       data-scrollbar-visible="false"
                     />
                   </div>
                 </CardContent>
               </Card>
-            ) : (
+            </div>
+          </div>
+        ) : (
+          /* Other Steps: Video + Action Card Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+            {/* Video Section */}
+            <div data-testid="video-section" style={{ height: '500px' }}>
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full">
+                <div className="h-full bg-gray-900">
+                  <ReactPlayer
+                    url={stepInfo.videoUrl}
+                    width="100%"
+                    height="100%"
+                    controls
+                    onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
+                    data-testid="video-player"
+                  />
+                </div>
+              </Card>
+            </div>
+
+            {/* Action Card for Steps 2-7 */}
+            <div style={{ height: '500px' }}>
+              {currentStep !== 1 && (
               /* Action Card for other steps */
               <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="action-card">
                 <CardContent className="p-6 flex-1 flex flex-col">
