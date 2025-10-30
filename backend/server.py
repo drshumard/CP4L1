@@ -169,18 +169,237 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     if existing_user:
         return {"message": "User already exists", "user_id": existing_user["id"]}
     
-    # Create new user with empty password (to be set during signup)
+    # Generate secure random password (12 characters)
+    import string
+    import random
+    password_chars = string.ascii_letters + string.digits + "!@#$%"
+    generated_password = ''.join(random.choice(password_chars) for _ in range(12))
+    
+    # Hash password
+    hashed_password = get_password_hash(generated_password)
+    
+    # Create new user with generated password
     user = User(
         email=data.email,
         name=data.name,
-        password_hash=""  # Will be set when user creates password
+        password_hash=hashed_password
     )
     
     user_dict = user.model_dump()
     user_dict['created_at'] = user_dict['created_at'].isoformat()
     
     await db.users.insert_one(user_dict)
-    return {"message": "User created successfully", "user_id": user.id}
+    
+    # Send welcome email immediately with credentials
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    signup_url = f"{frontend_url}/signup?email={data.email}&name={data.name}"
+    
+    try:
+        resend.Emails.send({
+            "from": "Dr. Shumard Portal <noreply@portal.drshumard.com>",
+            "to": data.email,
+            "subject": "Welcome to Your Diabetes Wellness Journey",
+            "html": f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body {{
+                        margin: 0;
+                        padding: 0;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+                        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%);
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 40px auto;
+                        background: white;
+                        border-radius: 16px;
+                        overflow: hidden;
+                        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+                    }}
+                    .header {{
+                        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+                        padding: 40px 30px;
+                        text-align: center;
+                    }}
+                    .logo {{
+                        width: 80px;
+                        height: 80px;
+                        background: rgba(255, 255, 255, 0.2);
+                        backdrop-filter: blur(10px);
+                        border-radius: 50%;
+                        margin: 0 auto 20px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 32px;
+                        font-weight: bold;
+                        color: white;
+                        border: 2px solid rgba(255, 255, 255, 0.3);
+                    }}
+                    .header h1 {{
+                        color: white;
+                        margin: 0;
+                        font-size: 28px;
+                        font-weight: 700;
+                    }}
+                    .content {{
+                        padding: 40px 30px;
+                    }}
+                    .greeting {{
+                        font-size: 24px;
+                        color: #1e293b;
+                        font-weight: 600;
+                        margin-bottom: 16px;
+                    }}
+                    .message {{
+                        color: #64748b;
+                        font-size: 16px;
+                        line-height: 1.6;
+                        margin-bottom: 30px;
+                    }}
+                    .credentials-card {{
+                        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+                        border-radius: 12px;
+                        padding: 24px;
+                        margin: 24px 0;
+                        border: 1px solid #BFDBFE;
+                    }}
+                    .credentials-title {{
+                        color: #1e40af;
+                        font-size: 18px;
+                        font-weight: 600;
+                        margin-bottom: 16px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }}
+                    .credential-row {{
+                        margin: 12px 0;
+                        color: #475569;
+                    }}
+                    .credential-label {{
+                        font-weight: 600;
+                        margin-right: 8px;
+                    }}
+                    .credential-value {{
+                        font-family: 'Courier New', monospace;
+                        background: white;
+                        padding: 8px 12px;
+                        border-radius: 6px;
+                        display: inline-block;
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: #1e293b;
+                        border: 1px solid #cbd5e1;
+                    }}
+                    .button {{
+                        display: inline-block;
+                        margin-top: 24px;
+                        padding: 16px 32px;
+                        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 10px;
+                        font-weight: 600;
+                        font-size: 16px;
+                        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+                    }}
+                    .button:hover {{
+                        background: linear-gradient(135deg, #1D4ED8 0%, #1e40af 100%);
+                    }}
+                    .important-note {{
+                        background: #fef3c7;
+                        border-left: 4px solid #f59e0b;
+                        padding: 16px;
+                        border-radius: 6px;
+                        margin: 24px 0;
+                        color: #92400e;
+                        font-size: 14px;
+                    }}
+                    .footer {{
+                        background: #f8fafc;
+                        padding: 30px;
+                        text-align: center;
+                        border-top: 1px solid #e2e8f0;
+                        color: #94a3b8;
+                        font-size: 13px;
+                    }}
+                    .divider {{
+                        height: 1px;
+                        background: #e2e8f0;
+                        margin: 30px 0;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <div class="logo">DS</div>
+                        <h1>Welcome to Your Wellness Portal</h1>
+                    </div>
+                    
+                    <div class="content">
+                        <div class="greeting">Hello {data.name}! 🎉</div>
+                        
+                        <p class="message">
+                            We're thrilled to have you begin your diabetes wellness journey with us! Your account has been created and is ready to go.
+                        </p>
+                        
+                        <div class="credentials-card">
+                            <div class="credentials-title">
+                                🔐 Your Login Credentials
+                            </div>
+                            <div class="credential-row">
+                                <span class="credential-label">Email:</span>
+                                <span class="credential-value">{data.email}</span>
+                            </div>
+                            <div class="credential-row">
+                                <span class="credential-label">Password:</span>
+                                <span class="credential-value">{generated_password}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="important-note">
+                            <strong>⚠️ Important:</strong> Please save this password securely. You can change it anytime after logging in to your account settings.
+                        </div>
+                        
+                        <center>
+                            <a href="{signup_url}" class="button">
+                                Access Your Portal Now →
+                            </a>
+                        </center>
+                        
+                        <div class="divider"></div>
+                        
+                        <p class="message" style="margin-bottom: 0;">
+                            <strong>What's Next?</strong><br>
+                            Click the button above to access your personalized wellness portal and begin your 7-step journey to better health.
+                        </p>
+                    </div>
+                    
+                    <div class="footer">
+                        <p style="margin: 0 0 8px 0;">Dr. Jason Shumard Wellness Portal</p>
+                        <p style="margin: 0;">If you have any questions, our support team is here to help.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+        })
+        logging.info(f"Welcome email with credentials sent to {data.email}")
+    except Exception as e:
+        logging.error(f"Failed to send welcome email: {e}")
+        # Continue even if email fails - user account still created
+    
+    return {
+        "message": "User created and welcome email sent", 
+        "user_id": user.id,
+        "signup_url": signup_url
+    }
 
 @api_router.post("/auth/signup", response_model=TokenResponse)
 async def signup(request: SignupRequest):
