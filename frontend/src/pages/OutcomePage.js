@@ -94,10 +94,10 @@ const OutcomePage = () => {
   }
 
   const achievements = [
-    { icon: Heart, title: 'Health Champion', description: 'Committed to better health' },
-    { icon: TrendingUp, title: 'Progress Master', description: 'Completed all 7 steps' },
-    { icon: Calendar, title: 'Consistency King', description: 'Stayed on track throughout' },
-    { icon: Star, title: 'Wellness Warrior', description: 'Embraced lifestyle changes' },
+    { icon: CheckCircle2, title: 'Consultation Booked', description: 'Scheduled your one-on-one call' },
+    { icon: Calendar, title: 'Journey Started', description: 'Took the first important step' },
+    { icon: Heart, title: 'Committed', description: 'Dedicated to better health' },
+    { icon: TrendingUp, title: 'Ready to Learn', description: 'Prepared for your wellness plan' },
   ];
 
   return (
