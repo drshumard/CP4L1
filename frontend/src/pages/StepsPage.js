@@ -284,12 +284,29 @@ const StepsPage = () => {
                   <div className="bg-white rounded-lg p-4 border-2 border-blue-600 flex-1 overflow-auto" data-testid="booking-calendar" style={{ maxHeight: 'calc(500px - 150px)' }}>
                     <Calendar className="mx-auto text-blue-600 mb-3" size={48} />
                     <p className="text-center text-gray-700 font-medium mb-4">Book Your Consultation</p>
-                    <iframe
-                      src="https://link.drjasonshumard.com/widget/booking/gBmaT3IK8LcQxmzpaf96"
-                      style={{ width: '100%', border: 'none', minHeight: '400px' }}
-                      scrolling="yes"
-                      id="msgsndr-calendar"
-                      title="Booking Calendar"
+                    {/* Practice Better Booking Widget */}
+                    <style dangerouslySetInnerHTML={{__html: `
+                      .better-inline-booking-widget {
+                        position: relative;
+                        overflow: hidden;
+                      }
+                      .better-inline-booking-widget iframe {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                      }
+                    `}} />
+                    <div 
+                      className="better-inline-booking-widget" 
+                      data-url="https://drshumard.practicebetter.io" 
+                      data-booking-page="" 
+                      data-hash="601a127b2a9c2406dcc94437" 
+                      data-theme="246af4" 
+                      data-theme-accent="f57f1b" 
+                      style={{ width: '100%', maxWidth: '550px', height: '800px', margin: '0 auto' }} 
+                      data-scrollbar-visible="false"
                     />
                   </div>
                 </CardContent>
