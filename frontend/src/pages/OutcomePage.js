@@ -337,14 +337,14 @@ const OutcomePage = () => {
                     onClick={() => navigate('/')}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold px-8 py-6 rounded-xl shadow-lg"
                   >
-                    Return to Dashboard
+                    Go to Dashboard
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => navigate('/steps')}
                     className="font-semibold px-8 py-6 rounded-xl"
                   >
-                    Review Your Journey
+                    View Step Details
                   </Button>
                 </div>
               </div>
