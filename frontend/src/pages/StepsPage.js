@@ -271,71 +271,60 @@ const StepsPage = () => {
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentStep === 1 ? (
-          /* Step 1: Health Advocate + Booking Calendar Layout */
+          /* Step 1: Video + Health Advocate on Left, Booking Calendar on Right */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left: Health Advocate Details */}
-            <div>
-              <Card className="glass-dark border-0 shadow-lg h-full" data-testid="advocate-card">
-                <CardContent className="p-8">
-                  <div className="text-center mb-8">
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-6 flex items-center justify-center">
-                      <UserIcon className="text-blue-600" size={64} />
+            {/* Left: Video + Health Advocate Details + Button */}
+            <div className="space-y-6">
+              {/* Video Section */}
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden" data-testid="video-section">
+                <div className="aspect-video bg-gray-900">
+                  <ReactPlayer
+                    url={stepInfo.videoUrl}
+                    width="100%"
+                    height="100%"
+                    controls
+                    onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
+                    data-testid="video-player"
+                  />
+                </div>
+              </Card>
+
+              {/* Health Advocate Card */}
+              <Card className="glass-dark border-0 shadow-lg" data-testid="advocate-card">
+                <CardContent className="p-6">
+                  <div className="text-center mb-6">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-4 flex items-center justify-center">
+                      <UserIcon className="text-blue-600" size={48} />
                     </div>
-                    <h2 className="text-3xl font-bold text-gray-800 mb-3">YOUR HEALTH ADVOCATE</h2>
-                    <h3 className="text-2xl text-gray-800 font-semibold mb-2">Dr. Jason Shumard</h3>
-                    <p className="text-lg text-gray-600 mb-4">Certified Diabetes Educator</p>
-                    <div className="flex items-center justify-center gap-2 text-gray-600 mb-6">
-                      <Phone size={20} />
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">YOUR HEALTH ADVOCATE</h3>
+                    <p className="text-lg text-gray-800 font-semibold mb-1">Dr. Jason Shumard</p>
+                    <p className="text-sm text-gray-600 mb-3">Certified Diabetes Educator</p>
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                      <Phone size={16} />
                       <span>Available for support</span>
                     </div>
                   </div>
                   
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 mb-6">
-                    <h4 className="font-bold text-gray-800 mb-3 text-lg">About Dr. Shumard</h4>
-                    <p className="text-gray-700 mb-4 leading-relaxed">
-                      Dr. Shumard is here to guide you through every step of your wellness journey. With years of experience 
-                      in diabetes management, he provides personalized support and answers all your questions.
-                    </p>
-                    <p className="text-gray-700 leading-relaxed">
-                      Your first step is to schedule your one-on-one consultation using the calendar. Together, 
-                      you'll create a personalized plan for your diabetes wellness journey.
-                    </p>
-                  </div>
+                  <p className="text-gray-700 text-center leading-relaxed">
+                    Dr. Shumard is here to guide you through every step of your journey. With years of experience 
+                    in diabetes management, he'll provide personalized support and answer all your questions.
+                  </p>
+                </CardContent>
+              </Card>
 
-                  <div className="border-t pt-6">
-                    <h4 className="font-semibold text-gray-800 mb-3">What to Expect:</h4>
-                    <ul className="space-y-2 text-gray-700">
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
-                        <span>Personalized health assessment</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
-                        <span>Customized wellness plan creation</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
-                        <span>Answer all your questions</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="text-green-500 mt-1 flex-shrink-0" size={18} />
-                        <span>Set goals for your journey</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="mt-8">
-                    <p className="text-sm text-gray-600 mb-3 italic text-center">
-                      ⚠️ Only click this once you have booked your consultation
-                    </p>
-                    <Button
-                      onClick={handleStep1Complete}
-                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
-                      data-testid="submit-button"
-                    >
-                      Mark as Complete & Continue
-                    </Button>
-                  </div>
+              {/* Complete Button */}
+              <Card className="glass-dark border-0 shadow-lg">
+                <CardContent className="p-6">
+                  <p className="text-sm text-gray-600 mb-3 italic text-center">
+                    ⚠️ Only click this once you have booked your consultation
+                  </p>
+                  <Button
+                    onClick={handleStep1Complete}
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
+                    data-testid="submit-button"
+                  >
+                    Mark as Complete & Continue
+                  </Button>
                 </CardContent>
               </Card>
             </div>
