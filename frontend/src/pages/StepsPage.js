@@ -443,67 +443,22 @@ const StepsPage = () => {
                   </Button>
                 </CardContent>
               </Card>
-            )}
-          </div>
-        </div>
-
-        {/* Bottom Container: Description + Health Advocate */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Description Card */}
-          <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
-            <CardContent className="p-6">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
-              <p className="text-gray-600 mb-4">{stepInfo.description}</p>
-              {currentStep === 1 && (
-                <>
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
-                    <h4 className="font-semibold text-gray-800 mb-2">Welcome to Your Diabetes Wellness Journey</h4>
-                    <p className="text-sm text-gray-600">
-                      We're thrilled to have you here! This comprehensive program is designed to guide you through essential 
-                      steps for better health and diabetes management. Your first step is to watch the welcome video and 
-                      schedule your one-on-one consultation with our health advocate. Together, we'll create a personalized 
-                      plan for your wellness journey.
-                    </p>
-                  </div>
-                  <div className="border-t pt-6">
-                    <p className="text-sm text-gray-600 mb-3 italic">
-                      ⚠️ Only click this once you have booked the call
-                    </p>
-                    <Button
-                      onClick={handleStep1Complete}
-                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
-                      data-testid="submit-button"
-                    >
-                      Mark as Complete & Continue
-                    </Button>
-                  </div>
-                </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+        )}
 
-          {/* Health Advocate Card */}
-          <Card className="glass-dark border-0 shadow-lg" data-testid="advocate-card">
-            <CardContent className="p-6">
-              <div className="text-center">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-4 flex items-center justify-center">
-                  <UserIcon className="text-blue-600" size={48} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">YOUR HEALTH ADVOCATE</h3>
-                <p className="text-gray-800 font-medium mb-1">Dr. Jason Shumard</p>
-                <p className="text-sm text-gray-600 mb-3">Certified Diabetes Educator</p>
-                <div className="flex items-center justify-center gap-2 text-sm text-gray-600 mb-4">
-                  <Phone size={16} />
-                  <span>Available for support</span>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Dr. Shumard is here to guide you through every step of your journey. With years of experience 
-                  in diabetes management, he'll provide personalized support and answer all your questions.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Bottom Container: Description Card (for Steps 2-7 only) */}
+        {currentStep !== 1 && (
+          <div className="mt-6">
+            <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
+                <p className="text-gray-600 mb-4">{stepInfo.description}</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
