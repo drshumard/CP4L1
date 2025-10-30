@@ -299,17 +299,17 @@ const OutcomePage = () => {
               </div>
 
               <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-6 mb-8">
-                <h3 className="font-bold text-xl text-gray-800 mb-4">What You've Mastered:</h3>
+                <h3 className="font-bold text-xl text-gray-800 mb-4">How to Prepare for Your Call:</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
-                    'Diabetes fundamentals',
-                    'Nutrition planning',
-                    'Exercise routines',
-                    'Blood sugar monitoring',
-                    'Medication management',
-                    'Lifestyle modifications',
-                    'Stress management',
-                    'Long-term wellness strategies',
+                    'Review your current medications',
+                    'List your health goals',
+                    'Note recent blood sugar readings',
+                    'Write down your questions',
+                    'Prepare your medical history',
+                    'Think about lifestyle challenges',
+                    'Consider dietary preferences',
+                    'Be ready to discuss exercise habits',
                   ].map((item, idx) => (
                     <motion.div
                       key={idx}
@@ -318,7 +318,7 @@ const OutcomePage = () => {
                       transition={{ delay: 2 + idx * 0.1 }}
                       className="flex items-center gap-2"
                     >
-                      <CheckCircle2 className="text-green-500 flex-shrink-0" size={20} />
+                      <CheckCircle2 className="text-blue-500 flex-shrink-0" size={20} />
                       <span className="text-gray-700">{item}</span>
                     </motion.div>
                   ))}
@@ -326,10 +326,11 @@ const OutcomePage = () => {
               </div>
 
               <div className="text-center">
-                <h3 className="font-bold text-xl text-gray-800 mb-3">Keep Up the Great Work!</h3>
+                <h3 className="font-bold text-xl text-gray-800 mb-3">What Comes Next?</h3>
                 <p className="text-gray-600 mb-6">
-                  Remember, this journey doesn't end here. Continue applying what you've learned, stay connected with 
-                  your health advocate, and maintain the healthy habits you've built.
+                  After your consultation, you'll move through 6 more steps covering diabetes fundamentals, nutrition, 
+                  exercise, monitoring, medication management, and long-term wellness strategies. Dr. Shumard will create 
+                  your personalized plan during your call.
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
                   <Button
