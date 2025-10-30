@@ -217,7 +217,7 @@ const OutcomePage = () => {
           transition={{ delay: 1, duration: 0.8 }}
           className="mb-16"
         >
-          <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Your Achievements</h2>
+          <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">What You've Accomplished</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {achievements.map((achievement, idx) => (
               <motion.div
