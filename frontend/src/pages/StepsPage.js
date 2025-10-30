@@ -72,6 +72,20 @@ const StepsPage = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Load Practice Better booking widget script
+    const script = document.createElement('script');
+    script.src = 'https://drshumard.practicebetter.io/booking.widget.js';
+    script.async = true;
+    document.head.appendChild(script);
+    
+    return () => {
+      // Cleanup script on unmount
+      const existingScript = document.querySelector('script[src="https://drshumard.practicebetter.io/booking.widget.js"]');
+      if (existingScript) {
+        document.head.removeChild(existingScript);
+      }
+    };
   }, []);
 
   const fetchData = async () => {
