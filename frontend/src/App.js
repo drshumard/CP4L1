@@ -28,7 +28,7 @@ function App() {
           <Route path="/outcome" element={<PrivateRoute><OutcomePage /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         </Routes>
-        <Toaster position="top-right" />
+        <Toaster position="top-center" />
       </div>
     </BrowserRouter>
   );
