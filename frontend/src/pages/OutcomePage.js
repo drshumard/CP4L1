@@ -265,12 +265,12 @@ const OutcomePage = () => {
           <Card className="glass-dark border-0 shadow-2xl overflow-hidden">
             <CardContent className="p-8 sm:p-12">
               <div className="text-center mb-8">
-                <Award className="inline-block text-yellow-500 mb-4" size={48} />
-                <h2 className="text-3xl font-bold text-gray-800 mb-4">Your Wellness Journey</h2>
+                <Award className="inline-block text-blue-500 mb-4" size={48} />
+                <h2 className="text-3xl font-bold text-gray-800 mb-4">Preparing for Your Consultation</h2>
                 <p className="text-gray-600 max-w-3xl mx-auto">
-                  Over the past weeks, you've taken incredible steps toward better health. From learning about diabetes 
-                  management to establishing healthy nutrition and exercise habits, you've demonstrated commitment and 
-                  dedication that will serve you for life.
+                  You've completed the first step by booking your consultation with Dr. Shumard. This one-on-one call 
+                  is where your personalized wellness journey begins. Make sure you're prepared to discuss your health 
+                  goals, current challenges, and any questions you have about diabetes management.
                 </p>
               </div>
 
@@ -279,22 +279,22 @@ const OutcomePage = () => {
                   whileHover={{ scale: 1.05 }}
                   className="text-center p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100"
                 >
-                  <div className="text-4xl font-bold text-blue-600 mb-2">7</div>
+                  <div className="text-4xl font-bold text-blue-600 mb-2">1/7</div>
                   <div className="text-sm text-gray-600">Steps Completed</div>
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   className="text-center p-6 rounded-2xl bg-gradient-to-br from-green-50 to-green-100"
                 >
-                  <div className="text-4xl font-bold text-green-600 mb-2">100%</div>
-                  <div className="text-sm text-gray-600">Program Completion</div>
+                  <div className="text-4xl font-bold text-green-600 mb-2">14%</div>
+                  <div className="text-sm text-gray-600">Journey Progress</div>
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   className="text-center p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100"
                 >
-                  <div className="text-4xl font-bold text-purple-600 mb-2">∞</div>
-                  <div className="text-sm text-gray-600">Lifetime Benefits</div>
+                  <div className="text-4xl font-bold text-purple-600 mb-2">6</div>
+                  <div className="text-sm text-gray-600">Steps Remaining</div>
                 </motion.div>
               </div>
 
