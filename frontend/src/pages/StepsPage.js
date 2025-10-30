@@ -75,15 +75,16 @@ const StepsPage = () => {
     
     // Load Practice Better booking widget script
     const script = document.createElement('script');
-    script.src = 'https://drshumard.practicebetter.io/booking.widget.js';
+    script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
+    script.type = 'text/javascript';
     script.async = true;
-    document.head.appendChild(script);
+    document.body.appendChild(script);
     
     return () => {
       // Cleanup script on unmount
-      const existingScript = document.querySelector('script[src="https://drshumard.practicebetter.io/booking.widget.js"]');
+      const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
       if (existingScript) {
-        document.head.removeChild(existingScript);
+        document.body.removeChild(existingScript);
       }
     };
   }, []);
