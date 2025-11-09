@@ -287,18 +287,20 @@ const StepsPage = () => {
             <style dangerouslySetInnerHTML={{__html: `
               .better-inline-booking-widget {
                 position: relative;
-                overflow: hidden;
+                overflow: auto;
                 background: white;
                 border-radius: 0.5rem;
                 height: 100%;
               }
               .better-inline-booking-widget iframe {
-                position: absolute;
+                position: relative;
                 top: 0;
                 left: 0;
                 width: 100%;
-                height: 100%;
+                min-height: 100%;
+                height: auto;
                 border: none;
+                display: block;
               }
               
               /* Gradient border wrapper - minimal padding for maximum width */
@@ -313,7 +315,7 @@ const StepsPage = () => {
               .form-inner-fullpage {
                 background: white;
                 border-radius: calc(0.5rem - 2px);
-                overflow: hidden;
+                overflow: auto;
                 height: 100%;
               }
               
