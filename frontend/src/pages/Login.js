@@ -53,17 +53,17 @@ const Login = () => {
 
   const handlePasswordReset = async () => {
     if (!resetEmail) {
-      toast.error('Please enter your email');
+      showNotification('error', 'Please enter your email');
       return;
     }
 
     try {
       await axios.post(`${API}/auth/request-reset`, { email: resetEmail });
-      toast.success('Password reset link sent to your email');
+      showNotification('success', 'Password reset link sent to your email');
       setShowResetModal(false);
       setResetEmail('');
     } catch (error) {
-      toast.error('Failed to send reset email');
+      showNotification('error', 'Failed to send reset email');
     }
   };
 
