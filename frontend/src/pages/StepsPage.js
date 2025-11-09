@@ -282,13 +282,14 @@ const StepsPage = () => {
             </p>
           </div>
 
-          {/* Form Container - Full Width, Natural Height */}
-          <div className="px-2 pb-20">
+          {/* Form Container - Comfortable Width, Natural Height */}
+          <div className="px-8 md:px-16 lg:px-24 pb-20 max-w-[1800px] mx-auto">
             <style dangerouslySetInnerHTML={{__html: `
               .better-inline-booking-widget {
                 position: relative;
                 background: white;
                 border-radius: 0.5rem;
+                overflow: hidden;
               }
               .better-inline-booking-widget iframe {
                 position: absolute;
@@ -297,19 +298,31 @@ const StepsPage = () => {
                 width: 100%;
                 height: 100%;
                 border: none;
+                overflow-y: auto;
+                overflow-x: hidden;
               }
               
-              /* Gradient border wrapper - minimal padding for maximum width */
+              /* Gradient border wrapper */
               .form-wrapper-fullpage {
                 background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-                padding: 2px;
+                padding: 3px;
                 border-radius: 0.5rem;
                 box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
               }
               
               .form-inner-fullpage {
                 background: white;
-                border-radius: calc(0.5rem - 2px);
+                border-radius: calc(0.5rem - 3px);
+                overflow: hidden;
+              }
+              
+              /* Hide scrollbar for the widget to avoid double scroll */
+              .better-inline-booking-widget::-webkit-scrollbar {
+                display: none;
+              }
+              .better-inline-booking-widget {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
               }
               
               /* Complete button at bottom right */
