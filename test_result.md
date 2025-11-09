@@ -143,6 +143,18 @@ frontend:
       - working: true
         agent: "main"
         comment: "Fixed layout positioning - info card now appears centered directly on top of stage content cards (not side by side). Wrapped both components in flex container with mx-auto for proper vertical stacking. Verified across all 4 stages with screenshots."
+  
+  - task: "Redesign login page with larger split-layout modal"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Login.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Completely redesigned login page to match modern split-layout design. Changed from max-w-md to max-w-5xl. Added two-column grid layout with gradient left panel (blue-purple gradient, DS logo, welcome text, feature checkmarks) and clean white form area on right. Increased card height to min-h-600px. Added decorative blur circles. Maintained all functionality including inline notifications, forgot password, and form validation. No social logins included per requirements. Screenshots confirm modern, professional appearance."
 
 metadata:
   created_by: "main_agent"
