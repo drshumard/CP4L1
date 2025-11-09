@@ -91,8 +91,8 @@ const Login = () => {
                   transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
                   className="mb-8"
                 >
-                  <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6">
-                    <span className="text-4xl font-bold">DS</span>
+                  <div className="w-24 h-24 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-8">
+                    <span className="text-5xl font-bold">DS</span>
                   </div>
                 </motion.div>
                 
