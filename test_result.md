@@ -155,6 +155,18 @@ frontend:
       - working: true
         agent: "main"
         comment: "Completely redesigned login page to match modern split-layout design. Changed from max-w-md to max-w-5xl. Added two-column grid layout with gradient left panel (blue-purple gradient, DS logo, welcome text, feature checkmarks) and clean white form area on right. Increased card height to min-h-600px. Added decorative blur circles. Maintained all functionality including inline notifications, forgot password, and form validation. No social logins included per requirements. Screenshots confirm modern, professional appearance."
+  
+  - task: "Step 2 - Full-page Practice Better form embed"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/StepsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented full-page Practice Better form for Step 2. Uses calc(100vh - 280px) for height calculation. Form takes full remaining viewport with flex-1 layout. Added minimal header with gradient text. Floating 'Continue' button fixed at bottom-right with gradient styling and hover effects. Eliminated scrolling with overflow-hidden. Gradient border wrapper (3px blue-purple) around form. Custom CSS for iframe sizing and positioning. Form fills entire available space."
 
 metadata:
   created_by: "main_agent"
