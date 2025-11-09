@@ -30,10 +30,10 @@ const Signup = () => {
   }, [searchParams, navigate]);
 
   const startSignupProcess = async (userEmail, userName) => {
-    // Stage 0: Welcome animation (1.5s)
-    setTimeout(() => setStage(1), 1500);
+    // Stage 0: Welcome animation (6s)
+    setTimeout(() => setStage(1), 6000);
     
-    // Stage 1: Setting up account (1.5s) - Call API
+    // Stage 1: Setting up account (4s) - Call API
     setTimeout(async () => {
       try {
         const response = await axios.post(`${API}/auth/signup`, {
@@ -51,13 +51,13 @@ const Signup = () => {
         setTimeout(() => navigate('/login'), 2000);
         return;
       }
-    }, 1500);
+    }, 6000);
     
-    // Stage 2: Password sent message (2s)
-    setTimeout(() => setStage(3), 5000);
+    // Stage 2: Password sent message (6s)
+    setTimeout(() => setStage(3), 16000);
     
-    // Stage 3: Redirecting message (3s) then navigate
-    setTimeout(() => navigate('/'), 8000);
+    // Stage 3: Redirecting message (4s) then navigate
+    setTimeout(() => navigate('/'), 20000);
   };
 
   return (
