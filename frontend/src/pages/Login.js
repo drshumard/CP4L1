@@ -100,7 +100,7 @@ const Login = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="text-4xl md:text-5xl font-bold mb-4 leading-tight"
+                  className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
                 >
                   Welcome to Your<br />Wellness Portal
                 </motion.h1>
@@ -109,7 +109,7 @@ const Login = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
-                  className="text-lg text-blue-100 mb-8"
+                  className="text-xl text-blue-100 mb-12"
                 >
                   Continue your journey to better health and wellness
                 </motion.p>
