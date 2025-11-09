@@ -135,3 +135,5 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: "Implemented custom inline notification component for login page. Used local state instead of global Sonner toast. Notifications positioned inside card at top with brand styling. Initial visual testing shows correct placement. Ready for comprehensive functional testing."
+  - agent: "main"
+    message: "Extended signup animation timing from 8s to 20s total. Stage 0 (Welcome): 6s, Stage 1 (Setting Up): 4s, Stage 2 (Password Sent): 6s, Stage 3 (Redirecting): 4s. Updated all setTimeout values in startSignupProcess function."
