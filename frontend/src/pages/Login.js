@@ -76,6 +76,60 @@ const Login = () => {
         className="w-full"
       >
         <Card className="glass-dark shadow-2xl border-0 max-w-md mx-auto" data-testid="login-card">
+          {/* Inline Notification */}
+          <AnimatePresence>
+            {notification && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: -20, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div
+                  className={`mx-6 mt-6 p-4 rounded-lg backdrop-blur-md border ${
+                    notification.type === 'success'
+                      ? 'bg-blue-50/80 border-blue-200 text-blue-800'
+                      : 'bg-red-50/80 border-red-200 text-red-800'
+                  } shadow-sm`}
+                  style={{
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                        notification.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
+                      }`}>
+                        {notification.type === 'success' ? (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium leading-relaxed">{notification.message}</p>
+                    </div>
+                    <button
+                      onClick={() => setNotification(null)}
+                      className={`flex-shrink-0 ${
+                        notification.type === 'success' ? 'text-blue-600 hover:text-blue-800' : 'text-red-600 hover:text-red-800'
+                      } transition-colors`}
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          
           <CardHeader className="space-y-1 text-center pb-6">
             <div className="flex justify-center mb-4">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
