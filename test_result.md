@@ -140,6 +140,9 @@ frontend:
       - working: true
         agent: "main"
         comment: "Added persistent informational card above signup animation flow. Card displays 'Setting up your wellness portal' message with instruction to stay on page. Features animated Activity icon, pulsing green indicator, glassmorphism design, and stays visible throughout all 4 stages. Reduces bounce rate during 20-second onboarding sequence."
+      - working: true
+        agent: "main"
+        comment: "Fixed layout positioning - info card now appears centered directly on top of stage content cards (not side by side). Wrapped both components in flex container with mx-auto for proper vertical stacking. Verified across all 4 stages with screenshots."
 
 metadata:
   created_by: "main_agent"
