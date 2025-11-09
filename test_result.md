@@ -128,6 +128,18 @@ frontend:
       - working: true
         agent: "main"
         comment: "Extended automated signup flow animation timing from 8 seconds to 20 seconds total. Updated setTimeout values: Stage 0 (Welcome) = 6s, Stage 1 (Setting Up) = 4s, Stage 2 (Password Sent) = 6s, Stage 3 (Redirecting) = 4s. Code changes verified in startSignupProcess function."
+  
+  - task: "Add persistent informational card to signup flow"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Signup.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added persistent informational card above signup animation flow. Card displays 'Setting up your wellness portal' message with instruction to stay on page. Features animated Activity icon, pulsing green indicator, glassmorphism design, and stays visible throughout all 4 stages. Reduces bounce rate during 20-second onboarding sequence."
 
 metadata:
   created_by: "main_agent"
