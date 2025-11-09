@@ -270,10 +270,10 @@ const StepsPage = () => {
 
       {/* Main Content */}
       {currentStep === 2 ? (
-        /* Step 2: Full-width form - no container constraints */
-        <div className="flex flex-col" style={{ height: 'calc(100vh - 280px)' }}>
+        /* Step 2: Full-width form - let it expand naturally */
+        <div className="py-4">
           {/* Header Section - Minimal */}
-          <div className="flex-shrink-0 text-center py-4 px-4">
+          <div className="text-center pb-4 px-4">
             <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
               Tell Us About Yourself
             </h2>
@@ -282,22 +282,19 @@ const StepsPage = () => {
             </p>
           </div>
 
-          {/* Form Container - Takes Remaining Space, Full Width */}
-          <div className="flex-1 px-2 pb-2 overflow-hidden">
+          {/* Form Container - Full Width, Natural Height */}
+          <div className="px-2 pb-20">
             <style dangerouslySetInnerHTML={{__html: `
               .better-inline-booking-widget {
                 position: relative;
-                overflow: auto;
                 background: white;
                 border-radius: 0.5rem;
-                height: 100%;
+                min-height: 600px;
               }
               .better-inline-booking-widget iframe {
                 position: relative;
-                top: 0;
-                left: 0;
                 width: 100%;
-                min-height: 100%;
+                min-height: 800px;
                 height: auto;
                 border: none;
                 display: block;
@@ -308,15 +305,12 @@ const StepsPage = () => {
                 background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
                 padding: 2px;
                 border-radius: 0.5rem;
-                height: 100%;
                 box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
               }
               
               .form-inner-fullpage {
                 background: white;
                 border-radius: calc(0.5rem - 2px);
-                overflow: auto;
-                height: 100%;
               }
               
               /* Complete button at bottom right */
