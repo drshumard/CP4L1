@@ -331,6 +331,7 @@ const Signup = () => {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
     </div>
   );
