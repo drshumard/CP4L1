@@ -206,13 +206,13 @@ const Login = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6" data-testid="login-form">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="email" className="text-base font-medium text-gray-700">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    className="h-12 px-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-14 px-5 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     data-testid="email-input"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -220,13 +220,13 @@ const Login = () => {
                   />
                 </div>
                 
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <Label htmlFor="password" className="text-sm font-medium text-gray-700">Password</Label>
+                    <Label htmlFor="password" className="text-base font-medium text-gray-700">Password</Label>
                     <button
                       type="button"
                       onClick={() => setShowResetModal(true)}
-                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-base text-blue-600 hover:text-blue-700 font-medium"
                       data-testid="forgot-password-button"
                     >
                       Forgot password?
@@ -236,7 +236,7 @@ const Login = () => {
                     id="password"
                     type="password"
                     placeholder="••••••••"
-                    className="h-12 px-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-14 px-5 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     data-testid="password-input"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -246,7 +246,7 @@ const Login = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg text-base"
+                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg text-lg mt-8"
                   disabled={loading}
                   data-testid="login-submit-button"
                 >
