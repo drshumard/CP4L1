@@ -200,12 +200,12 @@ const Login = () => {
                 )}
               </AnimatePresence>
 
-              <div className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
-                <p className="text-gray-600">Enter your credentials to access your account</p>
+              <div className="mb-10">
+                <h2 className="text-4xl font-bold text-gray-900 mb-3">Sign In</h2>
+                <p className="text-lg text-gray-600">Enter your credentials to access your account</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-5" data-testid="login-form">
+              <form onSubmit={handleSubmit} className="space-y-6" data-testid="login-form">
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</Label>
                   <Input
