@@ -156,7 +156,7 @@ const Login = () => {
             </div>
 
             {/* Right Side - Login Form */}
-            <div className="bg-white p-12 md:p-16 lg:p-20 flex flex-col justify-center">
+            <div className="bg-white p-6 sm:p-8 md:p-12 lg:p-16 xl:p-20 flex flex-col justify-center">
               {/* Inline Notification */}
               <AnimatePresence>
                 {notification && (
@@ -165,17 +165,17 @@ const Login = () => {
                     animate={{ opacity: 1, y: 0, height: 'auto' }}
                     exit={{ opacity: 0, y: -20, height: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="overflow-hidden mb-6"
+                    className="overflow-hidden mb-4 md:mb-6"
                   >
                     <div
-                      className={`p-4 rounded-lg border ${
+                      className={`p-3 md:p-4 rounded-lg border ${
                         notification.type === 'success'
                           ? 'bg-blue-50 border-blue-200 text-blue-800'
                           : 'bg-red-50 border-red-200 text-red-800'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1">
+                      <div className="flex items-start justify-between gap-2 md:gap-3">
+                        <div className="flex items-start gap-2 md:gap-3 flex-1">
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
                             notification.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
                           }`}>
@@ -189,7 +189,7 @@ const Login = () => {
                               </svg>
                             )}
                           </div>
-                          <p className="text-sm font-medium leading-relaxed">{notification.message}</p>
+                          <p className="text-xs md:text-sm font-medium leading-relaxed">{notification.message}</p>
                         </div>
                         <button
                           onClick={() => setNotification(null)}
@@ -207,19 +207,19 @@ const Login = () => {
                 )}
               </AnimatePresence>
 
-              <div className="mb-10">
-                <h2 className="text-4xl font-bold text-gray-900 mb-3">Sign In</h2>
-                <p className="text-lg text-gray-600">Enter your credentials to access your account</p>
+              <div className="mb-6 md:mb-10">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 md:mb-3">Sign In</h2>
+                <p className="text-sm md:text-lg text-gray-600">Enter your credentials to access your account</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6" data-testid="login-form">
-                <div className="space-y-3">
-                  <Label htmlFor="email" className="text-base font-medium text-gray-700">Email Address</Label>
+              <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6" data-testid="login-form">
+                <div className="space-y-2 md:space-y-3">
+                  <Label htmlFor="email" className="text-sm md:text-base font-medium text-gray-700">Email Address</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    className="h-14 px-5 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     data-testid="email-input"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -227,13 +227,13 @@ const Login = () => {
                   />
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   <div className="flex justify-between items-center">
-                    <Label htmlFor="password" className="text-base font-medium text-gray-700">Password</Label>
+                    <Label htmlFor="password" className="text-sm md:text-base font-medium text-gray-700">Password</Label>
                     <button
                       type="button"
                       onClick={() => setShowResetModal(true)}
-                      className="text-base text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-xs md:text-base text-blue-600 hover:text-blue-700 font-medium"
                       data-testid="forgot-password-button"
                     >
                       Forgot password?
@@ -243,7 +243,7 @@ const Login = () => {
                     id="password"
                     type="password"
                     placeholder="••••••••"
-                    className="h-14 px-5 text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                     data-testid="password-input"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -253,7 +253,7 @@ const Login = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg text-lg mt-8"
+                  className="w-full h-12 md:h-14 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg text-base md:text-lg mt-6 md:mt-8"
                   disabled={loading}
                   data-testid="login-submit-button"
                 >
