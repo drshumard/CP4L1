@@ -101,3 +101,37 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Toast notifications on the login page should appear inside/at the top of the login card instead of the top right corner of the screen. The styling should match the brand (white, blue, neutral tones with glassmorphism). This change is specific to the login page only."
+
+frontend:
+  - task: "Reposition toast notifications to top of login card"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Login.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented custom inline notification system inside login card. Replaced global Sonner toast calls with local notification state. Added AnimatePresence for smooth animations. Notifications now appear at top of card with glassmorphism styling (blue for success, red for error). Auto-dismiss after 5 seconds with manual close option. Initial screenshots show correct positioning and styling."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Test login error notification"
+    - "Test password reset notifications"
+    - "Test success notification on valid login"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Implemented custom inline notification component for login page. Used local state instead of global Sonner toast. Notifications positioned inside card at top with brand styling. Initial visual testing shows correct placement. Ready for comprehensive functional testing."
