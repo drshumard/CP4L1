@@ -78,7 +78,7 @@ const Login = () => {
         <Card className="shadow-2xl border-0 overflow-hidden w-full max-w-7xl" data-testid="login-card" style={{ height: 'calc(100vh - 4rem)' }}>
           <div className="grid md:grid-cols-2 h-full">
             {/* Left Side - Gradient Panel */}
-            <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-12 flex flex-col justify-center text-white overflow-hidden">
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-16 md:p-20 flex flex-col justify-center text-white overflow-hidden">
               {/* Decorative circles */}
               <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
               <div className="absolute bottom-20 right-10 w-40 h-40 bg-purple-400/20 rounded-full blur-3xl"></div>
