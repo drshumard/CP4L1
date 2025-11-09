@@ -371,8 +371,90 @@ const StepsPage = () => {
               </Card>
             </div>
           </div>
+        ) : currentStep === 2 ? (
+          /* Step 2: Practice Better Form Embed */
+          <div className="max-w-5xl mx-auto">
+            <Card className="glass-dark border-0 shadow-2xl overflow-hidden" data-testid="step2-form-card">
+              <CardContent className="p-8">
+                <div className="text-center mb-6">
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+                    Tell Us About Yourself
+                  </h2>
+                  <p className="text-gray-600 text-lg">
+                    Complete this form to help us personalize your wellness journey
+                  </p>
+                </div>
+
+                {/* Practice Better Form Container with Custom Styling */}
+                <div className="relative rounded-2xl overflow-hidden border-4 border-gradient-to-r from-blue-400 to-purple-400 shadow-xl bg-white">
+                  <style dangerouslySetInnerHTML={{__html: `
+                    .better-inline-booking-widget {
+                      position: relative;
+                      overflow: hidden;
+                      background: white;
+                      border-radius: 1rem;
+                    }
+                    .better-inline-booking-widget iframe {
+                      position: absolute;
+                      top: 0;
+                      left: 0;
+                      width: 100%;
+                      height: 100%;
+                      border: none;
+                      border-radius: 1rem;
+                    }
+                    
+                    /* Add custom gradient border effect */
+                    .form-wrapper {
+                      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+                      padding: 4px;
+                      border-radius: 1rem;
+                    }
+                    
+                    .form-inner {
+                      background: white;
+                      border-radius: calc(1rem - 4px);
+                      overflow: hidden;
+                    }
+                  `}} />
+                  
+                  <div className="form-wrapper">
+                    <div className="form-inner">
+                      <div 
+                        className="better-inline-booking-widget" 
+                        data-url="https://drshumard.practicebetter.io/" 
+                        data-form-request="6021e5d42a9c2406f45aa20f" 
+                        data-hash="601a127b2a9c2406dcc94437" 
+                        data-theme="246af4" 
+                        data-theme-accent="f57f1b" 
+                        style={{ maxWidth: '100%', height: '800px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Complete Button */}
+                <div className="mt-8">
+                  <Card className="glass-dark border-0 shadow-lg">
+                    <CardContent className="p-4">
+                      <p className="text-xs text-gray-600 mb-2 italic text-center">
+                        ⚠️ Only click this once you have completed the form
+                      </p>
+                      <Button
+                        onClick={handleAdvanceStep}
+                        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-5 rounded-xl shadow-lg transition-all hover:scale-105"
+                        data-testid="submit-button"
+                      >
+                        Continue to Next Step
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
-          /* Other Steps: Video + Action Card Layout */
+          /* Other Steps (3-7): Video + Action Card Layout */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
             {/* Video Section */}
             <div data-testid="video-section" style={{ height: '500px' }}>
@@ -390,7 +472,7 @@ const StepsPage = () => {
               </Card>
             </div>
 
-            {/* Action Card for Steps 2-7 */}
+            {/* Action Card for Steps 3-7 */}
             <div style={{ height: '500px' }}>
               {currentStep !== 1 && (
               /* Action Card for other steps */
