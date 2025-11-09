@@ -540,18 +540,19 @@ const StepsPage = () => {
           </div>
         )}
 
-        {/* Bottom Container: Description Card (for Steps 3-7 only) */}
-        {currentStep !== 1 && currentStep !== 2 && (
-          <div className="mt-6">
-            <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
-                <p className="text-gray-600 mb-4">{stepInfo.description}</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
+          {/* Bottom Container: Description Card (for Steps 3-7 only) */}
+          {currentStep !== 1 && currentStep !== 2 && (
+            <div className="mt-6">
+              <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
+                  <p className="text-gray-600 mb-4">{stepInfo.description}</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
