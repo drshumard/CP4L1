@@ -289,15 +289,14 @@ const StepsPage = () => {
                 position: relative;
                 background: white;
                 border-radius: 0.5rem;
-                min-height: 600px;
               }
               .better-inline-booking-widget iframe {
-                position: relative;
+                position: absolute;
+                top: 0;
+                left: 0;
                 width: 100%;
-                min-height: 800px;
-                height: auto;
+                height: 100%;
                 border: none;
-                display: block;
               }
               
               /* Gradient border wrapper - minimal padding for maximum width */
