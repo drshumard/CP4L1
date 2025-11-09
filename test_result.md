@@ -178,3 +178,5 @@ agent_communication:
     message: "Extended signup animation timing from 8s to 20s total. Stage 0 (Welcome): 6s, Stage 1 (Setting Up): 4s, Stage 2 (Password Sent): 6s, Stage 3 (Redirecting): 4s. Updated all setTimeout values in startSignupProcess function."
   - agent: "main"
     message: "Redesigned login page with larger split-layout card. Left side features blue-to-purple gradient with DS logo, welcome message, and feature list. Right side has clean white form area. Card increased from max-w-md to max-w-5xl. Grid layout (md:grid-cols-2) with min-h-600px. Matches modern design aesthetic from reference image."
+  - agent: "main"
+    message: "Implemented Step 2 with Practice Better form embed. Created dedicated layout with centered card, gradient border styling, and custom CSS for iframe embedding. Form embedded with data-url, data-form-request, data-hash attributes. Styled with blue-purple gradient border wrapper, glassmorphism card, and completion button below form. Excluded Step 2 from generic video+action layout."
