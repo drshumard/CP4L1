@@ -164,3 +164,5 @@ agent_communication:
     message: "Implemented custom inline notification component for login page. Used local state instead of global Sonner toast. Notifications positioned inside card at top with brand styling. Initial visual testing shows correct placement. Ready for comprehensive functional testing."
   - agent: "main"
     message: "Extended signup animation timing from 8s to 20s total. Stage 0 (Welcome): 6s, Stage 1 (Setting Up): 4s, Stage 2 (Password Sent): 6s, Stage 3 (Redirecting): 4s. Updated all setTimeout values in startSignupProcess function."
+  - agent: "main"
+    message: "Redesigned login page with larger split-layout card. Left side features blue-to-purple gradient with DS logo, welcome message, and feature list. Right side has clean white form area. Card increased from max-w-md to max-w-5xl. Grid layout (md:grid-cols-2) with min-h-600px. Matches modern design aesthetic from reference image."
