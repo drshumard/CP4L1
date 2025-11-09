@@ -68,15 +68,15 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center p-6 md:p-8" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-5xl mx-auto"
+        className="w-full h-full flex items-center justify-center"
       >
-        <Card className="shadow-2xl border-0 overflow-hidden" data-testid="login-card">
-          <div className="grid md:grid-cols-2 min-h-[600px]">
+        <Card className="shadow-2xl border-0 overflow-hidden w-full max-w-7xl" data-testid="login-card" style={{ height: 'calc(100vh - 4rem)' }}>
+          <div className="grid md:grid-cols-2 h-full">
             {/* Left Side - Gradient Panel */}
             <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-12 flex flex-col justify-center text-white overflow-hidden">
               {/* Decorative circles */}
