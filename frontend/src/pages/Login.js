@@ -149,7 +149,7 @@ const Login = () => {
             </div>
 
             {/* Right Side - Login Form */}
-            <div className="bg-white p-8 md:p-12 flex flex-col justify-center">
+            <div className="bg-white p-12 md:p-16 lg:p-20 flex flex-col justify-center">
               {/* Inline Notification */}
               <AnimatePresence>
                 {notification && (
