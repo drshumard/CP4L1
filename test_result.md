@@ -116,6 +116,18 @@ frontend:
       - working: true
         agent: "main"
         comment: "Implemented custom inline notification system inside login card. Replaced global Sonner toast calls with local notification state. Added AnimatePresence for smooth animations. Notifications now appear at top of card with glassmorphism styling (blue for success, red for error). Auto-dismiss after 5 seconds with manual close option. Initial screenshots show correct positioning and styling."
+  
+  - task: "Extend signup animation timing to 20 seconds"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Signup.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Extended automated signup flow animation timing from 8 seconds to 20 seconds total. Updated setTimeout values: Stage 0 (Welcome) = 6s, Stage 1 (Setting Up) = 4s, Stage 2 (Password Sent) = 6s, Stage 3 (Redirecting) = 4s. Code changes verified in startSignupProcess function."
 
 metadata:
   created_by: "main_agent"
