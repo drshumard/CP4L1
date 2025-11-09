@@ -266,29 +266,47 @@ const Login = () => {
 
         {showResetModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" data-testid="reset-modal">
-            <Card className="w-full max-w-md">
-              <CardHeader>
-                <CardTitle>Reset Password</CardTitle>
-                <CardDescription>Enter your email to receive a reset link</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Input
-                  type="email"
-                  placeholder="your@email.com"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  data-testid="reset-email-input"
-                />
-                <div className="flex gap-2">
-                  <Button onClick={handlePasswordReset} className="flex-1" data-testid="send-reset-button">
-                    Send Reset Link
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowResetModal(false)} data-testid="cancel-reset-button">
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              className="w-full"
+            >
+              <Card className="w-full max-w-md mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl">Reset Password</CardTitle>
+                  <CardDescription className="text-sm md:text-base">Enter your email to receive a reset link</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Input
+                    type="email"
+                    placeholder="your@email.com"
+                    className="h-12 text-sm md:text-base"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    data-testid="reset-email-input"
+                  />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button 
+                      onClick={handlePasswordReset} 
+                      className="flex-1 h-11 text-sm md:text-base" 
+                      data-testid="send-reset-button"
+                    >
+                      Send Reset Link
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowResetModal(false)} 
+                      className="h-11 text-sm md:text-base"
+                      data-testid="cancel-reset-button"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
         )}
       </motion.div>
