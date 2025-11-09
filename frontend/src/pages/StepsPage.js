@@ -270,9 +270,106 @@ const StepsPage = () => {
 
       {/* Main Content */}
       {currentStep === 2 ? (
-        /* Step 2: Full-width, break out of container */
-        <div className="w-full">
-          {/* Step 2 content will be rendered below */}
+        /* Step 2: Full-width form - no container constraints */
+        <div className="flex flex-col" style={{ height: 'calc(100vh - 280px)' }}>
+          {/* Header Section - Minimal */}
+          <div className="flex-shrink-0 text-center py-4 px-4">
+            <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+              Tell Us About Yourself
+            </h2>
+            <p className="text-gray-600 text-sm md:text-base">
+              Complete this form to help us personalize your wellness journey
+            </p>
+          </div>
+
+          {/* Form Container - Takes Remaining Space, Full Width */}
+          <div className="flex-1 px-2 pb-2 overflow-hidden">
+            <style dangerouslySetInnerHTML={{__html: `
+              .better-inline-booking-widget {
+                position: relative;
+                overflow: hidden;
+                background: white;
+                border-radius: 0.5rem;
+                height: 100%;
+              }
+              .better-inline-booking-widget iframe {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                border: none;
+              }
+              
+              /* Gradient border wrapper - minimal padding for maximum width */
+              .form-wrapper-fullpage {
+                background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+                padding: 2px;
+                border-radius: 0.5rem;
+                height: 100%;
+                box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+              }
+              
+              .form-inner-fullpage {
+                background: white;
+                border-radius: calc(0.5rem - 2px);
+                overflow: hidden;
+                height: 100%;
+              }
+              
+              /* Complete button at bottom right */
+              .step2-complete-button {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 50;
+                background: linear-gradient(to right, #2563eb, #9333ea);
+                color: white;
+                font-weight: 700;
+                padding: 14px 28px;
+                border-radius: 12px;
+                box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
+                border: none;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-size: 16px;
+              }
+              
+              .step2-complete-button:hover {
+                transform: scale(1.05);
+                box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.4);
+                background: linear-gradient(to right, #1d4ed8, #7e22ce);
+              }
+              
+              .step2-complete-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+              }
+            `}} />
+            
+            <div className="form-wrapper-fullpage">
+              <div className="form-inner-fullpage">
+                <div 
+                  className="better-inline-booking-widget" 
+                  data-url="https://drshumard.practicebetter.io/" 
+                  data-form-request="6021e5d42a9c2406f45aa20f" 
+                  data-hash="601a127b2a9c2406dcc94437" 
+                  data-theme="246af4" 
+                  data-theme-accent="f57f1b"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Floating Complete Button */}
+          <button
+            onClick={handleAdvanceStep}
+            className="step2-complete-button"
+            data-testid="submit-button"
+            title="Complete this step after filling the form"
+          >
+            Continue to Next Step →
+          </button>
         </div>
       ) : (
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
