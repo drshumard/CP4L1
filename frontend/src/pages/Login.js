@@ -19,6 +19,20 @@ const Login = () => {
   const [resetEmail, setResetEmail] = useState('');
   const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: '' }
 
+  // Auto-hide notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const showNotification = (type, message) => {
+    setNotification({ type, message });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -28,10 +42,10 @@ const Login = () => {
       localStorage.setItem('access_token', response.data.access_token);
       localStorage.setItem('refresh_token', response.data.refresh_token);
       
-      toast.success('Login successful!');
-      navigate('/');
+      showNotification('success', 'Login successful!');
+      setTimeout(() => navigate('/'), 1000);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Login failed');
+      showNotification('error', error.response?.data?.detail || 'Login failed');
     } finally {
       setLoading(false);
     }
