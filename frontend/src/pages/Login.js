@@ -73,116 +73,187 @@ const Login = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full"
+        className="w-full max-w-5xl mx-auto"
       >
-        <Card className="glass-dark shadow-2xl border-0 max-w-md mx-auto" data-testid="login-card">
-          {/* Inline Notification */}
-          <AnimatePresence>
-            {notification && (
-              <motion.div
-                initial={{ opacity: 0, y: -20, height: 0 }}
-                animate={{ opacity: 1, y: 0, height: 'auto' }}
-                exit={{ opacity: 0, y: -20, height: 0 }}
-                transition={{ duration: 0.3 }}
-                className="overflow-hidden"
-              >
-                <div
-                  className={`mx-6 mt-6 p-4 rounded-lg backdrop-blur-md border ${
-                    notification.type === 'success'
-                      ? 'bg-blue-50/80 border-blue-200 text-blue-800'
-                      : 'bg-red-50/80 border-red-200 text-red-800'
-                  } shadow-sm`}
-                  style={{
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                  }}
+        <Card className="shadow-2xl border-0 overflow-hidden" data-testid="login-card">
+          <div className="grid md:grid-cols-2 min-h-[600px]">
+            {/* Left Side - Gradient Panel */}
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-12 flex flex-col justify-center text-white overflow-hidden">
+              {/* Decorative circles */}
+              <div className="absolute top-10 left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+              <div className="absolute bottom-20 right-10 w-40 h-40 bg-purple-400/20 rounded-full blur-3xl"></div>
+              
+              <div className="relative z-10">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
+                  className="mb-8"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1">
-                      <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
-                        notification.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
-                      }`}>
-                        {notification.type === 'success' ? (
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        )}
-                      </div>
-                      <p className="text-sm font-medium leading-relaxed">{notification.message}</p>
-                    </div>
-                    <button
-                      onClick={() => setNotification(null)}
-                      className={`flex-shrink-0 ${
-                        notification.type === 'success' ? 'text-blue-600 hover:text-blue-800' : 'text-red-600 hover:text-red-800'
-                      } transition-colors`}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
+                  <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-6">
+                    <span className="text-4xl font-bold">DS</span>
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <CardHeader className="space-y-1 text-center pb-6">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">DS</span>
+                </motion.div>
+                
+                <motion.h1
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-4xl md:text-5xl font-bold mb-4 leading-tight"
+                >
+                  Welcome to Your<br />Wellness Portal
+                </motion.h1>
+                
+                <motion.p
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="text-lg text-blue-100 mb-8"
+                >
+                  Continue your journey to better health and wellness
+                </motion.p>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="space-y-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="text-blue-50">Personalized wellness programs</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="text-blue-50">Track your progress</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <p className="text-blue-50">Expert health advocate support</p>
+                  </div>
+                </motion.div>
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold" style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Welcome Back</CardTitle>
-            <CardDescription className="text-base">Login to continue your wellness journey</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  data-testid="email-input"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <button
-                    type="button"
-                    onClick={() => setShowResetModal(true)}
-                    className="text-sm text-blue-600 hover:text-blue-700"
-                    data-testid="forgot-password-button"
+
+            {/* Right Side - Login Form */}
+            <div className="bg-white p-8 md:p-12 flex flex-col justify-center">
+              {/* Inline Notification */}
+              <AnimatePresence>
+                {notification && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: 'auto' }}
+                    exit={{ opacity: 0, y: -20, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden mb-6"
                   >
-                    Forgot password?
-                  </button>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  data-testid="password-input"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
+                    <div
+                      className={`p-4 rounded-lg border ${
+                        notification.type === 'success'
+                          ? 'bg-blue-50 border-blue-200 text-blue-800'
+                          : 'bg-red-50 border-red-200 text-red-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                            notification.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
+                          }`}>
+                            {notification.type === 'success' ? (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            ) : (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium leading-relaxed">{notification.message}</p>
+                        </div>
+                        <button
+                          onClick={() => setNotification(null)}
+                          className={`flex-shrink-0 ${
+                            notification.type === 'success' ? 'text-blue-600 hover:text-blue-800' : 'text-red-600 hover:text-red-800'
+                          } transition-colors`}
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="mb-8">
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Sign In</h2>
+                <p className="text-gray-600">Enter your credentials to access your account</p>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-6 rounded-lg shadow-lg"
-                disabled={loading}
-                data-testid="login-submit-button"
-              >
-                {loading ? 'Logging in...' : 'Login'}
-              </Button>
-            </form>
-          </CardContent>
+
+              <form onSubmit={handleSubmit} className="space-y-5" data-testid="login-form">
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@example.com"
+                    className="h-12 px-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    data-testid="email-input"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="password" className="text-sm font-medium text-gray-700">Password</Label>
+                    <button
+                      type="button"
+                      onClick={() => setShowResetModal(true)}
+                      className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      data-testid="forgot-password-button"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    className="h-12 px-4 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    data-testid="password-input"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <Button 
+                  type="submit" 
+                  className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg text-base"
+                  disabled={loading}
+                  data-testid="login-submit-button"
+                >
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </form>
+            </div>
+          </div>
         </Card>
 
         {showResetModal && (
