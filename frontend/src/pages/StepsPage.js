@@ -558,19 +558,19 @@ const StepsPage = () => {
               {/* Video Section */}
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section" style={{ height: '45%' }}>
                 <div className="h-full bg-gray-900">
-                  <ReactPlayer
-                    url="https://vz-7b452698-0b8.b-cdn.net/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64/playlist.m3u8"
-                    width="100%"
-                    height="100%"
-                    controls={true}
-                    playing={false}
-                    muted={false}
-                    onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
-                    onError={(e) => {
-                      console.error('Video playback error:', e);
-                      toast.error('Video failed to load. Please refresh the page.');
+                  <iframe
+                    src="https://iframe.mediadelivery.net/play/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64"
+                    loading="lazy"
+                    style={{
+                      border: 'none',
+                      width: '100%',
+                      height: '100%',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0
                     }}
-                    data-testid="video-player"
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen={true}
                   />
                 </div>
               </Card>
