@@ -92,13 +92,13 @@ const StepsPage = () => {
 
   // Check if user has seen Step 2 instructions
   useEffect(() => {
-    if (currentStep === 2 && userData) {
+    if (userData?.current_step === 2 && userData) {
       const hasSeenInstructions = localStorage.getItem('step2_instructions_seen');
       if (!hasSeenInstructions) {
         setShowStep2Instructions(true);
       }
     }
-  }, [currentStep, userData]);
+  }, [userData]);
 
   const fetchData = async () => {
     try {
