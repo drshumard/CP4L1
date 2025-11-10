@@ -288,6 +288,144 @@ const StepsPage = () => {
       {currentStep === 2 ? (
         /* Step 2: Full-width form - let it expand naturally */
         <div className="py-4">
+          {/* Step 2 Instructions Modal */}
+          <AnimatePresence>
+            {showStep2Instructions && (
+              <>
+                {/* Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                  onClick={handleStep2InstructionsUnderstood}
+                />
+                
+                {/* Modal */}
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    transition={{ type: "spring", duration: 0.5 }}
+                    className="max-w-2xl w-full"
+                  >
+                    <Card className="shadow-2xl border-0 overflow-hidden">
+                      <CardContent className="p-0">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-center">
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                            className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center"
+                          >
+                            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </motion.div>
+                          <h2 className="text-2xl md:text-3xl font-bold text-white">
+                            📋 Important: How to Complete This Form
+                          </h2>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-8 bg-white">
+                          <ol className="space-y-4 text-gray-700">
+                            <motion.li
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.3 }}
+                              className="flex items-start gap-3"
+                            >
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                                1
+                              </span>
+                              <p className="pt-1 leading-relaxed">
+                                <strong className="text-gray-900">This form has 4 pages</strong> - Fill out all fields on each page
+                              </p>
+                            </motion.li>
+
+                            <motion.li
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.4 }}
+                              className="flex items-start gap-3"
+                            >
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                                2
+                              </span>
+                              <p className="pt-1 leading-relaxed">
+                                Click the <strong className="text-gray-900">"Next Page"</strong> button in the <strong className="text-gray-900">bottom-right corner</strong> of the form to advance through all pages
+                              </p>
+                            </motion.li>
+
+                            <motion.li
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.5 }}
+                              className="flex items-start gap-3"
+                            >
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                                3
+                              </span>
+                              <p className="pt-1 leading-relaxed">
+                                On the <strong className="text-gray-900">final page (page 4)</strong>, you'll need to <strong className="text-gray-900">provide your signature</strong>
+                              </p>
+                            </motion.li>
+
+                            <motion.li
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.6 }}
+                              className="flex items-start gap-3"
+                            >
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                                4
+                              </span>
+                              <p className="pt-1 leading-relaxed">
+                                Click <strong className="text-gray-900">"Submit"</strong> to submit your completed form
+                              </p>
+                            </motion.li>
+
+                            <motion.li
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.7 }}
+                              className="flex items-start gap-3"
+                            >
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                                5
+                              </span>
+                              <p className="pt-1 leading-relaxed">
+                                <strong className="text-gray-900">After submission</strong>, scroll down to find the <strong className="text-gray-900">"Continue to Next Step"</strong> button below the form
+                              </p>
+                            </motion.li>
+                          </ol>
+
+                          {/* Button */}
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.8 }}
+                            className="mt-8"
+                          >
+                            <Button
+                              onClick={handleStep2InstructionsUnderstood}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 rounded-xl shadow-lg text-lg transition-all hover:scale-[1.02]"
+                            >
+                              I Understand ✓
+                            </Button>
+                          </motion.div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                </div>
+              </>
+            )}
+          </AnimatePresence>
+
           {/* Header Section - With Clear Instructions */}
           <div className="text-center pb-4 px-4 max-w-4xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
