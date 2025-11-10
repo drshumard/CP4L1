@@ -90,6 +90,16 @@ const StepsPage = () => {
     };
   }, []);
 
+  // Check if user has seen Step 2 instructions
+  useEffect(() => {
+    if (currentStep === 2 && userData) {
+      const hasSeenInstructions = localStorage.getItem('step2_instructions_seen');
+      if (!hasSeenInstructions) {
+        setShowStep2Instructions(true);
+      }
+    }
+  }, [currentStep, userData]);
+
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('access_token');
