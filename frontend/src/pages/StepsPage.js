@@ -15,7 +15,7 @@ const STEP_DATA = {
   1: {
     title: 'Welcome & Consultation Booking',
     action: 'BOOK YOUR ONE-ON-ONE CONSULT',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', // Placeholder
+    videoUrl: 'https://vz-7b452698-0b8.b-cdn.net/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64/playlist.m3u8',
     description: 'Watch the welcome video and book your personal consultation with our health advocate.',
     tasks: ['watch_video', 'book_consultation']
   },
