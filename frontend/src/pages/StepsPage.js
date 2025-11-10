@@ -324,35 +324,6 @@ const StepsPage = () => {
                 -ms-overflow-style: none;
                 scrollbar-width: none;
               }
-              
-              /* Complete button at bottom right */
-              .step2-complete-button {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                z-index: 50;
-                background: linear-gradient(to right, #2563eb, #9333ea);
-                color: white;
-                font-weight: 700;
-                padding: 14px 28px;
-                border-radius: 12px;
-                box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.3);
-                border: none;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-size: 16px;
-              }
-              
-              .step2-complete-button:hover {
-                transform: scale(1.05);
-                box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.4);
-                background: linear-gradient(to right, #1d4ed8, #7e22ce);
-              }
-              
-              .step2-complete-button:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-              }
             `}} />
             
             <div className="form-wrapper-fullpage">
