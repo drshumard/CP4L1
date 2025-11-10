@@ -655,6 +655,35 @@ async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin
     
     return {"message": "User progress reset successfully"}
 
+@api_router.post("/admin/promote-user")
+async def promote_user_to_admin(email: EmailStr, secret_key: str):
+    """
+    Promote a user to admin role - Protected by webhook secret
+    This is a one-time setup endpoint for creating the first admin
+    """
+    if not WEBHOOK_SECRET or secret_key != WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid secret key"
+        )
+    
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.get("role") == "admin":
+        return {"message": "User is already an admin", "email": email}
+    
+    await db.users.update_one(
+        {"email": email},
+        {"$set": {"role": "admin"}}
+    )
+    
+    return {"message": "User promoted to admin successfully", "email": email}
+
 # Include router
 app.include_router(api_router)
 
