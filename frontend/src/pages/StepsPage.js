@@ -272,14 +272,47 @@ const StepsPage = () => {
       {currentStep === 2 ? (
         /* Step 2: Full-width form - let it expand naturally */
         <div className="py-4">
-          {/* Header Section - Minimal */}
-          <div className="text-center pb-4 px-4">
-            <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1">
+          {/* Header Section - With Clear Instructions */}
+          <div className="text-center pb-4 px-4 max-w-4xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
               Tell Us About Yourself
             </h2>
-            <p className="text-gray-600 text-sm md:text-base">
+            <p className="text-gray-600 text-sm md:text-base mb-4">
               Complete this form to help us personalize your wellness journey
             </p>
+            
+            {/* Important Instructions Card */}
+            <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 md:p-5 shadow-md">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-1">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="text-left">
+                  <h3 className="font-bold text-blue-900 text-base md:text-lg mb-2">
+                    📋 Important: How to Complete This Form
+                  </h3>
+                  <ol className="text-sm md:text-base text-blue-800 space-y-2 list-decimal list-inside">
+                    <li className="leading-relaxed">
+                      <strong>This form has 4 pages</strong> - Fill out all fields on each page
+                    </li>
+                    <li className="leading-relaxed">
+                      Click the <strong>"Next Page"</strong> button in the <strong>bottom-right corner</strong> of the form to advance through all pages
+                    </li>
+                    <li className="leading-relaxed">
+                      On the <strong>final page (page 4)</strong>, you'll need to <strong>provide your signature</strong>
+                    </li>
+                    <li className="leading-relaxed">
+                      Click <strong>"Submit"</strong> to submit your completed form
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong>After submission</strong>, scroll down to find the <strong>"Continue to Next Step"</strong> button below the form
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Form Container - Comfortable Width, Natural Height */}
