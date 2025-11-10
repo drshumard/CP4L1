@@ -178,6 +178,11 @@ const StepsPage = () => {
     }
   };
 
+  const handleStep2InstructionsUnderstood = () => {
+    localStorage.setItem('step2_instructions_seen', 'true');
+    setShowStep2Instructions(false);
+  };
+
   const handleStep1Complete = async () => {
     try {
       const token = localStorage.getItem('access_token');
