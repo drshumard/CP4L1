@@ -563,7 +563,24 @@ const StepsPage = () => {
                     width="100%"
                     height="100%"
                     controls
+                    playing={false}
+                    config={{
+                      file: {
+                        attributes: {
+                          crossOrigin: 'anonymous',
+                          controlsList: 'nodownload'
+                        },
+                        forceHLS: true,
+                        hlsOptions: {
+                          debug: false,
+                          enableWorker: true,
+                          lowLatencyMode: false,
+                          backBufferLength: 90
+                        }
+                      }
+                    }}
                     onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
+                    onError={(e) => console.error('Video error:', e)}
                     data-testid="video-player"
                   />
                 </div>
