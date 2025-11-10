@@ -555,22 +555,21 @@ const StepsPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
             {/* Left: Video + Health Advocate Details + Button */}
             <div className="flex flex-col gap-6 h-full">
-              {/* Video Section - Responsive 16:9 Aspect Ratio */}
+              {/* Video Section - Bunny.net Official Embed */}
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
-                <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', backgroundColor: '#000' }}>
+                <div style={{ position: 'relative', paddingTop: '56.25%' }}>
                   <iframe
-                    src="https://iframe.mediadelivery.net/play/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=false&preload=false"
+                    src="https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=false&loop=false&muted=false&preload=true&responsive=true"
                     loading="lazy"
                     style={{
                       border: 0,
                       position: 'absolute',
                       top: 0,
-                      left: 0,
                       height: '100%',
                       width: '100%'
                     }}
                     allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen={true}
+                    allowFullScreen="true"
                   />
                 </div>
               </Card>
