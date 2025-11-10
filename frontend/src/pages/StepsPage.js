@@ -283,7 +283,7 @@ const StepsPage = () => {
           </div>
 
           {/* Form Container - Comfortable Width, Natural Height */}
-          <div className="px-8 md:px-16 lg:px-24 pb-20 max-w-[1800px] mx-auto">
+          <div className="px-8 md:px-16 lg:px-24 pb-6 max-w-[1800px] mx-auto">
             <style dangerouslySetInnerHTML={{__html: `
               .better-inline-booking-widget {
                 position: relative;
