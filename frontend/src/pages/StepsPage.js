@@ -559,28 +559,17 @@ const StepsPage = () => {
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section" style={{ height: '45%' }}>
                 <div className="h-full bg-gray-900">
                   <ReactPlayer
-                    url={stepInfo.videoUrl}
+                    url="https://vz-7b452698-0b8.b-cdn.net/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64/playlist.m3u8"
                     width="100%"
                     height="100%"
-                    controls
+                    controls={true}
                     playing={false}
-                    config={{
-                      file: {
-                        attributes: {
-                          crossOrigin: 'anonymous',
-                          controlsList: 'nodownload'
-                        },
-                        forceHLS: true,
-                        hlsOptions: {
-                          debug: false,
-                          enableWorker: true,
-                          lowLatencyMode: false,
-                          backBufferLength: 90
-                        }
-                      }
-                    }}
+                    muted={false}
                     onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
-                    onError={(e) => console.error('Video error:', e)}
+                    onError={(e) => {
+                      console.error('Video playback error:', e);
+                      toast.error('Video failed to load. Please refresh the page.');
+                    }}
                     data-testid="video-player"
                   />
                 </div>
