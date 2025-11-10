@@ -69,6 +69,7 @@ const StepsPage = () => {
   const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [completedTasks, setCompletedTasks] = useState(new Set());
+  const [showStep2Instructions, setShowStep2Instructions] = useState(false);
 
   useEffect(() => {
     fetchData();
