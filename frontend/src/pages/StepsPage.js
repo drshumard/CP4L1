@@ -339,17 +339,27 @@ const StepsPage = () => {
                 />
               </div>
             </div>
-          </div>
 
-          {/* Floating Complete Button */}
-          <button
-            onClick={handleAdvanceStep}
-            className="step2-complete-button"
-            data-testid="submit-button"
-            title="Complete this step after filling the form"
-          >
-            Continue to Next Step →
-          </button>
+            {/* Complete Button - At Bottom of Form */}
+            <div className="mt-8">
+              <Card className="glass-dark border-0 shadow-lg">
+                <CardContent className="p-6">
+                  <div className="text-center mb-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      ⚠️ Please ensure you have completed all form fields above before continuing
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleAdvanceStep}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 rounded-xl shadow-lg text-lg transition-all hover:scale-[1.02]"
+                    data-testid="submit-button"
+                  >
+                    Continue to Next Step →
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
