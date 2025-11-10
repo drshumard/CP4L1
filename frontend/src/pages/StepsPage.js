@@ -555,9 +555,9 @@ const StepsPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8" style={{ height: 'calc(100vh - 280px)', minHeight: '700px' }}>
             {/* Left: Video + Health Advocate Details + Button */}
             <div className="flex flex-col gap-6 h-full">
-              {/* Video Section */}
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section" style={{ height: '45%' }}>
-                <div style={{ position: 'relative', width: '100%', height: '100%', paddingTop: '0', backgroundColor: '#000' }}>
+              {/* Video Section - Responsive 16:9 Aspect Ratio */}
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
+                <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
                     src="https://iframe.mediadelivery.net/play/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=false&preload=false"
                     loading="lazy"
