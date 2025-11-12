@@ -135,10 +135,9 @@ const Signup = () => {
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
                   <motion.span 
-                    key={Math.floor(progress)}
-                    initial={{ scale: 1.2, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="text-xl font-bold text-blue-700"
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-xl font-bold text-blue-700 tabular-nums"
                   >
                     {Math.floor(progress)}%
                   </motion.span>
