@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, CheckCircle2, Circle, Home, User as UserIcon, Phone, Calendar } from 'lucide-react';
+import { Lock, CheckCircle2, Circle, Home, User as UserIcon, Phone, Calendar, LogOut } from 'lucide-react';
 import ReactPlayer from 'react-player';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
