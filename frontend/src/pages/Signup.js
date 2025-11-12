@@ -254,39 +254,17 @@ const Signup = () => {
               transition={{ duration: 0.5 }}
               className="text-center"
             >
-              <div className="glass-dark rounded-3xl p-16 shadow-2xl border-0">
-                {/* Circular Progress */}
-                <div className="relative inline-block mb-8">
-                  <svg className="w-48 h-48 transform -rotate-90">
-                    <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="8" fill="none" className="text-gray-200" />
-                    <motion.circle
-                      cx="96" cy="96" r="88"
-                      stroke="url(#gradient2)"
-                      strokeWidth="8" fill="none" strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 88}`}
-                      initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - progress / 100) }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    <defs>
-                      <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#10B981" />
-                        <stop offset="100%" stopColor="#059669" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <CheckCircle2 className="text-green-600 mb-2" size={48} />
-                    <motion.span 
-                      key={Math.floor(progress)}
-                      initial={{ scale: 1.2, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="text-4xl font-bold text-green-700"
-                    >
-                      {Math.floor(progress)}%
-                    </motion.span>
+              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="inline-block mb-6"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center mx-auto shadow-xl">
+                    <CheckCircle2 className="text-white" size={48} />
                   </div>
-                </div>
+                </motion.div>
                 
                 <h2 className="text-5xl font-bold mb-4" style={{
                   background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
@@ -296,12 +274,8 @@ const Signup = () => {
                   Password Sent!
                 </h2>
                 
-                <p className="text-xl text-gray-700 mb-4">
+                <p className="text-xl text-gray-700">
                   Check {email} for your login credentials
-                </p>
-                
-                <p className="text-lg text-gray-600 font-semibold">
-                  Almost there! ✨
                 </p>
               </div>
             </motion.div>
