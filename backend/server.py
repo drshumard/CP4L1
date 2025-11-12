@@ -684,6 +684,40 @@ async def promote_user_to_admin(email: EmailStr, secret_key: str):
     
     return {"message": "User promoted to admin successfully", "email": email}
 
+@api_router.delete("/admin/user/{user_id}")
+async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """
+    Delete a user - Admin only
+    """
+    # Check if user exists
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Prevent admin from deleting themselves
+    if user.get("id") == admin_user.get("id"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own admin account"
+        )
+    
+    # Delete user's progress
+    await db.user_progress.delete_many({"user_id": user_id})
+    
+    # Delete user
+    result = await db.users.delete_one({"id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete user"
+        )
+    
+    return {"message": "User deleted successfully", "user_id": user_id}
+
 # Include router
 app.include_router(api_router)
 
