@@ -14,6 +14,7 @@ const Signup = () => {
   const [stage, setStage] = useState(0); // 0: welcome, 1: setting up, 2: password sent, 3: redirecting
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [progress, setProgress] = useState(0); // Progress percentage 0-100
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
