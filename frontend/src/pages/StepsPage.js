@@ -240,6 +240,20 @@ const StepsPage = () => {
                 <Home size={16} />
                 Home
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  localStorage.removeItem('access_token');
+                  localStorage.removeItem('refresh_token');
+                  toast.success('Logged out successfully');
+                  navigate('/login');
+                }} 
+                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50" 
+                data-testid="logout-button"
+              >
+                <LogOut size={16} />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
