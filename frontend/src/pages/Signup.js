@@ -56,8 +56,8 @@ const Signup = () => {
     // Stage 2: Password sent message (6s)
     setTimeout(() => setStage(3), 16000);
     
-    // Stage 3: Redirecting message (4s) then navigate
-    setTimeout(() => navigate('/'), 20000);
+    // Stage 3: Redirecting message (4s) then navigate to Step 1
+    setTimeout(() => navigate('/steps'), 20000);
   };
 
   return (
