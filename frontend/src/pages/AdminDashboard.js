@@ -227,16 +227,28 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm">
-                        <Button
-                          onClick={() => handleResetUser(user.id)}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-1"
-                          data-testid={`reset-button-${user.id}`}
-                        >
-                          <RefreshCw size={14} />
-                          Reset
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleResetUser(user.id)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1"
+                            data-testid={`reset-button-${user.id}`}
+                          >
+                            <RefreshCw size={14} />
+                            Reset
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteUser(user.id, user.name, user.email)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                            data-testid={`delete-button-${user.id}`}
+                          >
+                            <Trash2 size={14} />
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
