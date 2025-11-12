@@ -559,8 +559,8 @@ const StepsPage = () => {
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
-                    src="https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=false&preload=true&responsive=true"
-                    loading="lazy"
+                    src="https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=true&preload=true&responsive=true"
+                    loading="eager"
                     style={{
                       border: 0,
                       position: 'absolute',
