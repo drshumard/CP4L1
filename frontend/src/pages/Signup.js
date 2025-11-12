@@ -290,44 +290,16 @@ const Signup = () => {
               transition={{ duration: 0.5 }}
               className="text-center"
             >
-              <div className="glass-dark rounded-3xl p-16 shadow-2xl border-0">
-                {/* Circular Progress */}
-                <div className="relative inline-block mb-8">
-                  <svg className="w-48 h-48 transform -rotate-90">
-                    <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="8" fill="none" className="text-gray-200" />
-                    <motion.circle
-                      cx="96" cy="96" r="88"
-                      stroke="url(#gradient3)"
-                      strokeWidth="8" fill="none" strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 88}`}
-                      initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - progress / 100) }}
-                      transition={{ duration: 0.3 }}
-                    />
-                    <defs>
-                      <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#10B981" />
-                        <stop offset="100%" stopColor="#2563EB" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                    >
-                      <Activity className="text-blue-600 mb-2" size={48} />
-                    </motion.div>
-                    <motion.span 
-                      key={Math.floor(progress)}
-                      initial={{ scale: 1.2, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="text-4xl font-bold text-blue-700"
-                    >
-                      {Math.floor(progress)}%
-                    </motion.span>
+              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="inline-block mb-6"
+                >
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center mx-auto shadow-xl">
+                    <Activity className="text-white" size={48} />
                   </div>
-                </div>
+                </motion.div>
                 
                 <h2 className="text-5xl font-bold mb-4" style={{
                   background: 'linear-gradient(135deg, #10B981 0%, #2563EB 100%)',
@@ -337,12 +309,8 @@ const Signup = () => {
                   Taking You to Your Portal...
                 </h2>
                 
-                <p className="text-xl text-gray-700 mb-4">
+                <p className="text-xl text-gray-700">
                   Get ready to start your wellness journey!
-                </p>
-                
-                <p className="text-lg text-gray-600 font-semibold">
-                  Just a moment! 🚀
                 </p>
               </div>
             </motion.div>
