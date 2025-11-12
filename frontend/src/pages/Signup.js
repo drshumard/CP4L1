@@ -32,14 +32,23 @@ const Signup = () => {
 
   const startSignupProcess = async (userEmail, userName) => {
     // Progress animation - smooth updates every 500ms for better visual appeal
+    // Total: 20s, but progress reaches 100% at 19.5s on the final stage
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 99.5) {
-          return prev; // Hold at 99.5% until final navigation
+        const currentTime = Date.now();
+        const elapsed = (currentTime - startTime) / 1000; // seconds elapsed
+        
+        if (elapsed >= 19.5) {
+          return 100; // Final stage, show 100%
         }
-        return prev + (100 / (19500 / 500)); // Increment to reach 99.5% at 19.5 seconds
+        
+        // Calculate progress: 0% at 0s, ~95% at 16s (when stage 3 starts), 100% at 19.5s
+        const calculatedProgress = (elapsed / 19.5) * 100;
+        return Math.min(calculatedProgress, 100);
       });
     }, 500);
+    
+    const startTime = Date.now();
 
     // Stage 0: Welcome animation (6s) - 0% to 30%
     setTimeout(() => setStage(1), 6000);
@@ -65,17 +74,14 @@ const Signup = () => {
       }
     }, 6000);
     
-    // Stage 2: Password sent message (6s) - 50% to 80%
+    // Stage 2: Password sent message (6s) - 50% to ~80%
     setTimeout(() => setStage(3), 16000);
     
-    // Stage 3: Redirecting message (4s) - 80% to 100% then navigate to Step 1
+    // Stage 3: Redirecting message (4s) - ~80% to 100% then navigate to Step 1
     setTimeout(() => {
-      setProgress(100); // Set to 100% just before navigation
-      setTimeout(() => {
-        clearInterval(progressInterval);
-        navigate('/steps');
-      }, 500); // Navigate 0.5s after reaching 100%
-    }, 19500);
+      clearInterval(progressInterval);
+      navigate('/steps');
+    }, 20000);
   };
 
   return (
