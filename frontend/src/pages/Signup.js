@@ -31,10 +31,21 @@ const Signup = () => {
   }, [searchParams, navigate]);
 
   const startSignupProcess = async (userEmail, userName) => {
-    // Stage 0: Welcome animation (6s)
+    // Progress animation - smooth updates every 100ms
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(progressInterval);
+          return 100;
+        }
+        return prev + (100 / (20000 / 100)); // Increment based on 20 seconds total
+      });
+    }, 100);
+
+    // Stage 0: Welcome animation (6s) - 0% to 30%
     setTimeout(() => setStage(1), 6000);
     
-    // Stage 1: Setting up account (4s) - Call API
+    // Stage 1: Setting up account (4s) - 30% to 50% - Call API
     setTimeout(async () => {
       try {
         const response = await axios.post(`${API}/auth/signup`, {
@@ -48,17 +59,22 @@ const Signup = () => {
         
         setStage(2); // Already sent (password was sent via webhook)
       } catch (error) {
+        clearInterval(progressInterval);
         toast.error(error.response?.data?.detail || 'Signup failed');
         setTimeout(() => navigate('/login'), 2000);
         return;
       }
     }, 6000);
     
-    // Stage 2: Password sent message (6s)
+    // Stage 2: Password sent message (6s) - 50% to 80%
     setTimeout(() => setStage(3), 16000);
     
-    // Stage 3: Redirecting message (4s) then navigate to Step 1
-    setTimeout(() => navigate('/steps'), 20000);
+    // Stage 3: Redirecting message (4s) - 80% to 100% then navigate to Step 1
+    setTimeout(() => {
+      clearInterval(progressInterval);
+      setProgress(100);
+      navigate('/steps');
+    }, 20000);
   };
 
   return (
