@@ -68,6 +68,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteUser = async (userId, userName, userEmail) => {
+    if (!window.confirm(`Are you sure you want to permanently delete user "${userName}" (${userEmail})?\n\nThis will delete:\n- User account\n- All progress data\n\nThis action CANNOT be undone!`)) {
+      return;
+    }
+
+    // Double confirmation for safety
+    if (!window.confirm('Final confirmation: Delete this user permanently?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.delete(
+        `${API}/admin/user/${userId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success('User deleted successfully');
+      fetchData();
+    } catch (error) {
+      if (error.response?.status === 400) {
+        toast.error('Cannot delete your own admin account');
+      } else {
+        toast.error(error.response?.data?.detail || 'Failed to delete user');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
