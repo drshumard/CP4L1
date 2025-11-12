@@ -70,10 +70,12 @@ const Signup = () => {
     
     // Stage 3: Redirecting message (4s) - 80% to 100% then navigate to Step 1
     setTimeout(() => {
-      clearInterval(progressInterval);
-      setProgress(100);
-      navigate('/steps');
-    }, 20000);
+      setProgress(100); // Set to 100% just before navigation
+      setTimeout(() => {
+        clearInterval(progressInterval);
+        navigate('/steps');
+      }, 500); // Navigate 0.5s after reaching 100%
+    }, 19500);
   };
 
   return (
