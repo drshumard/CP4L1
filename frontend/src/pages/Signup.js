@@ -102,7 +102,7 @@ const Signup = () => {
       </div>
 
       {/* Container for both info card and main content */}
-      <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center">
         {/* Informational Card - Stays visible throughout the flow */}
         <motion.div
           initial={{ opacity: 0, y: -30 }}
