@@ -31,16 +31,15 @@ const Signup = () => {
   }, [searchParams, navigate]);
 
   const startSignupProcess = async (userEmail, userName) => {
-    // Progress animation - smooth updates every 100ms
+    // Progress animation - smooth updates every 500ms for better visual appeal
     const progressInterval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          return 100;
+        if (prev >= 99.5) {
+          return prev; // Hold at 99.5% until final navigation
         }
-        return prev + (100 / (20000 / 100)); // Increment based on 20 seconds total
+        return prev + (100 / (19500 / 500)); // Increment to reach 99.5% at 19.5 seconds
       });
-    }, 100);
+    }, 500);
 
     // Stage 0: Welcome animation (6s) - 0% to 30%
     setTimeout(() => setStage(1), 6000);
