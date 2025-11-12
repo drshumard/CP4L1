@@ -70,6 +70,7 @@ const StepsPage = () => {
   const [loading, setLoading] = useState(true);
   const [completedTasks, setCompletedTasks] = useState(new Set());
   const [showStep2Instructions, setShowStep2Instructions] = useState(false);
+  const [videoStarted, setVideoStarted] = useState(false);
 
   useEffect(() => {
     fetchData();
