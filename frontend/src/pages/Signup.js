@@ -103,42 +103,55 @@ const Signup = () => {
 
       {/* Container for both info card and main content */}
       <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center">
-        {/* Informational Card - Stays visible throughout the flow */}
+        {/* Informational Card with Progress - Stays visible throughout the flow */}
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="w-full mb-6"
         >
-          <div className="glass-dark rounded-xl p-4 shadow-lg border border-blue-200/30 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <motion.div
-                animate={{ 
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                className="flex-shrink-0"
-              >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                  <Activity className="text-white" size={20} />
+          <div className="glass-dark rounded-2xl p-6 shadow-lg border border-blue-200/30 backdrop-blur-md">
+            <div className="flex items-center gap-6">
+              {/* Circular Progress */}
+              <div className="relative flex-shrink-0">
+                <svg className="w-24 h-24 transform -rotate-90">
+                  <circle cx="48" cy="48" r="44" stroke="currentColor" strokeWidth="4" fill="none" className="text-gray-200" />
+                  <motion.circle
+                    cx="48" cy="48" r="44"
+                    stroke="url(#progressGradient)"
+                    strokeWidth="4" fill="none" strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 44}`}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 44 }}
+                    animate={{ strokeDashoffset: 2 * Math.PI * 44 * (1 - progress / 100) }}
+                    transition={{ duration: 0.3 }}
+                  />
+                  <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#3b82f6" />
+                      <stop offset="100%" stopColor="#8b5cf6" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <motion.span 
+                    key={Math.floor(progress)}
+                    initial={{ scale: 1.2, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-xl font-bold text-blue-700"
+                  >
+                    {Math.floor(progress)}%
+                  </motion.span>
                 </div>
-              </motion.div>
+              </div>
+              
               <div className="flex-1">
-                <p className="text-sm font-semibold text-gray-800 mb-1">
-                  🎉 Setting up your wellness portal
+                <p className="text-lg font-bold text-gray-800 mb-2">
+                  ⏳ Please be patient while we set you up
                 </p>
-                <p className="text-xs text-gray-600">
-                  Please stay on this page. You'll be automatically redirected to your portal in a moment.
+                <p className="text-sm text-gray-600">
+                  Stay on this page. You'll be automatically redirected to your portal in a moment.
                 </p>
               </div>
-              <motion.div
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                className="flex-shrink-0"
-              >
-                <div className="w-2 h-2 rounded-full bg-green-500" />
-              </motion.div>
             </div>
           </div>
         </motion.div>
