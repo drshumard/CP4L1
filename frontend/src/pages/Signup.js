@@ -288,57 +288,55 @@ const Signup = () => {
               transition={{ duration: 0.5 }}
               className="text-center"
             >
-              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0 relative overflow-hidden">
-                {/* Success Animation Background */}
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 2, opacity: [0, 0.3, 0] }}
-                  transition={{ duration: 1 }}
-                  className="absolute inset-0 bg-gradient-to-br from-green-400 to-blue-500 rounded-3xl"
-                />
-                
-                <div className="relative z-10">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-                    className="inline-block mb-6"
-                  >
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center mx-auto shadow-xl">
-                      <CheckCircle2 className="text-white" size={56} />
-                    </div>
-                  </motion.div>
-                  
-                  <motion.h2
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    className="text-4xl font-bold mb-4 text-gray-800"
-                  >
-                    Account Created Successfully!
-                  </motion.h2>
-                  
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-6"
-                  >
-                    <div className="flex items-center justify-center gap-3 mb-3">
-                      <Mail className="text-blue-600" size={28} />
-                      <Lock className="text-purple-600" size={28} />
-                    </div>
-                    <p className="text-lg font-semibold text-gray-800 mb-2">
-                      Your Login Credentials Have Been Sent
-                    </p>
-                    <p className="text-gray-600">
-                      Check your email at <span className="font-semibold text-blue-600">{email}</span>
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      We've sent your secure password to get started
-                    </p>
-                  </motion.div>
+              <div className="glass-dark rounded-3xl p-16 shadow-2xl border-0">
+                {/* Circular Progress */}
+                <div className="relative inline-block mb-8">
+                  <svg className="w-48 h-48 transform -rotate-90">
+                    <circle cx="96" cy="96" r="88" stroke="currentColor" strokeWidth="8" fill="none" className="text-gray-200" />
+                    <motion.circle
+                      cx="96" cy="96" r="88"
+                      stroke="url(#gradient2)"
+                      strokeWidth="8" fill="none" strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 88}`}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - progress / 100) }}
+                      transition={{ duration: 0.3 }}
+                    />
+                    <defs>
+                      <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#10B981" />
+                        <stop offset="100%" stopColor="#059669" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <CheckCircle2 className="text-green-600 mb-2" size={48} />
+                    <motion.span 
+                      key={Math.floor(progress)}
+                      initial={{ scale: 1.2, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="text-4xl font-bold text-green-700"
+                    >
+                      {Math.floor(progress)}%
+                    </motion.span>
+                  </div>
                 </div>
+                
+                <h2 className="text-5xl font-bold mb-4" style={{
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
+                  Password Sent!
+                </h2>
+                
+                <p className="text-xl text-gray-700 mb-4">
+                  Check {email} for your login credentials
+                </p>
+                
+                <p className="text-lg text-gray-600 font-semibold">
+                  Almost there! ✨
+                </p>
               </div>
             </motion.div>
           )}
