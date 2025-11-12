@@ -200,48 +200,81 @@ const Signup = () => {
           {stage === 1 && (
             <motion.div
               key="setting-up"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 1.1 }}
               transition={{ duration: 0.5 }}
               className="text-center"
             >
-              <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  className="inline-block mb-6"
-                >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto shadow-xl">
-                    <div className="w-20 h-20 rounded-full border-4 border-white border-t-transparent" />
+              <div className="glass-dark rounded-3xl p-16 shadow-2xl border-0">
+                {/* Circular Progress */}
+                <div className="relative inline-block mb-8">
+                  <svg className="w-48 h-48 transform -rotate-90">
+                    {/* Background circle */}
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="none"
+                      className="text-gray-200"
+                    />
+                    {/* Progress circle */}
+                    <motion.circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="url(#gradient)"
+                      strokeWidth="8"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 88}`}
+                      initial={{ strokeDashoffset: 2 * Math.PI * 88 }}
+                      animate={{ strokeDashoffset: 2 * Math.PI * 88 * (1 - progress / 100) }}
+                      transition={{ duration: 0.3 }}
+                    />
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#7C3AED" />
+                        <stop offset="100%" stopColor="#2563EB" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  {/* Center content */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    >
+                      <Activity className="text-purple-600 mb-2" size={48} />
+                    </motion.div>
+                    <motion.span 
+                      key={Math.floor(progress)}
+                      initial={{ scale: 1.2, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="text-4xl font-bold text-purple-700"
+                    >
+                      {Math.floor(progress)}%
+                    </motion.span>
                   </div>
-                </motion.div>
+                </div>
                 
-                <h2 className="text-4xl font-bold mb-4 text-gray-800">
+                <h2 className="text-5xl font-bold mb-4" style={{
+                  background: 'linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
                   Setting Up Your Account
                 </h2>
                 
-                <p className="text-lg text-gray-600 mb-6">
-                  We're creating your personalized wellness portal...
+                <p className="text-xl text-gray-700 mb-6">
+                  Creating your personalized wellness dashboard...
                 </p>
                 
-                <div className="flex items-center justify-center gap-2">
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0 }}
-                    className="w-2 h-2 rounded-full bg-blue-500"
-                  />
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                    className="w-2 h-2 rounded-full bg-blue-500"
-                  />
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                    className="w-2 h-2 rounded-full bg-blue-500"
-                  />
-                </div>
+                <p className="text-lg text-gray-600 font-semibold">
+                  Please be patient while we set you up ⏳
+                </p>
               </div>
             </motion.div>
           )}
