@@ -164,6 +164,18 @@ backend:
       - working: true
         agent: "testing"
         comment: "Refresh token endpoint (/api/auth/refresh) working correctly. Accepts refresh_token as query parameter. Validates token type and expiration. Returns new access and refresh tokens. Proper JWT refresh flow implemented."
+  
+  - task: "Update max step limit to 3"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Changed advance-step endpoint to limit max step from 7 to 3. Updated min(current_step + 1, 3) logic. Updated welcome email template to reference '3-step journey' instead of '7-step journey'."
 
 frontend:
   - task: "Reposition toast notifications to top of login card"
