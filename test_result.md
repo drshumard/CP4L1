@@ -215,3 +215,5 @@ agent_communication:
     message: "Redesigned login page with larger split-layout card. Left side features blue-to-purple gradient with DS logo, welcome message, and feature list. Right side has clean white form area. Card increased from max-w-md to max-w-5xl. Grid layout (md:grid-cols-2) with min-h-600px. Matches modern design aesthetic from reference image."
   - agent: "main"
     message: "Implemented Step 2 with Practice Better form embed. Created dedicated layout with centered card, gradient border styling, and custom CSS for iframe embedding. Form embedded with data-url, data-form-request, data-hash attributes. Styled with blue-purple gradient border wrapper, glassmorphism card, and completion button below form. Excluded Step 2 from generic video+action layout."
+  - agent: "main"
+    message: "Implemented two new improvements: (1) Added 'Begin Your Journey' button overlay on Step 1 video to solve autoplay restrictions - button triggers video playback on user interaction. (2) Added 12-second delay in signup flow before API call to prevent race condition with GHL webhook. Both features ready for testing."
