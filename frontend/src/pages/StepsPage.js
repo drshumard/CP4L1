@@ -575,7 +575,11 @@ const StepsPage = () => {
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
-                    src="https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=true&preload=true&responsive=true"
+                    id="step1-video-iframe"
+                    src={showVideoOverlay 
+                      ? "https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=false&loop=false&muted=false&preload=true&responsive=true"
+                      : "https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=false&preload=true&responsive=true"
+                    }
                     loading="eager"
                     style={{
                       border: 0,
@@ -587,6 +591,47 @@ const StepsPage = () => {
                     allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                     allowFullScreen="true"
                   />
+                  
+                  {/* Begin Your Journey Overlay */}
+                  <AnimatePresence>
+                    {showVideoOverlay && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          setShowVideoOverlay(false);
+                          // Reload iframe with autoplay enabled
+                          const iframe = document.getElementById('step1-video-iframe');
+                          if (iframe) {
+                            iframe.src = "https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=false&preload=true&responsive=true";
+                          }
+                        }}
+                      >
+                        <motion.button
+                          initial={{ scale: 0.8, y: 20 }}
+                          animate={{ scale: 1, y: 0 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                          className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-2xl rounded-2xl shadow-2xl flex items-center gap-4 glass-dark border-2 border-white/20"
+                        >
+                          <motion.div
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                          >
+                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          </motion.div>
+                          Begin Your Journey
+                        </motion.button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </Card>
 
