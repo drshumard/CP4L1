@@ -291,8 +291,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Add 'Begin Your Journey' button overlay on Step 1 video"
-    - "Add 10-15 second delay in signup flow before email verification"
+    - "Remove steps 4-6, keep only steps 1-3"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
