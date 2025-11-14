@@ -624,7 +624,7 @@ const StepsPage = () => {
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setShowVideoOverlay(false);
+                          handleVideoPlay();
                         }}
                       >
                         <motion.div
