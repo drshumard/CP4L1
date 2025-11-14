@@ -765,7 +765,7 @@ const StepsPage = () => {
           </div>
         )}
 
-          {/* Bottom Container: Description Card (for Steps 3-7 only) */}
+          {/* Bottom Container: Description Card (for Step 3 only) */}
           {currentStep !== 1 && currentStep !== 2 && (
             <div className="mt-6">
               <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
