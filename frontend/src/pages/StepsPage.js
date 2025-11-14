@@ -600,24 +600,35 @@ const StepsPage = () => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.3 }}
-                        className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => {
+                        className="absolute inset-0 flex items-center justify-center z-10"
+                        style={{ 
+                          cursor: 'pointer',
+                          background: 'rgba(0, 0, 0, 0.7)',
+                          backdropFilter: 'blur(4px)'
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setShowVideoOverlay(false);
-                          // Reload iframe with autoplay enabled
-                          const iframe = document.getElementById('step1-video-iframe');
-                          if (iframe) {
-                            iframe.src = "https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=false&preload=true&responsive=true";
-                          }
                         }}
                       >
-                        <motion.button
+                        <motion.div
                           initial={{ scale: 0.8, y: 20 }}
                           animate={{ scale: 1, y: 0 }}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           transition={{ type: "spring", stiffness: 300 }}
-                          className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold text-2xl rounded-2xl shadow-2xl flex items-center gap-4 glass-dark border-2 border-white/20"
+                          style={{
+                            background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                            padding: '1.5rem 3rem',
+                            borderRadius: '1rem',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            border: '2px solid rgba(255, 255, 255, 0.2)'
+                          }}
+                          className="text-white font-bold text-2xl cursor-pointer"
                         >
                           <motion.div
                             animate={{ scale: [1, 1.2, 1] }}
@@ -628,7 +639,7 @@ const StepsPage = () => {
                             </svg>
                           </motion.div>
                           Begin Your Journey
-                        </motion.button>
+                        </motion.div>
                       </motion.div>
                     )}
                   </AnimatePresence>
