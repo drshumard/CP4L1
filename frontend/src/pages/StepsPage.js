@@ -20,46 +20,18 @@ const STEP_DATA = {
     tasks: ['watch_video', 'book_consultation']
   },
   2: {
-    title: 'Understanding Diabetes',
-    action: 'COMPLETE THE DIABETES BASICS MODULE',
+    title: 'Complete Your Health Profile',
+    action: 'FILL OUT YOUR HEALTH INFORMATION',
     videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Learn the fundamentals of diabetes management and how your body processes glucose.',
-    tasks: ['watch_education_video', 'complete_quiz']
+    description: 'Provide your health information to help us personalize your wellness journey.',
+    tasks: ['complete_form']
   },
   3: {
-    title: 'Nutrition & Meal Planning',
-    action: 'DOWNLOAD YOUR MEAL PLAN',
+    title: 'Program Complete',
+    action: 'REVIEW YOUR NEXT STEPS',
     videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Discover healthy eating strategies tailored for diabetes management.',
-    tasks: ['watch_nutrition_video', 'download_meal_plan']
-  },
-  4: {
-    title: 'Physical Activity Guide',
-    action: 'SET YOUR EXERCISE GOALS',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Learn safe and effective exercise routines to improve your health.',
-    tasks: ['watch_exercise_video', 'set_goals']
-  },
-  5: {
-    title: 'Blood Sugar Monitoring',
-    action: 'LOG YOUR FIRST READING',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Master the art of monitoring and tracking your blood glucose levels.',
-    tasks: ['watch_monitoring_video', 'log_reading']
-  },
-  6: {
-    title: 'Medication Management',
-    action: 'REVIEW YOUR MEDICATION SCHEDULE',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Understand your medications and create a consistent routine.',
-    tasks: ['watch_medication_video', 'set_reminders']
-  },
-  7: {
-    title: 'Ongoing Support & Success',
-    action: 'SCHEDULE YOUR FOLLOW-UP',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-    description: 'Celebrate your progress and plan for continued success.',
-    tasks: ['watch_success_video', 'schedule_followup']
+    description: 'Congratulations! You have completed the onboarding process.',
+    tasks: ['review_summary']
   }
 };
 
