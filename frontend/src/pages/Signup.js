@@ -76,7 +76,7 @@ const Signup = () => {
       }
     }, 12000); // Changed from 6000 to 12000 (12 seconds total delay)
     
-    // Stage 2: Password sent message (6s) - 50% to ~80%
+    // Stage 2: Password sent message (4s) - 50% to ~80%
     setTimeout(() => setStage(3), 16000);
     
     // Stage 3: Redirecting message (4s) - ~80% to 100% then navigate to Step 1
