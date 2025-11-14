@@ -478,6 +478,108 @@ class BackendTester:
             self.log_result("Race Condition Test", False, f"Test failed: {str(e)}")
             return False
     
+    def test_complete_flow_fresh_user(self):
+        """Test 9: Complete flow with a fresh user to demonstrate end-to-end"""
+        print("\n=== Testing Complete Flow - Fresh User ===")
+        
+        # Create a completely new test user
+        fresh_user = {
+            "email": f"freshtest.{int(time.time())}@example.com",
+            "name": "Fresh Test User"
+        }
+        
+        # Step 1: Webhook creates user
+        webhook_url = f"{BACKEND_URL}/webhook/ghl"
+        webhook_payload = {
+            "email": fresh_user["email"],
+            "name": fresh_user["name"]
+        }
+        params = {"webhook_secret": WEBHOOK_SECRET}
+        
+        try:
+            webhook_response = self.session.post(webhook_url, json=webhook_payload, params=params)
+            
+            if webhook_response.status_code != 200:
+                self.log_result(
+                    "Complete Flow - Fresh Webhook", 
+                    False, 
+                    f"Webhook failed: {webhook_response.status_code}",
+                    webhook_response.json() if webhook_response.content else None
+                )
+                return False
+            
+            webhook_data = webhook_response.json()
+            self.log_result(
+                "Complete Flow - Fresh Webhook", 
+                True, 
+                f"Fresh user created via webhook: {webhook_data.get('user_id')}"
+            )
+            
+            # Step 2: Signup (auto-login)
+            signup_url = f"{BACKEND_URL}/auth/signup"
+            signup_payload = {
+                "email": fresh_user["email"],
+                "name": fresh_user["name"],
+                "password": "FreshTestPassword123!"
+            }
+            
+            signup_response = self.session.post(signup_url, json=signup_payload)
+            
+            if signup_response.status_code != 200:
+                self.log_result(
+                    "Complete Flow - Fresh Signup", 
+                    False, 
+                    f"Signup failed: {signup_response.status_code}",
+                    signup_response.json() if signup_response.content else None
+                )
+                return False
+            
+            signup_data = signup_response.json()
+            fresh_access_token = signup_data.get("access_token")
+            
+            self.log_result(
+                "Complete Flow - Fresh Signup", 
+                True, 
+                "Fresh user signup (auto-login) successful"
+            )
+            
+            # Step 3: Verify token works
+            me_url = f"{BACKEND_URL}/user/me"
+            headers = {"Authorization": f"Bearer {fresh_access_token}"}
+            
+            me_response = self.session.get(me_url, headers=headers)
+            
+            if me_response.status_code == 200:
+                me_data = me_response.json()
+                if me_data.get("email") == fresh_user["email"]:
+                    self.log_result(
+                        "Complete Flow - Token Verification", 
+                        True, 
+                        f"Complete flow successful for user: {me_data.get('name')}"
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "Complete Flow - Token Verification", 
+                        False, 
+                        "Token valid but wrong user data",
+                        me_data
+                    )
+            else:
+                self.log_result(
+                    "Complete Flow - Token Verification", 
+                    False, 
+                    f"Token verification failed: {me_response.status_code}",
+                    me_response.json() if me_response.content else None
+                )
+                return False
+            
+        except Exception as e:
+            self.log_result("Complete Flow - Fresh User", False, f"Test failed: {str(e)}")
+            return False
+            
+        return True
+    
     def run_all_tests(self):
         """Run all backend tests"""
         print("🚀 Starting Backend Authentication Flow Tests")
