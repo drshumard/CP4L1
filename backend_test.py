@@ -360,10 +360,11 @@ class BackendTester:
             return False
         
         url = f"{BACKEND_URL}/auth/refresh"
-        payload = {"refresh_token": self.refresh_token}
+        # The API expects refresh_token as a query parameter, not JSON body
+        params = {"refresh_token": self.refresh_token}
         
         try:
-            response = self.session.post(url, json=payload)
+            response = self.session.post(url, params=params)
             
             if response.status_code == 200:
                 data = response.json()
