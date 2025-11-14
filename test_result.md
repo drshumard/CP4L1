@@ -167,6 +167,30 @@ frontend:
       - working: true
         agent: "main"
         comment: "Implemented full-page Practice Better form for Step 2. Uses calc(100vh - 280px) for height calculation. Form takes full remaining viewport with flex-1 layout. Added minimal header with gradient text. Floating 'Continue' button fixed at bottom-right with gradient styling and hover effects. Eliminated scrolling with overflow-hidden. Gradient border wrapper (3px blue-purple) around form. Custom CSS for iframe sizing and positioning. Form fills entire available space."
+  
+  - task: "Add 'Begin Your Journey' button overlay on Step 1 video"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/StepsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added interactive button overlay on Step 1 video to solve browser autoplay restrictions. Implemented overlay with 'Begin Your Journey' button featuring animated play icon, gradient styling, and glassmorphism design. Button appears over video with dark backdrop. On click, overlay disappears and video iframe reloads with autoplay=true to trigger playback. Uses AnimatePresence for smooth transitions. Video URL changed from autoplay=true to autoplay=false initially, then switches on button click."
+  
+  - task: "Add 10-15 second delay in signup flow before email verification"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/Signup.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Modified signup flow to wait 12 seconds (instead of 6 seconds) before calling /api/auth/signup endpoint. This addresses race condition where user reaches signup page before GHL webhook creates user in database. New timing: 0-6s Welcome, 6-12s Setting Up (waiting for webhook), 12s API call, 12-16s Password Sent, 16-20s Redirecting, 20s Navigate to /steps. The 12-second delay gives webhook sufficient time to complete user creation."
 
 metadata:
   created_by: "main_agent"
