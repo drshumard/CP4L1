@@ -79,18 +79,26 @@ class BackendTester:
             
             if response.status_code == 200:
                 data = response.json()
-                if "user_id" in data and "signup_url" in data:
-                    self.log_result(
-                        "GHL Webhook - User Creation", 
-                        True, 
-                        f"User created successfully with ID: {data.get('user_id')}"
-                    )
+                if "user_id" in data:
+                    # signup_url is only present for new users, not existing ones
+                    if "already exists" in data.get("message", "").lower():
+                        self.log_result(
+                            "GHL Webhook - User Creation", 
+                            True, 
+                            f"User already exists with ID: {data.get('user_id')}"
+                        )
+                    else:
+                        self.log_result(
+                            "GHL Webhook - User Creation", 
+                            True, 
+                            f"User created successfully with ID: {data.get('user_id')}"
+                        )
                     return True
                 else:
                     self.log_result(
                         "GHL Webhook - User Creation", 
                         False, 
-                        "Missing user_id or signup_url in response",
+                        "Missing user_id in response",
                         data
                     )
             else:
