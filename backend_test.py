@@ -596,7 +596,8 @@ class BackendTester:
             self.test_login_endpoint,
             self.test_jwt_token_validation,
             self.test_refresh_token,
-            self.test_race_condition_scenario
+            self.test_race_condition_scenario,
+            self.test_complete_flow_fresh_user
         ]
         
         passed = 0
