@@ -53,7 +53,9 @@ const Signup = () => {
     // Stage 0: Welcome animation (6s) - 0% to 30%
     setTimeout(() => setStage(1), 6000);
     
-    // Stage 1: Setting up account (4s) - 30% to 50% - Call API
+    // Stage 1: Setting up account (4s) - 30% to 50%
+    // Wait 12 seconds (6s welcome + 6s extra) before checking email/calling API
+    // This gives the GHL webhook time to create the user in the database
     setTimeout(async () => {
       try {
         const response = await axios.post(`${API}/auth/signup`, {
@@ -72,7 +74,7 @@ const Signup = () => {
         setTimeout(() => navigate('/login'), 2000);
         return;
       }
-    }, 6000);
+    }, 12000); // Changed from 6000 to 12000 (12 seconds total delay)
     
     // Stage 2: Password sent message (6s) - 50% to ~80%
     setTimeout(() => setStage(3), 16000);
