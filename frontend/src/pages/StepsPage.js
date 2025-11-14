@@ -756,7 +756,7 @@ const StepsPage = () => {
                     className="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
                     data-testid="submit-button"
                   >
-                    {currentStep === 7 ? 'Complete Program' : 'Continue to Next Step'}
+                    {currentStep === 3 ? 'Complete Program' : 'Continue to Next Step'}
                   </Button>
                 </CardContent>
               </Card>
