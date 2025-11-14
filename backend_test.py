@@ -615,17 +615,21 @@ class BackendTester:
         print("🏁 TEST SUMMARY")
         print("=" * 60)
         
+        total_checks = len(self.test_results)
+        passed_checks = sum(1 for result in self.test_results if result["success"])
+        
         for result in self.test_results:
             status = "✅" if result["success"] else "❌"
             print(f"{status} {result['test']}: {result['message']}")
         
-        print(f"\nOverall: {passed}/{total} tests passed")
+        print(f"\nOverall: {passed_checks}/{total_checks} individual checks passed")
+        print(f"Test Methods: {passed}/{total} test methods completed successfully")
         
-        if passed == total:
+        if passed_checks == total_checks:
             print("🎉 All tests passed! Backend authentication flow is working correctly.")
             return True
         else:
-            print(f"⚠️  {total - passed} tests failed. Please check the issues above.")
+            print(f"⚠️  {total_checks - passed_checks} checks failed. Please review the issues above.")
             return False
 
 def main():
