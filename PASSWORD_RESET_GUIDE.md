@@ -141,7 +141,7 @@ The reset email includes:
 ```env
 # In /app/backend/.env
 RESEND_API_KEY="re_V2xa5xTh_GeWfiWrEeMeMMry1FKhr8yVa"
-FRONTEND_URL="https://stepwise-health-1.preview.emergentagent.com"
+FRONTEND_URL="https://wellness-steps-2.preview.emergentagent.com"
 ```
 
 **Important:** 
@@ -233,12 +233,12 @@ To send from your actual domain (`@drjasonshumard.com`):
 
 ```bash
 # Create a test user first (if not exists)
-curl -X POST "https://stepwise-health-1.preview.emergentagent.com/api/webhook/ghl?webhook_secret=YOUR_SECRET" \
+curl -X POST "https://wellness-steps-2.preview.emergentagent.com/api/webhook/ghl?webhook_secret=YOUR_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"email": "test@example.com", "name": "Test User"}'
 
 # Request password reset
-curl -X POST "https://stepwise-health-1.preview.emergentagent.com/api/auth/request-reset" \
+curl -X POST "https://wellness-steps-2.preview.emergentagent.com/api/auth/request-reset" \
   -H "Content-Type: application/json" \
   -d '{"email": "test@example.com"}'
 ```
@@ -287,7 +287,7 @@ mongosh
 
 2. **Visit reset URL:**
 ```
-https://stepwise-health-1.preview.emergentagent.com/reset-password?token=TOKEN_FROM_DB
+https://wellness-steps-2.preview.emergentagent.com/reset-password?token=TOKEN_FROM_DB
 ```
 
 3. **Enter new password and submit**
