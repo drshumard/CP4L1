@@ -237,8 +237,8 @@ const StepsPage = () => {
       {/* Progress Steps */}
       <div className="glass-dark border-b border-gray-200 overflow-x-auto" data-testid="progress-steps">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between min-w-max">
-            {[1, 2, 3, 4, 5, 6, 7].map((step, idx) => (
+          <div className="flex items-center justify-center gap-4">
+            {[1, 2, 3].map((step, idx) => (
               <React.Fragment key={step}>
                 <div className="flex flex-col items-center" data-testid={`step-indicator-${step}`}>
                   <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 ${
@@ -259,13 +259,13 @@ const StepsPage = () => {
                   <span className={`mt-2 text-sm font-medium ${
                     step <= currentStep ? 'text-gray-800' : 'text-gray-500'
                   }`}>
-                    {step === 7 ? 'Outcome' : `Step ${step}`}
+                    Step {step}
                   </span>
                 </div>
-                {idx < 6 && (
-                  <div className={`flex-1 h-0.5 mx-2 ${
+                {idx < 2 && (
+                  <div className={`h-0.5 ${
                     step < currentStep ? 'bg-green-500' : 'bg-gray-300'
-                  }`} style={{ minWidth: '40px' }} />
+                  }`} style={{ width: '80px' }} />
                 )}
               </React.Fragment>
             ))}
