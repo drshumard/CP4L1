@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Toast notifications on the login page should appear inside/at the top of the login card instead of the top right corner of the screen. The styling should match the brand (white, blue, neutral tones with glassmorphism). This change is specific to the login page only."
+user_problem_statement: "Remove steps 4-6 from the wellness portal, keeping only steps 1-3. Step 3 should complete the program."
 
 backend:
   - task: "GHL Webhook endpoint for user creation"
