@@ -72,21 +72,7 @@ const StepsPage = () => {
   const [showStep2Instructions, setShowStep2Instructions] = useState(false);
   const [videoStarted, setVideoStarted] = useState(false);
   const [showVideoOverlay, setShowVideoOverlay] = useState(true);
-
-  const handleVideoPlay = () => {
-    setShowVideoOverlay(false);
-    // Attempt to trigger play via iframe postMessage or reload with autoplay
-    setTimeout(() => {
-      const iframe = document.getElementById('step1-video-iframe');
-      if (iframe) {
-        try {
-          iframe.src = "https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=true&loop=false&muted=false&preload=true&responsive=true";
-        } catch (error) {
-          console.log('Video playback initiated');
-        }
-      }
-    }, 100);
-  };
+  const [videoAutoplay, setVideoAutoplay] = useState(false);
 
   useEffect(() => {
     fetchData();
