@@ -377,7 +377,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         
                         <p class="message" style="margin-bottom: 0;">
                             <strong>What's Next?</strong><br>
-                            Click the button above to access your personalized wellness portal and begin your 7-step journey to better health.
+                            Click the button above to access your personalized wellness portal and begin your 3-step journey to better health.
                         </p>
                     </div>
                     
