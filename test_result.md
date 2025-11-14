@@ -104,6 +104,67 @@
 
 user_problem_statement: "Toast notifications on the login page should appear inside/at the top of the login card instead of the top right corner of the screen. The styling should match the brand (white, blue, neutral tones with glassmorphism). This change is specific to the login page only."
 
+backend:
+  - task: "GHL Webhook endpoint for user creation"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed. Webhook endpoint (/api/webhook/ghl) working correctly with proper security validation. Requires webhook_secret parameter for authentication. Successfully creates users in database with generated passwords. Handles duplicate user creation gracefully. Email notifications sent successfully via Resend API."
+  
+  - task: "Signup endpoint for auto-login after webhook"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Signup endpoint (/api/auth/signup) working as designed. Validates that user exists (created by webhook) before allowing signup. Provides auto-login functionality by returning JWT tokens immediately. Correctly rejects signup attempts for non-webhook users with 404 error. Race condition resolved by frontend 12-second delay."
+  
+  - task: "Login endpoint with password authentication"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Login endpoint (/api/auth/login) working correctly. Validates email and password against webhook-generated credentials. Properly rejects invalid credentials with 401 status. Returns JWT access and refresh tokens on successful authentication. Password security maintained - signup doesn't override webhook-generated password."
+  
+  - task: "JWT token validation and protected endpoints"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "JWT token system working correctly. Protected endpoints like /api/user/me properly validate Bearer tokens. Token payload contains correct user information. Access tokens expire appropriately. Authentication middleware functioning as expected."
+  
+  - task: "Refresh token functionality"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Refresh token endpoint (/api/auth/refresh) working correctly. Accepts refresh_token as query parameter. Validates token type and expiration. Returns new access and refresh tokens. Proper JWT refresh flow implemented."
+
 frontend:
   - task: "Reposition toast notifications to top of login card"
     implemented: true
