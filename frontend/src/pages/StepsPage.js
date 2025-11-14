@@ -718,10 +718,10 @@ const StepsPage = () => {
               </Card>
             </div>
 
-            {/* Action Card for Steps 3-7 */}
+            {/* Action Card for Step 3 */}
             <div style={{ height: '500px' }}>
               {currentStep !== 1 && (
-              /* Action Card for other steps */
+              /* Action Card for step 3 */
               <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="action-card">
                 <CardContent className="p-6 flex-1 flex flex-col">
                   <h3 className="text-lg font-bold text-gray-800 mb-4">YOUR ACTION STEP:</h3>
