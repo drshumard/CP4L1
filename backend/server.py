@@ -608,8 +608,8 @@ async def advance_step(current_user: dict = Depends(get_current_user)):
         upsert=True
     )
     
-    # Advance to next step (max 7)
-    next_step = min(current_step + 1, 7)
+    # Advance to next step (max 3)
+    next_step = min(current_step + 1, 3)
     await db.users.update_one(
         {"id": user_id},
         {"$set": {"current_step": next_step}}
