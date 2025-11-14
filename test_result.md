@@ -258,6 +258,18 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Modified signup flow to wait 12 seconds (instead of 6 seconds) before calling /api/auth/signup endpoint. This addresses race condition where user reaches signup page before GHL webhook creates user in database. New timing: 0-6s Welcome, 6-12s Setting Up (waiting for webhook), 12s API call, 12-16s Password Sent, 16-20s Redirecting, 20s Navigate to /steps. The 12-second delay gives webhook sufficient time to complete user creation."
+  
+  - task: "Remove steps 4-6, keep only steps 1-3"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/StepsPage.js, /app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Removed steps 4-6 from wellness portal. Updated STEP_DATA to include only 3 steps. Changed progress indicator from 7 steps to 3 steps with centered layout. Updated backend max step limit from 7 to 3. Changed completion logic to trigger on step 3 instead of step 7. Updated email template text from '7-step journey' to '3-step journey'. Step 2 remains Practice Better form. Step 3 shows video+action card layout and completes program."
 
 metadata:
   created_by: "main_agent"
