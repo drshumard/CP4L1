@@ -285,6 +285,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Redesigned Step 2 layout to match Step 1 structure. Changed from full-page form to two-column grid layout (lg:grid-cols-2). Left column contains: video player at top + instructions card below with 'Important: How to Complete This Form' content. Right column contains: Practice Better form embed with gradient border and continue button below form. Maintains modal pop-up for first-time users. Form height adapts to container with proper iframe styling."
+      - working: "NA"
+        agent: "main"
+        comment: "Made progress steps banner more compact and added step title banner below it. Reduced circle size from w-14 h-14 to w-10 h-10, icon sizes smaller, text from text-sm to text-xs, padding from py-6 to py-3, gap from gap-4 to gap-3, connector width from 80px to 60px. Added new banner below progress steps showing step-specific titles: Step 1: 'Welcome to Dr. Jason Shumard's Digital Office!', Step 2: 'Step 2: Complete Your Health Blueprint', Step 3: 'Step 3: Final Preparations - You Are Ready!'. Title uses gradient text (blue-to-purple) and centered layout."
 
 metadata:
   created_by: "main_agent"
