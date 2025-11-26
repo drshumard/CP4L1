@@ -279,22 +279,22 @@ const OutcomePage = () => {
                   whileHover={{ scale: 1.05 }}
                   className="text-center p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100"
                 >
-                  <div className="text-4xl font-bold text-blue-600 mb-2">1/7</div>
+                  <div className="text-4xl font-bold text-blue-600 mb-2">3/3</div>
                   <div className="text-sm text-gray-600">Steps Completed</div>
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   className="text-center p-6 rounded-2xl bg-gradient-to-br from-green-50 to-green-100"
                 >
-                  <div className="text-4xl font-bold text-green-600 mb-2">14%</div>
+                  <div className="text-4xl font-bold text-green-600 mb-2">100%</div>
                   <div className="text-sm text-gray-600">Journey Progress</div>
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   className="text-center p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100"
                 >
-                  <div className="text-4xl font-bold text-purple-600 mb-2">6</div>
-                  <div className="text-sm text-gray-600">Steps Remaining</div>
+                  <div className="text-4xl font-bold text-purple-600 mb-2">✓</div>
+                  <div className="text-sm text-gray-600">All Steps Complete</div>
                 </motion.div>
               </div>
 
