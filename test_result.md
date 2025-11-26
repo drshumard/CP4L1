@@ -313,6 +313,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Made progress steps banner more compact and added step title banner below it. Reduced circle size from w-14 h-14 to w-10 h-10, icon sizes smaller, text from text-sm to text-xs, padding from py-6 to py-3, gap from gap-4 to gap-3, connector width from 80px to 60px. Added new banner below progress steps showing step-specific titles: Step 1: 'Welcome to Dr. Jason Shumard's Digital Office!', Step 2: 'Step 2: Complete Your Health Blueprint', Step 3: 'Step 3: Final Preparations - You Are Ready!'. Title uses gradient text (blue-to-purple) and centered layout."
+      - working: "NA"
+        agent: "main"
+        comment: "Replaced health advocate card in Step 1 with urgency-focused action steps card. New card includes: Welcome message emphasizing critical first step and 20-minute deadline, explanation of 30-minute initial consult, three numbered action steps (Book Your Session, Confirm Priority, Move Forward). Card uses gradient background (blue-to-purple) for action steps section, clipboard icon header, numbered circles (1-2-3) with blue background, compact text sizing for better space utilization. Maintains glassmorphism styling consistent with brand."
 
 metadata:
   created_by: "main_agent"
