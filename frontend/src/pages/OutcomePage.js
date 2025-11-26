@@ -328,9 +328,9 @@ const OutcomePage = () => {
               <div className="text-center">
                 <h3 className="font-bold text-xl text-gray-800 mb-3">What Comes Next?</h3>
                 <p className="text-gray-600 mb-6">
-                  After your consultation, you'll move through 6 more steps covering diabetes fundamentals, nutrition, 
-                  exercise, monitoring, medication management, and long-term wellness strategies. Dr. Shumard will create 
-                  your personalized plan during your call.
+                  During your scheduled consultation, Dr. Shumard will review your health profile and create a personalized 
+                  wellness plan tailored to your specific needs and goals. He'll guide you through diabetes management 
+                  strategies, nutrition recommendations, and lifestyle modifications to help you achieve optimal health.
                 </p>
                 <div className="flex flex-wrap justify-center gap-4">
                   <Button
