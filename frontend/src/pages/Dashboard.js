@@ -151,7 +151,7 @@ const Dashboard = () => {
                       <Progress value={completionPercentage} className="h-2" data-testid="progress-bar" />
                     </div>
                     <div className="pt-3 border-t border-blue-200">
-                      <p className="text-sm text-gray-600">Current Step: <span className="font-semibold text-gray-800">{progressData?.current_step}/7</span></p>
+                      <p className="text-sm text-gray-600">Current Step: <span className="font-semibold text-gray-800">{progressData?.current_step}/3</span></p>
                       <p className="text-sm text-gray-600 mt-1">Completed: <span className="font-semibold text-gray-800">{completedSteps} steps</span></p>
                     </div>
                   </div>
