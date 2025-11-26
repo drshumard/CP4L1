@@ -190,7 +190,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-800">{completedSteps}</p>
-              <p className="text-sm text-gray-600 mt-1">Out of 7 total steps</p>
+              <p className="text-sm text-gray-600 mt-1">Out of 3 total steps</p>
             </CardContent>
           </Card>
 
@@ -203,10 +203,10 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-800">
-                {progressData?.current_step === 7 ? 'Complete!' : `Step ${progressData?.current_step + 1}`}
+                {progressData?.current_step === 3 ? 'Complete!' : `Step ${progressData?.current_step + 1}`}
               </p>
               <p className="text-sm text-gray-600 mt-1">
-                {progressData?.current_step === 7 ? 'Congratulations!' : 'Coming up next'}
+                {progressData?.current_step === 3 ? 'Congratulations!' : 'Coming up next'}
               </p>
             </CardContent>
           </Card>
