@@ -415,51 +415,89 @@ const StepsPage = () => {
             )}
           </AnimatePresence>
 
-          {/* Header Section - With Clear Instructions */}
-          <div className="text-center pb-4 px-4 max-w-4xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-              Tell Us About Yourself
-            </h2>
-            <p className="text-gray-600 text-sm md:text-base mb-4">
-              Complete this form to help us personalize your wellness journey
-            </p>
-            
-            {/* Important Instructions Card */}
-            <div className="bg-blue-50 border-2 border-blue-300 rounded-xl p-4 md:p-5 shadow-md">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 mt-1">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+          {/* Two Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-8" style={{ minHeight: '800px' }}>
+            {/* Left Column: Video + Instructions Card */}
+            <div className="flex flex-col gap-6 h-full">
+              {/* Video Section */}
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
+                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
+                  <ReactPlayer
+                    url={STEP_DATA[2].videoUrl}
+                    width="100%"
+                    height="100%"
+                    controls
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0
+                    }}
+                  />
                 </div>
-                <div className="text-left">
-                  <h3 className="font-bold text-blue-900 text-base md:text-lg mb-2">
-                    📋 Important: How to Complete This Form
+              </Card>
+
+              {/* Instructions Card */}
+              <Card className="glass-dark border-0 shadow-xl flex-1 overflow-auto" data-testid="instructions-card">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Important: How to Complete This Form
                   </h3>
-                  <ol className="text-sm md:text-base text-blue-800 space-y-2 list-decimal list-inside">
-                    <li className="leading-relaxed">
-                      <strong>This form has 4 pages</strong> - Fill out all fields on each page
+                  <ol className="space-y-3 text-sm text-gray-700">
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                        1
+                      </span>
+                      <p className="pt-0.5 leading-relaxed">
+                        <strong className="text-gray-900">This form has 4 pages</strong> - Fill out all fields on each page
+                      </p>
                     </li>
-                    <li className="leading-relaxed">
-                      Click the <strong>"Next Page"</strong> button in the <strong>bottom-right corner</strong> of the form to advance through all pages
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                        2
+                      </span>
+                      <p className="pt-0.5 leading-relaxed">
+                        Click the <strong className="text-gray-900">"Next Page"</strong> button in the <strong className="text-gray-900">bottom-right corner</strong> to advance
+                      </p>
                     </li>
-                    <li className="leading-relaxed">
-                      On the <strong>final page (page 4)</strong>, you'll need to <strong>provide your signature</strong>
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                        3
+                      </span>
+                      <p className="pt-0.5 leading-relaxed">
+                        On the <strong className="text-gray-900">final page (page 4)</strong>, provide your <strong className="text-gray-900">signature</strong>
+                      </p>
                     </li>
-                    <li className="leading-relaxed">
-                      Click <strong>"Submit"</strong> to submit your completed form
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                        4
+                      </span>
+                      <p className="pt-0.5 leading-relaxed">
+                        Click <strong className="text-gray-900">"Submit"</strong> to complete
+                      </p>
                     </li>
-                    <li className="leading-relaxed">
-                      <strong>After submission</strong>, scroll down to find the <strong>"Continue to Next Step"</strong> button below the form
+                    <li className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                        5
+                      </span>
+                      <p className="pt-0.5 leading-relaxed">
+                        <strong className="text-gray-900">After submission</strong>, click the "Continue" button below the form
+                      </p>
                     </li>
                   </ol>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </div>
-          </div>
 
-          {/* Form Container - Comfortable Width, Natural Height */}
-          <div className="px-8 md:px-16 lg:px-24 pb-6 max-w-[1800px] mx-auto">
+            {/* Right Column: Practice Better Form */}
+            <div className="h-full flex flex-col">
+              <Card className="glass-dark border-0 shadow-xl flex-1 flex flex-col overflow-hidden" data-testid="form-card">
+                <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">Complete Your Health Profile</h3>
+                  
+                  <div className="flex-1 overflow-hidden" data-testid="form-container">
             <style dangerouslySetInnerHTML={{__html: `
               .better-inline-booking-widget {
                 position: relative;
