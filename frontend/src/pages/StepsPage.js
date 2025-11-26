@@ -797,31 +797,40 @@ const StepsPage = () => {
               /* Action Card for step 3 */
               <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="action-card">
                 <CardContent className="p-6 flex-1 flex flex-col">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">YOUR ACTION STEP:</h3>
-                  <p className="text-xl font-semibold text-blue-700 mb-6">{stepInfo.action}</p>
+                  <h3 className="text-lg font-bold text-gray-800 mb-6 text-center">STEP 3: ACTION STEPS</h3>
 
-                  <div className="space-y-3 flex-1" data-testid="task-list">
-                    {stepInfo.tasks.map((task, idx) => (
-                      <Button
-                        key={task}
-                        onClick={() => handleTaskComplete(task)}
-                        disabled={completedTasks.has(task)}
-                        className={`w-full py-6 text-left justify-start ${
-                          completedTasks.has(task)
-                            ? 'bg-green-100 text-green-800 border-green-300'
-                            : 'bg-white text-gray-800 hover:bg-blue-50'
-                        } border-2`}
-                        variant="outline"
-                        data-testid={`task-button-${idx}`}
-                      >
-                        {completedTasks.has(task) ? (
-                          <CheckCircle2 className="mr-2" size={20} />
-                        ) : (
-                          <Circle className="mr-2" size={20} />
-                        )}
-                        {task.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </Button>
-                    ))}
+                  <div className="space-y-6 flex-1">
+                    {/* Action Step 1 */}
+                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          1
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-base mb-2">Confirm Your Calendar:</h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            Pull up your email, find the official confirmation invite, and add the session details to your 
+                            personal calendar. Highlight this date as your absolute top priority.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Step 2 */}
+                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          2
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-gray-800 text-base mb-2">Bring Your Support Team:</h4>
+                          <p className="text-sm text-gray-700 leading-relaxed">
+                            Reversing complex health concerns is a decision best made together. Forward the invite to your 
+                            spouse or other trusted decision-maker and confirm they will be joining you on the call.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <Button
@@ -829,7 +838,7 @@ const StepsPage = () => {
                     className="w-full mt-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-6 rounded-xl shadow-lg"
                     data-testid="submit-button"
                   >
-                    {currentStep === 3 ? 'Complete Program' : 'Continue to Next Step'}
+                    Complete Program
                   </Button>
                 </CardContent>
               </Card>
