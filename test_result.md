@@ -189,6 +189,18 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Updated outcome/confetti page for 3-step journey. Changed steps completed from 1/7 to 3/3. Changed journey progress from 14% to 100%. Changed 'Steps Remaining' from '6' to checkmark with 'All Steps Complete'. Changed 'Step 1 Complete' to 'First Milestone Complete'. Updated hero text to reflect completion of all onboarding steps. Updated 'What Comes Next' section to reference consultation and personalized plan instead of 6 remaining steps."
+  
+  - task: "Update dashboard/home page to reflect 3-step journey"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/Dashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated Dashboard page for 3-step journey. Changed completion percentage calculation from /7 to /3. Updated welcome text from 'diabetes wellness journey' to 'wellness journey'. Changed completion check from current_step === 7 to current_step === 3. Updated progress card from 'Current Step: X/7' to 'X/3'. Updated stat card from 'Out of 7 total steps' to 'Out of 3 total steps'. Changed next milestone check from === 7 to === 3. Updated program overview from 4 generic pillars to 3 specific steps matching actual journey: Step 1 (Book Consultation), Step 2 (Health Profile), Step 3 (Ready to Start)."
 
 frontend:
   - task: "Reposition toast notifications to top of login card"
