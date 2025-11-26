@@ -282,6 +282,9 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Removed steps 4-6 from wellness portal. Updated STEP_DATA to include only 3 steps. Changed progress indicator from 7 steps to 3 steps with centered layout. Updated backend max step limit from 7 to 3. Changed completion logic to trigger on step 3 instead of step 7. Updated email template text from '7-step journey' to '3-step journey'. Step 2 remains Practice Better form. Step 3 shows video+action card layout and completes program."
+      - working: "NA"
+        agent: "main"
+        comment: "Redesigned Step 2 layout to match Step 1 structure. Changed from full-page form to two-column grid layout (lg:grid-cols-2). Left column contains: video player at top + instructions card below with 'Important: How to Complete This Form' content. Right column contains: Practice Better form embed with gradient border and continue button below form. Maintains modal pop-up for first-time users. Form height adapts to container with proper iframe styling."
 
 metadata:
   created_by: "main_agent"
