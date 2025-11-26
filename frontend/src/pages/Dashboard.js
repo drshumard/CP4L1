@@ -114,9 +114,9 @@ const Dashboard = () => {
                   <h2 className="text-4xl font-bold text-gray-800">Welcome, {userData?.name}!</h2>
                 </div>
                 <p className="text-lg text-gray-600 mb-6">
-                  You're on Step {progressData?.current_step} of your diabetes wellness journey.
+                  You're on Step {progressData?.current_step} of your wellness journey.
                 </p>
-                {progressData?.current_step === 7 && completedSteps === 7 ? (
+                {progressData?.current_step === 3 && completedSteps === 3 ? (
                   <Button 
                     onClick={() => navigate('/outcome')}
                     className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
