@@ -67,7 +67,7 @@ const Dashboard = () => {
     );
   }
 
-  const completionPercentage = (progressData?.current_step / 7) * 100;
+  const completionPercentage = (progressData?.current_step / 3) * 100;
   const completedSteps = progressData?.progress?.filter(p => p.completed_at).length || 0;
 
   return (
