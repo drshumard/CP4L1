@@ -499,14 +499,14 @@ const StepsPage = () => {
                   
                   <div className="flex-1 overflow-hidden" data-testid="form-container">
                     <style dangerouslySetInnerHTML={{__html: `
-                      .better-inline-booking-widget-step2 {
+                      .form-container-step2 .better-inline-booking-widget {
                         position: relative;
                         background: white;
                         border-radius: 0.5rem;
                         overflow: hidden;
-                        height: 100%;
+                        height: 600px;
                       }
-                      .better-inline-booking-widget-step2 iframe {
+                      .form-container-step2 .better-inline-booking-widget iframe {
                         position: absolute;
                         top: 0;
                         left: 0;
@@ -516,15 +516,14 @@ const StepsPage = () => {
                       }
                     `}} />
                     
-                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-3 h-full overflow-hidden">
+                    <div className="form-container-step2 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-3 h-full overflow-hidden">
                       <div 
-                        className="better-inline-booking-widget-step2" 
+                        className="better-inline-booking-widget" 
                         data-url="https://drshumard.practicebetter.io/" 
                         data-form-request="6021e5d42a9c2406f45aa20f" 
                         data-hash="601a127b2a9c2406dcc94437" 
                         data-theme="246af4" 
                         data-theme-accent="f57f1b"
-                        style={{ height: '100%' }}
                       />
                     </div>
                   </div>
