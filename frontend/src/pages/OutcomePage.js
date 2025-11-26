@@ -195,7 +195,7 @@ const OutcomePage = () => {
             transition={{ delay: 0.6 }}
             className="text-xl text-gray-700 max-w-2xl mx-auto mb-8"
           >
-            You've successfully completed the first step of your diabetes wellness journey. Make sure you prepare everything for your consultation call!
+            You've successfully completed your wellness journey onboarding! Your consultation is booked and your health profile is complete. You're all set to begin your personalized wellness program.
           </motion.p>
 
           <motion.div
@@ -205,7 +205,7 @@ const OutcomePage = () => {
             className="flex items-center justify-center gap-2"
           >
             <Sparkles className="text-green-500" size={24} />
-            <span className="text-2xl font-semibold text-gray-800">Step 1 Complete</span>
+            <span className="text-2xl font-semibold text-gray-800">First Milestone Complete</span>
             <Sparkles className="text-green-500" size={24} />
           </motion.div>
         </motion.div>
