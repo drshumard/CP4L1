@@ -275,8 +275,8 @@ const StepsPage = () => {
 
       {/* Main Content */}
       {currentStep === 2 ? (
-        /* Step 2: Full-width form - let it expand naturally */
-        <div className="py-4">
+        /* Step 2: Video + Instructions on Left, Form on Right */
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
           {/* Step 2 Instructions Modal */}
           <AnimatePresence>
             {showStep2Instructions && (
