@@ -266,11 +266,11 @@ const OutcomePage = () => {
             <CardContent className="p-8 sm:p-12">
               <div className="text-center mb-8">
                 <Award className="inline-block text-blue-500 mb-4" size={48} />
-                <h2 className="text-3xl font-bold text-gray-800 mb-4">Preparing for Your Consultation</h2>
+                <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready for Your Wellness Journey</h2>
                 <p className="text-gray-600 max-w-3xl mx-auto">
-                  You've completed the first step by booking your consultation with Dr. Shumard. This one-on-one call 
-                  is where your personalized wellness journey begins. Make sure you're prepared to discuss your health 
-                  goals, current challenges, and any questions you have about diabetes management.
+                  You've completed all onboarding steps! Your consultation with Dr. Shumard is scheduled, and your health 
+                  profile is complete. You're now fully prepared to begin your personalized wellness program. Dr. Shumard 
+                  has everything he needs to guide you toward better health.
                 </p>
               </div>
 
