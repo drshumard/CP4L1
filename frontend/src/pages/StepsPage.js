@@ -498,74 +498,48 @@ const StepsPage = () => {
                   <h3 className="text-lg font-bold text-gray-800 mb-4">Complete Your Health Profile</h3>
                   
                   <div className="flex-1 overflow-hidden" data-testid="form-container">
-            <style dangerouslySetInnerHTML={{__html: `
-              .better-inline-booking-widget {
-                position: relative;
-                background: white;
-                border-radius: 0.5rem;
-                overflow: hidden;
-              }
-              .better-inline-booking-widget iframe {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                border: none;
-                overflow-y: auto;
-                overflow-x: hidden;
-              }
-              
-              /* Gradient border wrapper */
-              .form-wrapper-fullpage {
-                background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-                padding: 3px;
-                border-radius: 0.5rem;
-                box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-              }
-              
-              .form-inner-fullpage {
-                background: white;
-                border-radius: calc(0.5rem - 3px);
-                overflow: hidden;
-              }
-              
-              /* Hide scrollbar for the widget to avoid double scroll */
-              .better-inline-booking-widget::-webkit-scrollbar {
-                display: none;
-              }
-              .better-inline-booking-widget {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-              }
-            `}} />
-            
-            <div className="form-wrapper-fullpage">
-              <div className="form-inner-fullpage">
-                <div 
-                  className="better-inline-booking-widget" 
-                  data-url="https://drshumard.practicebetter.io/" 
-                  data-form-request="6021e5d42a9c2406f45aa20f" 
-                  data-hash="601a127b2a9c2406dcc94437" 
-                  data-theme="246af4" 
-                  data-theme-accent="f57f1b"
-                  style={{ maxWidth: '100%', height: '2000px' }}
-                />
-              </div>
-            </div>
-
-            {/* Complete Button - At Bottom of Form */}
-            <div className="mt-8">
-              <Card className="glass-dark border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="text-center mb-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                      ⚠️ Please ensure you have completed all form fields above before continuing
-                    </p>
+                    <style dangerouslySetInnerHTML={{__html: `
+                      .better-inline-booking-widget-step2 {
+                        position: relative;
+                        background: white;
+                        border-radius: 0.5rem;
+                        overflow: hidden;
+                        height: 100%;
+                      }
+                      .better-inline-booking-widget-step2 iframe {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        border: none;
+                      }
+                    `}} />
+                    
+                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-3 h-full overflow-hidden">
+                      <div 
+                        className="better-inline-booking-widget-step2" 
+                        data-url="https://drshumard.practicebetter.io/" 
+                        data-form-request="6021e5d42a9c2406f45aa20f" 
+                        data-hash="601a127b2a9c2406dcc94437" 
+                        data-theme="246af4" 
+                        data-theme-accent="f57f1b"
+                        style={{ height: '100%' }}
+                      />
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
+              
+              {/* Continue Button Below Form */}
+              <Card className="glass-dark border-0 shadow-lg mt-6">
+                <CardContent className="p-4">
+                  <p className="text-xs text-gray-600 mb-2 italic text-center">
+                    ⚠️ Only click this after completing and submitting the form above
+                  </p>
                   <Button
                     onClick={handleAdvanceStep}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-6 rounded-xl shadow-lg text-lg transition-all hover:scale-[1.02]"
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-5 rounded-xl shadow-lg"
                     data-testid="submit-button"
                   >
                     Continue to Next Step →
