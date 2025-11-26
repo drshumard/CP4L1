@@ -178,6 +178,19 @@ backend:
         comment: "Changed advance-step endpoint to limit max step from 7 to 3. Updated min(current_step + 1, 3) logic. Updated welcome email template to reference '3-step journey' instead of '7-step journey'."
 
 frontend:
+  - task: "Update outcome page to reflect 3-step journey"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/OutcomePage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated outcome/confetti page for 3-step journey. Changed steps completed from 1/7 to 3/3. Changed journey progress from 14% to 100%. Changed 'Steps Remaining' from '6' to checkmark with 'All Steps Complete'. Changed 'Step 1 Complete' to 'First Milestone Complete'. Updated hero text to reflect completion of all onboarding steps. Updated 'What Comes Next' section to reference consultation and personalized plan instead of 6 remaining steps."
+
+frontend:
   - task: "Reposition toast notifications to top of login card"
     implemented: true
     working: true
