@@ -639,26 +639,77 @@ const StepsPage = () => {
                 </div>
               </Card>
 
-              {/* Health Advocate Card */}
-              <Card className="glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="advocate-card">
-                <CardContent className="p-6 h-full flex flex-col justify-center">
-                  <div className="text-center mb-4">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mx-auto mb-3 flex items-center justify-center">
-                      <UserIcon className="text-blue-600" size={40} />
-                    </div>
-                    <h3 className="text-lg font-bold text-gray-800 mb-1">YOUR HEALTH ADVOCATE</h3>
-                    <p className="text-base text-gray-800 font-semibold mb-1">Dr. Jason Shumard</p>
-                    <p className="text-xs text-gray-600 mb-2">Certified Diabetes Educator</p>
-                    <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-                      <Phone size={14} />
-                      <span>Available for support</span>
+              {/* Action Steps Card */}
+              <Card className="glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="action-steps-card">
+                <CardContent className="p-6 h-full flex flex-col">
+                  {/* Welcome Message */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-bold text-gray-800 mb-3">Welcome!</h3>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-2">
+                      You've taken the critical first step toward reversing your diabetes concerns, but immediate action 
+                      is essential to prevent delays. Your first task is to complete <strong>Step 1: Booking Your Initial Consult</strong>.
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed mb-2">
+                      This 30-minute session is where we'll discuss your unique situation and create your mutual gameplan 
+                      to reach your health goals.
+                    </p>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      <strong>Please complete the following steps in the next 20 minutes</strong> to give our team the 
+                      information we need.
+                    </p>
+                  </div>
+
+                  {/* Action Steps */}
+                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4">
+                    <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      Action Steps
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      {/* Step 1 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          1
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm mb-1">Book Your Session:</p>
+                          <p className="text-xs text-gray-700 leading-relaxed">
+                            Take a moment right now to select the best date and time on the calendar available on this page.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          2
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm mb-1">Confirm Priority:</p>
+                          <p className="text-xs text-gray-700 leading-relaxed">
+                            Write the date and time down in your personal calendar and highlight it as the top priority on 
+                            your schedule. This call is the beginning of your path to wellness.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          3
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm mb-1">Move Forward:</p>
+                          <p className="text-xs text-gray-700 leading-relaxed">
+                            Once your session is booked and confirmed, move forward immediately to Step 2.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  
-                  <p className="text-sm text-gray-700 text-center leading-relaxed">
-                    Dr. Shumard is here to guide you through every step of your journey. With years of experience 
-                    in diabetes management, he'll provide personalized support and answer all your questions.
-                  </p>
                 </CardContent>
               </Card>
 
