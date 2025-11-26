@@ -224,14 +224,13 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-gray-600 mb-6">
-                This comprehensive diabetes management program is designed to guide you through essential steps for better health and wellness. Each step contains valuable resources, educational content, and action items to help you succeed.
+                This streamlined wellness onboarding program guides you through three essential steps to prepare for your personalized health journey with Dr. Shumard.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
-                  { title: 'Education', desc: 'Learn about diabetes management' },
-                  { title: 'Nutrition', desc: 'Healthy eating strategies' },
-                  { title: 'Exercise', desc: 'Physical activity guidance' },
-                  { title: 'Support', desc: 'Ongoing care and monitoring' }
+                  { title: 'Step 1: Book Consultation', desc: 'Schedule your one-on-one call' },
+                  { title: 'Step 2: Health Profile', desc: 'Complete your health blueprint' },
+                  { title: 'Step 3: Ready to Start', desc: 'Final preparations complete' }
                 ].map((item, idx) => (
                   <div key={idx} className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
                     <h4 className="font-semibold text-gray-800 mb-1">{item.title}</h4>
