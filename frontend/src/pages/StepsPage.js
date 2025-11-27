@@ -48,6 +48,8 @@ const StepsPage = () => {
   const [videoStarted, setVideoStarted] = useState(false);
   const [showVideoOverlay, setShowVideoOverlay] = useState(true);
   const [videoAutoplay, setVideoAutoplay] = useState(false);
+  const [showStep1Confirmation, setShowStep1Confirmation] = useState(false);
+  const [showStep2Confirmation, setShowStep2Confirmation] = useState(false);
 
   useEffect(() => {
     fetchData();
