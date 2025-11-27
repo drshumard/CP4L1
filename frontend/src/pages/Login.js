@@ -156,7 +156,7 @@ const Login = () => {
             </div>
 
             {/* Right Side - Login Form */}
-            <div className="bg-white p-6 sm:p-8 md:p-12 lg:p-16 xl:p-20 flex flex-col justify-center">
+            <div className="bg-white p-4 sm:p-6 md:p-10 lg:p-12 xl:p-16 flex flex-col justify-center w-full overflow-hidden">
               {/* Inline Notification */}
               <AnimatePresence>
                 {notification && (
