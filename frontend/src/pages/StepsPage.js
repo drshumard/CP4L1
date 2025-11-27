@@ -15,21 +15,24 @@ const STEP_DATA = {
   1: {
     title: 'Welcome & Consultation Booking',
     action: 'BOOK YOUR ONE-ON-ONE CONSULT',
-    videoUrl: 'https://vz-7b452698-0b8.b-cdn.net/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64/playlist.m3u8',
+    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/faa2085a-bc34-43b4-8212-b6ca6b3a660f',
+    videoId: 'faa2085a-bc34-43b4-8212-b6ca6b3a660f',
     description: 'Watch the welcome video and book your personal consultation with our health advocate.',
     tasks: ['watch_video', 'book_consultation']
   },
   2: {
     title: 'Complete Your Health Profile',
     action: 'FILL OUT YOUR HEALTH INFORMATION',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/1bf969e3-378d-4ca1-8c44-30e40eb52e40',
+    videoId: '1bf969e3-378d-4ca1-8c44-30e40eb52e40',
     description: 'Provide your health information to help us personalize your wellness journey.',
     tasks: ['complete_form']
   },
   3: {
     title: 'Program Complete',
     action: 'REVIEW YOUR NEXT STEPS',
-    videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/50a4b90d-1e47-470f-bf36-a3412815829e',
+    videoId: '50a4b90d-1e47-470f-bf36-a3412815829e',
     description: 'Congratulations! You have completed the onboarding process.',
     tasks: ['review_summary']
   }
