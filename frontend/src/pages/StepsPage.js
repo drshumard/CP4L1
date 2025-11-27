@@ -470,7 +470,7 @@ const StepsPage = () => {
           </AnimatePresence>
 
           {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-8" style={{ minHeight: '800px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-4 sm:pb-6 lg:pb-8 w-full overflow-hidden" style={{ minHeight: '800px' }}>
             {/* Left Column: Video + Instructions Card */}
             <div className="flex flex-col gap-6 h-full">
               {/* Video Section */}
