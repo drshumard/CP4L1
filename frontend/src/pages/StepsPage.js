@@ -127,6 +127,13 @@ const StepsPage = () => {
 
   const handleAdvanceStep = async (skipValidation = false) => {
     const currentStep = progressData.current_step;
+    
+    // Show confirmation modal for Step 2
+    if (currentStep === 2) {
+      setShowStep2Confirmation(true);
+      return;
+    }
+
     const requiredTasks = STEP_DATA[currentStep].tasks;
     const allTasksCompleted = requiredTasks.every(task => completedTasks.has(task));
 
@@ -150,6 +157,23 @@ const StepsPage = () => {
         return;
       }
 
+      toast.success('Advanced to next step!');
+      setCompletedTasks(new Set());
+      await fetchData();
+    } catch (error) {
+      toast.error('Failed to advance step');
+    }
+  };
+
+  const confirmStep2Complete = async () => {
+    setShowStep2Confirmation(false);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(
+        `${API}/user/advance-step`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       toast.success('Advanced to next step!');
       setCompletedTasks(new Set());
       await fetchData();
