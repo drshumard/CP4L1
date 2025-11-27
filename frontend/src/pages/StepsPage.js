@@ -764,7 +764,7 @@ const StepsPage = () => {
           </div>
 
           {/* Complete Button - Shows Last on Mobile */}
-          <div className="mt-6 order-3">
+          <div className="mt-6">
             <Card className="glass-dark border-0 shadow-lg">
               <CardContent className="p-4">
                 <p className="text-xs text-gray-600 mb-2 italic text-center">
@@ -780,6 +780,7 @@ const StepsPage = () => {
               </CardContent>
             </Card>
           </div>
+        </div>
         ) : (
           /* Step 3: Video + Action Card Layout */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
