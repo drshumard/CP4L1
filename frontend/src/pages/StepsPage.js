@@ -233,22 +233,30 @@ const StepsPage = () => {
   const stepInfo = STEP_DATA[currentStep];
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
       {/* Header */}
-      <div className="glass-dark border-b border-gray-200" data-testid="steps-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="glass-dark border-b border-gray-200 w-full" data-testid="steps-header">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <span className="text-lg font-bold text-white">DS</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center flex-shrink-0">
+                <span className="text-base sm:text-lg font-bold text-white">DS</span>
               </div>
-              <h1 className="text-2xl font-bold text-gray-800">DrShumard Portal</h1>
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 truncate">DrShumard Portal</h1>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" data-testid="home-button">
-                <Home size={16} />
-                Home
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Home Button - Icon only on mobile */}
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/')} 
+                className="flex items-center gap-2 p-2 sm:px-4 sm:py-2" 
+                data-testid="home-button"
+                title="Home"
+              >
+                <Home size={18} className="flex-shrink-0" />
+                <span className="hidden sm:inline">Home</span>
               </Button>
+              {/* Logout Button - Icon only on mobile with red background */}
               <Button 
                 variant="outline" 
                 onClick={() => {
@@ -257,11 +265,12 @@ const StepsPage = () => {
                   toast.success('Logged out successfully');
                   navigate('/login');
                 }} 
-                className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50" 
+                className="flex items-center gap-2 p-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white" 
                 data-testid="logout-button"
+                title="Logout"
               >
-                <LogOut size={16} />
-                Logout
+                <LogOut size={18} className="flex-shrink-0" />
+                <span className="hidden sm:inline">Logout</span>
               </Button>
             </div>
           </div>
