@@ -650,25 +650,25 @@ const StepsPage = () => {
                           transition={{ type: "spring", stiffness: 300 }}
                           style={{
                             background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
-                            padding: '1.5rem 3rem',
                             borderRadius: '1rem',
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '1rem',
+                            justifyContent: 'center',
+                            gap: '0.75rem',
                             border: '2px solid rgba(255, 255, 255, 0.2)'
                           }}
-                          className="text-white font-bold text-2xl cursor-pointer"
+                          className="text-white font-bold cursor-pointer px-6 py-4 sm:px-8 sm:py-5 md:px-12 md:py-6 text-base sm:text-xl md:text-2xl"
                         >
                           <motion.div
                             animate={{ scale: [1, 1.2, 1] }}
                             transition={{ duration: 1.5, repeat: Infinity }}
                           >
-                            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24">
                               <path d="M8 5v14l11-7z" />
                             </svg>
                           </motion.div>
-                          Begin Your Journey
+                          <span className="whitespace-nowrap">Begin Your Journey</span>
                         </motion.div>
                       </motion.div>
                     )}
