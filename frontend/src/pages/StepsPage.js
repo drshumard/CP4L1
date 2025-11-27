@@ -574,7 +574,7 @@ const StepsPage = () => {
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
                     key={videoAutoplay ? 'autoplay' : 'manual'}
-                    src={`https://iframe.mediadelivery.net/embed/538298/64de0dc1-8d23-41dc-ad7d-8dfc5d463c64?autoplay=${videoAutoplay}&loop=false&muted=false&preload=true&responsive=true`}
+                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[1].videoId}?autoplay=${videoAutoplay}&loop=false&muted=false&preload=true&responsive=true`}
                     loading="eager"
                     style={{
                       border: 0,
