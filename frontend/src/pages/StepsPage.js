@@ -783,13 +783,19 @@ const StepsPage = () => {
             {/* Video Section */}
             <div data-testid="video-section" style={{ height: '500px' }}>
               <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full">
-                <div className="h-full bg-gray-900">
-                  <ReactPlayer
-                    url={stepInfo.videoUrl}
-                    width="100%"
-                    height="100%"
-                    controls
-                    onEnded={() => handleTaskComplete(stepInfo.tasks[0])}
+                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000', height: '100%' }}>
+                  <iframe
+                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                    loading="eager"
+                    style={{
+                      border: 0,
+                      position: 'absolute',
+                      top: 0,
+                      height: '100%',
+                      width: '100%'
+                    }}
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen="true"
                     data-testid="video-player"
                   />
                 </div>
