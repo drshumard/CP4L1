@@ -718,25 +718,10 @@ const StepsPage = () => {
                 </CardContent>
               </Card>
 
-              {/* Complete Button */}
-              <Card className="glass-dark border-0 shadow-lg flex-shrink-0">
-                <CardContent className="p-4">
-                  <p className="text-xs text-gray-600 mb-2 italic text-center">
-                    ⚠️ Only click this once you have booked your consultation
-                  </p>
-                  <Button
-                    onClick={handleStep1Complete}
-                    className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-5 rounded-xl shadow-lg"
-                    data-testid="submit-button"
-                  >
-                    Mark as Complete & Continue
-                  </Button>
-                </CardContent>
-              </Card>
             </div>
 
-            {/* Right: Booking Calendar - Full Height */}
-            <div className="h-full">
+            {/* Right Column (Desktop) / Middle Section (Mobile): Booking Calendar */}
+            <div className="h-full order-1 lg:order-2">
               <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="booking-card">
                 <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">STEP 1: BOOK YOUR ONE-ON-ONE CONSULT</h3>
