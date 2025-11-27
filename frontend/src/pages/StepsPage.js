@@ -163,7 +163,12 @@ const StepsPage = () => {
     setShowStep2Instructions(false);
   };
 
-  const handleStep1Complete = async () => {
+  const handleStep1Complete = () => {
+    setShowStep1Confirmation(true);
+  };
+
+  const confirmStep1Complete = async () => {
+    setShowStep1Confirmation(false);
     try {
       const token = localStorage.getItem('access_token');
       
