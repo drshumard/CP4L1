@@ -767,16 +767,25 @@ const StepsPage = () => {
                     {/* Practice Better Booking Widget */}
                     <style dangerouslySetInnerHTML={{__html: `
                       .better-inline-booking-widget {
-                        position: relative;
-                        overflow: hidden;
+                        position: relative !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
                         height: 100%;
+                        overflow-x: hidden !important;
+                        overflow-y: auto;
                       }
                       .better-inline-booking-widget iframe {
+                        width: 100% !important;
+                        max-width: 100% !important;
                         position: absolute;
                         top: 0;
                         left: 0;
-                        width: 100%;
                         height: 100%;
+                      }
+                      @media (max-width: 640px) {
+                        .better-inline-booking-widget {
+                          font-size: 14px;
+                        }
                       }
                     `}} />
                     <div 
@@ -786,7 +795,7 @@ const StepsPage = () => {
                       data-hash="601a127b2a9c2406dcc94437" 
                       data-theme="246af4" 
                       data-theme-accent="f57f1b" 
-                      style={{ width: '100%', maxWidth: '100%', height: 'calc(100% - 60px)' }} 
+                      style={{ width: '100%', maxWidth: '100%', height: 'calc(100% - 50px)' }} 
                       data-scrollbar-visible="false"
                     />
                   </div>
