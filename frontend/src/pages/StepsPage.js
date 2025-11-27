@@ -781,6 +781,7 @@ const StepsPage = () => {
               </CardContent>
             </Card>
           </div>
+          </>
         ) : (
           /* Step 3: Video + Action Card Layout */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
