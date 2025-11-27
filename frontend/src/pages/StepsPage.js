@@ -1003,38 +1003,38 @@ const StepsPage = () => {
                 <Card className="shadow-2xl border-0 overflow-hidden">
                   <CardContent className="p-0">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-center">
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 sm:p-6 text-center">
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                        className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center"
+                        className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center"
                       >
-                        <CheckCircle2 className="w-8 h-8 text-white" />
+                        <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                       </motion.div>
-                      <h2 className="text-2xl md:text-3xl font-bold text-white">
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
                         Double Check
                       </h2>
                     </div>
 
                     {/* Content */}
-                    <div className="p-8 bg-white">
-                      <p className="text-lg text-gray-700 text-center mb-6 leading-relaxed">
+                    <div className="p-4 sm:p-6 md:p-8 bg-white">
+                      <p className="text-base sm:text-lg text-gray-700 text-center mb-4 sm:mb-6 leading-relaxed">
                         Did you fill out <strong>all 4 pages</strong> and <strong>sign the form</strong>?
                       </p>
 
                       {/* Buttons */}
-                      <div className="flex flex-col gap-3">
+                      <div className="flex flex-col gap-2 sm:gap-3">
                         <Button
                           onClick={confirmStep2Complete}
-                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 rounded-xl shadow-lg"
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 sm:py-4 rounded-xl shadow-lg text-sm sm:text-base"
                         >
                           ✓ YES! Move to Next Step
                         </Button>
                         <Button
                           onClick={() => setShowStep2Confirmation(false)}
                           variant="outline"
-                          className="w-full border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-4 rounded-xl"
+                          className="w-full border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 sm:py-4 rounded-xl text-sm sm:text-base"
                         >
                           ← Not Yet, Take Me Back
                         </Button>
