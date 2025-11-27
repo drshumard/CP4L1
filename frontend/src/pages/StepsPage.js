@@ -907,6 +907,146 @@ const StepsPage = () => {
           )}
         </div>
       )}
+
+      {/* Step 1 Confirmation Modal */}
+      <AnimatePresence>
+        {showStep1Confirmation && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              onClick={() => setShowStep1Confirmation(false)}
+            />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="max-w-lg w-full"
+              >
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center"
+                      >
+                        <Calendar className="w-8 h-8 text-white" />
+                      </motion.div>
+                      <h2 className="text-2xl md:text-3xl font-bold text-white">
+                        Confirm Booking
+                      </h2>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-8 bg-white">
+                      <p className="text-lg text-gray-700 text-center mb-6 leading-relaxed">
+                        Only confirm if you have <strong>booked your call</strong> and <strong>added this to your calendar</strong>
+                      </p>
+
+                      {/* Buttons */}
+                      <div className="flex flex-col gap-3">
+                        <Button
+                          onClick={confirmStep1Complete}
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 rounded-xl shadow-lg"
+                        >
+                          ✓ Yes, I've Booked My Call
+                        </Button>
+                        <Button
+                          onClick={() => setShowStep1Confirmation(false)}
+                          variant="outline"
+                          className="w-full border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-4 rounded-xl"
+                        >
+                          ← Take Me Back
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Step 2 Confirmation Modal */}
+      <AnimatePresence>
+        {showStep2Confirmation && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              onClick={() => setShowStep2Confirmation(false)}
+            />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="max-w-lg w-full"
+              >
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center"
+                      >
+                        <CheckCircle2 className="w-8 h-8 text-white" />
+                      </motion.div>
+                      <h2 className="text-2xl md:text-3xl font-bold text-white">
+                        Double Check
+                      </h2>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-8 bg-white">
+                      <p className="text-lg text-gray-700 text-center mb-6 leading-relaxed">
+                        Did you fill out <strong>all 4 pages</strong> and <strong>sign the form</strong>?
+                      </p>
+
+                      {/* Buttons */}
+                      <div className="flex flex-col gap-3">
+                        <Button
+                          onClick={confirmStep2Complete}
+                          className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-4 rounded-xl shadow-lg"
+                        >
+                          ✓ YES! Move to Next Step
+                        </Button>
+                        <Button
+                          onClick={() => setShowStep2Confirmation(false)}
+                          variant="outline"
+                          className="w-full border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-4 rounded-xl"
+                        >
+                          ← Not Yet, Take Me Back
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
