@@ -721,8 +721,8 @@ const StepsPage = () => {
 
             </div>
 
-            {/* Right Column (Desktop) / Middle Section (Mobile): Booking Calendar */}
-            <div className="min-h-[800px] lg:h-full order-1 lg:order-2">
+            {/* Right Column: Booking Calendar */}
+            <div className="min-h-[800px] lg:h-full">
               <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="booking-card">
                 <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">STEP 1: BOOK YOUR ONE-ON-ONE CONSULT</h3>
