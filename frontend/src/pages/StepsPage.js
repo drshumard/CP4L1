@@ -833,7 +833,7 @@ const StepsPage = () => {
           </>
         ) : (
           /* Step 3: Video + Action Card Layout */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-4 sm:mb-6 w-full overflow-hidden">
             {/* Video Section */}
             <div data-testid="video-section" style={{ height: '500px' }}>
               <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full">
