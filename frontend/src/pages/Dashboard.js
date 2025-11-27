@@ -226,7 +226,7 @@ const Dashboard = () => {
               <p className="text-gray-600 mb-6">
                 This streamlined wellness onboarding program guides you through three essential steps to prepare for your personalized health journey with Dr. Shumard.
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full overflow-hidden">
                 {[
                   { title: 'Step 1: Book Consultation', desc: 'Schedule your one-on-one call' },
                   { title: 'Step 2: Health Profile', desc: 'Complete your health blueprint' },
