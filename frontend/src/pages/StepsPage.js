@@ -762,6 +762,24 @@ const StepsPage = () => {
               </Card>
             </div>
           </div>
+
+          {/* Complete Button - Shows Last on Mobile */}
+          <div className="mt-6 order-3">
+            <Card className="glass-dark border-0 shadow-lg">
+              <CardContent className="p-4">
+                <p className="text-xs text-gray-600 mb-2 italic text-center">
+                  ⚠️ Only click this once you have booked your consultation
+                </p>
+                <Button
+                  onClick={handleStep1Complete}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-5 rounded-xl shadow-lg"
+                  data-testid="submit-button"
+                >
+                  Mark as Complete & Continue
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
           /* Step 3: Video + Action Card Layout */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
