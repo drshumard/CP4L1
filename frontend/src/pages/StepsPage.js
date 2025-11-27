@@ -568,6 +568,7 @@ const StepsPage = () => {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {currentStep === 1 ? (
           /* Step 1: Video + Action Steps on Left, Booking Calendar on Right */
+          <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-8" style={{ minHeight: '600px' }}>
             {/* Left Column (Desktop) / Top Section (Mobile): Video + Action Steps */}
             <div className="flex flex-col gap-6 h-full order-2 lg:order-1">
