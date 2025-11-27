@@ -570,8 +570,8 @@ const StepsPage = () => {
           /* Step 1: Video + Action Steps on Left, Booking Calendar on Right */
           <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-8" style={{ minHeight: '600px' }}>
-            {/* Left Column (Desktop) / Top Section (Mobile): Video + Action Steps */}
-            <div className="flex flex-col gap-6 h-full order-2 lg:order-1">
+            {/* Left Column: Video + Action Steps */}
+            <div className="flex flex-col gap-6 h-full">
               {/* Video Section - Bunny.net Official Embed */}
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
