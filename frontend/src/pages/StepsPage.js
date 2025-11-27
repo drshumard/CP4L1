@@ -721,12 +721,12 @@ const StepsPage = () => {
             </div>
 
             {/* Right Column (Desktop) / Middle Section (Mobile): Booking Calendar */}
-            <div className="h-full order-1 lg:order-2">
+            <div className="min-h-[800px] lg:h-full order-1 lg:order-2">
               <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="booking-card">
                 <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">STEP 1: BOOK YOUR ONE-ON-ONE CONSULT</h3>
                   
-                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600 flex-1 overflow-hidden" data-testid="booking-calendar">
+                  <div className="bg-white rounded-lg p-4 border-2 border-blue-600 flex-1 overflow-auto min-h-[650px]" data-testid="booking-calendar">
                     <div className="flex items-center justify-center gap-3 mb-4">
                       <Calendar className="text-blue-600" size={32} />
                       <p className="text-gray-700 font-medium text-lg">Select Your Appointment Time</p>
