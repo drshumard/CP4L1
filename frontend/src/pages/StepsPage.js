@@ -436,16 +436,18 @@ const StepsPage = () => {
               {/* Video Section */}
               <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
-                  <ReactPlayer
-                    url={STEP_DATA[2].videoUrl}
-                    width="100%"
-                    height="100%"
-                    controls
+                  <iframe
+                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[2].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                    loading="eager"
                     style={{
+                      border: 0,
                       position: 'absolute',
                       top: 0,
-                      left: 0
+                      height: '100%',
+                      width: '100%'
                     }}
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen="true"
                   />
                 </div>
               </Card>
