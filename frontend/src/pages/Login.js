@@ -98,8 +98,12 @@ const Login = () => {
                   transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
                   className="mb-6 md:mb-8"
                 >
-                  <div className="w-16 h-16 md:w-24 md:h-24 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mb-4 md:mb-8">
-                    <span className="text-3xl md:text-5xl font-bold">DS</span>
+                  <div className="mb-4 md:mb-8">
+                    <img 
+                      src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/w2et7a7z_Dr.%20Shumard%20Logo%201.png" 
+                      alt="Logo" 
+                      className="w-32 h-32 md:w-48 md:h-48 object-contain"
+                    />
                   </div>
                 </motion.div>
                 
