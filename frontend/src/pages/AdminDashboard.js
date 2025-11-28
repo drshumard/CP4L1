@@ -113,11 +113,13 @@ const AdminDashboard = () => {
       <div className="glass-dark border-b border-gray-200" data-testid="admin-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <span className="text-lg font-bold text-white">DS</span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/w2et7a7z_Dr.%20Shumard%20Logo%201.png" 
+                alt="Logo" 
+                className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
+              />
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 truncate">Admin Dashboard</h1>
             </div>
             <div className="flex items-center gap-4">
               <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" data-testid="home-button">
