@@ -367,9 +367,10 @@ const StepsPage = () => {
       </div>
 
       {/* Main Content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
       {currentStep === 2 ? (
         /* Step 2: Video + Instructions on Left, Form on Right */
-        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 h-full">
           {/* Step 2 Instructions Modal */}
           <AnimatePresence>
             {showStep2Instructions && (
