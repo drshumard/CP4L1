@@ -82,7 +82,6 @@ const Dashboard = () => {
                 alt="Logo" 
                 className="h-6 w-auto sm:h-7 md:h-8 object-contain flex-shrink-0"
               />
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 truncate">Portal</h1>
             </div>
             <div className="flex items-center gap-4">
               {userData?.role === 'admin' && (
