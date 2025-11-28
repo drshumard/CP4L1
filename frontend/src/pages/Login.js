@@ -98,11 +98,11 @@ const Login = () => {
                   transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
                   className="mb-6 md:mb-8"
                 >
-                  <div className="mb-4 md:mb-8">
+                  <div className="mb-4 md:mb-8 flex justify-center">
                     <img 
                       src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/sqrphwyn_trans.png" 
                       alt="Logo" 
-                      className="w-32 h-32 md:w-48 md:h-48 object-contain"
+                      className="w-40 h-40 md:w-56 md:h-56 object-contain"
                     />
                   </div>
                 </motion.div>
