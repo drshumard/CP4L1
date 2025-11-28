@@ -233,7 +233,7 @@ const StepsPage = () => {
   const stepInfo = STEP_DATA[currentStep];
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
+    <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
       {/* Header */}
       <div className="glass-dark border-b border-gray-200 w-full" data-testid="steps-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
