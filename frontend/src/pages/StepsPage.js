@@ -237,7 +237,7 @@ const StepsPage = () => {
       {/* Header */}
       <div className="glass-dark border-b border-gray-200 w-full" data-testid="steps-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center relative">
             {/* Logo - Left Side */}
             <div className="flex items-center gap-2 sm:gap-3">
               <img 
