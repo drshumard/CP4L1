@@ -239,10 +239,12 @@ const StepsPage = () => {
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center flex-shrink-0">
-                <span className="text-base sm:text-lg font-bold text-white">DS</span>
-              </div>
-              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 truncate">DrShumard Portal</h1>
+              <img 
+                src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/w2et7a7z_Dr.%20Shumard%20Logo%201.png" 
+                alt="Logo" 
+                className="w-10 h-10 sm:w-12 sm:h-12 object-contain flex-shrink-0"
+              />
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 truncate">Portal</h1>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Home Button - Icon only on mobile */}
