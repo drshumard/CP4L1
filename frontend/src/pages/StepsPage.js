@@ -240,7 +240,7 @@ const StepsPage = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 sm:gap-3">
               <img 
-                src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/sqrphwyn_trans.png" 
+                src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" 
                 alt="Logo" 
                 className="h-6 w-auto sm:h-7 md:h-8 object-contain flex-shrink-0"
               />
