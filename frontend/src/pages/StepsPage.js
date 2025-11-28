@@ -238,48 +238,51 @@ const StepsPage = () => {
       <div className="glass-dark border-b border-gray-200 w-full" data-testid="steps-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3 sm:gap-4 lg:gap-8">
+            {/* Logo - Left Side */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <img 
                 src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" 
                 alt="Logo" 
                 className="h-6 w-auto sm:h-7 md:h-8 object-contain flex-shrink-0"
               />
-              
-              {/* Step Progress Indicators - Desktop Only */}
-              <div className="hidden lg:flex items-center gap-2">
-                {[1, 2, 3].map((step, idx) => (
-                  <React.Fragment key={step}>
-                    <div className="flex items-center gap-2" data-testid={`step-indicator-${step}`}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-                        step < currentStep
-                          ? 'bg-green-500 border-green-600'
-                          : step === currentStep
-                          ? 'bg-blue-600 border-blue-700'
-                          : 'bg-gray-200 border-gray-300'
-                      }`}>
-                        {step < currentStep ? (
-                          <CheckCircle2 className="text-white" size={16} />
-                        ) : step === currentStep ? (
-                          <Circle className="text-white fill-white" size={16} />
-                        ) : (
-                          <Lock className="text-gray-500" size={14} />
-                        )}
-                      </div>
-                      <span className={`text-sm font-medium ${
-                        step <= currentStep ? 'text-gray-800' : 'text-gray-500'
-                      }`}>
-                        Step {step}
-                      </span>
-                    </div>
-                    {idx < 2 && (
-                      <div className={`h-0.5 w-12 ${
-                        step < currentStep ? 'bg-green-500' : 'bg-gray-300'
-                      }`} />
-                    )}
-                  </React.Fragment>
-                ))}
-              </div>
             </div>
+            
+            {/* Step Progress Indicators - Centered - Desktop Only */}
+            <div className="hidden lg:flex absolute left-1/2 transform -translate-x-1/2 items-center gap-2">
+              {[1, 2, 3].map((step, idx) => (
+                <React.Fragment key={step}>
+                  <div className="flex items-center gap-2" data-testid={`step-indicator-${step}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${
+                      step < currentStep
+                        ? 'bg-green-500 border-green-600'
+                        : step === currentStep
+                        ? 'bg-blue-600 border-blue-700'
+                        : 'bg-gray-200 border-gray-300'
+                    }`}>
+                      {step < currentStep ? (
+                        <CheckCircle2 className="text-white" size={16} />
+                      ) : step === currentStep ? (
+                        <Circle className="text-white fill-white" size={16} />
+                      ) : (
+                        <Lock className="text-gray-500" size={14} />
+                      )}
+                    </div>
+                    <span className={`text-sm font-medium ${
+                      step <= currentStep ? 'text-gray-800' : 'text-gray-500'
+                    }`}>
+                      Step {step}
+                    </span>
+                  </div>
+                  {idx < 2 && (
+                    <div className={`h-0.5 w-12 ${
+                      step < currentStep ? 'bg-green-500' : 'bg-gray-300'
+                    }`} />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Buttons - Right Side */}
             <div className="flex items-center gap-2 sm:gap-3">
               {/* Home Button - Icon only on mobile */}
               <Button 
