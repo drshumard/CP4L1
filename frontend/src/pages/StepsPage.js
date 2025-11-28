@@ -965,6 +965,7 @@ const StepsPage = () => {
           )}
         </div>
       )}
+      </div>
 
       {/* Step 1 Confirmation Modal */}
       <AnimatePresence>
