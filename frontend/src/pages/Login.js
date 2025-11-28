@@ -100,7 +100,7 @@ const Login = () => {
                 >
                   <div className="mb-4 md:mb-8 flex justify-center">
                     <img 
-                      src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/sqrphwyn_trans.png" 
+                      src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" 
                       alt="Logo" 
                       className="w-40 h-40 md:w-56 md:h-56 object-contain"
                     />
