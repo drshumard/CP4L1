@@ -313,8 +313,8 @@ const StepsPage = () => {
         </div>
       </div>
 
-      {/* Progress Steps - Compact */}
-      <div className="glass-dark border-b border-gray-200 w-full overflow-hidden" data-testid="progress-steps">
+      {/* Progress Steps - Mobile Only */}
+      <div className="lg:hidden glass-dark border-b border-gray-200 w-full overflow-hidden" data-testid="progress-steps">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 overflow-x-hidden">
           <div className="flex items-center justify-center gap-3">
             {[1, 2, 3].map((step, idx) => (
