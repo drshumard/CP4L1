@@ -868,13 +868,14 @@ const StepsPage = () => {
                           position: relative;
                           width: 100% !important;
                           max-width: 100% !important;
-                          height: 100%;
+                          height: calc(100% - 50px);
                           overflow-x: hidden !important;
                           overflow-y: auto;
                         }
                         .better-inline-booking-widget iframe {
                           width: 100% !important;
                           max-width: 100% !important;
+                          height: 100%;
                         }
                       }
                       
@@ -883,11 +884,13 @@ const StepsPage = () => {
                         .better-inline-booking-widget {
                           width: 100% !important;
                           max-width: 100% !important;
+                          height: ${iframeHeight};
                           overflow: visible !important;
                         }
                         .better-inline-booking-widget iframe {
                           width: 100% !important;
                           max-width: 100% !important;
+                          height: ${iframeHeight};
                           border: none !important;
                           overflow: hidden !important;
                           display: block;
