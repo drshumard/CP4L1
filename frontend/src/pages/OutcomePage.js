@@ -265,7 +265,7 @@ const OutcomePage = () => {
           <Card className="glass-dark border-0 shadow-2xl overflow-hidden">
             <CardContent className="p-8 sm:p-12">
               <div className="text-center mb-8">
-                <Award className="inline-block text-blue-500 mb-4" size={48} />
+                <Award className="inline-block text-teal-500 mb-4" size={48} />
                 <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready for Your Wellness Journey</h2>
                 <p className="text-gray-600 max-w-3xl mx-auto">
                   You've completed all onboarding steps! Your consultation with Dr. Shumard is scheduled, and your health 
