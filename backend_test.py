@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://wellness-steps-2.preview.emergentagent.com/api"
+BACKEND_URL = "https://wellness-portal-53.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 # Test data
