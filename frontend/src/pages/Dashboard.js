@@ -71,7 +71,7 @@ const Dashboard = () => {
   const completedSteps = progressData?.progress?.filter(p => p.completed_at).length || 0;
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
       {/* Header */}
       <div className="glass-dark border-b border-gray-200 w-full overflow-hidden" data-testid="dashboard-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
