@@ -760,7 +760,7 @@ const StepsPage = () => {
                           whileTap={{ scale: 0.95 }}
                           transition={{ type: "spring", stiffness: 300 }}
                           style={{
-                            background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                            background: 'linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%)',
                             borderRadius: '1rem',
                             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
                             display: 'flex',
