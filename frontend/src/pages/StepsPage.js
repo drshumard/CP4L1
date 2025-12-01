@@ -641,7 +641,7 @@ const StepsPage = () => {
                   <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">STEP 2: COMPLETE YOUR HEALTH PROFILE</h3>
                   
                   {/* User Info Card */}
-                  <div className="mb-4 bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                  <div className="mb-4 bg-teal-50 border-2 border-cyan-200 rounded-lg p-4">
                     <p className="text-sm text-gray-700 font-semibold mb-3">Please use this information on the form below:</p>
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
