@@ -28,6 +28,7 @@ function App() {
           <Route path="/steps" element={<PrivateRoute><StepsPage /></PrivateRoute>} />
           <Route path="/outcome" element={<PrivateRoute><OutcomePage /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+          <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
         </Routes>
         <Toaster position="top-center" />
       </div>
