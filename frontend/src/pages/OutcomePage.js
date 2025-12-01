@@ -277,9 +277,9 @@ const OutcomePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100"
+                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-teal-50 to-cyan-100"
                 >
-                  <div className="text-4xl font-bold text-blue-600 mb-2">3/3</div>
+                  <div className="text-4xl font-bold text-teal-600 mb-2">3/3</div>
                   <div className="text-sm text-gray-600">Steps Completed</div>
                 </motion.div>
                 <motion.div
