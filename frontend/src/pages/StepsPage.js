@@ -405,7 +405,7 @@ const StepsPage = () => {
       {/* Step Title Banner */}
       <div className="glass-dark border-b border-gray-200 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4 text-center">
-          <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent px-2">
+          <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-teal-500 to-cyan-600 bg-clip-text text-transparent px-2">
             {currentStep === 1 && "Welcome to Dr. Jason Shumard's Digital Office!"}
             {currentStep === 2 && "Step 2: Complete Your Health Blueprint"}
             {currentStep === 3 && "Step 3: Final Preparations - You Are Ready!"}
