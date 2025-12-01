@@ -198,7 +198,7 @@ const Dashboard = () => {
           <Card className="glass-dark border-0 shadow-lg" data-testid="stat-card-3">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <ArrowRight className="text-blue-600" size={20} />
+                <ArrowRight className="text-teal-600" size={20} />
                 Next Milestone
               </CardTitle>
             </CardHeader>
