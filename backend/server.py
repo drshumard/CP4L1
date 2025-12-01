@@ -43,6 +43,30 @@ WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
+# Activity Logging Utility
+async def log_activity(
+    event_type: str,
+    user_email: str = None,
+    user_id: str = None,
+    details: dict = None,
+    status: str = "success",
+    ip_address: str = None
+):
+    """Log backend activity to MongoDB"""
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc),
+        "event_type": event_type,
+        "user_email": user_email,
+        "user_id": user_id,
+        "details": details or {},
+        "status": status,
+        "ip_address": ip_address
+    }
+    try:
+        await db.activity_logs.insert_one(log_entry)
+    except Exception as e:
+        logging.error(f"Failed to log activity: {str(e)}")
+
 # Models
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
