@@ -943,7 +943,7 @@ const StepsPage = () => {
                 </p>
                 <Button
                   onClick={handleStep1Complete}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-5 rounded-xl shadow-lg"
+                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-5 rounded-xl shadow-lg"
                   data-testid="submit-button"
                 >
                   Mark as Complete & Continue
