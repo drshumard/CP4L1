@@ -234,12 +234,6 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         padding: 40px 30px;
                         text-align: center;
                     }}
-                    .logo {{
-                        width: 120px;
-                        height: 120px;
-                        margin: 0 auto 20px;
-                        display: block;
-                    }}
                     .header h1 {{
                         color: white;
                         margin: 0;
