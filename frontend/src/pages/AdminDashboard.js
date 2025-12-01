@@ -182,7 +182,7 @@ const AdminDashboard = () => {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
               {[1, 2, 3, 4, 5, 6, 7].map(step => (
-                <div key={step} className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 text-center">
+                <div key={step} className="bg-gradient-to-br from-teal-50 to-cyan-100 rounded-lg p-4 text-center">
                   <p className="text-sm text-gray-600 mb-1">{step === 7 ? 'Outcome' : `Step ${step}`}</p>
                   <p className="text-2xl font-bold text-gray-800">
                     {analytics?.step_distribution?.[`step_${step}`] || 0}
