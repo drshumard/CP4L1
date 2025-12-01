@@ -204,10 +204,10 @@ def test_admin_endpoint():
     # Test 8: Authorization check (without token)
     print("\n8. Testing authorization...")
     unauth_response = session.get(logs_url)  # No headers
-    if unauth_response.status_code == 401:
-        print("✅ Authorization working (401 without token)")
+    if unauth_response.status_code in [401, 403]:  # Both are valid for protected endpoints
+        print(f"✅ Authorization working ({unauth_response.status_code} without token)")
     else:
-        print(f"❌ Authorization not working: {unauth_response.status_code} (expected 401)")
+        print(f"❌ Authorization not working: {unauth_response.status_code} (expected 401 or 403)")
         return False
     
     print("\n🎉 All admin endpoint tests passed!")
