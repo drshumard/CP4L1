@@ -333,7 +333,6 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             <body>
                 <div class="container">
                     <div class="header">
-                        <img src="https://customer-assets.emergentagent.com/job_wellness-portal-53/artifacts/9dnkrdv3_email%20logo.png" alt="Portal Logo" class="logo">
                         <h1>Welcome to Your Wellness Portal</h1>
                     </div>
                     
