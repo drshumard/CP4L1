@@ -182,7 +182,7 @@ const Signup = () => {
                   transition={{ duration: 1.5, repeat: Infinity }}
                   className="inline-block mb-6"
                 >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mx-auto shadow-xl relative">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 flex items-center justify-center mx-auto shadow-xl relative">
                     <HeartPulse className="text-white" size={48} />
                     <motion.div
                       animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0, 0.5] }}
@@ -198,7 +198,7 @@ const Signup = () => {
                   transition={{ delay: 0.2 }}
                   className="text-5xl font-bold mb-4"
                   style={{
-                    background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 100%)',
+                    background: 'linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                   }}
