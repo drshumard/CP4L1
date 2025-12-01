@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Backend API Testing Suite for Wellness Portal
-Tests the authentication flow: GHL Webhook -> Signup -> Login
+Tests the authentication flow and comprehensive activity logging system
 """
 
 import requests
@@ -19,6 +19,13 @@ TEST_USER = {
     "email": "testuser.wellness@example.com",
     "name": "Test User Wellness",
     "password": "TestPassword123!"
+}
+
+# Activity logging test user
+ACTIVITY_TEST_USER = {
+    "email": "activitytest.wellness@example.com",
+    "name": "Activity Test User",
+    "password": "ActivityTest123!"
 }
 
 class BackendTester:
