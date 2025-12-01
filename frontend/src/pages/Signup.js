@@ -119,7 +119,7 @@ const Signup = () => {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="w-full mb-6"
         >
-          <div className="glass-dark rounded-2xl p-6 shadow-lg border border-blue-200/30 backdrop-blur-md">
+          <div className="glass-dark rounded-2xl p-6 shadow-lg border border-cyan-200/30 backdrop-blur-md">
             <div className="flex items-center gap-6">
               {/* Circular Progress */}
               <div className="relative flex-shrink-0">
