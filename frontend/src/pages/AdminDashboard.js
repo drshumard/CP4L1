@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
-import { Home, Users, TrendingUp, BarChart3, RefreshCw, Trash2 } from 'lucide-react';
+import { Home, Users, TrendingUp, BarChart3, RefreshCw, Trash2, Activity } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
