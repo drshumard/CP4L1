@@ -640,6 +640,21 @@ const StepsPage = () => {
                 <CardContent className="p-6 flex-1 flex flex-col overflow-hidden">
                   <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">STEP 2: COMPLETE YOUR HEALTH PROFILE</h3>
                   
+                  {/* User Info Card */}
+                  <div className="mb-4 bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-700 font-semibold mb-3">Please use this information on the form below:</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-600">Name:</span>
+                        <span className="text-sm font-semibold text-gray-800">{userData?.name || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-600">Email:</span>
+                        <span className="text-sm font-semibold text-gray-800">{userData?.email || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <div className="flex-1 overflow-hidden" data-testid="form-container">
                     <style dangerouslySetInnerHTML={{__html: `
                       .form-container-step2 .better-inline-booking-widget {
