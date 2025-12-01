@@ -169,11 +169,20 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     if existing_user:
         return {"message": "User already exists", "user_id": existing_user["id"]}
     
-    # Generate secure random password (12 characters)
-    import string
+    # Generate simple password using user's name + 2026@ or 2026!
     import random
-    password_chars = string.ascii_letters + string.digits + "!@#$%"
-    generated_password = ''.join(random.choice(password_chars) for _ in range(12))
+    # Split name and get first or last name (prefer longer one for better security)
+    name_parts = data.name.strip().split()
+    if len(name_parts) >= 2:
+        # Choose the longer name part
+        base_name = max(name_parts, key=len)
+    else:
+        # Use the full name if only one part
+        base_name = name_parts[0] if name_parts else "User"
+    
+    # Capitalize first letter and add 2026@ or 2026! randomly
+    suffix = random.choice(["2026@", "2026!"])
+    generated_password = base_name.capitalize() + suffix
     
     # Hash password
     hashed_password = get_password_hash(generated_password)
