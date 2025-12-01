@@ -121,10 +121,19 @@ const AdminDashboard = () => {
               />
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 truncate">Admin Dashboard</h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/logs')} 
+                className="flex items-center gap-2 bg-gradient-to-r from-teal-50 to-cyan-50 border-teal-300 hover:from-teal-100 hover:to-cyan-100" 
+                data-testid="activity-logs-button"
+              >
+                <Activity size={16} />
+                <span className="hidden sm:inline">Activity Logs</span>
+              </Button>
               <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" data-testid="home-button">
                 <Home size={16} />
-                Home
+                <span className="hidden sm:inline">Home</span>
               </Button>
             </div>
           </div>
