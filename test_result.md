@@ -388,7 +388,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Complete visual regression test for teal/turquoise color scheme change"
+    - "Comprehensive Activity Logging System"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
