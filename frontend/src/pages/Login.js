@@ -88,8 +88,8 @@ const Login = () => {
             <div className="relative bg-gradient-to-br from-teal-500 via-cyan-600 to-cyan-700 p-4 sm:p-6 md:p-12 lg:p-16 flex flex-col justify-center text-white overflow-hidden min-h-[300px] md:min-h-0 w-full">
               {/* Decorative circles */}
               <div className="absolute top-10 left-10 md:top-20 md:left-20 w-32 h-32 md:w-64 md:h-64 bg-white/10 rounded-full blur-2xl md:blur-3xl"></div>
-              <div className="absolute bottom-10 right-10 md:bottom-32 md:right-20 w-40 h-40 md:w-80 md:h-80 bg-purple-400/20 rounded-full blur-2xl md:blur-3xl"></div>
-              <div className="hidden md:block absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
+              <div className="absolute bottom-10 right-10 md:bottom-32 md:right-20 w-40 h-40 md:w-80 md:h-80 bg-cyan-400/20 rounded-full blur-2xl md:blur-3xl"></div>
+              <div className="hidden md:block absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl"></div>
               
               <div className="relative z-10">
                 <motion.div
@@ -120,7 +120,7 @@ const Login = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
-                  className="text-base md:text-xl text-blue-100 mb-6 md:mb-12"
+                  className="text-base md:text-xl text-cyan-100 mb-6 md:mb-12"
                 >
                   Continue your journey to better health and wellness
                 </motion.p>
@@ -137,7 +137,7 @@ const Login = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <p className="text-blue-50 text-sm md:text-lg">Personalized wellness programs</p>
+                    <p className="text-cyan-50 text-sm md:text-lg">Personalized wellness programs</p>
                   </div>
                   <div className="flex items-center gap-3 md:gap-4">
                     <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -145,7 +145,7 @@ const Login = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <p className="text-blue-50 text-sm md:text-lg">Track your progress</p>
+                    <p className="text-cyan-50 text-sm md:text-lg">Track your progress</p>
                   </div>
                   <div className="flex items-center gap-3 md:gap-4">
                     <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -153,7 +153,7 @@ const Login = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <p className="text-blue-50 text-sm md:text-lg">Expert health advocate support</p>
+                    <p className="text-cyan-50 text-sm md:text-lg">Expert health advocate support</p>
                   </div>
                 </motion.div>
               </div>
@@ -174,14 +174,14 @@ const Login = () => {
                     <div
                       className={`p-3 md:p-4 rounded-lg border ${
                         notification.type === 'success'
-                          ? 'bg-blue-50 border-blue-200 text-blue-800'
+                          ? 'bg-teal-50 border-teal-200 text-teal-800'
                           : 'bg-red-50 border-red-200 text-red-800'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2 md:gap-3">
                         <div className="flex items-start gap-2 md:gap-3 flex-1">
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
-                            notification.type === 'success' ? 'bg-blue-500' : 'bg-red-500'
+                            notification.type === 'success' ? 'bg-teal-500' : 'bg-red-500'
                           }`}>
                             {notification.type === 'success' ? (
                               <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -198,7 +198,7 @@ const Login = () => {
                         <button
                           onClick={() => setNotification(null)}
                           className={`flex-shrink-0 ${
-                            notification.type === 'success' ? 'text-blue-600 hover:text-blue-800' : 'text-red-600 hover:text-red-800'
+                            notification.type === 'success' ? 'text-teal-600 hover:text-teal-800' : 'text-red-600 hover:text-red-800'
                           } transition-colors`}
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -223,7 +223,7 @@ const Login = () => {
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-teal-500 focus:ring-teal-500"
                     data-testid="email-input"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -237,7 +237,7 @@ const Login = () => {
                     <button
                       type="button"
                       onClick={() => setShowResetModal(true)}
-                      className="text-xs md:text-base text-blue-600 hover:text-blue-700 font-medium"
+                      className="text-xs md:text-base text-teal-600 hover:text-teal-700 font-medium"
                       data-testid="forgot-password-button"
                     >
                       Forgot password?
@@ -247,7 +247,7 @@ const Login = () => {
                     id="password"
                     type="password"
                     placeholder="••••••••"
-                    className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                    className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-teal-500 focus:ring-teal-500"
                     data-testid="password-input"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
