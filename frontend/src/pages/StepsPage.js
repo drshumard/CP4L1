@@ -468,7 +468,7 @@ const StepsPage = () => {
                               transition={{ delay: 0.3 }}
                               className="flex items-start gap-3"
                             >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
                                 1
                               </span>
                               <p className="pt-1 leading-relaxed">
