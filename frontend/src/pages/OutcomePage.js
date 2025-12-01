@@ -234,7 +234,7 @@ const OutcomePage = () => {
                       transition={{ duration: 2, repeat: Infinity, delay: idx * 0.2 }}
                       className="inline-block mb-4"
                     >
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center mx-auto">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center mx-auto">
                         <achievement.icon className="text-white" size={32} />
                       </div>
                     </motion.div>
