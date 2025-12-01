@@ -31,33 +31,33 @@ const Signup = () => {
   }, [searchParams, navigate]);
 
   const startSignupProcess = async (userEmail, userName) => {
-    // Progress animation - smooth updates every 500ms for better visual appeal
-    // Total: 20s, but progress reaches 100% at 19.5s on the final stage
+    // Progress animation - smooth updates every 500ms
+    // Total: Up to 55s (6s welcome + 4s setting up + backend 40s retry + 5s final)
     const progressInterval = setInterval(() => {
       setProgress(prev => {
         const currentTime = Date.now();
         const elapsed = (currentTime - startTime) / 1000; // seconds elapsed
         
-        if (elapsed >= 19.5) {
+        if (elapsed >= 54) {
           return 100; // Final stage, show 100%
         }
         
-        // Calculate progress: 0% at 0s, ~95% at 16s (when stage 3 starts), 100% at 19.5s
-        const calculatedProgress = (elapsed / 19.5) * 100;
+        // Calculate progress smoothly over the entire duration
+        const calculatedProgress = (elapsed / 54) * 100;
         return Math.min(calculatedProgress, 100);
       });
     }, 500);
     
     const startTime = Date.now();
 
-    // Stage 0: Welcome animation (6s) - 0% to 30%
+    // Stage 0: Welcome animation (6s) - 0% to ~11%
     setTimeout(() => setStage(1), 6000);
     
-    // Stage 1: Setting up account (4s) - 30% to 50%
-    // Wait 12 seconds (6s welcome + 6s extra) before checking email/calling API
-    // This gives the GHL webhook time to create the user in the database
+    // Stage 1: Setting up account - call API immediately after welcome
+    // The backend will handle the 40-second retry logic
     setTimeout(async () => {
       try {
+        // This call may take up to 40 seconds due to backend retry logic
         const response = await axios.post(`${API}/auth/signup`, {
           email: userEmail,
           name: userName,
@@ -67,23 +67,31 @@ const Signup = () => {
         localStorage.setItem('access_token', response.data.access_token);
         localStorage.setItem('refresh_token', response.data.refresh_token);
         
-        setStage(2); // Already sent (password was sent via webhook)
+        // Move to stage 2 after successful signup
+        setStage(2);
+        
+        // Stage 2: Password sent message (2s)
+        setTimeout(() => setStage(3), 2000);
+        
+        // Stage 3: Redirecting message (3s) then navigate
+        setTimeout(() => {
+          clearInterval(progressInterval);
+          navigate('/steps');
+        }, 5000);
+        
       } catch (error) {
         clearInterval(progressInterval);
-        toast.error(error.response?.data?.detail || 'Signup failed');
-        setTimeout(() => navigate('/login'), 2000);
+        
+        // Show helpful error message
+        const errorMessage = error.response?.status === 404 
+          ? 'Please make sure you have completed payment. If you have and believe this is a mistake, contact admin@drshumard.com'
+          : (error.response?.data?.detail || 'Signup failed. Please try again.');
+        
+        toast.error(errorMessage, { duration: 8000 });
+        setTimeout(() => navigate('/login'), 8000);
         return;
       }
-    }, 12000); // Changed from 6000 to 12000 (12 seconds total delay)
-    
-    // Stage 2: Password sent message (4s) - 50% to ~80%
-    setTimeout(() => setStage(3), 16000);
-    
-    // Stage 3: Redirecting message (4s) - ~80% to 100% then navigate to Step 1
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      navigate('/steps');
-    }, 20000);
+    }, 6000);
   };
 
   return (
