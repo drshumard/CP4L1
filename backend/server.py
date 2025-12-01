@@ -347,12 +347,12 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                             <div class="credentials-title">
                                 🔐 Your Login Credentials
                             </div>
-                            <div class="credential-row">
-                                <span class="credential-label" style="color: #000000 !important;">Email:</span>
+                            <div style="margin: 12px 0;">
+                                <span style="font-weight: 600; margin-right: 8px; color: #000000 !important; -webkit-text-fill-color: #000000 !important;">Email:</span>
                                 <span class="credential-value">{data.email}</span>
                             </div>
-                            <div class="credential-row">
-                                <span class="credential-label" style="color: #000000 !important;">Password:</span>
+                            <div style="margin: 12px 0;">
+                                <span style="font-weight: 600; margin-right: 8px; color: #000000 !important; -webkit-text-fill-color: #000000 !important;">Password:</span>
                                 <span class="credential-value">{generated_password}</span>
                             </div>
                         </div>
