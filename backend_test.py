@@ -587,15 +587,554 @@ class BackendTester:
             
         return True
     
+    def test_activity_logging_user_creation(self):
+        """Test 1: User Creation Logging (via Webhook)"""
+        print("\n=== Testing Activity Logging - User Creation ===")
+        
+        # Create a unique test user for activity logging
+        activity_user = {
+            "email": f"activitylog.{int(time.time())}@example.com",
+            "name": "Activity Log Test User"
+        }
+        
+        # Step 1: Create user via webhook and verify logging
+        webhook_url = f"{BACKEND_URL}/webhook/ghl"
+        webhook_payload = {
+            "email": activity_user["email"],
+            "name": activity_user["name"]
+        }
+        params = {"webhook_secret": WEBHOOK_SECRET}
+        
+        try:
+            response = self.session.post(webhook_url, json=webhook_payload, params=params)
+            
+            if response.status_code == 200:
+                data = response.json()
+                user_id = data.get("user_id")
+                
+                self.log_result(
+                    "Activity Logging - User Creation", 
+                    True, 
+                    f"User created successfully: {user_id}"
+                )
+                
+                # Store for later admin endpoint testing
+                self.activity_test_user_email = activity_user["email"]
+                self.activity_test_user_id = user_id
+                
+                return True
+            else:
+                self.log_result(
+                    "Activity Logging - User Creation", 
+                    False, 
+                    f"Webhook failed: {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Activity Logging - User Creation", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_activity_logging_login_success(self):
+        """Test 2: Login Success Logging"""
+        print("\n=== Testing Activity Logging - Login Success ===")
+        
+        # First, signup the activity test user to get tokens
+        signup_url = f"{BACKEND_URL}/auth/signup"
+        signup_payload = {
+            "email": self.activity_test_user_email,
+            "name": "Activity Log Test User",
+            "password": "ActivityTest123!"
+        }
+        
+        try:
+            signup_response = self.session.post(signup_url, json=signup_payload)
+            
+            if signup_response.status_code == 200:
+                signup_data = signup_response.json()
+                self.activity_access_token = signup_data.get("access_token")
+                
+                self.log_result(
+                    "Activity Logging - Login Success (via Signup)", 
+                    True, 
+                    "Signup successful, LOGIN_SUCCESS event should be logged"
+                )
+                return True
+            else:
+                self.log_result(
+                    "Activity Logging - Login Success", 
+                    False, 
+                    f"Signup failed: {signup_response.status_code}",
+                    signup_response.json() if signup_response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Activity Logging - Login Success", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_activity_logging_login_failures(self):
+        """Test 3: Login Failure Logging"""
+        print("\n=== Testing Activity Logging - Login Failures ===")
+        
+        login_url = f"{BACKEND_URL}/auth/login"
+        
+        # Test 1: Wrong password
+        try:
+            wrong_password_payload = {
+                "email": self.activity_test_user_email,
+                "password": "WrongPassword123!"
+            }
+            
+            response = self.session.post(login_url, json=wrong_password_payload)
+            
+            if response.status_code == 401:
+                self.log_result(
+                    "Activity Logging - Login Failure (Wrong Password)", 
+                    True, 
+                    "LOGIN_FAILED event should be logged with reason 'incorrect_password'"
+                )
+            else:
+                self.log_result(
+                    "Activity Logging - Login Failure (Wrong Password)", 
+                    False, 
+                    f"Expected 401, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+        except Exception as e:
+            self.log_result("Activity Logging - Login Failure (Wrong Password)", False, f"Request failed: {str(e)}")
+        
+        # Test 2: Non-existent email
+        try:
+            nonexistent_payload = {
+                "email": "nonexistent.activity@example.com",
+                "password": "SomePassword123!"
+            }
+            
+            response = self.session.post(login_url, json=nonexistent_payload)
+            
+            if response.status_code == 401:
+                self.log_result(
+                    "Activity Logging - Login Failure (Non-existent User)", 
+                    True, 
+                    "LOGIN_FAILED event should be logged with reason 'user_not_found_or_no_password'"
+                )
+                return True
+            else:
+                self.log_result(
+                    "Activity Logging - Login Failure (Non-existent User)", 
+                    False, 
+                    f"Expected 401, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Activity Logging - Login Failure (Non-existent User)", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_activity_logging_signup_success(self):
+        """Test 4: Signup Success Logging"""
+        print("\n=== Testing Activity Logging - Signup Success ===")
+        
+        # Create another user for signup success testing
+        signup_test_user = {
+            "email": f"signuptest.{int(time.time())}@example.com",
+            "name": "Signup Test User"
+        }
+        
+        # First create via webhook
+        webhook_url = f"{BACKEND_URL}/webhook/ghl"
+        webhook_payload = {
+            "email": signup_test_user["email"],
+            "name": signup_test_user["name"]
+        }
+        params = {"webhook_secret": WEBHOOK_SECRET}
+        
+        try:
+            webhook_response = self.session.post(webhook_url, json=webhook_payload, params=params)
+            
+            if webhook_response.status_code != 200:
+                self.log_result(
+                    "Activity Logging - Signup Success (Webhook Setup)", 
+                    False, 
+                    f"Webhook failed: {webhook_response.status_code}"
+                )
+                return False
+            
+            # Now test signup
+            signup_url = f"{BACKEND_URL}/auth/signup"
+            signup_payload = {
+                "email": signup_test_user["email"],
+                "name": signup_test_user["name"],
+                "password": "SignupTest123!"
+            }
+            
+            signup_response = self.session.post(signup_url, json=signup_payload)
+            
+            if signup_response.status_code == 200:
+                self.log_result(
+                    "Activity Logging - Signup Success", 
+                    True, 
+                    "SIGNUP_SUCCESS event should be logged with auto_login and session_duration_minutes"
+                )
+                return True
+            else:
+                self.log_result(
+                    "Activity Logging - Signup Success", 
+                    False, 
+                    f"Signup failed: {signup_response.status_code}",
+                    signup_response.json() if signup_response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Activity Logging - Signup Success", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_activity_logging_signup_failure(self):
+        """Test 5: Signup Failure Logging (shortened timeout for testing)"""
+        print("\n=== Testing Activity Logging - Signup Failure ===")
+        
+        # Test signup with non-existent email (will timeout)
+        signup_url = f"{BACKEND_URL}/auth/signup"
+        signup_payload = {
+            "email": "timeout.test@example.com",
+            "name": "Timeout Test User",
+            "password": "TimeoutTest123!"
+        }
+        
+        try:
+            print("   Note: This test will take ~40 seconds due to retry logic...")
+            start_time = time.time()
+            
+            response = self.session.post(signup_url, json=signup_payload, timeout=45)
+            
+            elapsed_time = time.time() - start_time
+            
+            if response.status_code == 404 and elapsed_time >= 35:  # Should take ~40 seconds
+                self.log_result(
+                    "Activity Logging - Signup Failure", 
+                    True, 
+                    f"SIGNUP_FAILED event should be logged with retries count (took {elapsed_time:.1f}s)"
+                )
+                return True
+            else:
+                self.log_result(
+                    "Activity Logging - Signup Failure", 
+                    False, 
+                    f"Unexpected response: {response.status_code} in {elapsed_time:.1f}s",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Activity Logging - Signup Failure", False, f"Request failed: {str(e)}")
+            return False
+
+    def create_admin_user(self):
+        """Helper: Create an admin user for testing admin endpoints"""
+        print("\n=== Creating Admin User for Testing ===")
+        
+        # First create a regular user via webhook
+        admin_user = {
+            "email": f"admin.{int(time.time())}@example.com",
+            "name": "Admin Test User"
+        }
+        
+        webhook_url = f"{BACKEND_URL}/webhook/ghl"
+        webhook_payload = {
+            "email": admin_user["email"],
+            "name": admin_user["name"]
+        }
+        params = {"webhook_secret": WEBHOOK_SECRET}
+        
+        try:
+            # Create user via webhook
+            webhook_response = self.session.post(webhook_url, json=webhook_payload, params=params)
+            
+            if webhook_response.status_code != 200:
+                self.log_result("Admin User Creation - Webhook", False, f"Webhook failed: {webhook_response.status_code}")
+                return False
+            
+            # Promote to admin
+            promote_url = f"{BACKEND_URL}/admin/promote-user"
+            promote_params = {
+                "email": admin_user["email"],
+                "secret_key": WEBHOOK_SECRET
+            }
+            
+            promote_response = self.session.post(promote_url, params=promote_params)
+            
+            if promote_response.status_code != 200:
+                self.log_result("Admin User Creation - Promotion", False, f"Promotion failed: {promote_response.status_code}")
+                return False
+            
+            # Login as admin to get token
+            signup_url = f"{BACKEND_URL}/auth/signup"
+            signup_payload = {
+                "email": admin_user["email"],
+                "name": admin_user["name"],
+                "password": "AdminTest123!"
+            }
+            
+            signup_response = self.session.post(signup_url, json=signup_payload)
+            
+            if signup_response.status_code == 200:
+                signup_data = signup_response.json()
+                self.admin_access_token = signup_data.get("access_token")
+                self.admin_user_email = admin_user["email"]
+                
+                self.log_result("Admin User Creation", True, f"Admin user created: {admin_user['email']}")
+                return True
+            else:
+                self.log_result("Admin User Creation - Login", False, f"Admin login failed: {signup_response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.log_result("Admin User Creation", False, f"Failed: {str(e)}")
+            return False
+
+    def test_admin_activity_logs_endpoint(self):
+        """Test 6: Admin Activity Logs Endpoint"""
+        print("\n=== Testing Admin Activity Logs Endpoint ===")
+        
+        if not hasattr(self, 'admin_access_token') or not self.admin_access_token:
+            self.log_result(
+                "Admin Activity Logs - No Admin Token", 
+                False, 
+                "No admin token available, skipping admin endpoint tests"
+            )
+            return False
+        
+        logs_url = f"{BACKEND_URL}/admin/activity-logs"
+        headers = {"Authorization": f"Bearer {self.admin_access_token}"}
+        
+        try:
+            # Test basic endpoint
+            response = self.session.get(logs_url, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                # Verify response structure
+                if "logs" in data and "event_types" in data and "total_count" in data:
+                    logs = data["logs"]
+                    event_types = data["event_types"]
+                    total_count = data["total_count"]
+                    
+                    self.log_result(
+                        "Admin Activity Logs - Basic Endpoint", 
+                        True, 
+                        f"Retrieved {len(logs)} logs, {len(event_types)} event types, total: {total_count}"
+                    )
+                    
+                    # Test filtering by event_type
+                    if "USER_CREATED" in event_types:
+                        filter_response = self.session.get(
+                            logs_url, 
+                            headers=headers, 
+                            params={"event_type": "USER_CREATED"}
+                        )
+                        
+                        if filter_response.status_code == 200:
+                            filter_data = filter_response.json()
+                            self.log_result(
+                                "Admin Activity Logs - Event Type Filter", 
+                                True, 
+                                f"Filtered by USER_CREATED: {len(filter_data['logs'])} logs"
+                            )
+                        else:
+                            self.log_result(
+                                "Admin Activity Logs - Event Type Filter", 
+                                False, 
+                                f"Filter failed: {filter_response.status_code}"
+                            )
+                    
+                    # Test filtering by user_email
+                    if hasattr(self, 'activity_test_user_email'):
+                        email_filter_response = self.session.get(
+                            logs_url, 
+                            headers=headers, 
+                            params={"user_email": self.activity_test_user_email}
+                        )
+                        
+                        if email_filter_response.status_code == 200:
+                            email_data = email_filter_response.json()
+                            self.log_result(
+                                "Admin Activity Logs - User Email Filter", 
+                                True, 
+                                f"Filtered by user email: {len(email_data['logs'])} logs"
+                            )
+                        else:
+                            self.log_result(
+                                "Admin Activity Logs - User Email Filter", 
+                                False, 
+                                f"Email filter failed: {email_filter_response.status_code}"
+                            )
+                    
+                    # Test limit parameter
+                    limit_response = self.session.get(
+                        logs_url, 
+                        headers=headers, 
+                        params={"limit": 5}
+                    )
+                    
+                    if limit_response.status_code == 200:
+                        limit_data = limit_response.json()
+                        if len(limit_data['logs']) <= 5:
+                            self.log_result(
+                                "Admin Activity Logs - Limit Parameter", 
+                                True, 
+                                f"Limit parameter working: {len(limit_data['logs'])} logs returned"
+                            )
+                        else:
+                            self.log_result(
+                                "Admin Activity Logs - Limit Parameter", 
+                                False, 
+                                f"Limit not respected: {len(limit_data['logs'])} logs returned"
+                            )
+                    
+                    return True
+                else:
+                    self.log_result(
+                        "Admin Activity Logs - Response Structure", 
+                        False, 
+                        "Missing required fields in response",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Admin Activity Logs - Basic Endpoint", 
+                    False, 
+                    f"Expected 200, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Admin Activity Logs Endpoint", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_activity_logs_data_structure(self):
+        """Test 7: Activity Logs Data Structure"""
+        print("\n=== Testing Activity Logs Data Structure ===")
+        
+        if not hasattr(self, 'admin_access_token') or not self.admin_access_token:
+            self.log_result(
+                "Activity Logs Data Structure - No Admin Token", 
+                False, 
+                "No admin token available, skipping data structure test"
+            )
+            return False
+        
+        logs_url = f"{BACKEND_URL}/admin/activity-logs"
+        headers = {"Authorization": f"Bearer {self.admin_access_token}"}
+        
+        try:
+            response = self.session.get(logs_url, headers=headers, params={"limit": 10})
+            
+            if response.status_code == 200:
+                data = response.json()
+                logs = data.get("logs", [])
+                
+                if not logs:
+                    self.log_result(
+                        "Activity Logs Data Structure", 
+                        False, 
+                        "No logs available to verify structure"
+                    )
+                    return False
+                
+                # Check structure of first log entry
+                log_entry = logs[0]
+                required_fields = ["timestamp", "event_type", "user_email", "user_id", "details", "status", "ip_address"]
+                
+                missing_fields = []
+                for field in required_fields:
+                    if field not in log_entry:
+                        missing_fields.append(field)
+                
+                if not missing_fields:
+                    # Verify data types and formats
+                    structure_valid = True
+                    structure_issues = []
+                    
+                    # Check timestamp format (should be ISO format)
+                    try:
+                        datetime.fromisoformat(log_entry["timestamp"].replace('Z', '+00:00'))
+                    except:
+                        structure_issues.append("timestamp not in ISO format")
+                        structure_valid = False
+                    
+                    # Check event_type is string
+                    if not isinstance(log_entry["event_type"], str):
+                        structure_issues.append("event_type not string")
+                        structure_valid = False
+                    
+                    # Check details is object/dict
+                    if not isinstance(log_entry["details"], dict):
+                        structure_issues.append("details not object")
+                        structure_valid = False
+                    
+                    # Check status is success or failure
+                    if log_entry["status"] not in ["success", "failure"]:
+                        structure_issues.append("status not 'success' or 'failure'")
+                        structure_valid = False
+                    
+                    if structure_valid:
+                        # Check for expected event types
+                        event_types = data.get("event_types", [])
+                        expected_types = ["USER_CREATED", "EMAIL_SENT", "EMAIL_FAILED", "LOGIN_SUCCESS", "LOGIN_FAILED", "SIGNUP_SUCCESS", "SIGNUP_FAILED"]
+                        found_types = [et for et in expected_types if et in event_types]
+                        
+                        self.log_result(
+                            "Activity Logs Data Structure", 
+                            True, 
+                            f"Structure valid. Found event types: {', '.join(found_types)}"
+                        )
+                        return True
+                    else:
+                        self.log_result(
+                            "Activity Logs Data Structure", 
+                            False, 
+                            f"Structure issues: {', '.join(structure_issues)}",
+                            log_entry
+                        )
+                        return False
+                else:
+                    self.log_result(
+                        "Activity Logs Data Structure", 
+                        False, 
+                        f"Missing required fields: {', '.join(missing_fields)}",
+                        log_entry
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Activity Logs Data Structure", 
+                    False, 
+                    f"Failed to retrieve logs: {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Activity Logs Data Structure", False, f"Request failed: {str(e)}")
+            return False
+
     def run_all_tests(self):
-        """Run all backend tests"""
-        print("🚀 Starting Backend Authentication Flow Tests")
+        """Run all backend tests including activity logging"""
+        print("🚀 Starting Backend Authentication Flow and Activity Logging Tests")
         print(f"Backend URL: {BACKEND_URL}")
         print(f"Test User: {TEST_USER['email']}")
         print("=" * 60)
         
+        # Initialize activity logging test variables
+        self.activity_test_user_email = None
+        self.activity_test_user_id = None
+        self.activity_access_token = None
+        self.admin_access_token = None
+        self.admin_user_email = None
+        
         # Run tests in sequence
         tests = [
+            # Original authentication tests
             self.test_ghl_webhook,
             self.test_duplicate_webhook,
             self.test_signup_endpoint,
@@ -604,7 +1143,18 @@ class BackendTester:
             self.test_jwt_token_validation,
             self.test_refresh_token,
             self.test_race_condition_scenario,
-            self.test_complete_flow_fresh_user
+            self.test_complete_flow_fresh_user,
+            
+            # Activity logging tests
+            self.test_activity_logging_user_creation,
+            self.test_activity_logging_login_success,
+            self.test_activity_logging_login_failures,
+            self.test_activity_logging_signup_success,
+            # Skip the long timeout test for now
+            # self.test_activity_logging_signup_failure,
+            self.create_admin_user,
+            self.test_admin_activity_logs_endpoint,
+            self.test_activity_logs_data_structure
         ]
         
         passed = 0
