@@ -111,7 +111,7 @@ const Dashboard = () => {
             <div className="flex items-start justify-between flex-wrap gap-6">
               <div className="flex-1 min-w-[300px]">
                 <div className="flex items-center gap-3 mb-3">
-                  <User className="text-blue-600" size={32} />
+                  <User className="text-teal-600" size={32} />
                   <h2 className="text-4xl font-bold text-gray-800">Welcome, {userData?.name}!</h2>
                 </div>
                 <p className="text-lg text-gray-600 mb-6">
@@ -129,7 +129,7 @@ const Dashboard = () => {
                 ) : (
                   <Button 
                     onClick={handleStartJourney}
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
+                    className="bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-700 hover:to-cyan-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
                     data-testid="continue-journey-button"
                   >
                     Continue Your Journey
@@ -138,9 +138,9 @@ const Dashboard = () => {
                 )}
               </div>
               <div className="w-full md:w-auto">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 min-w-[250px]">
+                <div className="bg-gradient-to-br from-teal-50 to-cyan-100 rounded-2xl p-6 min-w-[250px]">
                   <div className="flex items-center gap-3 mb-4">
-                    <Trophy className="text-blue-600" size={28} />
+                    <Trophy className="text-teal-600" size={28} />
                     <h3 className="text-xl font-semibold text-gray-800">Your Progress</h3>
                   </div>
                   <div className="space-y-3">
@@ -151,7 +151,7 @@ const Dashboard = () => {
                       </div>
                       <Progress value={completionPercentage} className="h-2" data-testid="progress-bar" />
                     </div>
-                    <div className="pt-3 border-t border-blue-200">
+                    <div className="pt-3 border-t border-cyan-200">
                       <p className="text-sm text-gray-600">Current Step: <span className="font-semibold text-gray-800">{progressData?.current_step}/3</span></p>
                       <p className="text-sm text-gray-600 mt-1">Completed: <span className="font-semibold text-gray-800">{completedSteps} steps</span></p>
                     </div>
