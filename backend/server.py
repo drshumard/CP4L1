@@ -400,10 +400,31 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
 @api_router.post("/auth/signup", response_model=TokenResponse)
 async def signup(request: SignupRequest):
     """Auto-login user (password already sent via webhook)"""
-    # Check if user exists (from GHL webhook)
-    user = await db.users.find_one({"email": request.email}, {"_id": 0})
+    import asyncio
     
+    # Initial wait: 10 seconds to give webhook time to process
+    logging.info(f"Signup request for {request.email}. Waiting 10 seconds for webhook processing...")
+    await asyncio.sleep(10)
+    
+    # Retry logic: Check for user with 5-second intervals for up to 30 seconds (6 retries)
+    max_retries = 6
+    retry_delay = 5
+    user = None
+    
+    for attempt in range(max_retries + 1):
+        user = await db.users.find_one({"email": request.email}, {"_id": 0})
+        
+        if user:
+            logging.info(f"User {request.email} found after {attempt} retries")
+            break
+        
+        if attempt < max_retries:
+            logging.info(f"User {request.email} not found yet. Retry {attempt + 1}/{max_retries} in {retry_delay} seconds...")
+            await asyncio.sleep(retry_delay)
+    
+    # After all retries, if still no user, raise error
     if not user:
+        logging.error(f"User {request.email} not found after {max_retries} retries (total wait: {10 + (max_retries * retry_delay)} seconds)")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Email not found. Please complete purchase first."
