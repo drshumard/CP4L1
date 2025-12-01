@@ -515,12 +515,25 @@ async def login(request: LoginRequest):
     user = await db.users.find_one({"email": request.email}, {"_id": 0})
     
     if not user or not user.get("password_hash"):
+        await log_activity(
+            event_type="LOGIN_FAILED",
+            user_email=request.email,
+            details={"reason": "user_not_found_or_no_password"},
+            status="failure"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
     
     if not verify_password(request.password, user["password_hash"]):
+        await log_activity(
+            event_type="LOGIN_FAILED",
+            user_email=request.email,
+            user_id=user["id"],
+            details={"reason": "incorrect_password"},
+            status="failure"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
@@ -531,6 +544,15 @@ async def login(request: LoginRequest):
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     refresh_token = create_refresh_token(data={"sub": user["id"]})
+    
+    # Log successful login
+    await log_activity(
+        event_type="LOGIN_SUCCESS",
+        user_email=user["email"],
+        user_id=user["id"],
+        details={"session_duration_minutes": ACCESS_TOKEN_EXPIRE_MINUTES},
+        status="success"
+    )
     
     return TokenResponse(
         access_token=access_token,
