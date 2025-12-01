@@ -217,13 +217,13 @@ const AdminDashboard = () => {
                       <td className="px-4 py-4 text-sm text-gray-800">{user.name}</td>
                       <td className="px-4 py-4 text-sm text-gray-600">{user.email}</td>
                       <td className="px-4 py-4 text-sm">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
                           Step {user.current_step}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                          user.role === 'admin' ? 'bg-cyan-100 text-cyan-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {user.role}
                         </span>
