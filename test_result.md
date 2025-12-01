@@ -400,7 +400,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Comprehensive Activity Logging System"
+    - "Extended signup retry wait period with 40-second backend timeout"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
