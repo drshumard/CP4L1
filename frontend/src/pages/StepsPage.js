@@ -907,7 +907,7 @@ const StepsPage = () => {
                       data-hash="601a127b2a9c2406dcc94437" 
                       data-theme="246af4" 
                       data-theme-accent="f57f1b" 
-                      style={{ width: '100%', maxWidth: '100%', height: window.innerWidth < 1024 ? iframeHeight : 'calc(100% - 50px)' }} 
+                      style={{ width: '100%', maxWidth: '100%', height: 'calc(100% - 50px)' }} 
                       data-scrollbar-visible="false"
                     />
                   </div>
