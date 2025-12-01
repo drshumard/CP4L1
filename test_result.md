@@ -129,6 +129,18 @@ backend:
         agent: "testing"
         comment: "Signup endpoint (/api/auth/signup) working as designed. Validates that user exists (created by webhook) before allowing signup. Provides auto-login functionality by returning JWT tokens immediately. Correctly rejects signup attempts for non-webhook users with 404 error. Race condition resolved by frontend 12-second delay."
   
+  - task: "Signup retry logic with race condition handling"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE SIGNUP RETRY LOGIC TESTING COMPLETED: All 4 test scenarios passed successfully. ✅ Test 1 (User Already Exists): Signup succeeds within 10.1s when user exists ✅ Test 2 (User Created During Retry): Signup waits, retries, finds user created after 15s, succeeds in 20.1s ✅ Test 3 (User Never Created): Correctly times out after exactly 40s with proper error message 'Email not found. Please complete purchase first.' ✅ Test 4 (Logging): All expected log messages present: 'Waiting 10 seconds for webhook processing', retry attempts 1-6, 'found after X retries', 'not found after 6 retries (total wait: 40 seconds)'. New retry logic (10s initial + 6 retries × 5s = 40s total) working perfectly for race condition handling."
+  
   - task: "Login endpoint with password authentication"
     implemented: true
     working: true
