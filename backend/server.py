@@ -472,6 +472,12 @@ async def signup(request: SignupRequest):
     # After all retries, if still no user, raise error
     if not user:
         logging.error(f"User {request.email} not found after {max_retries} retries (total wait: {10 + (max_retries * retry_delay)} seconds)")
+        await log_activity(
+            event_type="SIGNUP_FAILED",
+            user_email=request.email,
+            details={"reason": "user_not_found", "retries": max_retries},
+            status="failure"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Email not found. Please complete purchase first."
