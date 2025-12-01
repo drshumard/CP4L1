@@ -987,7 +987,7 @@ const StepsPage = () => {
 
                   <div className="space-y-6 flex-1">
                     {/* Action Step 1 */}
-                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-5">
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-5">
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
                           1
@@ -1003,7 +1003,7 @@ const StepsPage = () => {
                     </div>
 
                     {/* Action Step 2 */}
-                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-5">
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-5">
                       <div className="flex items-start gap-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
                           2
