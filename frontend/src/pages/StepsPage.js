@@ -674,7 +674,7 @@ const StepsPage = () => {
                       }
                     `}} />
                     
-                    <div className="form-container-step2 bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-3 h-full overflow-hidden">
+                    <div className="form-container-step2 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-3 h-full overflow-hidden">
                       <div 
                         className="better-inline-booking-widget" 
                         data-url="https://drshumard.practicebetter.io/" 
