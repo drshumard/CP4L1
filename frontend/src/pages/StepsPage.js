@@ -482,7 +482,7 @@ const StepsPage = () => {
                               transition={{ delay: 0.4 }}
                               className="flex items-start gap-3"
                             >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
                                 2
                               </span>
                               <p className="pt-1 leading-relaxed">
@@ -496,7 +496,7 @@ const StepsPage = () => {
                               transition={{ delay: 0.5 }}
                               className="flex items-start gap-3"
                             >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
                                 3
                               </span>
                               <p className="pt-1 leading-relaxed">
@@ -510,7 +510,7 @@ const StepsPage = () => {
                               transition={{ delay: 0.6 }}
                               className="flex items-start gap-3"
                             >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
                                 4
                               </span>
                               <p className="pt-1 leading-relaxed">
@@ -524,7 +524,7 @@ const StepsPage = () => {
                               transition={{ delay: 0.7 }}
                               className="flex items-start gap-3"
                             >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-sm">
+                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
                                 5
                               </span>
                               <p className="pt-1 leading-relaxed">
@@ -590,7 +590,7 @@ const StepsPage = () => {
                   </h3>
                   <ol className="space-y-3 text-sm text-gray-700">
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">
                         1
                       </span>
                       <p className="pt-0.5 leading-relaxed">
@@ -598,7 +598,7 @@ const StepsPage = () => {
                       </p>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">
                         2
                       </span>
                       <p className="pt-0.5 leading-relaxed">
@@ -606,7 +606,7 @@ const StepsPage = () => {
                       </p>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">
                         3
                       </span>
                       <p className="pt-0.5 leading-relaxed">
@@ -614,7 +614,7 @@ const StepsPage = () => {
                       </p>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">
                         4
                       </span>
                       <p className="pt-0.5 leading-relaxed">
@@ -622,7 +622,7 @@ const StepsPage = () => {
                       </p>
                     </li>
                     <li className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">
                         5
                       </span>
                       <p className="pt-0.5 leading-relaxed">
