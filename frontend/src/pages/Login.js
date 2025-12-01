@@ -85,7 +85,7 @@ const Login = () => {
         >
           <div className="grid md:grid-cols-2 h-full w-full overflow-hidden">
             {/* Left Side - Gradient Panel */}
-            <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-purple-700 p-4 sm:p-6 md:p-12 lg:p-16 flex flex-col justify-center text-white overflow-hidden min-h-[300px] md:min-h-0 w-full">
+            <div className="relative bg-gradient-to-br from-teal-500 via-cyan-600 to-cyan-700 p-4 sm:p-6 md:p-12 lg:p-16 flex flex-col justify-center text-white overflow-hidden min-h-[300px] md:min-h-0 w-full">
               {/* Decorative circles */}
               <div className="absolute top-10 left-10 md:top-20 md:left-20 w-32 h-32 md:w-64 md:h-64 bg-white/10 rounded-full blur-2xl md:blur-3xl"></div>
               <div className="absolute bottom-10 right-10 md:bottom-32 md:right-20 w-40 h-40 md:w-80 md:h-80 bg-purple-400/20 rounded-full blur-2xl md:blur-3xl"></div>
