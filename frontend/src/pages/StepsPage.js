@@ -71,6 +71,23 @@ const StepsPage = () => {
     };
   }, []);
 
+  // Listen for iframe height changes from Practice Better widget
+  useEffect(() => {
+    const handleMessage = (event) => {
+      // Practice Better may send height updates via postMessage
+      if (event.data && typeof event.data === 'object') {
+        if (event.data.height) {
+          setIframeHeight(`${event.data.height}px`);
+        } else if (event.data.frameHeight) {
+          setIframeHeight(`${event.data.frameHeight}px`);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   // Check if user has seen Step 2 instructions
   useEffect(() => {
     if (userData?.current_step === 2 && userData) {
