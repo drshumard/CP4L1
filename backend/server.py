@@ -766,6 +766,41 @@ async def get_analytics(admin_user: dict = Depends(get_admin_user)):
         "completed_steps": completed_steps
     }
 
+@api_router.get("/admin/activity-logs")
+async def get_activity_logs(
+    admin_user: dict = Depends(get_admin_user),
+    limit: int = 100,
+    event_type: str = None,
+    user_email: str = None
+):
+    """Get activity logs with optional filtering"""
+    query = {}
+    
+    if event_type:
+        query["event_type"] = event_type
+    
+    if user_email:
+        query["user_email"] = user_email
+    
+    logs = await db.activity_logs.find(
+        query,
+        {"_id": 0}
+    ).sort("timestamp", -1).limit(limit).to_list(limit)
+    
+    # Convert datetime objects to ISO strings for JSON serialization
+    for log in logs:
+        if isinstance(log.get("timestamp"), datetime):
+            log["timestamp"] = log["timestamp"].isoformat()
+    
+    # Get unique event types for filtering
+    event_types = await db.activity_logs.distinct("event_type")
+    
+    return {
+        "logs": logs,
+        "event_types": event_types,
+        "total_count": await db.activity_logs.count_documents(query)
+    }
+
 @api_router.post("/admin/user/{user_id}/reset")
 async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin_user)):
     # Reset user to step 1
