@@ -298,7 +298,7 @@ const OutcomePage = () => {
                 </motion.div>
               </div>
 
-              <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-6 mb-8">
+              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 rounded-2xl p-6 mb-8">
                 <h3 className="font-bold text-xl text-gray-800 mb-4">How to Prepare for Your Call:</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {[
