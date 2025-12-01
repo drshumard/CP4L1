@@ -323,7 +323,7 @@ const StepsPage = () => {
             {[1, 2, 3].map((step, idx) => (
               <React.Fragment key={step}>
                 <div className="flex flex-col items-center" data-testid={`step-indicator-${step}`}>
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center border ${
                     step < currentStep
                       ? 'bg-green-500 border-green-600'
                       : step === currentStep
@@ -331,14 +331,14 @@ const StepsPage = () => {
                       : 'bg-gray-200 border-gray-300'
                   } relative`}>
                     {step < currentStep ? (
-                      <CheckCircle2 className="text-white" size={18} />
+                      <CheckCircle2 className="text-white" size={12} />
                     ) : step === currentStep ? (
-                      <Circle className="text-white fill-white" size={18} />
+                      <Circle className="text-white fill-white" size={12} />
                     ) : (
-                      <Lock className="text-gray-500" size={16} />
+                      <Lock className="text-gray-500" size={10} />
                     )}
                   </div>
-                  <span className={`mt-1 text-xs font-medium ${
+                  <span className={`mt-0.5 text-[10px] font-medium ${
                     step <= currentStep ? 'text-gray-800' : 'text-gray-500'
                   }`}>
                     Step {step}
@@ -347,7 +347,7 @@ const StepsPage = () => {
                 {idx < 2 && (
                   <div className={`h-0.5 ${
                     step < currentStep ? 'bg-green-500' : 'bg-gray-300'
-                  }`} style={{ width: '60px' }} />
+                  }`} style={{ width: '40px' }} />
                 )}
               </React.Fragment>
             ))}
