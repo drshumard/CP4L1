@@ -181,7 +181,7 @@ const OutcomePage = () => {
             transition={{ delay: 0.4 }}
             className="text-5xl sm:text-6xl font-bold mb-4"
             style={{
-              background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 50%, #EC4899 100%)',
+              background: 'linear-gradient(135deg, #14B8A6 0%, #06B6D4 50%, #10B981 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
             }}
