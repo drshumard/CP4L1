@@ -134,7 +134,7 @@ const OutcomePage = () => {
               <motion.div
                 animate={{ rotate: [0, 10, -10, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 flex items-center justify-center"
               >
                 <Trophy className="text-white" size={24} />
               </motion.div>
