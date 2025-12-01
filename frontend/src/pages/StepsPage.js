@@ -849,12 +849,12 @@ const StepsPage = () => {
             </div>
 
             {/* Right Column: Booking Calendar */}
-            <div className="w-full">
-              <Card className="glass-dark border-0 shadow-xl flex flex-col w-full" data-testid="booking-card">
-                <CardContent className="p-3 sm:p-4 md:p-6 flex flex-col w-full">
+            <div className="lg:h-full w-full">
+              <Card className="glass-dark border-0 shadow-xl h-full flex flex-col w-full" data-testid="booking-card">
+                <CardContent className="p-3 sm:p-4 md:p-6 flex-1 flex flex-col overflow-hidden w-full">
                   <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 text-center">STEP 1: BOOK YOUR ONE-ON-ONE CONSULT</h3>
                   
-                  <div className="bg-white rounded-lg p-2 sm:p-3 md:p-4 border-2 border-blue-600 w-full" data-testid="booking-calendar">
+                  <div className="bg-white rounded-lg p-2 sm:p-3 md:p-4 border-2 border-blue-600 flex-1 overflow-auto w-full" data-testid="booking-calendar">
                     <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
                       <Calendar className="text-blue-600 flex-shrink-0" size={24} />
                       <p className="text-gray-700 font-medium text-sm sm:text-base md:text-lg">Select Your Appointment Time</p>
@@ -862,18 +862,38 @@ const StepsPage = () => {
 
                     {/* Practice Better Booking Widget */}
                     <style dangerouslySetInnerHTML={{__html: `
-                      .better-inline-booking-widget {
-                        width: 100% !important;
-                        max-width: 100% !important;
-                        overflow: visible !important;
+                      /* Desktop/Web - Fixed height with scroll */
+                      @media (min-width: 1024px) {
+                        .better-inline-booking-widget {
+                          position: relative;
+                          width: 100% !important;
+                          max-width: 100% !important;
+                          height: 100%;
+                          overflow-x: hidden !important;
+                          overflow-y: auto;
+                        }
+                        .better-inline-booking-widget iframe {
+                          width: 100% !important;
+                          max-width: 100% !important;
+                        }
                       }
-                      .better-inline-booking-widget iframe {
-                        width: 100% !important;
-                        max-width: 100% !important;
-                        border: none !important;
-                        overflow: hidden !important;
-                        display: block;
+                      
+                      /* Mobile - Auto-expand with no scroll */
+                      @media (max-width: 1023px) {
+                        .better-inline-booking-widget {
+                          width: 100% !important;
+                          max-width: 100% !important;
+                          overflow: visible !important;
+                        }
+                        .better-inline-booking-widget iframe {
+                          width: 100% !important;
+                          max-width: 100% !important;
+                          border: none !important;
+                          overflow: hidden !important;
+                          display: block;
+                        }
                       }
+                      
                       @media (max-width: 640px) {
                         .better-inline-booking-widget {
                           font-size: 14px;
@@ -887,7 +907,7 @@ const StepsPage = () => {
                       data-hash="601a127b2a9c2406dcc94437" 
                       data-theme="246af4" 
                       data-theme-accent="f57f1b" 
-                      style={{ width: '100%', maxWidth: '100%', height: iframeHeight }} 
+                      style={{ width: '100%', maxWidth: '100%', height: window.innerWidth < 1024 ? iframeHeight : 'calc(100% - 50px)' }} 
                       data-scrollbar-visible="false"
                     />
                   </div>
