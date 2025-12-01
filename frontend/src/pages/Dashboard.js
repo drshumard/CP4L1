@@ -233,7 +233,7 @@ const Dashboard = () => {
                   { title: 'Step 2: Health Profile', desc: 'Complete your health blueprint' },
                   { title: 'Step 3: Ready to Start', desc: 'Final preparations complete' }
                 ].map((item, idx) => (
-                  <div key={idx} className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+                  <div key={idx} className="bg-gradient-to-br from-teal-50 to-cyan-100 rounded-xl p-4">
                     <h4 className="font-semibold text-gray-800 mb-1">{item.title}</h4>
                     <p className="text-sm text-gray-600">{item.desc}</p>
                   </div>
