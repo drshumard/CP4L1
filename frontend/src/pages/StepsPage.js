@@ -330,16 +330,16 @@ const StepsPage = () => {
             </div>
 
             {/* Buttons - Right Side */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-3 sm:gap-3">
               {/* Home Button - Icon only on mobile */}
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/')} 
-                className="flex items-center gap-2 p-2 sm:px-4 sm:py-2" 
+                className="flex items-center gap-2 p-3 sm:px-4 sm:py-2" 
                 data-testid="home-button"
                 title="Home"
               >
-                <Home size={18} className="flex-shrink-0" />
+                <Home size={20} className="flex-shrink-0" />
                 <span className="hidden sm:inline">Home</span>
               </Button>
               {/* Logout Button - Icon only on mobile with red background */}
@@ -351,11 +351,11 @@ const StepsPage = () => {
                   toast.success('Logged out successfully');
                   navigate('/login');
                 }} 
-                className="flex items-center gap-2 p-2 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white" 
+                className="flex items-center gap-2 p-3 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white" 
                 data-testid="logout-button"
                 title="Logout"
               >
-                <LogOut size={18} className="flex-shrink-0" />
+                <LogOut size={20} className="flex-shrink-0" />
                 <span className="hidden sm:inline">Logout</span>
               </Button>
             </div>
