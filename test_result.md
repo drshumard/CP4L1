@@ -359,6 +359,18 @@ frontend:
         agent: "main"
         comment: "Modified signup flow to wait 12 seconds (instead of 6 seconds) before calling /api/auth/signup endpoint. This addresses race condition where user reaches signup page before GHL webhook creates user in database. New timing: 0-6s Welcome, 6-12s Setting Up (waiting for webhook), 12s API call, 12-16s Password Sent, 16-20s Redirecting, 20s Navigate to /steps. The 12-second delay gives webhook sufficient time to complete user creation."
   
+  - task: "Extended signup retry wait period with 40-second backend timeout"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Signup.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE EXTENDED RETRY WAIT PERIOD TESTING COMPLETED: All 4 test scenarios passed successfully. ✅ Test 1 (Successful Signup - User Already Exists): Completed in 21.2s with proper stage progression - Welcome (6s) → Setting Up (9.8s) → Password Sent (1.8s) → Redirect (2.3s). User created via webhook first, signup succeeds quickly as expected. ✅ Test 2 (Failed Signup - User Not Found Timeout): Correctly timed out after 47.2s with backend retry logic working perfectly. Error message properly displays 'Please make sure you have completed payment. If you have and believe this is a mistake, contact admin@drshumard.com' after 40-second retry exhaustion. ✅ Test 3 (Visual Elements During Wait): All required UI components verified and functioning - rotating Activity icon, progress percentage display (0-85%), teal/cyan gradient headings, helper text 'This may take up to a minute', patience message '⏳ Please be patient while we set you up', glassmorphism styling. ✅ Test 4 (Progress Bar Behavior): Smooth percentage updates every 500ms from 0% to 85%+ during entire process, progress increases consistently over time. Extended retry logic working as designed - users stay on loading screen during full 40-second backend retry period without premature errors. Visual consistency maintained with teal/cyan branding throughout all stages. Timing matches expected behavior for both success (~15-20s) and failure (~46-48s) scenarios."
+  
   - task: "Remove steps 4-6, keep only steps 1-3"
     implemented: true
     working: "NA"
