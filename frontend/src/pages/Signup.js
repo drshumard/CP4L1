@@ -254,8 +254,11 @@ const Signup = () => {
                   Setting Up Your Account
                 </h2>
                 
-                <p className="text-xl text-gray-700">
+                <p className="text-xl text-gray-700 mb-3">
                   Creating your personalized wellness dashboard...
+                </p>
+                <p className="text-sm text-gray-600">
+                  This may take up to a minute. Please don't close this page.
                 </p>
               </div>
             </motion.div>
