@@ -420,8 +420,22 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             """
         })
         logging.info(f"Welcome email with credentials sent to {data.email}")
+        await log_activity(
+            event_type="EMAIL_SENT",
+            user_email=data.email,
+            user_id=user.id,
+            details={"email_type": "welcome_email", "credentials_included": True},
+            status="success"
+        )
     except Exception as e:
         logging.error(f"Failed to send welcome email: {e}")
+        await log_activity(
+            event_type="EMAIL_FAILED",
+            user_email=data.email,
+            user_id=user.id,
+            details={"email_type": "welcome_email", "error": str(e)},
+            status="failure"
+        )
         # Continue even if email fails - user account still created
     
     return {
