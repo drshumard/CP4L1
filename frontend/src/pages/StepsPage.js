@@ -854,7 +854,7 @@ const StepsPage = () => {
           </div>
 
           {/* Complete Button - Shows Last on Mobile */}
-          <div className="mt-3 sm:mt-4">
+          <div className="mt-3">
             <Card className="glass-dark border-0 shadow-lg">
               <CardContent className="p-4">
                 <p className="text-xs text-gray-600 mb-2 italic text-center">
