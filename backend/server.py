@@ -510,7 +510,6 @@ async def request_password_reset(request: PasswordResetRequest):
                 <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%);">
                     <div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);">
                         <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
-                            <img src="https://customer-assets.emergentagent.com/job_wellness-portal-53/artifacts/9dnkrdv3_email%20logo.png" alt="Portal Logo" style="width: 100px; height: 100px; margin: 0 auto 20px; display: block;">
                             <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">Password Reset Request</h1>
                         </div>
                         <div style="padding: 40px 30px;">
