@@ -50,6 +50,7 @@ const StepsPage = () => {
   const [videoAutoplay, setVideoAutoplay] = useState(false);
   const [showStep1Confirmation, setShowStep1Confirmation] = useState(false);
   const [showStep2Confirmation, setShowStep2Confirmation] = useState(false);
+  const [iframeHeight, setIframeHeight] = useState('600px');
 
   useEffect(() => {
     fetchData();
