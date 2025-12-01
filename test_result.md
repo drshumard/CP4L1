@@ -337,7 +337,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Remove steps 4-6, keep only steps 1-3"
+    - "Complete visual regression test for teal/turquoise color scheme change"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
