@@ -284,13 +284,13 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                     }}
                     .credential-value {{
                         font-family: 'Courier New', monospace;
-                        background: white;
+                        background: white !important;
                         padding: 8px 12px;
                         border-radius: 6px;
                         display: inline-block;
                         font-size: 16px;
                         font-weight: bold;
-                        color: #1e293b;
+                        color: #1e293b !important;
                         border: 1px solid #cbd5e1;
                     }}
                     .button {{
