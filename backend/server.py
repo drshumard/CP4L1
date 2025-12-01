@@ -219,7 +219,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         margin: 0;
                         padding: 0;
                         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-                        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%);
+                        background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%);
                     }}
                     .container {{
                         max-width: 600px;
@@ -230,24 +230,15 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
                     }}
                     .header {{
-                        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+                        background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
                         padding: 40px 30px;
                         text-align: center;
                     }}
                     .logo {{
-                        width: 80px;
-                        height: 80px;
-                        background: rgba(255, 255, 255, 0.2);
-                        backdrop-filter: blur(10px);
-                        border-radius: 50%;
+                        width: 120px;
+                        height: 120px;
                         margin: 0 auto 20px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 32px;
-                        font-weight: bold;
-                        color: white;
-                        border: 2px solid rgba(255, 255, 255, 0.3);
+                        display: block;
                     }}
                     .header h1 {{
                         color: white;
@@ -271,14 +262,14 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         margin-bottom: 30px;
                     }}
                     .credentials-card {{
-                        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+                        background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);
                         border-radius: 12px;
                         padding: 24px;
                         margin: 24px 0;
-                        border: 1px solid #BFDBFE;
+                        border: 1px solid #A5F3FC;
                     }}
                     .credentials-title {{
-                        color: #1e40af;
+                        color: #0d9488;
                         font-size: 18px;
                         font-weight: 600;
                         margin-bottom: 16px;
@@ -309,16 +300,16 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         display: inline-block;
                         margin-top: 24px;
                         padding: 16px 32px;
-                        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+                        background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
                         color: white;
                         text-decoration: none;
                         border-radius: 10px;
                         font-weight: 600;
                         font-size: 16px;
-                        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+                        box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
                     }}
                     .button:hover {{
-                        background: linear-gradient(135deg, #1D4ED8 0%, #1e40af 100%);
+                        background: linear-gradient(135deg, #0f766e 0%, #0e7490 100%);
                     }}
                     .important-note {{
                         background: #fef3c7;
@@ -347,7 +338,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             <body>
                 <div class="container">
                     <div class="header">
-                        <div class="logo"></div>
+                        <img src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" alt="Portal Logo" class="logo">
                         <h1>Welcome to Your Wellness Portal</h1>
                     </div>
                     
