@@ -162,7 +162,7 @@ const AdminDashboard = () => {
           <Card className="glass-dark border-0 shadow-lg" data-testid="completion-rate-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="text-purple-600" size={20} />
+                <BarChart3 className="text-cyan-600" size={20} />
                 Avg Completion
               </CardTitle>
             </CardHeader>
