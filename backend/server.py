@@ -278,6 +278,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                     .credential-label {{
                         font-weight: 600;
                         margin-right: 8px;
+                        color: #000000;
                     }}
                     .credential-value {{
                         font-family: 'Courier New', monospace;
