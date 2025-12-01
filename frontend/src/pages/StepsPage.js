@@ -85,7 +85,36 @@ const StepsPage = () => {
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+
+    // Also observe iframe loads and try to detect height changes
+    const checkIframeHeight = () => {
+      const widget = document.querySelector('.better-inline-booking-widget');
+      if (widget) {
+        const iframe = widget.querySelector('iframe');
+        if (iframe && iframe.contentWindow) {
+          try {
+            // Try to get iframe content height
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            if (iframeDoc && iframeDoc.body) {
+              const height = iframeDoc.body.scrollHeight;
+              if (height > 0) {
+                setIframeHeight(`${height}px`);
+              }
+            }
+          } catch (e) {
+            // Cross-origin restriction - rely on postMessage
+          }
+        }
+      }
+    };
+
+    // Check periodically for height changes
+    const interval = setInterval(checkIframeHeight, 1000);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      clearInterval(interval);
+    };
   }, []);
 
   // Check if user has seen Step 2 instructions
