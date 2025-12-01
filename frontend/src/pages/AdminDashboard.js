@@ -138,7 +138,7 @@ const AdminDashboard = () => {
           <Card className="glass-dark border-0 shadow-lg" data-testid="total-users-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="text-blue-600" size={20} />
+                <Users className="text-teal-600" size={20} />
                 Total Users
               </CardTitle>
             </CardHeader>
