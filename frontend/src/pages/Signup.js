@@ -145,7 +145,7 @@ const Signup = () => {
                   <motion.span 
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
-                    className="text-xl font-bold text-blue-700 tabular-nums"
+                    className="text-xl font-bold text-teal-700 tabular-nums"
                   >
                     {Math.floor(progress)}%
                   </motion.span>
