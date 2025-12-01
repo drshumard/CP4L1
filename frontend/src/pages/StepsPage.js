@@ -374,7 +374,7 @@ const StepsPage = () => {
                     step < currentStep
                       ? 'bg-green-500 border-green-600'
                       : step === currentStep
-                      ? 'bg-blue-600 border-blue-700'
+                      ? 'bg-teal-600 border-teal-700'
                       : 'bg-gray-200 border-gray-300'
                   } relative`}>
                     {step < currentStep ? (
