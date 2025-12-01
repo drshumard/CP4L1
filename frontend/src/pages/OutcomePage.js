@@ -291,9 +291,9 @@ const OutcomePage = () => {
                 </motion.div>
                 <motion.div
                   whileHover={{ scale: 1.05 }}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100"
+                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-cyan-50 to-teal-100"
                 >
-                  <div className="text-4xl font-bold text-purple-600 mb-2">✓</div>
+                  <div className="text-4xl font-bold text-cyan-600 mb-2">✓</div>
                   <div className="text-sm text-gray-600">All Steps Complete</div>
                 </motion.div>
               </div>
