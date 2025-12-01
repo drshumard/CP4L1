@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Add confirmation modals for Step 1 and Step 2 to ensure users complete required actions before advancing."
+user_problem_statement: "Test the new comprehensive activity logging system."
 
 backend:
   - task: "GHL Webhook endpoint for user creation"
