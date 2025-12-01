@@ -233,13 +233,13 @@ const Signup = () => {
                   transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
                   className="inline-block mb-6"
                 >
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center mx-auto shadow-xl">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-cyan-500 to-teal-700 flex items-center justify-center mx-auto shadow-xl">
                     <Activity className="text-white" size={48} />
                   </div>
                 </motion.div>
                 
                 <h2 className="text-5xl font-bold mb-4" style={{
-                  background: 'linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)',
+                  background: 'linear-gradient(135deg, #06B6D4 0%, #14B8A6 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}>
