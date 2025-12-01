@@ -87,7 +87,7 @@ const Signup = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
@@ -97,7 +97,7 @@ const Signup = () => {
             opacity: [0.1, 0.2, 0.1],
           }}
           transition={{ duration: 20, repeat: Infinity }}
-          className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-blue-400 blur-3xl"
+          className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-teal-400 blur-3xl"
         />
         <motion.div
           animate={{
@@ -106,7 +106,7 @@ const Signup = () => {
             opacity: [0.1, 0.2, 0.1],
           }}
           transition={{ duration: 25, repeat: Infinity }}
-          className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-purple-400 blur-3xl"
+          className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-cyan-400 blur-3xl"
         />
       </div>
 
