@@ -223,6 +223,15 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     
     await db.users.insert_one(user_dict)
     
+    # Log user creation
+    await log_activity(
+        event_type="USER_CREATED",
+        user_email=data.email,
+        user_id=user.id,
+        details={"name": data.name, "source": "ghl_webhook"},
+        status="success"
+    )
+    
     # Send welcome email immediately with credentials
     frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
     signup_url = f"{frontend_url}/signup?email={data.email}&name={data.name}"
