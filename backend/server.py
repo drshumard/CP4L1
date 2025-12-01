@@ -507,14 +507,38 @@ async def request_password_reset(request: PasswordResetRequest):
                 "to": request.email,
                 "subject": "Password Reset Request",
                 "html": f"""
+                <!DOCTYPE html>
                 <html>
-                    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                        <h2>Password Reset Request</h2>
-                        <p>You requested to reset your password. Click the button below to reset it:</p>
-                        <a href="{reset_url}" style="display: inline-block; padding: 12px 24px; background: #2563EB; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">Reset Password</a>
-                        <p>This link will expire in 1 hour.</p>
-                        <p>If you didn't request this, please ignore this email.</p>
-                    </body>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                </head>
+                <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%);">
+                    <div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);">
+                        <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
+                            <img src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" alt="Portal Logo" style="width: 100px; height: 100px; margin: 0 auto 20px; display: block;">
+                            <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">Password Reset Request</h1>
+                        </div>
+                        <div style="padding: 40px 30px;">
+                            <p style="color: #64748b; font-size: 16px; line-height: 1.6;">
+                                You requested to reset your password for your wellness portal account. Click the button below to create a new password:
+                            </p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="{reset_url}" style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); color: white; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);">Reset Password</a>
+                            </div>
+                            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 6px; margin: 24px 0; color: #92400e; font-size: 14px;">
+                                <strong>⚠️ Important:</strong> This link will expire in 1 hour for security reasons.
+                            </div>
+                            <p style="color: #64748b; font-size: 14px; line-height: 1.6;">
+                                If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
+                            </p>
+                        </div>
+                        <div style="background: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 13px;">
+                            <p style="margin: 0 0 8px 0;">Dr. Jason Shumard Wellness Portal</p>
+                            <p style="margin: 0;">If you have any questions, our support team is here to help.</p>
+                        </div>
+                    </div>
+                </body>
                 </html>
                 """
             })
