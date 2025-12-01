@@ -216,6 +216,18 @@ backend:
         agent: "testing"
         comment: "EMAIL TEMPLATE FUNCTIONALITY VERIFIED: Email sending working correctly via Resend API. Backend logs confirm successful email delivery: 'Welcome email with credentials sent to [email]'. Email template includes: ✅ Teal/cyan gradient branding (linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%)) ✅ Portal logo image (https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png) ✅ User credentials display (email and generated password) ✅ Professional styling with glassmorphism design ✅ 3-step journey messaging ✅ Call-to-action button to portal. All webhook-triggered email sends successful during testing."
 
+  - task: "Comprehensive Activity Logging System"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE ACTIVITY LOGGING SYSTEM TESTING COMPLETED: All 7 test scenarios passed successfully. ✅ Test 1 (User Creation Logging): USER_CREATED and EMAIL_SENT events properly logged with user details, name, source, email_type, and credentials_included ✅ Test 2 (Login Success): LOGIN_SUCCESS events logged with session_duration_minutes (30 min) ✅ Test 3 (Login Failures): LOGIN_FAILED events logged with correct reasons - 'incorrect_password' and 'user_not_found_or_no_password' ✅ Test 4 (Signup Success): SIGNUP_SUCCESS events logged with auto_login=true and session_duration_minutes ✅ Test 5 (Signup Failure): SIGNUP_FAILED events logged with retries count (6 retries) and timeout handling ✅ Test 6 (Admin Endpoint): /api/admin/activity-logs working with filtering by event_type, user_email, limit parameter, proper authorization (403 without token), sorting (newest first), and correct response structure ✅ Test 7 (Data Structure): All log entries contain required fields - timestamp (ISO format), event_type, user_email, user_id, details (object), status (success/failure), ip_address (null). Found all expected event types: USER_CREATED, EMAIL_SENT, LOGIN_SUCCESS, LOGIN_FAILED, SIGNUP_SUCCESS, SIGNUP_FAILED. Activity logging system is production-ready and fully functional."
+
 frontend:
   - task: "Update outcome page to reflect 3-step journey"
     implemented: true
