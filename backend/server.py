@@ -496,6 +496,15 @@ async def signup(request: SignupRequest):
     )
     refresh_token = create_refresh_token(data={"sub": user["id"]})
     
+    # Log successful signup/auto-login
+    await log_activity(
+        event_type="SIGNUP_SUCCESS",
+        user_email=user["email"],
+        user_id=user["id"],
+        details={"auto_login": True, "session_duration_minutes": ACCESS_TOKEN_EXPIRE_MINUTES},
+        status="success"
+    )
+    
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token
