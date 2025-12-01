@@ -443,7 +443,7 @@ const StepsPage = () => {
                     <Card className="shadow-2xl border-0 overflow-hidden">
                       <CardContent className="p-0">
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-center">
+                        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 p-6 text-center">
                           <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
