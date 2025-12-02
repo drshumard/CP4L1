@@ -392,6 +392,51 @@ frontend:
         agent: "main"
         comment: "Replaced health advocate card in Step 1 with urgency-focused action steps card. New card includes: Welcome message emphasizing critical first step and 20-minute deadline, explanation of 30-minute initial consult, three numbered action steps (Book Your Session, Confirm Priority, Move Forward). Card uses gradient background (blue-to-purple) for action steps section, clipboard icon header, numbered circles (1-2-3) with blue background, compact text sizing for better space utilization. Maintains glassmorphism styling consistent with brand."
 
+  - task: "Double signup prevention with useRef"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/Signup.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added useRef (signupStartedRef) to prevent double execution in React StrictMode. useRef prevents the useEffect from running twice during development. Set signupStartedRef.current = true before starting signup process and check if already true to prevent duplicate execution. This addresses the double signup entries issue in React StrictMode."
+      - working: true
+        agent: "testing"
+        comment: "✅ PASS: Double signup prevention working correctly. Comprehensive testing confirmed exactly ONE signup API call made during signup process. useRef implementation (signupStartedRef) successfully prevents double execution in React StrictMode. Monitored network requests during signup flow and verified single API call to /api/auth/signup endpoint. No duplicate signup entries detected."
+
+  - task: "Session expiry handling with axios interceptor"
+    implemented: true
+    working: false
+    file: "/app/frontend/src/App.js"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added global axios interceptor in App.js (AxiosInterceptor component) to handle 401 errors. Interceptor clears localStorage tokens (access_token, refresh_token), shows toast notification 'Your session has expired. Please login again.', and redirects to /login page. Uses useNavigate hook and useEffect to set up response interceptor that catches 401 status codes."
+      - working: false
+        agent: "testing"
+        comment: "❌ MIXED RESULTS: Session expiry handling partially working. ✅ PASS: Session expiry toast notification 'Your session has expired. Please login again.' displays correctly ✅ PASS: 401 responses properly detected by axios interceptor ❌ FAIL: localStorage token clearing inconsistent - tokens not always cleared after 401 ❌ FAIL: Redirect behavior inconsistent - sometimes redirects to login, sometimes stays on protected pages. Axios interceptor code exists but behavior is unreliable across different scenarios."
+
+  - task: "Step 2 form loading with retry logic"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/StepsPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added retry logic and reinitialization for Practice Better form loading in Step 2. Implemented loadPracticeBetterScript function with error handling and retry mechanism (lines 58-101). Added useEffect to reinitialize widget when step changes to 2 (lines 104-111). Script loading includes onload and onerror handlers with 2-second retry delay. Widget reinitialization triggered with 500ms delay after step change."
+      - working: "NA"
+        agent: "testing"
+        comment: "⚠️ UNABLE TO FULLY TEST: Could not access Step 2 due to authentication issues during testing. However, code review confirms comprehensive retry logic implementation: ✓ Practice Better script loading with retry mechanism ✓ Error handling with 2-second retry delay ✓ Widget reinitialization on step changes ✓ Proper cleanup on component unmount ✓ Height detection and iframe management. Implementation appears robust based on code analysis (StepsPage.js lines 58-111)."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
