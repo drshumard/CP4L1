@@ -110,36 +110,27 @@ const StepsPage = () => {
 
   // Reinitialize Practice Better widget when step changes to ensure widgets load
   useEffect(() => {
-    if (progressData && window.PracticeBetter) {
-      // Reinitialize for both Step 1 (booking) and Step 2 (form)
-      if (progressData.current_step === 1 || progressData.current_step === 2) {
-        // Wait for DOM to update, then reinitialize
+    if (!progressData || !progressData.current_step) return;
+    
+    const currentStep = progressData.current_step;
+    
+    // Only reinitialize for Step 1 and Step 2 where widgets exist
+    if (currentStep === 1 || currentStep === 2) {
+      // Multiple retry attempts with increasing delays
+      const delays = [500, 1500, 3000, 5000]; // Try at 0.5s, 1.5s, 3s, and 5s
+      
+      delays.forEach((delay) => {
         setTimeout(() => {
-          window.PracticeBetter.init();
-        }, 500);
-      }
-    }
-  }, [progressData]);
-
-  // Additional check to reinitialize widgets after a delay (fallback for slow loads)
-  useEffect(() => {
-    if (progressData && window.PracticeBetter) {
-      // Set up a retry mechanism with multiple attempts
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      const retryInit = setInterval(() => {
-        attempts++;
-        if (window.PracticeBetter) {
-          window.PracticeBetter.init();
-        }
-        
-        if (attempts >= maxAttempts) {
-          clearInterval(retryInit);
-        }
-      }, 2000); // Try every 2 seconds for 3 attempts
-      
-      return () => clearInterval(retryInit);
+          if (window.PracticeBetter && window.PracticeBetter.init) {
+            try {
+              window.PracticeBetter.init();
+              console.log(`Practice Better initialized at ${delay}ms delay for Step ${currentStep}`);
+            } catch (e) {
+              console.error(`PracticeBetter init error at ${delay}ms:`, e);
+            }
+          }
+        }, delay);
+      });
     }
   }, [progressData]);
 
