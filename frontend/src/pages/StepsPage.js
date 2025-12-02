@@ -60,11 +60,15 @@ const StepsPage = () => {
       const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
       
       if (existingScript) {
-        // Script already loaded, reinitialize widgets
-        if (window.PracticeBetter) {
+        // Script already loaded, force reinitialize all widgets
+        if (window.PracticeBetter && window.PracticeBetter.init) {
           setTimeout(() => {
-            window.PracticeBetter.init();
-          }, 500);
+            try {
+              window.PracticeBetter.init();
+            } catch (e) {
+              console.error('PracticeBetter init error:', e);
+            }
+          }, 1000);
         }
         return;
       }
@@ -75,13 +79,20 @@ const StepsPage = () => {
       script.async = true;
       
       script.onload = () => {
-        // Initialize widgets after script loads
-        if (window.PracticeBetter) {
-          window.PracticeBetter.init();
-        }
+        // Initialize widgets after script loads with delay to ensure DOM is ready
+        setTimeout(() => {
+          if (window.PracticeBetter && window.PracticeBetter.init) {
+            try {
+              window.PracticeBetter.init();
+            } catch (e) {
+              console.error('PracticeBetter init error:', e);
+            }
+          }
+        }, 1000);
       };
       
       script.onerror = () => {
+        console.error('Failed to load Practice Better script, retrying...');
         // Retry loading script after 2 seconds
         setTimeout(loadPracticeBetterScript, 2000);
       };
@@ -92,11 +103,8 @@ const StepsPage = () => {
     loadPracticeBetterScript();
     
     return () => {
-      // Cleanup script on unmount
-      const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
-      if (existingScript) {
-        document.body.removeChild(existingScript);
-      }
+      // Don't remove script on unmount to prevent reload issues
+      // The script can stay loaded in the page
     };
   }, []);
 
