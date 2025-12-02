@@ -102,13 +102,13 @@ const StepsPage = () => {
 
   // Reinitialize Practice Better widget when step changes to ensure forms load
   useEffect(() => {
-    if (currentStep === 2 && window.PracticeBetter) {
+    if (progressData && progressData.current_step === 2 && window.PracticeBetter) {
       // Wait for DOM to update, then reinitialize
       setTimeout(() => {
         window.PracticeBetter.init();
       }, 500);
     }
-  }, [currentStep]);
+  }, [progressData]);
 
   // Listen for iframe height changes from Practice Better widget
   useEffect(() => {
