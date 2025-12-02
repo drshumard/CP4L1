@@ -60,39 +60,45 @@ const StepsPage = () => {
       const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
       
       if (existingScript) {
-        // Script already loaded, force reinitialize all widgets
-        if (window.PracticeBetter && window.PracticeBetter.init) {
-          setTimeout(() => {
-            try {
-              window.PracticeBetter.init();
-            } catch (e) {
-              console.error('PracticeBetter init error:', e);
-            }
-          }, 1000);
+        console.log('Practice Better script already exists');
+        // Script already loaded, check if it's functional
+        if (window.PracticeBetter) {
+          console.log('window.PracticeBetter exists:', typeof window.PracticeBetter);
+          console.log('window.PracticeBetter.init exists:', typeof window.PracticeBetter.init);
+        } else {
+          console.warn('Script tag exists but window.PracticeBetter is undefined');
         }
         return;
       }
 
+      console.log('Loading Practice Better script...');
       const script = document.createElement('script');
       script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
       script.type = 'text/javascript';
       script.async = true;
       
       script.onload = () => {
-        // Initialize widgets after script loads with delay to ensure DOM is ready
+        console.log('Practice Better script loaded successfully');
+        console.log('window.PracticeBetter:', typeof window.PracticeBetter);
+        
+        // Wait longer for script to fully initialize
         setTimeout(() => {
           if (window.PracticeBetter && window.PracticeBetter.init) {
+            console.log('Calling PracticeBetter.init() after script load');
             try {
               window.PracticeBetter.init();
             } catch (e) {
               console.error('PracticeBetter init error:', e);
             }
+          } else {
+            console.error('PracticeBetter.init not available after script load');
           }
-        }, 1000);
+        }, 2000); // Increased to 2 seconds
       };
       
-      script.onerror = () => {
-        console.error('Failed to load Practice Better script, retrying...');
+      script.onerror = (e) => {
+        console.error('Failed to load Practice Better script:', e);
+        console.error('Retrying in 2 seconds...');
         // Retry loading script after 2 seconds
         setTimeout(loadPracticeBetterScript, 2000);
       };
