@@ -1,5 +1,7 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'sonner';
 import Signup from './pages/Signup';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -16,10 +18,40 @@ function PrivateRoute({ children }) {
   return token ? children : <Navigate to="/login" />;
 }
 
+// Axios interceptor component
+function AxiosInterceptor() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Response interceptor to handle 401 errors globally
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          toast.error('Your session has expired. Please login again.');
+          navigate('/login');
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Cleanup interceptor on unmount
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, [navigate]);
+
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
       <div className="App">
+        <AxiosInterceptor />
         <Routes>
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
