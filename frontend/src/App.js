@@ -28,11 +28,27 @@ function AxiosInterceptor() {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          // Token expired or invalid
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          toast.error('Your session has expired. Please login again.');
-          navigate('/login');
+          // Check if we're already on login/signup to avoid infinite redirects
+          const currentPath = window.location.pathname;
+          if (currentPath !== '/login' && currentPath !== '/signup') {
+            // Token expired or invalid
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            
+            // Show toast only once by checking if we haven't already shown it
+            if (!sessionStorage.getItem('session_expired_toast_shown')) {
+              sessionStorage.setItem('session_expired_toast_shown', 'true');
+              toast.error('Your session has expired. Please login again.');
+              
+              // Clear the flag after navigation
+              setTimeout(() => {
+                sessionStorage.removeItem('session_expired_toast_shown');
+              }, 1000);
+            }
+            
+            // Force navigate to login
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
