@@ -113,6 +113,28 @@ const StepsPage = () => {
     }
   }, [progressData]);
 
+  // Additional check to reinitialize widgets after a delay (fallback for slow loads)
+  useEffect(() => {
+    if (progressData && window.PracticeBetter) {
+      // Set up a retry mechanism with multiple attempts
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      const retryInit = setInterval(() => {
+        attempts++;
+        if (window.PracticeBetter) {
+          window.PracticeBetter.init();
+        }
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(retryInit);
+        }
+      }, 2000); // Try every 2 seconds for 3 attempts
+      
+      return () => clearInterval(retryInit);
+    }
+  }, [progressData]);
+
   // Listen for iframe height changes from Practice Better widget
   useEffect(() => {
     const handleMessage = (event) => {
