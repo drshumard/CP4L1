@@ -238,9 +238,9 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     
     try:
         resend.Emails.send({
-            "from": "Dr. Shumard Portal <noreply@portal.drshumard.com>",
+            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
             "to": data.email,
-            "subject": "Welcome to Your Diabetes Wellness Journey",
+            "subject": "Welcome to Your Diabetes Reversal Journey",
             "html": f"""
             <!DOCTYPE html>
             <html>
