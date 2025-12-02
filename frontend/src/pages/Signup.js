@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -15,12 +15,19 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [progress, setProgress] = useState(0); // Progress percentage 0-100
+  const signupStartedRef = useRef(false); // Prevent double execution
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (signupStartedRef.current) {
+      return;
+    }
+
     const emailParam = searchParams.get('email');
     const nameParam = searchParams.get('name') || 'there';
     
     if (emailParam) {
+      signupStartedRef.current = true;
       setEmail(emailParam);
       setName(nameParam);
       startSignupProcess(emailParam, nameParam);
