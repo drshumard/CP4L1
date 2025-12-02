@@ -172,7 +172,32 @@ const StepsPage = () => {
             console.error('PracticeBetter.init is not a function');
           }
         } else {
-          console.error('window.PracticeBetter is undefined - script may not be loaded');
+          console.error('window.PracticeBetter is undefined - RELOADING SCRIPT');
+          // If PracticeBetter is undefined, reload the script
+          const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
+          if (existingScript) {
+            console.log('Removing dead script and reloading...');
+            existingScript.remove();
+          }
+          
+          // Reload script
+          const script = document.createElement('script');
+          script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
+          script.type = 'text/javascript';
+          script.async = false;
+          script.id = 'practice-better-widget-script';
+          
+          script.onload = () => {
+            console.log('Script reloaded successfully');
+            setTimeout(() => {
+              if (window.PracticeBetter && window.PracticeBetter.init) {
+                window.PracticeBetter.init();
+                console.log('Init called after reload');
+              }
+            }, 1000);
+          };
+          
+          document.body.appendChild(script);
         }
       };
       
