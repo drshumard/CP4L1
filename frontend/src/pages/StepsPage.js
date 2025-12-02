@@ -116,21 +116,56 @@ const StepsPage = () => {
     
     // Only reinitialize for Step 1 and Step 2 where widgets exist
     if (currentStep === 1 || currentStep === 2) {
-      // Multiple retry attempts with increasing delays
-      const delays = [500, 1500, 3000, 5000]; // Try at 0.5s, 1.5s, 3s, and 5s
-      
-      delays.forEach((delay) => {
-        setTimeout(() => {
-          if (window.PracticeBetter && window.PracticeBetter.init) {
-            try {
-              window.PracticeBetter.init();
-              console.log(`Practice Better initialized at ${delay}ms delay for Step ${currentStep}`);
-            } catch (e) {
-              console.error(`PracticeBetter init error at ${delay}ms:`, e);
-            }
+      // Function to check if widgets have loaded (iframe exists)
+      const checkWidgetLoaded = () => {
+        const widgets = document.querySelectorAll('.better-inline-booking-widget');
+        let allLoaded = true;
+        
+        widgets.forEach(widget => {
+          const iframe = widget.querySelector('iframe');
+          if (!iframe) {
+            allLoaded = false;
           }
-        }, delay);
-      });
+        });
+        
+        return allLoaded;
+      };
+      
+      // Function to initialize widgets
+      const initializeWidgets = () => {
+        if (window.PracticeBetter && window.PracticeBetter.init) {
+          try {
+            window.PracticeBetter.init();
+            console.log(`Practice Better initialized for Step ${currentStep}`);
+          } catch (e) {
+            console.error('PracticeBetter init error:', e);
+          }
+        }
+      };
+      
+      // Try multiple times with checking
+      let checkCount = 0;
+      const maxChecks = 10;
+      
+      const checkInterval = setInterval(() => {
+        checkCount++;
+        
+        if (checkWidgetLoaded()) {
+          console.log('Widgets loaded successfully');
+          clearInterval(checkInterval);
+        } else {
+          console.log(`Attempt ${checkCount}: Widgets not loaded, reinitializing...`);
+          initializeWidgets();
+          
+          if (checkCount >= maxChecks) {
+            console.warn('Max initialization attempts reached');
+            clearInterval(checkInterval);
+          }
+        }
+      }, 1000); // Check every second
+      
+      // Cleanup
+      return () => clearInterval(checkInterval);
     }
   }, [progressData]);
 
