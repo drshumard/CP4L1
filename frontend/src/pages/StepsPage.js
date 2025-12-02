@@ -100,13 +100,16 @@ const StepsPage = () => {
     };
   }, []);
 
-  // Reinitialize Practice Better widget when step changes to ensure forms load
+  // Reinitialize Practice Better widget when step changes to ensure widgets load
   useEffect(() => {
-    if (progressData && progressData.current_step === 2 && window.PracticeBetter) {
-      // Wait for DOM to update, then reinitialize
-      setTimeout(() => {
-        window.PracticeBetter.init();
-      }, 500);
+    if (progressData && window.PracticeBetter) {
+      // Reinitialize for both Step 1 (booking) and Step 2 (form)
+      if (progressData.current_step === 1 || progressData.current_step === 2) {
+        // Wait for DOM to update, then reinitialize
+        setTimeout(() => {
+          window.PracticeBetter.init();
+        }, 500);
+      }
     }
   }, [progressData]);
 
