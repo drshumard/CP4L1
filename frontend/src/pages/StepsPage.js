@@ -66,7 +66,10 @@ const StepsPage = () => {
           console.log('window.PracticeBetter exists:', typeof window.PracticeBetter);
           console.log('window.PracticeBetter.init exists:', typeof window.PracticeBetter.init);
         } else {
-          console.warn('Script tag exists but window.PracticeBetter is undefined');
+          console.warn('Script tag exists but window.PracticeBetter is undefined - RELOADING SCRIPT');
+          // Remove the non-functional script and reload
+          existingScript.remove();
+          setTimeout(loadPracticeBetterScript, 100);
         }
         return;
       }
@@ -75,7 +78,8 @@ const StepsPage = () => {
       const script = document.createElement('script');
       script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
       script.type = 'text/javascript';
-      script.async = true;
+      script.async = false; // Changed to false to ensure synchronous loading
+      script.id = 'practice-better-widget-script'; // Add ID for easier reference
       
       script.onload = () => {
         console.log('Practice Better script loaded successfully');
@@ -93,7 +97,7 @@ const StepsPage = () => {
           } else {
             console.error('PracticeBetter.init not available after script load');
           }
-        }, 2000); // Increased to 2 seconds
+        }, 2000);
       };
       
       script.onerror = (e) => {
@@ -110,7 +114,7 @@ const StepsPage = () => {
     
     return () => {
       // Don't remove script on unmount to prevent reload issues
-      // The script can stay loaded in the page
+      // The script MUST stay loaded in the page
     };
   }, []);
 
