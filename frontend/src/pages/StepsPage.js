@@ -55,12 +55,41 @@ const StepsPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Load Practice Better booking widget script
-    const script = document.createElement('script');
-    script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
-    script.type = 'text/javascript';
-    script.async = true;
-    document.body.appendChild(script);
+    // Load Practice Better booking widget script with retry logic
+    const loadPracticeBetterScript = () => {
+      const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
+      
+      if (existingScript) {
+        // Script already loaded, reinitialize widgets
+        if (window.PracticeBetter) {
+          setTimeout(() => {
+            window.PracticeBetter.init();
+          }, 500);
+        }
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
+      script.type = 'text/javascript';
+      script.async = true;
+      
+      script.onload = () => {
+        // Initialize widgets after script loads
+        if (window.PracticeBetter) {
+          window.PracticeBetter.init();
+        }
+      };
+      
+      script.onerror = () => {
+        // Retry loading script after 2 seconds
+        setTimeout(loadPracticeBetterScript, 2000);
+      };
+      
+      document.body.appendChild(script);
+    };
+
+    loadPracticeBetterScript();
     
     return () => {
       // Cleanup script on unmount
