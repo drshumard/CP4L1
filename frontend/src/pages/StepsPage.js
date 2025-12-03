@@ -23,16 +23,16 @@ const STEP_DATA = {
   2: {
     title: 'Complete Your Health Profile',
     action: 'FILL OUT YOUR HEALTH INFORMATION',
-    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/16efcf1b-e6f7-4c29-b0f7-82107b2f6935',
-    videoId: '16efcf1b-e6f7-4c29-b0f7-82107b2f6935',
+    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/8fe9ed89-9b07-4efb-bc1d-65fc1095b692',
+    videoId: '8fe9ed89-9b07-4efb-bc1d-65fc1095b692',
     description: 'Provide your health information to help us personalize your wellness journey.',
     tasks: ['complete_form']
   },
   3: {
     title: 'Program Complete',
     action: 'REVIEW YOUR NEXT STEPS',
-    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/50a4b90d-1e47-470f-bf36-a3412815829e',
-    videoId: '50a4b90d-1e47-470f-bf36-a3412815829e',
+    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/16efcf1b-e6f7-4c29-b0f7-82107b2f6935',
+    videoId: '16efcf1b-e6f7-4c29-b0f7-82107b2f6935',
     description: 'Congratulations! You have completed the onboarding process.',
     tasks: ['review_summary']
   }
