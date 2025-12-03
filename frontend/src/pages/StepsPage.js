@@ -23,8 +23,8 @@ const STEP_DATA = {
   2: {
     title: 'Complete Your Health Profile',
     action: 'FILL OUT YOUR HEALTH INFORMATION',
-    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/1bf969e3-378d-4ca1-8c44-30e40eb52e40',
-    videoId: '1bf969e3-378d-4ca1-8c44-30e40eb52e40',
+    videoUrl: 'https://iframe.mediadelivery.net/embed/538298/16efcf1b-e6f7-4c29-b0f7-82107b2f6935',
+    videoId: '16efcf1b-e6f7-4c29-b0f7-82107b2f6935',
     description: 'Provide your health information to help us personalize your wellness journey.',
     tasks: ['complete_form']
   },
