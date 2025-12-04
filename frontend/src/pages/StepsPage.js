@@ -1085,8 +1085,8 @@ const StepsPage = () => {
                       data-url="https://drshumard.practicebetter.io" 
                       data-service="60e6b05639803310dc2354b2" 
                       data-hash="601a127b2a9c2406dcc94437" 
-                      data-theme="246af4" 
-                      data-theme-accent="f57f1b" 
+                      data-theme="14b8a6" 
+                      data-theme-accent="06b6d4" 
                       style={{ width: '100%', maxWidth: '550px', height: '800px' }} 
                       data-scrollbar-visible="false"
                     />
