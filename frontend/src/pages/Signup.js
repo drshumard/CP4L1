@@ -29,9 +29,12 @@ const Signup = () => {
     
     if (emailParam) {
       signupStartedRef.current = true;
-      setEmail(emailParam);
-      setName(nameParam);
-      startSignupProcess(emailParam, nameParam);
+      // decodeURIComponent handles URL-encoded characters (e.g., %2B for +)
+      const decodedEmail = decodeURIComponent(emailParam);
+      const decodedName = decodeURIComponent(nameParam);
+      setEmail(decodedEmail);
+      setName(decodedName);
+      startSignupProcess(decodedEmail, decodedName);
     } else {
       toast.error('Invalid signup link');
       navigate('/login');
