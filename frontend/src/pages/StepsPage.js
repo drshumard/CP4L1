@@ -906,9 +906,8 @@ const StepsPage = () => {
                       <p className="text-gray-700 font-medium text-sm sm:text-base md:text-lg">Select Your Appointment Time</p>
                     </div>
 
-                    {/* Practice Better Booking Widget */}
+                    {/* SUNFLOWER CHECKPOINT: SDK booking widget commented out - using direct iframe
                     <style dangerouslySetInnerHTML={{__html: `
-                      /* Desktop/Web - Fixed height with scroll */
                       @media (min-width: 1024px) {
                         .better-inline-booking-widget {
                           position: relative;
@@ -925,18 +924,17 @@ const StepsPage = () => {
                         }
                       }
                       
-                      /* Mobile - Auto-expand with no scroll */
                       @media (max-width: 1023px) {
                         .better-inline-booking-widget {
                           width: 100% !important;
                           max-width: 100% !important;
-                          height: ${iframeHeight};
+                          height: 800px;
                           overflow: visible !important;
                         }
                         .better-inline-booking-widget iframe {
                           width: 100% !important;
                           max-width: 100% !important;
-                          height: ${iframeHeight};
+                          height: 800px;
                           border: none !important;
                           overflow: hidden !important;
                           display: block;
@@ -958,6 +956,15 @@ const StepsPage = () => {
                       data-theme-accent="06b6d4" 
                       style={{ width: '100%', maxWidth: '550px', height: '800px' }} 
                       data-scrollbar-visible="false"
+                    />
+                    */}
+                    
+                    {/* Direct iframe implementation */}
+                    <PracticeBetterEmbed 
+                      type="booking"
+                      minHeight={800}
+                      onLoad={() => console.log('Booking calendar loaded successfully')}
+                      onError={() => console.log('Booking calendar failed to load')}
                     />
                   </div>
                 </CardContent>
