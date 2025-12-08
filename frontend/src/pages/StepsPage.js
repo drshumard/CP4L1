@@ -597,33 +597,85 @@ const StepsPage = () => {
                 </div>
               </Card>
 
-              {/* Instructions Card - Compact */}
+              {/* Instructions Card - Styled like Step 1 Action Steps */}
               <Card className="glass-dark border-0 shadow-xl flex-1 overflow-hidden" data-testid="instructions-card">
                 <CardContent className="p-4 h-full overflow-auto">
-                  <h3 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    How to Complete This Form
-                  </h3>
-                  <ol className="space-y-2 text-sm text-gray-700">
-                    <li className="flex items-start gap-2">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">1</span>
-                      <p className="pt-0.5"><strong>4 pages</strong> - Fill out all fields</p>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">2</span>
-                      <p className="pt-0.5">Click <strong>&quot;Next Page&quot;</strong> to advance</p>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">3</span>
-                      <p className="pt-0.5"><strong>Sign</strong> on page 4, then <strong>Submit</strong></p>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-xs">4</span>
-                      <p className="pt-0.5">Click <strong>&quot;Continue&quot;</strong> button below</p>
-                    </li>
-                  </ol>
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 h-full">
+                    <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      How to Complete This Form
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      {/* Step 1 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          1
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">This form has 4 pages</p>
+                          <p className="text-xs text-gray-700">Fill out all fields on each page</p>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          2
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">Scroll down in the form</p>
+                          <p className="text-xs text-gray-700">Make sure you reach the end of each page before clicking Next</p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          3
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">Click &quot;Next Page&quot;</p>
+                          <p className="text-xs text-gray-700">Button is in the bottom-right corner of the form</p>
+                        </div>
+                      </div>
+
+                      {/* Step 4 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          4
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">Sign on page 4</p>
+                          <p className="text-xs text-gray-700">Provide your signature on the final page</p>
+                        </div>
+                      </div>
+
+                      {/* Step 5 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          5
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">Click &quot;Submit&quot;</p>
+                          <p className="text-xs text-gray-700">Submit your completed form</p>
+                        </div>
+                      </div>
+
+                      {/* Step 6 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                          6
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm">Click &quot;Continue&quot; below</p>
+                          <p className="text-xs text-gray-700">After submission, click the Continue button</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
               
