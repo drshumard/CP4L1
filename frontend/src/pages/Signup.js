@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeartPulse, Mail, CheckCircle2, Lock, Activity } from 'lucide-react';
+import { getErrorMessage } from '../utils/errorHandler';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
