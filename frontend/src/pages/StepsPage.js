@@ -674,6 +674,7 @@ const StepsPage = () => {
                   </div>
                   
                   <div className="flex-1 overflow-hidden" data-testid="form-container">
+                    {/* SUNFLOWER CHECKPOINT: SDK widget styles commented out - using direct iframe
                     <style dangerouslySetInnerHTML={{__html: `
                       .form-container-step2 .better-inline-booking-widget {
                         position: relative;
@@ -701,6 +702,17 @@ const StepsPage = () => {
                         data-theme="14b8a6" 
                         data-theme-accent="06b6d4"
                         data-scrollbar-visible="false"
+                      />
+                    </div>
+                    */}
+                    
+                    {/* Direct iframe implementation */}
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-3 h-full overflow-auto">
+                      <PracticeBetterEmbed 
+                        type="form"
+                        minHeight={600}
+                        onLoad={() => console.log('Form loaded successfully')}
+                        onError={() => console.log('Form failed to load')}
                       />
                     </div>
                   </div>
