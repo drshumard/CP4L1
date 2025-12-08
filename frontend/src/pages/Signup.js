@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HeartPulse, Mail, CheckCircle2, Lock, Activity } from 'lucide-react';
+import { HeartPulse, CheckCircle2, Activity } from 'lucide-react';
 import { getErrorMessage } from '../utils/errorHandler';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -18,34 +18,13 @@ const Signup = () => {
   const [progress, setProgress] = useState(0); // Progress percentage 0-100
   const signupStartedRef = useRef(false); // Prevent double execution
 
-  useEffect(() => {
-    // Prevent double execution in React StrictMode
-    if (signupStartedRef.current) {
-      return;
-    }
-
-    const emailParam = searchParams.get('email');
-    const nameParam = searchParams.get('name') || 'there';
-    
-    if (emailParam) {
-      signupStartedRef.current = true;
-      // decodeURIComponent handles URL-encoded characters (e.g., %2B for +)
-      const decodedEmail = decodeURIComponent(emailParam);
-      const decodedName = decodeURIComponent(nameParam);
-      setEmail(decodedEmail);
-      setName(decodedName);
-      startSignupProcess(decodedEmail, decodedName);
-    } else {
-      toast.error('Invalid signup link');
-      navigate('/login');
-    }
-  }, [searchParams, navigate]);
-
-  const startSignupProcess = async (userEmail, userName) => {
+  const startSignupProcess = useCallback(async (userEmail, userName) => {
     // Progress animation - smooth updates every 500ms
     // Total: Up to 55s (6s welcome + 4s setting up + backend 40s retry + 5s final)
+    const startTime = Date.now();
+    
     const progressInterval = setInterval(() => {
-      setProgress(prev => {
+      setProgress(() => {
         const currentTime = Date.now();
         const elapsed = (currentTime - startTime) / 1000; // seconds elapsed
         
@@ -58,8 +37,6 @@ const Signup = () => {
         return Math.min(calculatedProgress, 100);
       });
     }, 500);
-    
-    const startTime = Date.now();
 
     // Stage 0: Welcome animation (6s) - 0% to ~11%
     setTimeout(() => setStage(1), 6000);
@@ -103,7 +80,30 @@ const Signup = () => {
         return;
       }
     }, 6000);
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (signupStartedRef.current) {
+      return;
+    }
+
+    const emailParam = searchParams.get('email');
+    const nameParam = searchParams.get('name') || 'there';
+    
+    if (emailParam) {
+      signupStartedRef.current = true;
+      // decodeURIComponent handles URL-encoded characters (e.g., %2B for +)
+      const decodedEmail = decodeURIComponent(emailParam);
+      const decodedName = decodeURIComponent(nameParam);
+      setEmail(decodedEmail);
+      setName(decodedName);
+      startSignupProcess(decodedEmail, decodedName);
+    } else {
+      toast.error('Invalid signup link');
+      navigate('/login');
+    }
+  }, [searchParams, navigate, startSignupProcess]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
