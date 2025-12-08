@@ -52,11 +52,12 @@ const StepsPage = () => {
   const [videoAutoplay, setVideoAutoplay] = useState(false);
   const [showStep1Confirmation, setShowStep1Confirmation] = useState(false);
   const [showStep2Confirmation, setShowStep2Confirmation] = useState(false);
-  const [iframeHeight, setIframeHeight] = useState('600px');
+  // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
   useEffect(() => {
     fetchData();
     
+    /* SUNFLOWER CHECKPOINT: SDK loading commented out - using direct iframe instead
     // Load Practice Better booking widget script
     const script = document.createElement('script');
     script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
@@ -71,8 +72,10 @@ const StepsPage = () => {
         document.body.removeChild(existingScript);
       }
     };
+    */
   }, []);
 
+  /* SUNFLOWER CHECKPOINT: Widget reinitialization commented out - using direct iframe instead
   // Reinitialize Practice Better widget when step changes to ensure forms load
   useEffect(() => {
     if (progressData && progressData.current_step === 2 && window.PracticeBetter) {
@@ -82,7 +85,9 @@ const StepsPage = () => {
       }, 500);
     }
   }, [progressData]);
+  */
 
+  /* SUNFLOWER CHECKPOINT: iframe height listener commented out - now handled by PracticeBetterEmbed component
   // Listen for iframe height changes from Practice Better widget
   useEffect(() => {
     const handleMessage = (event) => {
@@ -128,6 +133,7 @@ const StepsPage = () => {
       clearInterval(interval);
     };
   }, []);
+  */
 
   // Check if user has seen Step 2 instructions
   useEffect(() => {
