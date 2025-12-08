@@ -93,7 +93,7 @@ const Signup = () => {
         // Show helpful error message
         const errorMessage = error.response?.status === 404 
           ? 'Please make sure you have completed payment. If you have and believe this is a mistake, contact admin@drshumard.com'
-          : (error.response?.data?.detail || 'Signup failed. Please try again.');
+          : getErrorMessage(error, 'Signup failed. Please try again.');
         
         toast.error(errorMessage, { duration: 8000 });
         setTimeout(() => navigate('/login'), 8000);
