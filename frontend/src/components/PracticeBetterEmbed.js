@@ -176,7 +176,7 @@ const PracticeBetterEmbed = ({
                 className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center gap-2"
               >
                 <RefreshCw size={18} />
-                Try Again
+                {type === 'booking' ? 'Reload Calendar' : 'Reload Form'}
               </Button>
               
               <a
