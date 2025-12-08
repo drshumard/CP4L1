@@ -78,7 +78,7 @@ const StepsPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Reinitialize Practice Better widget when step changes to ensure widgets load
+  // Reinitialize Practice Better widgets when navigating to Step 1 or Step 2
   useEffect(() => {
     if (!progressData || !progressData.current_step) return;
     
@@ -86,109 +86,39 @@ const StepsPage = () => {
     
     // Only reinitialize for Step 1 and Step 2 where widgets exist
     if (currentStep === 1 || currentStep === 2) {
-      console.log(`Current step: ${currentStep}, checking widgets...`);
+      console.log(`Step ${currentStep}: Initializing Practice Better widgets`);
       
-      // Function to check if widgets have loaded (iframe exists)
-      const checkWidgetLoaded = () => {
-        const widgets = document.querySelectorAll('.better-inline-booking-widget');
-        console.log(`Found ${widgets.length} widget containers`);
-        
-        let allLoaded = true;
-        
-        widgets.forEach((widget, index) => {
-          const iframe = widget.querySelector('iframe');
-          console.log(`Widget ${index}: has iframe = ${!!iframe}`);
-          if (!iframe) {
-            allLoaded = false;
-            // Log widget attributes for debugging
-            console.log(`Widget ${index} attributes:`, {
-              'data-url': widget.getAttribute('data-url'),
-              'data-service': widget.getAttribute('data-service'),
-              'data-form-request': widget.getAttribute('data-form-request'),
-              'data-hash': widget.getAttribute('data-hash')
-            });
-          }
-        });
-        
-        return allLoaded;
-      };
+      // Simple retry with just a few attempts
+      let attempts = 0;
+      const maxAttempts = 5;
       
-      // Function to initialize widgets
-      const initializeWidgets = () => {
-        console.log('Checking if PracticeBetter is available...');
-        console.log('window.PracticeBetter:', typeof window.PracticeBetter);
+      const initWidgets = () => {
+        attempts++;
         
-        if (window.PracticeBetter) {
-          console.log('window.PracticeBetter.init:', typeof window.PracticeBetter.init);
-          
-          if (window.PracticeBetter.init) {
-            try {
-              window.PracticeBetter.init();
-              console.log(`Practice Better init() called for Step ${currentStep}`);
-            } catch (e) {
-              console.error('PracticeBetter init error:', e);
+        if (window.PracticeBetter && window.PracticeBetter.init) {
+          try {
+            window.PracticeBetter.init();
+            console.log(`✅ Practice Better initialized (attempt ${attempts})`);
+          } catch (e) {
+            console.error('Init error:', e);
+            if (attempts < maxAttempts) {
+              setTimeout(initWidgets, 1000);
             }
-          } else {
-            console.error('PracticeBetter.init is not a function');
           }
         } else {
-          console.error('window.PracticeBetter is undefined - RELOADING SCRIPT');
-          // If PracticeBetter is undefined, reload the script
-          const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
-          if (existingScript) {
-            console.log('Removing dead script and reloading...');
-            existingScript.remove();
+          console.log(`Practice Better not ready (attempt ${attempts}/${maxAttempts})`);
+          if (attempts < maxAttempts) {
+            setTimeout(initWidgets, 1000);
+          } else {
+            console.error('Practice Better failed to load after', maxAttempts, 'attempts');
           }
-          
-          // Reload script
-          const script = document.createElement('script');
-          script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
-          script.type = 'text/javascript';
-          script.async = false;
-          script.id = 'practice-better-widget-script';
-          
-          script.onload = () => {
-            console.log('Script reloaded successfully');
-            setTimeout(() => {
-              if (window.PracticeBetter && window.PracticeBetter.init) {
-                window.PracticeBetter.init();
-                console.log('Init called after reload');
-              }
-            }, 1000);
-          };
-          
-          document.body.appendChild(script);
         }
       };
       
-      // Try multiple times with checking
-      let checkCount = 0;
-      const maxChecks = 10;
+      // Start initialization after a short delay
+      const timer = setTimeout(initWidgets, 500);
       
-      const checkInterval = setInterval(() => {
-        checkCount++;
-        console.log(`\n=== Attempt ${checkCount}/${maxChecks} ===`);
-        
-        if (checkWidgetLoaded()) {
-          console.log('✅ All widgets loaded successfully!');
-          clearInterval(checkInterval);
-        } else {
-          console.log(`❌ Widgets not loaded, calling init()...`);
-          initializeWidgets();
-          
-          if (checkCount >= maxChecks) {
-            console.warn('⚠️ Max initialization attempts reached');
-            console.error('TROUBLESHOOTING: Practice Better widgets failed to load. Check:');
-            console.error('1. Is the script loaded? Check Network tab for booking.widget.js');
-            console.error('2. Are there JavaScript errors blocking execution?');
-            console.error('3. Are the data-* attributes correct for your Practice Better account?');
-            clearInterval(checkInterval);
-          }
-        }
-      }, 1000); // Check every second
-      
-      // Cleanup
-      return () => clearInterval(checkInterval);
+      return () => clearTimeout(timer);
     }
   }, [progressData]);
 
