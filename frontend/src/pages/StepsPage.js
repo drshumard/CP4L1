@@ -704,7 +704,7 @@ const StepsPage = () => {
                       <PracticeBetterEmbed 
                         type="form"
                         minHeight={400}
-                        className="h-full"
+                        fillContainer={true}
                         onLoad={() => console.log('Form loaded successfully')}
                         onError={() => console.log('Form failed to load')}
                       />
