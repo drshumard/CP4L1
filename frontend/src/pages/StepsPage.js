@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, CheckCircle2, Circle, Home, User as UserIcon, Phone, Calendar, LogOut } from 'lucide-react';
 import ReactPlayer from 'react-player';
+import { getErrorMessage } from '../utils/errorHandler';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
