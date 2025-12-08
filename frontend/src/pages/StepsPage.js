@@ -55,27 +55,20 @@ const StepsPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Practice Better script is loaded globally in index.html
-    // Just trigger initialization when component mounts
-    const initPracticeBetter = () => {
-      if (window.PracticeBetter && window.PracticeBetter.init) {
-        try {
-          window.PracticeBetter.init();
-          console.log('Practice Better initialized');
-        } catch (e) {
-          console.error('Practice Better init error:', e);
-        }
-      } else {
-        // Script not ready yet, retry
-        console.log('Practice Better not ready, retrying in 500ms...');
-        setTimeout(initPracticeBetter, 500);
+    // Load Practice Better booking widget script
+    const script = document.createElement('script');
+    script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    document.body.appendChild(script);
+    
+    return () => {
+      // Cleanup script on unmount
+      const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
+      if (existingScript) {
+        document.body.removeChild(existingScript);
       }
     };
-
-    // Wait a bit for DOM to be ready, then initialize
-    const timer = setTimeout(initPracticeBetter, 1000);
-
-    return () => clearTimeout(timer);
   }, []);
 
   // Reinitialize Practice Better widgets when navigating to Step 1 or Step 2
