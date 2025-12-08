@@ -48,6 +48,7 @@ echo -e "${GREEN}✅ Frontend built successfully${NC}"
 
 # Step 4: Restart services
 echo -e "${YELLOW}🔄 Restarting services...${NC}"
+cd $APP_DIR
 pm2 restart ecosystem.config.js
 
 # Wait for services to start
