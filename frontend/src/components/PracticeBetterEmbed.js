@@ -210,8 +210,8 @@ const PracticeBetterEmbed = ({
         title={type === 'booking' ? 'Book Appointment' : 'Health Form'}
         onLoad={handleLoad}
         onError={handleError}
-        className={`w-full border-0 rounded-lg transition-opacity duration-300 ${loading || error ? 'opacity-0' : 'opacity-100'}`}
-        style={{ 
+        className={`w-full border-0 rounded-lg transition-opacity duration-300 ${loading || error ? 'opacity-0' : 'opacity-100'} ${fillContainer ? 'h-full' : ''}`}
+        style={fillContainer ? {} : { 
           height: `${iframeHeight}px`,
           minHeight: `${minHeight}px`
         }}
