@@ -55,67 +55,27 @@ const StepsPage = () => {
   useEffect(() => {
     fetchData();
     
-    // Load Practice Better booking widget script with retry logic
-    const loadPracticeBetterScript = () => {
-      const existingScript = document.querySelector('script[src="https://cdn.practicebetter.io/assets/js/booking.widget.js"]');
-      
-      if (existingScript) {
-        console.log('Practice Better script already exists');
-        // Script already loaded, check if it's functional
-        if (window.PracticeBetter) {
-          console.log('window.PracticeBetter exists:', typeof window.PracticeBetter);
-          console.log('window.PracticeBetter.init exists:', typeof window.PracticeBetter.init);
-        } else {
-          console.warn('Script tag exists but window.PracticeBetter is undefined - RELOADING SCRIPT');
-          // Remove the non-functional script and reload
-          existingScript.remove();
-          setTimeout(loadPracticeBetterScript, 100);
+    // Practice Better script is loaded globally in index.html
+    // Just trigger initialization when component mounts
+    const initPracticeBetter = () => {
+      if (window.PracticeBetter && window.PracticeBetter.init) {
+        try {
+          window.PracticeBetter.init();
+          console.log('Practice Better initialized');
+        } catch (e) {
+          console.error('Practice Better init error:', e);
         }
-        return;
+      } else {
+        // Script not ready yet, retry
+        console.log('Practice Better not ready, retrying in 500ms...');
+        setTimeout(initPracticeBetter, 500);
       }
-
-      console.log('Loading Practice Better script...');
-      const script = document.createElement('script');
-      script.src = 'https://cdn.practicebetter.io/assets/js/booking.widget.js';
-      script.type = 'text/javascript';
-      script.async = false; // Changed to false to ensure synchronous loading
-      script.id = 'practice-better-widget-script'; // Add ID for easier reference
-      
-      script.onload = () => {
-        console.log('Practice Better script loaded successfully');
-        console.log('window.PracticeBetter:', typeof window.PracticeBetter);
-        
-        // Wait longer for script to fully initialize
-        setTimeout(() => {
-          if (window.PracticeBetter && window.PracticeBetter.init) {
-            console.log('Calling PracticeBetter.init() after script load');
-            try {
-              window.PracticeBetter.init();
-            } catch (e) {
-              console.error('PracticeBetter init error:', e);
-            }
-          } else {
-            console.error('PracticeBetter.init not available after script load');
-          }
-        }, 2000);
-      };
-      
-      script.onerror = (e) => {
-        console.error('Failed to load Practice Better script:', e);
-        console.error('Retrying in 2 seconds...');
-        // Retry loading script after 2 seconds
-        setTimeout(loadPracticeBetterScript, 2000);
-      };
-      
-      document.body.appendChild(script);
     };
 
-    loadPracticeBetterScript();
-    
-    return () => {
-      // Don't remove script on unmount to prevent reload issues
-      // The script MUST stay loaded in the page
-    };
+    // Wait a bit for DOM to be ready, then initialize
+    const timer = setTimeout(initPracticeBetter, 1000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // Reinitialize Practice Better widget when step changes to ensure widgets load
