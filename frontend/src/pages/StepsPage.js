@@ -71,47 +71,13 @@ const StepsPage = () => {
     };
   }, []);
 
-  // Reinitialize Practice Better widgets when navigating to Step 1 or Step 2
+  // Reinitialize Practice Better widget when step changes to ensure forms load
   useEffect(() => {
-    if (!progressData || !progressData.current_step) return;
-    
-    const currentStep = progressData.current_step;
-    
-    // Only reinitialize for Step 1 and Step 2 where widgets exist
-    if (currentStep === 1 || currentStep === 2) {
-      console.log(`Step ${currentStep}: Initializing Practice Better widgets`);
-      
-      // Simple retry with just a few attempts
-      let attempts = 0;
-      const maxAttempts = 5;
-      
-      const initWidgets = () => {
-        attempts++;
-        
-        if (window.PracticeBetter && window.PracticeBetter.init) {
-          try {
-            window.PracticeBetter.init();
-            console.log(`✅ Practice Better initialized (attempt ${attempts})`);
-          } catch (e) {
-            console.error('Init error:', e);
-            if (attempts < maxAttempts) {
-              setTimeout(initWidgets, 1000);
-            }
-          }
-        } else {
-          console.log(`Practice Better not ready (attempt ${attempts}/${maxAttempts})`);
-          if (attempts < maxAttempts) {
-            setTimeout(initWidgets, 1000);
-          } else {
-            console.error('Practice Better failed to load after', maxAttempts, 'attempts');
-          }
-        }
-      };
-      
-      // Start initialization after a short delay
-      const timer = setTimeout(initWidgets, 500);
-      
-      return () => clearTimeout(timer);
+    if (progressData && progressData.current_step === 2 && window.PracticeBetter) {
+      // Wait for DOM to update, then reinitialize
+      setTimeout(() => {
+        window.PracticeBetter.init();
+      }, 500);
     }
   }, [progressData]);
 
