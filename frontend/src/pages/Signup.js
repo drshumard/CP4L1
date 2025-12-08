@@ -176,7 +176,7 @@ const Signup = () => {
                   ⏳ Please be patient while we set you up
                 </p>
                 <p className="text-sm text-gray-600">
-                  Stay on this page. You'll be automatically redirected to your portal in a moment.
+                  Stay on this page. You will be automatically redirected to your portal in a moment.
                 </p>
               </div>
             </div>
