@@ -574,8 +574,8 @@ const StepsPage = () => {
             )}
           </AnimatePresence>
 
-          {/* Two Column Layout - Constrained to viewport on desktop */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 w-full lg:h-[calc(100vh-180px)] overflow-hidden">
+          {/* Two Column Layout - Constrained to viewport on desktop only, mobile scrolls naturally */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 w-full lg:h-[calc(100vh-180px)] lg:overflow-hidden">
             {/* Left Column: Video + Instructions Card */}
             <div className="flex flex-col gap-4 lg:h-full lg:overflow-hidden">
               {/* Video Section */}
