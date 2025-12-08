@@ -231,7 +231,7 @@ const Signup = () => {
                   transition={{ delay: 0.4 }}
                   className="text-xl text-gray-700"
                 >
-                  {name}, we're thrilled to have you here!
+                  {name}, we are thrilled to have you here!
                 </motion.p>
               </div>
             </motion.div>
