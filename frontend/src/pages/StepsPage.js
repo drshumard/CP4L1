@@ -698,8 +698,8 @@ const StepsPage = () => {
 
             {/* Right Column: Practice Better Form */}
             <div className="lg:h-full flex flex-col">
-              <Card className="glass-dark border-0 shadow-xl flex-1 flex flex-col overflow-hidden" data-testid="form-card">
-                <CardContent className="p-4 flex-1 flex flex-col overflow-hidden">
+              <Card className="glass-dark border-0 shadow-xl lg:flex-1 flex flex-col lg:overflow-hidden" data-testid="form-card">
+                <CardContent className="p-4 lg:flex-1 flex flex-col lg:overflow-hidden">
                   <h3 className="text-base font-bold text-gray-800 mb-3 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
                   
                   {/* User Info Card - Compact */}
@@ -717,8 +717,8 @@ const StepsPage = () => {
                     </div>
                   </div>
                   
-                  {/* Form Container - Takes remaining height with internal scroll */}
-                  <div className="flex-1 overflow-hidden rounded-lg" data-testid="form-container">
+                  {/* Form Container - Fixed height on mobile, fills remaining space on desktop */}
+                  <div className="lg:flex-1 lg:overflow-hidden rounded-lg" data-testid="form-container">
                     {/* SUNFLOWER CHECKPOINT: SDK widget styles commented out - using direct iframe
                     <style dangerouslySetInnerHTML={{__html: `
                       .form-container-step2 .better-inline-booking-widget {
@@ -751,15 +751,27 @@ const StepsPage = () => {
                     </div>
                     */}
                     
-                    {/* Direct iframe implementation - Full height with internal scroll */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg h-full overflow-hidden">
-                      <PracticeBetterEmbed 
-                        type="form"
-                        minHeight={400}
-                        fillContainer={true}
-                        onLoad={() => console.log('Form loaded successfully')}
-                        onError={() => console.log('Form failed to load')}
-                      />
+                    {/* Direct iframe implementation - Full height on mobile, fills container on desktop */}
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg lg:h-full overflow-hidden">
+                      {/* Mobile: Use fixed minHeight, Desktop: Fill container */}
+                      <div className="lg:hidden">
+                        <PracticeBetterEmbed 
+                          type="form"
+                          minHeight={800}
+                          fillContainer={false}
+                          onLoad={() => console.log('Form loaded successfully')}
+                          onError={() => console.log('Form failed to load')}
+                        />
+                      </div>
+                      <div className="hidden lg:block h-full">
+                        <PracticeBetterEmbed 
+                          type="form"
+                          minHeight={400}
+                          fillContainer={true}
+                          onLoad={() => console.log('Form loaded successfully')}
+                          onError={() => console.log('Form failed to load')}
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
