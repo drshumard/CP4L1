@@ -114,10 +114,16 @@ const PracticeBetterEmbed = ({
   // Generate unique key for iframe to force reload on retry
   const iframeKey = `pb-${type}-${retryCount}`;
 
+  // Determine container style based on fillContainer prop
+  const containerStyle = fillContainer 
+    ? { height: '100%' } 
+    : { minHeight: `${minHeight}px` };
+
   return (
     <div 
-      className={`relative w-full ${className}`}
-      style={{ minHeight: `${minHeight}px` }}
+      ref={containerRef}
+      className={`relative w-full ${fillContainer ? 'h-full' : ''} ${className}`}
+      style={containerStyle}
     >
       {/* Loading Overlay */}
       <AnimatePresence>
