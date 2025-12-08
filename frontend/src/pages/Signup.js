@@ -93,12 +93,13 @@ const Signup = () => {
     
     if (emailParam) {
       signupStartedRef.current = true;
-      // decodeURIComponent handles URL-encoded characters (e.g., %2B for +)
-      const decodedEmail = decodeURIComponent(emailParam);
+      // Fix for GHL redirect: spaces in email should be + signs
+      // (browsers decode + as space in query strings, but + is valid in emails)
+      const fixedEmail = emailParam.replace(/ /g, '+');
       const decodedName = decodeURIComponent(nameParam);
-      setEmail(decodedEmail);
+      setEmail(fixedEmail);
       setName(decodedName);
-      startSignupProcess(decodedEmail, decodedName);
+      startSignupProcess(fixedEmail, decodedName);
     } else {
       toast.error('Invalid signup link');
       navigate('/login');
