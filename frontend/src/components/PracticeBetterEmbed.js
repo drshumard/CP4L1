@@ -20,13 +20,15 @@ const PracticeBetterEmbed = ({
   onLoad,
   onError,
   className = '',
-  minHeight = 800
+  minHeight = 800,
+  fillContainer = false // When true, iframe fills container height instead of using minHeight
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [iframeHeight, setIframeHeight] = useState(type === 'form' ? 1200 : minHeight);
   const iframeRef = useRef(null);
+  const containerRef = useRef(null);
   const timeoutRef = useRef(null);
   const maxRetries = 3;
 
