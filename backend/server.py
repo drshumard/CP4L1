@@ -235,7 +235,10 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     
     # Send welcome email immediately with credentials
     frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
-    signup_url = f"{frontend_url}/signup?email={data.email}&name={data.name}"
+    # URL-encode email to handle special characters like + signs
+    encoded_email = quote(data.email, safe='')
+    encoded_name = quote(data.name, safe='')
+    signup_url = f"{frontend_url}/signup?email={encoded_email}&name={encoded_name}"
     
     try:
         resend.Emails.send({
