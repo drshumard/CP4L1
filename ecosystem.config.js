@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'wellness-backend',
-      script: 'venv/bin/python',
-      args: 'server.py',
+      script: '/var/www/wellness-portal/backend/venv/bin/uvicorn',
+      args: 'server:app --host 0.0.0.0 --port 8001',
       cwd: '/var/www/wellness-portal/backend',
       interpreter: 'none',
       env: {
@@ -19,13 +19,11 @@ module.exports = {
     },
     {
       name: 'wellness-frontend',
-      script: 'serve',
-      args: '-s build -l 3000',
+      script: 'npx',
+      args: 'serve -s build -l 3000',
       cwd: '/var/www/wellness-portal/frontend',
+      interpreter: 'none',
       env: {
-        PM2_SERVE_PATH: '/var/www/wellness-portal/frontend/build',
-        PM2_SERVE_PORT: 3000,
-        PM2_SERVE_SPA: 'true',
         NODE_ENV: 'production',
       },
       error_file: '/var/www/wellness-portal/logs/frontend-error.log',
