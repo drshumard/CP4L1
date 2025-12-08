@@ -46,7 +46,7 @@ const Login = () => {
       showNotification('success', 'Login successful!');
       setTimeout(() => navigate('/'), 1000);
     } catch (error) {
-      showNotification('error', error.response?.data?.detail || 'Login failed');
+      showNotification('error', getErrorMessage(error, 'Login failed'));
     } finally {
       setLoading(false);
     }
