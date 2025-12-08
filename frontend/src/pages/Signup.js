@@ -269,7 +269,7 @@ const Signup = () => {
                   Creating your personalized wellness dashboard...
                 </p>
                 <p className="text-sm text-gray-600">
-                  This may take up to a minute. Please don't close this page.
+                  This may take up to a minute. Please do not close this page.
                 </p>
               </div>
             </motion.div>
