@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -13,8 +13,15 @@ const AutoLogin = () => {
   const { token } = useParams();
   const [status, setStatus] = useState('loading'); // loading, success, error
   const [errorMessage, setErrorMessage] = useState('');
+  const loginAttemptedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React StrictMode
+    if (loginAttemptedRef.current) {
+      return;
+    }
+    loginAttemptedRef.current = true;
+
     const performAutoLogin = async () => {
       if (!token) {
         setStatus('error');
