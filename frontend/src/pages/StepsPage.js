@@ -631,13 +631,6 @@ const StepsPage = () => {
               <div className="aspect-video">
                 <Card className="glass-dark border-0 shadow-xl h-full overflow-hidden" data-testid="instructions-card">
                   <CardContent className="p-4 lg:p-5 h-full overflow-auto">
-                    {/* Intro Text */}
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        Your initial consult is booked. Now, for Step 2. We need you to complete your patient intake information right now to ensure your consultation is spent on solutions, not paperwork. This form is your health blueprint, where you share your history, current concerns, and lifestyle. Please take about 10 minutes to complete it thoroughly and honestly so our team can customize your game plan and hit the ground running.
-                      </p>
-                    </div>
-                    
                     {/* Action Steps - Styled like Step 1 */}
                     <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
                       <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
