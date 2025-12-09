@@ -673,9 +673,9 @@ const StepsPage = () => {
                             3
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Scroll Down:</p>
+                            <p className="font-semibold text-gray-800 text-sm mb-1">Scroll Down in the form:</p>
                             <p className="text-xs text-gray-700 leading-relaxed">
-                              Make sure you reach the end of each page before clicking Next
+                              Make sure you reach the end of each page of the form before clicking Next
                             </p>
                           </div>
                         </div>
