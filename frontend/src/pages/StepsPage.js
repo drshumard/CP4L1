@@ -611,8 +611,8 @@ const StepsPage = () => {
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
             {/* Top Row: Video + Action Steps Side by Side */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-              {/* Video Section */}
-              <Card className="border-0 shadow-xl overflow-hidden bg-black" data-testid="video-section">
+              {/* Video Section - Same structure as Step 1 */}
+              <Card className="border-0 shadow-xl overflow-hidden flex-shrink-0 bg-black" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
                     src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[2].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
