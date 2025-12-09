@@ -10,6 +10,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import ActivityLogs from './pages/ActivityLogs';
 import ResetPassword from './pages/ResetPassword';
 import OutcomePage from './pages/OutcomePage';
+import AutoLogin from './pages/AutoLogin';
 import { Toaster } from './components/ui/sonner';
 import './App.css';
 
