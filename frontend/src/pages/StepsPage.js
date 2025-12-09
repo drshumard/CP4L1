@@ -1051,81 +1051,74 @@ const StepsPage = () => {
         ) : (
           /* Step 3: Video + Action Card Layout */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-4 sm:mb-6 w-full overflow-hidden">
-            {/* Video Section */}
-            <div data-testid="video-section" style={{ height: '500px' }}>
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full">
-                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000', height: '100%' }}>
-                  <iframe
-                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
-                    loading="eager"
-                    style={{
-                      border: 0,
-                      position: 'absolute',
-                      top: 0,
-                      height: '100%',
-                      width: '100%'
-                    }}
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen="true"
-                    data-testid="video-player"
-                  />
-                </div>
-              </Card>
-            </div>
+            {/* Video Section - Same style as Step 1 and 2 */}
+            <Card className="glass-dark border-0 shadow-xl overflow-hidden" data-testid="video-section">
+              <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+                <iframe
+                  src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                  loading="eager"
+                  style={{
+                    border: 0,
+                    position: 'absolute',
+                    top: 0,
+                    height: '100%',
+                    width: '100%'
+                  }}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                  allowFullScreen="true"
+                  data-testid="video-player"
+                />
+              </div>
+            </Card>
 
             {/* Action Card for Step 3 */}
-            <div style={{ height: '500px' }}>
-              {currentStep !== 1 && (
-              /* Action Card for step 3 */
-              <Card className="glass-dark border-0 shadow-xl h-full flex flex-col" data-testid="action-card">
-                <CardContent className="p-6 flex-1 flex flex-col">
-                  <h3 className="text-lg font-bold text-gray-800 mb-6 text-center">STEP 3: ACTION STEPS</h3>
+            <Card className="glass-dark border-0 shadow-xl flex flex-col" data-testid="action-card">
+              <CardContent className="p-6 flex-1 flex flex-col">
+                <h3 className="text-lg font-bold text-gray-800 mb-6 text-center">STEP 3: ACTION STEPS</h3>
 
-                  <div className="space-y-6 flex-1">
-                    {/* Action Step 1 */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-5">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          1
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-800 text-base mb-2">Confirm Your Calendar:</h4>
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            Pull up your email, find the official confirmation invite, and add the session details to your 
-                            personal calendar. Highlight this date as your absolute top priority.
-                          </p>
-                        </div>
+                <div className="space-y-4 flex-1">
+                  {/* Action Step 1 */}
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                        1
                       </div>
-                    </div>
-
-                    {/* Action Step 2 */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-5">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          2
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-800 text-base mb-2">Bring Your Support Team:</h4>
-                          <p className="text-sm text-gray-700 leading-relaxed">
-                            Reversing complex health concerns is a decision best made together. Forward the invite to your 
-                            spouse or other trusted decision-maker and confirm they will be joining you on the call.
-                          </p>
-                        </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm mb-1">Confirm Your Calendar:</p>
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          Pull up your email, find the official confirmation invite, and add the session details to your 
+                          personal calendar. Highlight this date as your absolute top priority.
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <Button
-                    onClick={handleAdvanceStep}
-                    className="w-full mt-6 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-6 rounded-xl shadow-lg"
-                    data-testid="submit-button"
-                  >
-                    Complete Program
-                  </Button>
-                </CardContent>
-              </Card>
-              )}
-            </div>
+                  {/* Action Step 2 */}
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                        2
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 text-sm mb-1">Bring Your Support Team:</p>
+                        <p className="text-xs text-gray-700 leading-relaxed">
+                          Reversing complex health concerns is a decision best made together. Forward the invite to your 
+                          spouse or other trusted decision-maker and confirm they will be joining you on the call.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleAdvanceStep}
+                  className="w-full mt-6 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-5 rounded-xl shadow-lg"
+                  data-testid="submit-button"
+                >
+                  Complete Program
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
 
