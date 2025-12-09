@@ -1030,19 +1030,19 @@ const StepsPage = () => {
             </div>
           </div>
 
-          {/* Complete Button - Shows Last on Mobile */}
-          <div className="mt-3">
-            <Card className="glass-dark border-0 shadow-lg">
+          {/* Complete Button - Bottom Right */}
+          <div className="mt-3 flex justify-end">
+            <Card className="glass-dark border-0 shadow-lg w-full sm:w-auto">
               <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-2 italic text-center">
+                <p className="text-xs text-gray-600 mb-2 italic text-center sm:text-right">
                   ⚠️ Only click this once you have booked your consultation
                 </p>
                 <Button
                   onClick={handleStep1Complete}
-                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-5 rounded-xl shadow-lg"
+                  className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg"
                   data-testid="submit-button"
                 >
-                  Mark as Complete & Continue
+                  Mark as Complete & Continue →
                 </Button>
               </CardContent>
             </Card>
