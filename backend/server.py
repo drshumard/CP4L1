@@ -758,7 +758,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         email=current_user["email"],
         name=current_user["name"],
         current_step=current_user["current_step"],
-        role=current_user["role"]
+        role=current_user.get("role", "user")  # Default to 'user' if role not present
     )
 
 @api_router.get("/user/progress")
