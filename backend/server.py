@@ -745,6 +745,24 @@ async def advance_step(current_user: dict = Depends(get_current_user)):
     
     return {"message": "Advanced to next step", "current_step": next_step}
 
+@api_router.post("/user/go-back-step")
+async def go_back_step(current_user: dict = Depends(get_current_user)):
+    user_id = current_user["id"]
+    current_step = current_user["current_step"]
+    
+    # Can only go back if not on step 1
+    if current_step <= 1:
+        raise HTTPException(status_code=400, detail="Already on first step")
+    
+    # Go back to previous step
+    prev_step = current_step - 1
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"current_step": prev_step}}
+    )
+    
+    return {"message": "Returned to previous step", "current_step": prev_step}
+
 # Admin Routes
 @api_router.get("/admin/users")
 async def get_all_users(admin_user: dict = Depends(get_admin_user)):
