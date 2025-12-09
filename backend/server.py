@@ -250,12 +250,16 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         status="success"
     )
     
+    # Generate auto-login token (valid for 7 days)
+    auto_login_token = await create_auto_login_token(user.id, data.email)
+    
     # Send welcome email immediately with credentials
-    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
     # URL-encode email to handle special characters like + signs
     encoded_email = quote(data.email, safe='')
     encoded_name = quote(data.name, safe='')
     signup_url = f"{frontend_url}/signup?email={encoded_email}&name={encoded_name}"
+    auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
     
     try:
         resend.Emails.send({
