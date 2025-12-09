@@ -1014,45 +1014,37 @@ const StepsPage = () => {
                     {/* Direct iframe implementation */}
                     <PracticeBetterEmbed 
                       type="booking"
-                      minHeight={800}
+                      minHeight={600}
                       onLoad={() => console.log('Booking calendar loaded successfully')}
                       onError={() => console.log('Booking calendar failed to load')}
                     />
                   </div>
+                  
+                  {/* Buttons inside booking card */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs text-gray-600 mb-3 italic text-center">
+                      ⚠️ Only click Mark as Complete once you have booked your consultation
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button
+                        onClick={() => navigate('/dashboard')}
+                        variant="outline"
+                        className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 rounded-xl"
+                      >
+                        Go to Dashboard
+                      </Button>
+                      <Button
+                        onClick={handleStep1Complete}
+                        className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-3 rounded-xl shadow-lg"
+                        data-testid="submit-button"
+                      >
+                        Mark as Complete →
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
-          </div>
-
-          {/* Complete Button Area - Same width as booking card, aligned right */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-3">
-            {/* Empty left column to match layout */}
-            <div className="hidden lg:block"></div>
-            
-            {/* Right column - buttons */}
-            <Card className="glass-dark border-0 shadow-lg">
-              <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-3 italic text-center">
-                  ⚠️ Only click Mark as Complete once you have booked your consultation
-                </p>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
-                    onClick={() => navigate('/dashboard')}
-                    variant="outline"
-                    className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-4 rounded-xl"
-                  >
-                    Go to Dashboard
-                  </Button>
-                  <Button
-                    onClick={handleStep1Complete}
-                    className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
-                    data-testid="submit-button"
-                  >
-                    Mark as Complete →
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
           </>
         ) : (
