@@ -574,13 +574,13 @@ const StepsPage = () => {
             )}
           </AnimatePresence>
 
-          {/* Two Column Layout - Constrained to viewport on desktop only, mobile scrolls naturally */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 w-full lg:h-[calc(100vh-180px)] lg:overflow-hidden">
-            {/* Left Column: Video + Instructions Card */}
-            <div className="flex flex-col gap-4 lg:h-full lg:overflow-hidden">
+          {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
+          <div className="flex flex-col gap-4 lg:gap-6 w-full">
+            {/* Top Row: Video + Action Steps Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
               {/* Video Section */}
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
-                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden" data-testid="video-section">
+                <div style={{ position: 'relative', paddingTop: '56.25%' }}>
                   <iframe
                     src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[2].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
                     loading="eager"
@@ -597,195 +597,117 @@ const StepsPage = () => {
                 </div>
               </Card>
 
-              {/* Instructions Card - Styled like Step 1 Action Steps */}
-              <Card className="glass-dark border-0 shadow-xl flex-1 overflow-hidden" data-testid="instructions-card">
-                <CardContent className="p-4 h-full overflow-auto">
-                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 h-full">
-                    <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      How to Complete This Form
-                    </h4>
-                    
-                    <div className="space-y-3">
-                      {/* Step 1 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          1
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">This form has 4 pages</p>
-                          <p className="text-xs text-gray-700">Fill out all fields on each page</p>
-                        </div>
+              {/* Action Steps Card */}
+              <Card className="glass-dark border-0 shadow-xl" data-testid="instructions-card">
+                <CardContent className="p-4 lg:p-5">
+                  {/* Intro Text */}
+                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">
+                    Your initial consult is booked. Now, for Step 2. We need you to complete your patient intake information right now to ensure your consultation is spent on solutions, not paperwork. This form is your health blueprint, where you share your history, current concerns, and lifestyle. Please take about 10 minutes to complete it thoroughly and honestly so our team can customize your game plan and hit the ground running.
+                  </p>
+                  
+                  <h4 className="text-base font-bold text-gray-800 mb-3">Action Steps</h4>
+                  
+                  <div className="space-y-2">
+                    {/* Step 1 */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        1
                       </div>
+                      <p className="text-sm text-gray-700"><strong>Locate the Form:</strong> Find the secure Patient Intake Form below</p>
+                    </div>
 
-                      {/* Step 2 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          2
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">Scroll down in the form</p>
-                          <p className="text-xs text-gray-700">Make sure you reach the end of each page before clicking Next</p>
-                        </div>
+                    {/* Step 2 */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        2
                       </div>
+                      <p className="text-sm text-gray-700"><strong>Be Thorough:</strong> Complete every question fully and honestly</p>
+                    </div>
 
-                      {/* Step 3 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          3
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">Click &quot;Next Page&quot;</p>
-                          <p className="text-xs text-gray-700">Button is in the bottom-right corner of the form</p>
-                        </div>
+                    {/* Step 3 */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        3
                       </div>
+                      <p className="text-sm text-gray-700"><strong>This form has 4 pages:</strong> Fill out all fields on each page</p>
+                    </div>
 
-                      {/* Step 4 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          4
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">Sign on page 4</p>
-                          <p className="text-xs text-gray-700">Provide your signature on the final page</p>
-                        </div>
+                    {/* Step 4 */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        4
                       </div>
+                      <p className="text-sm text-gray-700"><strong>Scroll down in the form:</strong> Make sure you reach the end of each page before clicking Next</p>
+                    </div>
 
-                      {/* Step 5 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          5
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">Click &quot;Submit&quot;</p>
-                          <p className="text-xs text-gray-700">Submit your completed form</p>
-                        </div>
+                    {/* Step 5 */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        5
                       </div>
+                      <p className="text-sm text-gray-700"><strong>Finalize:</strong> Click the &quot;Submit&quot; button at the bottom of the page</p>
+                    </div>
 
-                      {/* Step 6 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
-                          6
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm">Click &quot;Continue&quot; below</p>
-                          <p className="text-xs text-gray-700">After submission, click the Continue button</p>
-                        </div>
+                    {/* Step 6 */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                        6
                       </div>
+                      <p className="text-sm text-gray-700"><strong>Next:</strong> Move forward immediately to Step 3</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-              
-              {/* Continue Button - Moved to left column on desktop */}
-              <Card className="glass-dark border-0 shadow-lg flex-shrink-0 hidden lg:block">
-                <CardContent className="p-3">
-                  <p className="text-xs text-gray-600 mb-2 italic text-center">
-                    ⚠️ Click after completing the form
-                  </p>
-                  <Button
-                    onClick={handleAdvanceStep}
-                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
-                    data-testid="submit-button-desktop"
-                  >
-                    Continue to Next Step →
-                  </Button>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Right Column: Practice Better Form */}
-            <div className="lg:h-full flex flex-col">
-              <Card className="glass-dark border-0 shadow-xl lg:flex-1 flex flex-col lg:overflow-hidden" data-testid="form-card">
-                <CardContent className="p-4 lg:flex-1 flex flex-col lg:overflow-hidden">
-                  <h3 className="text-base font-bold text-gray-800 mb-3 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
-                  
-                  {/* User Info Card - Compact */}
-                  <div className="mb-3 bg-teal-50 border border-cyan-200 rounded-lg p-3 flex-shrink-0">
-                    <p className="text-xs text-gray-700 font-semibold mb-2">Use this information on the form:</p>
-                    <div className="flex flex-wrap gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-gray-600">Name:</span>
-                        <span className="font-semibold text-gray-800">{userData?.name || 'N/A'}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-gray-600">Email:</span>
-                        <span className="font-semibold text-gray-800">{userData?.email || 'N/A'}</span>
-                      </div>
+            {/* Form Section - Full Width Below */}
+            <Card className="glass-dark border-0 shadow-xl" data-testid="form-card">
+              <CardContent className="p-4">
+                <h3 className="text-base font-bold text-gray-800 mb-3 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
+                
+                {/* User Info Card */}
+                <div className="mb-4 bg-teal-50 border border-cyan-200 rounded-lg p-3">
+                  <p className="text-xs text-gray-700 font-semibold mb-2">Use this information on the form:</p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-gray-600">Name:</span>
+                      <span className="font-semibold text-gray-800">{userData?.name || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-gray-600">Email:</span>
+                      <span className="font-semibold text-gray-800">{userData?.email || 'N/A'}</span>
                     </div>
                   </div>
+                </div>
+                
+                {/* Form Container - Expanded height */}
+                <div className="rounded-lg" data-testid="form-container">
+                  {/* SUNFLOWER CHECKPOINT: SDK widget styles commented out - using direct iframe */}
                   
-                  {/* Form Container - Fixed height on mobile, fills remaining space on desktop */}
-                  <div className="lg:flex-1 lg:overflow-hidden rounded-lg" data-testid="form-container">
-                    {/* SUNFLOWER CHECKPOINT: SDK widget styles commented out - using direct iframe
-                    <style dangerouslySetInnerHTML={{__html: `
-                      .form-container-step2 .better-inline-booking-widget {
-                        position: relative;
-                        background: white;
-                        border-radius: 0.5rem;
-                        overflow: hidden;
-                        height: 600px;
-                      }
-                      .form-container-step2 .better-inline-booking-widget iframe {
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        border: none;
-                      }
-                    `}} />
-                    
-                    <div className="form-container-step2 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-3 h-full overflow-hidden">
-                      <div 
-                        className="better-inline-booking-widget" 
-                        data-url="https://drshumard.practicebetter.io/" 
-                        data-form-request="6021e5d42a9c2406f45aa20f" 
-                        data-hash="601a127b2a9c2406dcc94437" 
-                        data-theme="14b8a6" 
-                        data-theme-accent="06b6d4"
-                        data-scrollbar-visible="false"
-                      />
-                    </div>
-                    */}
-                    
-                    {/* Direct iframe implementation - Full height on mobile, fills container on desktop */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg lg:h-full overflow-hidden">
-                      {/* Mobile: Use fixed minHeight, Desktop: Fill container */}
-                      <div className="lg:hidden">
-                        <PracticeBetterEmbed 
-                          type="form"
-                          minHeight={800}
-                          fillContainer={false}
-                          onLoad={() => console.log('Form loaded successfully')}
-                          onError={() => console.log('Form failed to load')}
-                        />
-                      </div>
-                      <div className="hidden lg:block h-full">
-                        <PracticeBetterEmbed 
-                          type="form"
-                          minHeight={400}
-                          fillContainer={true}
-                          onLoad={() => console.log('Form loaded successfully')}
-                          onError={() => console.log('Form failed to load')}
-                        />
-                      </div>
-                    </div>
+                  {/* Direct iframe implementation - Full expanded height */}
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg overflow-hidden">
+                    <PracticeBetterEmbed 
+                      type="form"
+                      minHeight={900}
+                      fillContainer={false}
+                      onLoad={() => console.log('Form loaded successfully')}
+                      onError={() => console.log('Form failed to load')}
+                    />
                   </div>
-                </CardContent>
-              </Card>
-              
-              {/* Continue Button - Mobile only */}
-              <Card className="glass-dark border-0 shadow-lg mt-4 lg:hidden">
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Continue Button */}
+            <div className="flex justify-end">
+              <Card className="glass-dark border-0 shadow-lg w-full sm:w-auto">
                 <CardContent className="p-4">
-                  <p className="text-xs text-gray-600 mb-2 italic text-center">
+                  <p className="text-xs text-gray-600 mb-2 italic text-center sm:text-right">
                     ⚠️ Only click this after completing and submitting the form above
                   </p>
                   <Button
                     onClick={handleAdvanceStep}
-                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-5 rounded-xl shadow-lg"
+                    className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg"
                     data-testid="submit-button"
                   >
                     Continue to Next Step →
