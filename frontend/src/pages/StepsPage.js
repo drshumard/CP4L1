@@ -727,7 +727,7 @@ const StepsPage = () => {
                       <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg overflow-hidden">
                         <PracticeBetterEmbed 
                           type="form"
-                          minHeight={1500}
+                          minHeight={2000}
                           fillContainer={false}
                           onLoad={() => console.log('Form loaded successfully')}
                           onError={() => console.log('Form failed to load')}
