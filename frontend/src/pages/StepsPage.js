@@ -609,26 +609,23 @@ const StepsPage = () => {
 
           {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
-            {/* Top Row: Video + Action Steps Side by Side */}
+            {/* Top Row: Video + Action Steps Side by Side - Both same height */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
               {/* Video Section */}
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden self-start" data-testid="video-section">
-                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
-                  <iframe
-                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[2].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
-                    loading="eager"
-                    style={{
-                      border: 0,
-                      position: 'absolute',
-                      top: 0,
-                      height: '100%',
-                      width: '100%'
-                    }}
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen="true"
-                  />
-                </div>
-              </Card>
+              <div className="aspect-video">
+                <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
+                  <div className="relative w-full h-full">
+                    <iframe
+                      src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[2].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                      loading="eager"
+                      className="absolute inset-0 w-full h-full"
+                      style={{ border: 0 }}
+                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                      allowFullScreen="true"
+                    />
+                  </div>
+                </Card>
+              </div>
 
               {/* Action Steps Card - Styled like Step 1 */}
               <Card className="glass-dark border-0 shadow-xl" data-testid="instructions-card">
