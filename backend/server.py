@@ -601,6 +601,56 @@ async def refresh_token(refresh_token: str):
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+@api_router.get("/auth/auto-login/{token}", response_model=TokenResponse)
+async def auto_login(token: str):
+    """Auto-login user using a one-time token from email"""
+    # Find the token
+    token_doc = await db.auto_login_tokens.find_one({"token": token}, {"_id": 0})
+    
+    if not token_doc:
+        raise HTTPException(status_code=401, detail="Invalid or expired login link")
+    
+    # Check if token is expired
+    expires_at = datetime.fromisoformat(token_doc["expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(status_code=401, detail="Login link has expired. Please use your email and password to login.")
+    
+    # Check if already used (optional - can allow multiple uses within validity period)
+    # if token_doc.get("used"):
+    #     raise HTTPException(status_code=401, detail="Login link has already been used")
+    
+    # Find the user
+    user = await db.users.find_one({"id": token_doc["user_id"]}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    # Mark token as used (optional)
+    await db.auto_login_tokens.update_one(
+        {"token": token},
+        {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Generate access tokens
+    access_token = create_access_token(
+        data={"sub": user["id"]},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    refresh_token = create_refresh_token(data={"sub": user["id"]})
+    
+    # Log auto-login
+    await log_activity(
+        event_type="AUTO_LOGIN_SUCCESS",
+        user_email=user["email"],
+        user_id=user["id"],
+        details={"method": "email_link"},
+        status="success"
+    )
+    
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token
+    )
+
 @api_router.post("/auth/request-reset")
 async def request_password_reset(request: PasswordResetRequest):
     user = await db.users.find_one({"email": request.email}, {"_id": 0})
