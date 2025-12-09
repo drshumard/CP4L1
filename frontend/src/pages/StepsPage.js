@@ -609,9 +609,9 @@ const StepsPage = () => {
 
           {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
-            {/* Top Row: Video + Action Steps Side by Side - Both same height */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-              {/* Video Section */}
+            {/* Top Row: Video + Action Steps Side by Side */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 lg:items-stretch">
+              {/* Video Section - maintains 16:9 aspect ratio */}
               <div className="aspect-video">
                 <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
                   <div className="relative w-full h-full">
@@ -627,12 +627,12 @@ const StepsPage = () => {
                 </Card>
               </div>
 
-              {/* Action Steps Card - Same height as video */}
-              <div className="aspect-video">
-                <Card className="glass-dark border-0 shadow-xl h-full overflow-hidden" data-testid="instructions-card">
-                  <CardContent className="p-4 lg:p-6 h-full overflow-auto flex flex-col">
-                    {/* Action Steps - Mimics Step 1 behavior */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+              {/* Action Steps Card - matches video height on desktop, expands on mobile */}
+              <div className="lg:aspect-video">
+                <Card className="glass-dark border-0 shadow-xl h-full" data-testid="instructions-card">
+                  <CardContent className="p-4 lg:p-6 h-full flex items-center justify-center">
+                    {/* Action Steps - Centered overlay that fills container */}
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 lg:p-6 w-full h-full flex flex-col justify-center">
                       <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
                         <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
