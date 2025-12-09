@@ -422,10 +422,14 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         </div>
                         
                         <center>
-                            <a href="portal.drshumard.com/login" class="button">
+                            <a href="{auto_login_url}" class="button">
                                 Access Your Portal Now →
                             </a>
                         </center>
+                        
+                        <p style="font-size: 12px; color: #6b7280; text-align: center; margin-top: 12px;">
+                            This link will automatically log you in and is valid for 7 days.
+                        </p>
                         
                         <div class="divider"></div>
                         
