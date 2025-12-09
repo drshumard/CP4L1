@@ -785,7 +785,7 @@ const StepsPage = () => {
             {/* Left Column: Video + Action Steps */}
             <div className="flex flex-col gap-6 h-full">
               {/* Video Section - Bunny.net Official Embed */}
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
+              <Card className="border-0 shadow-xl overflow-hidden flex-shrink-0 bg-black" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
                     key={videoAutoplay ? 'autoplay' : 'manual'}
