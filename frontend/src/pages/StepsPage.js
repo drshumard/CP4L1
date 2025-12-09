@@ -773,7 +773,7 @@ const StepsPage = () => {
         {currentStep === 1 ? (
           /* Step 1: Video + Action Steps on Left, Booking Calendar on Right */
           <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full" style={{ minHeight: '600px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full" style={{ minHeight: '750px' }}>
             {/* Left Column: Video + Action Steps */}
             <div className="flex flex-col gap-6 h-full">
               {/* Video Section - Bunny.net Official Embed */}
