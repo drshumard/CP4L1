@@ -697,20 +697,7 @@ const StepsPage = () => {
                         <div>
                           <p className="font-semibold text-gray-800 text-sm mb-0.5">Sign & Submit:</p>
                           <p className="text-xs text-gray-700 leading-relaxed">
-                            Provide your signature on page 4, then click Submit
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Step 5 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          5
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-0.5">Move Forward:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            After submission, proceed immediately to Step 3
+                            Provide your signature on page 4, then click Submit to proceed immediately to Step 3
                           </p>
                         </div>
                       </div>
