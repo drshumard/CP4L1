@@ -149,6 +149,23 @@ def create_refresh_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+async def create_auto_login_token(user_id: str, email: str) -> str:
+    """Create a one-time auto-login token valid for 7 days"""
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    # Store token in database
+    await db.auto_login_tokens.insert_one({
+        "token": token,
+        "user_id": user_id,
+        "email": email,
+        "expires_at": expires_at.isoformat(),
+        "used": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return token
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
