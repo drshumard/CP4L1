@@ -630,9 +630,9 @@ const StepsPage = () => {
               {/* Action Steps Card - Same height as video */}
               <div className="aspect-video">
                 <Card className="glass-dark border-0 shadow-xl h-full overflow-hidden" data-testid="instructions-card">
-                  <CardContent className="p-4 lg:p-5 h-full overflow-auto">
-                    {/* Action Steps - Styled like Step 1 */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+                  <CardContent className="p-4 lg:p-5 h-full overflow-auto flex items-center justify-center">
+                    {/* Action Steps - Styled like Step 1 - Centered in container */}
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 w-full max-w-md mx-auto text-center">
                       <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center justify-center gap-2">
                         <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -640,7 +640,7 @@ const StepsPage = () => {
                         Action Steps
                       </h4>
                       
-                      <div className="space-y-3">
+                      <div className="space-y-3 text-left">
                         {/* Step 1 */}
                         <div className="flex items-start gap-3">
                           <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
@@ -706,28 +706,28 @@ const StepsPage = () => {
                   <CardContent className="p-4">
                     <h3 className="text-base font-bold text-gray-800 mb-3 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
                     
-                    {/* User Info Card */}
-                    <div className="mb-4 bg-teal-50 border border-cyan-200 rounded-lg p-3">
-                      <p className="text-xs text-gray-700 font-semibold mb-2">Use this information on the form:</p>
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-gray-600">Name:</span>
-                          <span className="font-semibold text-gray-800">{userData?.name || 'N/A'}</span>
+                    {/* User Info Card - Centered */}
+                    <div className="mb-4 bg-teal-50 border border-cyan-200 rounded-lg p-4 text-center">
+                      <p className="text-sm text-gray-700 font-semibold mb-3">Use this information on the form:</p>
+                      <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm">
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="font-medium text-gray-600 text-sm">Name:</span>
+                          <span className="font-semibold text-gray-800 text-sm">{userData?.name || 'N/A'}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <span className="font-medium text-gray-600">Email:</span>
-                          <span className="font-semibold text-gray-800">{userData?.email || 'N/A'}</span>
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="font-medium text-gray-600 text-sm">Email:</span>
+                          <span className="font-semibold text-gray-800 text-sm">{userData?.email || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
                     
-                    {/* Form Container - Expanded height */}
+                    {/* Form Container - Extended height */}
                     <div className="rounded-lg" data-testid="form-container">
                       {/* Direct iframe implementation - Full expanded height */}
                       <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg overflow-hidden">
                         <PracticeBetterEmbed 
                           type="form"
-                          minHeight={900}
+                          minHeight={1100}
                           fillContainer={false}
                           onLoad={() => console.log('Form loaded successfully')}
                           onError={() => console.log('Form failed to load')}
