@@ -107,6 +107,22 @@ const Signup = () => {
     }
   }, [searchParams, navigate, startSignupProcess]);
 
+  // Handle browser back button - redirect to dashboard instead of re-running signup
+  useEffect(() => {
+    const handlePopState = () => {
+      // If user presses back, redirect to dashboard
+      navigate('/dashboard', { replace: true });
+    };
+
+    // Push a dummy state so we can intercept back button
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [navigate]);
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
       {/* Animated Background Elements */}
