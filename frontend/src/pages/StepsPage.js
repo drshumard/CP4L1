@@ -985,20 +985,33 @@ const StepsPage = () => {
             </div>
           </div>
 
-          {/* Complete Button - Bottom Right */}
-          <div className="mt-3 flex justify-end">
-            <Card className="glass-dark border-0 shadow-lg w-full sm:w-auto">
+          {/* Complete Button Area - Same width as booking card, aligned right */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mt-3">
+            {/* Empty left column to match layout */}
+            <div className="hidden lg:block"></div>
+            
+            {/* Right column - buttons */}
+            <Card className="glass-dark border-0 shadow-lg">
               <CardContent className="p-4">
-                <p className="text-xs text-gray-600 mb-2 italic text-center sm:text-right">
-                  ⚠️ Only click this once you have booked your consultation
+                <p className="text-xs text-gray-600 mb-3 italic text-center">
+                  ⚠️ Only click Mark as Complete once you have booked your consultation
                 </p>
-                <Button
-                  onClick={handleStep1Complete}
-                  className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg"
-                  data-testid="submit-button"
-                >
-                  Mark as Complete & Continue →
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={() => navigate('/dashboard')}
+                    variant="outline"
+                    className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-4 rounded-xl"
+                  >
+                    Go to Dashboard
+                  </Button>
+                  <Button
+                    onClick={handleStep1Complete}
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
+                    data-testid="submit-button"
+                  >
+                    Mark as Complete →
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
