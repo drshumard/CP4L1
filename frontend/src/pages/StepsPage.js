@@ -1028,75 +1028,78 @@ const StepsPage = () => {
           </>
         ) : (
           /* Step 3: Video + Action Card Layout */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-4 sm:mb-6 w-full overflow-hidden">
-            {/* Video Section */}
-            <Card className="glass-dark border-0 shadow-xl overflow-hidden self-start" data-testid="video-section">
-              <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
-                <iframe
-                  src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
-                  loading="eager"
-                  style={{
-                    border: 0,
-                    position: 'absolute',
-                    top: 0,
-                    height: '100%',
-                    width: '100%'
-                  }}
-                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                  allowFullScreen="true"
-                  data-testid="video-player"
-                />
-              </div>
-            </Card>
-
-            {/* Action Card for Step 3 */}
-            <Card className="glass-dark border-0 shadow-xl flex flex-col" data-testid="action-card">
-              <CardContent className="p-6 flex-1 flex flex-col">
-                <h3 className="text-lg font-bold text-gray-800 mb-6 text-center">STEP 3: ACTION STEPS</h3>
-
-                <div className="space-y-4 flex-1">
-                  {/* Action Step 1 */}
-                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                        1
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm mb-1">Confirm Your Calendar:</p>
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                          Pull up your email, find the official confirmation invite, and add the session details to your 
-                          personal calendar. Highlight this date as your absolute top priority.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Step 2 */}
-                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                        2
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-800 text-sm mb-1">Bring Your Support Team:</p>
-                        <p className="text-xs text-gray-700 leading-relaxed">
-                          Reversing complex health concerns is a decision best made together. Forward the invite to your 
-                          spouse or other trusted decision-maker and confirm they will be joining you on the call.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-4 sm:mb-6 w-full lg:items-stretch">
+            {/* Video Section - maintains 16:9 aspect ratio */}
+            <div className="aspect-video">
+              <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
+                <div className="relative w-full h-full">
+                  <iframe
+                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                    loading="eager"
+                    className="absolute inset-0 w-full h-full"
+                    style={{ border: 0 }}
+                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                    allowFullScreen="true"
+                    data-testid="video-player"
+                  />
                 </div>
+              </Card>
+            </div>
 
-                <Button
-                  onClick={handleAdvanceStep}
-                  className="w-full mt-6 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-5 rounded-xl shadow-lg"
-                  data-testid="submit-button"
-                >
-                  Complete Program
-                </Button>
-              </CardContent>
-            </Card>
+            {/* Action Card for Step 3 - matches video height on desktop, expands on mobile */}
+            <div className="lg:aspect-video">
+              <Card className="glass-dark border-0 shadow-xl h-full" data-testid="action-card">
+                <CardContent className="p-4 lg:p-6 h-full flex items-center justify-center">
+                  {/* Action Steps - Centered overlay that fills container */}
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 lg:p-6 w-full h-full flex flex-col justify-center">
+                    <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      Action Steps
+                    </h4>
+
+                    <div className="space-y-4 flex-1">
+                      {/* Action Step 1 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          1
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm mb-1">Confirm Your Calendar:</p>
+                          <p className="text-xs text-gray-700 leading-relaxed">
+                            Pull up your email, find the official confirmation invite, and add the session details to your 
+                            personal calendar. Highlight this date as your absolute top priority.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action Step 2 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          2
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm mb-1">Bring Your Support Team:</p>
+                          <p className="text-xs text-gray-700 leading-relaxed">
+                            Reversing complex health concerns is a decision best made together. Forward the invite to your 
+                            spouse or other trusted decision-maker and confirm they will be joining you on the call.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handleAdvanceStep}
+                      className="w-full mt-4 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
+                      data-testid="submit-button"
+                    >
+                      Complete Program
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 
