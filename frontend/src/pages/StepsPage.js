@@ -75,6 +75,13 @@ const StepsPage = () => {
     */
   }, []);
 
+  // Scroll to top when step changes
+  useEffect(() => {
+    if (progressData?.current_step) {
+      window.scrollTo(0, 0);
+    }
+  }, [progressData?.current_step]);
+
   /* SUNFLOWER CHECKPOINT: Widget reinitialization commented out - using direct iframe instead
   // Reinitialize Practice Better widget when step changes to ensure forms load
   useEffect(() => {
