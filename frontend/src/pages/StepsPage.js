@@ -627,81 +627,83 @@ const StepsPage = () => {
                 </Card>
               </div>
 
-              {/* Action Steps Card - Styled like Step 1 */}
-              <Card className="glass-dark border-0 shadow-xl" data-testid="instructions-card">
-                <CardContent className="p-4 lg:p-5">
-                  {/* Intro Text */}
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      Your initial consult is booked. Now, for Step 2. We need you to complete your patient intake information right now to ensure your consultation is spent on solutions, not paperwork. This form is your health blueprint, where you share your history, current concerns, and lifestyle. Please take about 10 minutes to complete it thoroughly and honestly so our team can customize your game plan and hit the ground running.
-                    </p>
-                  </div>
-                  
-                  {/* Action Steps - Styled like Step 1 */}
-                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
-                    <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Action Steps
-                    </h4>
+              {/* Action Steps Card - Same height as video */}
+              <div className="aspect-video">
+                <Card className="glass-dark border-0 shadow-xl h-full overflow-hidden" data-testid="instructions-card">
+                  <CardContent className="p-4 lg:p-5 h-full overflow-auto">
+                    {/* Intro Text */}
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        Your initial consult is booked. Now, for Step 2. We need you to complete your patient intake information right now to ensure your consultation is spent on solutions, not paperwork. This form is your health blueprint, where you share your history, current concerns, and lifestyle. Please take about 10 minutes to complete it thoroughly and honestly so our team can customize your game plan and hit the ground running.
+                      </p>
+                    </div>
                     
-                    <div className="space-y-3">
-                      {/* Step 1 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          1
+                    {/* Action Steps - Styled like Step 1 */}
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+                      <h4 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Action Steps
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        {/* Step 1 */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                            1
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm mb-0.5">Locate the Form:</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              Find the secure Patient Intake Form below on this page
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-0.5">Locate the Form:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Find the secure Patient Intake Form below on this page
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Step 2 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          2
+                        {/* Step 2 */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                            2
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm mb-0.5">Be Thorough:</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              Complete every question fully and honestly across all 4 pages
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-0.5">Be Thorough:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Complete every question fully and honestly across all 4 pages
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Step 3 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          3
+                        {/* Step 3 */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                            3
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm mb-0.5">Scroll Down:</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              Make sure you reach the end of each page before clicking Next
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-0.5">Scroll Down:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Make sure you reach the end of each page before clicking Next
-                          </p>
-                        </div>
-                      </div>
 
-                      {/* Step 4 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          4
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-0.5">Sign & Submit:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Provide your signature on page 4, then click Submit to proceed immediately to Step 3
-                          </p>
+                        {/* Step 4 */}
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                            4
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800 text-sm mb-0.5">Sign & Submit:</p>
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              Provide your signature on page 4, then click Submit to proceed immediately to Step 3
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* Form Section - Centered, 3/4 width */}
