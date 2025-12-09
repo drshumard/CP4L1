@@ -422,12 +422,28 @@ const StepsPage = () => {
 
       {/* Step Title Banner */}
       <div className="glass-dark border-b border-gray-200 w-full overflow-hidden">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4 text-center">
-          <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-teal-500 to-cyan-600 bg-clip-text text-transparent px-2">
-            {currentStep === 1 && "Welcome to Dr. Jason Shumard's Digital Office!"}
-            {currentStep === 2 && "Step 2: Complete Your Health Blueprint"}
-            {currentStep === 3 && "Step 3: Final Preparations - You Are Ready!"}
-          </h2>
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-center gap-4">
+            {/* Back Button - Only show for Step 2 and 3 */}
+            {currentStep > 1 && (
+              <button
+                onClick={handleGoBack}
+                className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-teal-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back
+              </button>
+            )}
+            <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold bg-gradient-to-r from-teal-500 to-cyan-600 bg-clip-text text-transparent px-2 text-center flex-1">
+              {currentStep === 1 && "Welcome to Dr. Jason Shumard's Digital Office!"}
+              {currentStep === 2 && "Step 2: Complete Your Health Blueprint"}
+              {currentStep === 3 && "Step 3: Final Preparations - You Are Ready!"}
+            </h2>
+            {/* Spacer to balance the back button */}
+            {currentStep > 1 && <div className="w-14"></div>}
+          </div>
         </div>
       </div>
 
