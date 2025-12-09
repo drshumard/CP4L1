@@ -283,6 +283,23 @@ const StepsPage = () => {
     }
   };
 
+  const handleGoBack = async () => {
+    if (progressData.current_step <= 1) return;
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(
+        `${API}/user/go-back-step`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success('Returned to previous step');
+      await fetchData();
+    } catch (error) {
+      toast.error('Failed to go back');
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
