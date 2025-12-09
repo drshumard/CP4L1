@@ -1036,28 +1036,26 @@ const StepsPage = () => {
           </>
         ) : (
           /* Step 3: Video + Action Card Layout */
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-4 sm:mb-6 w-full overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-4 sm:mb-6 w-full overflow-hidden items-start">
             {/* Video Section */}
-            <div className="flex flex-col">
-              <Card className="border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
-                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
-                  <iframe
-                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
-                    loading="eager"
-                    style={{
-                      border: 0,
-                      position: 'absolute',
-                      top: 0,
-                      height: '100%',
-                      width: '100%'
-                    }}
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen="true"
-                    data-testid="video-player"
-                  />
-                </div>
-              </Card>
-            </div>
+            <Card className="border-0 shadow-xl overflow-hidden" data-testid="video-section">
+              <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
+                <iframe
+                  src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                  loading="eager"
+                  style={{
+                    border: 0,
+                    position: 'absolute',
+                    top: 0,
+                    height: '100%',
+                    width: '100%'
+                  }}
+                  allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                  allowFullScreen="true"
+                  data-testid="video-player"
+                />
+              </div>
+            </Card>
 
             {/* Action Card for Step 3 */}
             <Card className="glass-dark border-0 shadow-xl flex flex-col" data-testid="action-card">
