@@ -62,9 +62,10 @@ const Signup = () => {
         setTimeout(() => setStage(3), 2000);
         
         // Stage 3: Redirecting message (3s) then navigate
+        // Use replace to prevent going back to signup page
         setTimeout(() => {
           clearInterval(progressInterval);
-          navigate('/steps');
+          navigate('/steps', { replace: true });
         }, 5000);
         
       } catch (error) {
@@ -76,7 +77,7 @@ const Signup = () => {
           : getErrorMessage(error, 'Signup failed. Please try again.');
         
         toast.error(errorMessage, { duration: 8000 });
-        setTimeout(() => navigate('/login'), 8000);
+        setTimeout(() => navigate('/login', { replace: true }), 8000);
         return;
       }
     }, 6000);
