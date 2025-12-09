@@ -1039,7 +1039,7 @@ const StepsPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 mb-4 sm:mb-6 w-full overflow-hidden">
             {/* Video Section - Same style as Step 1 and 2 */}
             <Card className="glass-dark border-0 shadow-xl overflow-hidden" data-testid="video-section">
-              <div style={{ position: 'relative', paddingTop: '56.25%' }}>
+              <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                 <iframe
                   src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
                   loading="eager"
