@@ -230,10 +230,16 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     if existing_user:
         return {"message": "User already exists", "user_id": existing_user["id"]}
     
+    # Build full name from first_name + last_name if provided, otherwise use name field
+    if data.first_name and data.last_name:
+        full_name = f"{data.first_name} {data.last_name}"
+    else:
+        full_name = data.name
+    
     # Generate simple password using user's name + 2026@ or 2026!
     import random
     # Split name and get first or last name (prefer longer one for better security)
-    name_parts = data.name.strip().split()
+    name_parts = full_name.strip().split()
     if len(name_parts) >= 2:
         # Choose the longer name part
         base_name = max(name_parts, key=len)
@@ -251,12 +257,17 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     # Create new user with generated password
     user = User(
         email=data.email,
-        name=data.name,
+        name=full_name,
         password_hash=hashed_password
     )
     
     user_dict = user.model_dump()
     user_dict['created_at'] = user_dict['created_at'].isoformat()
+    # Store first_name and last_name separately if provided
+    if data.first_name:
+        user_dict['first_name'] = data.first_name
+    if data.last_name:
+        user_dict['last_name'] = data.last_name
     
     await db.users.insert_one(user_dict)
     
@@ -265,7 +276,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         event_type="USER_CREATED",
         user_email=data.email,
         user_id=user.id,
-        details={"name": data.name, "source": "ghl_webhook"},
+        details={"name": full_name, "first_name": data.first_name, "last_name": data.last_name, "source": "ghl_webhook"},
         status="success"
     )
     
