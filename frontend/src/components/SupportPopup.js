@@ -163,7 +163,7 @@ const SupportPopup = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Horizontal Layout */}
