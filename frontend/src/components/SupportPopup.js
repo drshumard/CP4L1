@@ -11,7 +11,7 @@ const SupportPopup = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
-  const turnstileRef = useRef(null);
+  const turnstileContainerRef = useRef(null);
   const widgetIdRef = useRef(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -34,8 +34,9 @@ const SupportPopup = () => {
 
   // Render Turnstile widget when modal opens and Turnstile is ready
   const renderTurnstile = useCallback(() => {
-    if (!turnstileRef.current || !window.turnstile || !isOpen) return;
+    if (!turnstileContainerRef.current || !window.turnstile || !isOpen) return;
 
+    // Remove existing widget if any
     if (widgetIdRef.current !== null) {
       try {
         window.turnstile.remove(widgetIdRef.current);
@@ -45,28 +46,33 @@ const SupportPopup = () => {
       }
     }
 
+    // Render new widget with a delay to ensure DOM is ready
     setTimeout(() => {
-      if (turnstileRef.current && window.turnstile && isOpen) {
+      if (turnstileContainerRef.current && window.turnstile && isOpen) {
         try {
-          widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+          widgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
             sitekey: TURNSTILE_SITE_KEY,
             callback: (token) => {
+              console.log('Turnstile verified');
               setTurnstileToken(token);
             },
             'expired-callback': () => {
+              console.log('Turnstile expired');
               setTurnstileToken(null);
             },
-            'error-callback': () => {
+            'error-callback': (error) => {
+              console.log('Turnstile error:', error);
               setTurnstileToken(null);
             },
             theme: 'light',
             size: 'normal'
           });
+          console.log('Turnstile widget ID:', widgetIdRef.current);
         } catch (e) {
           console.error('Error rendering Turnstile:', e);
         }
       }
-    }, 200);
+    }, 300);
   }, [isOpen]);
 
   useEffect(() => {
@@ -75,6 +81,7 @@ const SupportPopup = () => {
     }
   }, [isOpen, turnstileReady, renderTurnstile]);
 
+  // Cleanup on close
   useEffect(() => {
     if (!isOpen) {
       setTurnstileToken(null);
@@ -169,7 +176,7 @@ const SupportPopup = () => {
               {/* Horizontal Layout */}
               <div className="flex flex-col md:flex-row">
                 {/* Left Side - Header/Info */}
-                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-4 md:p-8 text-white md:w-1/3 relative">
+                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-4 md:p-8 text-white md:w-2/5 relative">
                   <button
                     onClick={() => setIsOpen(false)}
                     className="absolute top-3 right-3 text-white/80 hover:text-white transition-colors"
@@ -178,8 +185,9 @@ const SupportPopup = () => {
                   </button>
                   
                   <div className="flex items-center gap-3 md:mb-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center">
-                      <HelpCircle size={20} className="md:w-6 md:h-6" />
+                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-white/20 flex items-center justify-center">
+                      <HelpCircle size={20} className="md:hidden" />
+                      <HelpCircle size={28} className="hidden md:block" />
                     </div>
                     <div className="md:hidden">
                       <h2 className="text-lg font-bold">Need Help?</h2>
@@ -187,68 +195,69 @@ const SupportPopup = () => {
                     </div>
                   </div>
                   
-                  <h2 className="hidden md:block text-xl md:text-2xl font-bold mb-2">Need Help?</h2>
-                  <p className="hidden md:block text-white/80 text-sm">
-                    We're here to help! Fill out the form and we'll get back to you shortly.
+                  <h2 className="hidden md:block text-2xl font-bold mb-3">Need Help?</h2>
+                  <p className="hidden md:block text-white/80 text-sm mb-6">
+                    We're here to help! Fill out the form and we'll get back to you as soon as possible.
                   </p>
 
-                  {/* Turnstile on desktop - below text */}
-                  <div className="hidden md:block mt-6">
-                    <div className="flex items-center gap-2 text-white/80 text-xs mb-2">
-                      <ShieldCheck size={14} />
+                  {/* Turnstile Widget - Single location for both desktop and mobile */}
+                  <div className="hidden md:block">
+                    <div className="flex items-center gap-2 text-white/80 text-sm mb-3">
+                      <ShieldCheck size={16} />
                       <span>Security Verification</span>
                     </div>
                     <div 
-                      ref={turnstileRef}
-                      className="min-h-[65px]"
+                      ref={turnstileContainerRef}
+                      id="turnstile-container"
+                      className="min-h-[65px] bg-white/10 rounded-lg p-2"
                     >
                       {!turnstileReady && (
-                        <div className="flex items-center gap-2 text-white/60">
-                          <Loader2 className="animate-spin" size={14} />
-                          <span className="text-xs">Loading...</span>
+                        <div className="flex items-center justify-center gap-2 text-white/60 h-[50px]">
+                          <Loader2 className="animate-spin" size={16} />
+                          <span className="text-sm">Loading...</span>
                         </div>
                       )}
                     </div>
                     {turnstileToken && (
-                      <p className="text-xs text-white/90 flex items-center gap-1 mt-1">
-                        <ShieldCheck size={12} />
-                        Verified
+                      <p className="text-sm text-white flex items-center gap-1 mt-2">
+                        <ShieldCheck size={14} />
+                        Verified successfully
                       </p>
                     )}
                   </div>
                 </div>
 
                 {/* Right Side - Form */}
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 md:w-2/3">
-                  {/* Email and Phone - stacked on mobile, side by side on desktop */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Purchase Email <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        placeholder="your@email.com"
-                        required
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="+1 (555) 000-0000"
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      />
-                    </div>
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 md:w-3/5">
+                  {/* Email - full width on mobile */}
+                  <div className="mb-3">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                      Purchase Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="your@email.com"
+                      required
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Phone - full width on mobile */}
+                  <div className="mb-3">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
                   </div>
 
                   {/* Subject */}
@@ -263,7 +272,7 @@ const SupportPopup = () => {
                       onChange={handleChange}
                       placeholder="What is this about?"
                       required
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     />
                   </div>
 
@@ -276,22 +285,23 @@ const SupportPopup = () => {
                       name="message"
                       value={formData.message}
                       onChange={handleChange}
-                      placeholder="Please describe your issue..."
+                      placeholder="Please describe your issue in detail..."
                       required
-                      rows={2}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                      rows={3}
+                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
                     />
                   </div>
 
-                  {/* Turnstile on mobile - full width like other fields */}
+                  {/* Turnstile on mobile only */}
                   <div className="md:hidden mb-3">
                     <div className="flex items-center gap-2 text-gray-600 text-xs mb-2">
                       <ShieldCheck size={14} className="text-teal-600" />
                       <span>Security Verification</span>
                     </div>
                     <div 
-                      ref={!turnstileRef.current ? turnstileRef : undefined}
-                      className="flex justify-center"
+                      ref={turnstileContainerRef}
+                      id="turnstile-container-mobile"
+                      className="flex justify-center bg-gray-50 rounded-lg p-3 min-h-[70px]"
                     >
                       {!turnstileReady && (
                         <div className="flex items-center gap-2 text-gray-400">
@@ -312,7 +322,7 @@ const SupportPopup = () => {
                   <Button
                     type="submit"
                     disabled={isSubmitting || !turnstileToken}
-                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
