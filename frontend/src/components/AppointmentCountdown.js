@@ -131,7 +131,7 @@ const AppointmentCountdown = ({ appointment }) => {
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [appointment?.session_date]);
+  }, [appointment?.session_date, userTimezone]);
 
   if (!appointment) return null;
 
