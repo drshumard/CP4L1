@@ -197,18 +197,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     )
     try:
         token = credentials.credentials
-        logging.info(f"Decoding token with SECRET_KEY: {SECRET_KEY[:10]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
-        logging.info(f"Token payload sub: {user_id}")
         if user_id is None:
             raise credentials_exception
-    except JWTError as e:
-        logging.error(f"JWT decode error: {e}")
+    except JWTError:
         raise credentials_exception
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    logging.info(f"Found user: {user is not None}")
     if user is None:
         raise credentials_exception
     return user
