@@ -78,7 +78,13 @@ const StepsPage = () => {
   // Scroll to top when step changes
   useEffect(() => {
     if (progressData?.current_step) {
+      // Scroll both window and the main content container
       window.scrollTo(0, 0);
+      // Also scroll the main content container (which has overflow-y-auto)
+      const mainContent = document.querySelector('[data-main-content]');
+      if (mainContent) {
+        mainContent.scrollTo(0, 0);
+      }
     }
   }, [progressData?.current_step]);
 
