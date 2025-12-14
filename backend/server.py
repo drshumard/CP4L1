@@ -1244,7 +1244,7 @@ class UpdateUserRequest(BaseModel):
 
 @api_router.post("/admin/user/{user_id}/resend-welcome")
 async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admin_user)):
-    """Resend welcome email to user - Admin only"""
+    """Resend welcome email to user - Admin only (uses Resend API)"""
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
@@ -1256,59 +1256,62 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
     frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
     auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
     
-    # Note: We don't have the original password, so we send a generic welcome email
     try:
-        welcome_html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #0d9488; margin: 0;">Welcome Back!</h1>
-            </div>
-            <div style="padding: 30px; background: white; border-radius: 0 0 12px 12px;">
-                <p>Hello {user['name']},</p>
-                <p>You can access your wellness portal using the button below:</p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{auto_login_url}" style="background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                        Access Your Portal
-                    </a>
+        # Use Resend API (same as webhook emails)
+        resend.Emails.send({
+            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
+            "to": user["email"],
+            "subject": "Your Wellness Portal Access",
+            "html": f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);">
+                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                    <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
+                        <img src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Welcome Back!</h1>
+                    </div>
+                    <div style="padding: 30px;">
+                        <p style="color: #333; font-size: 16px;">Hello {user.get('name', 'there')},</p>
+                        <p style="color: #666; font-size: 15px;">You can access your wellness portal using the button below:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{auto_login_url}" style="display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                                Access Your Portal
+                            </a>
+                        </div>
+                        <p style="color: #999; font-size: 13px; text-align: center;">This link is valid for 7 days.</p>
+                    </div>
                 </div>
-                <p style="color: #666; font-size: 14px;">This link is valid for 7 days.</p>
-            </div>
-        </div>
-        """
+            </body>
+            </html>
+            """
+        })
         
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'Your Wellness Portal Access'
-        msg['From'] = os.environ.get('SMTP_FROM', 'portal@drshumard.com')
-        msg['To'] = user["email"]
-        msg.attach(MIMEText(welcome_html, 'html'))
-        
-        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', 587))
-        smtp_user = os.environ.get('SMTP_USER')
-        smtp_password = os.environ.get('SMTP_PASSWORD')
-        
-        if smtp_user and smtp_password:
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.sendmail(msg['From'], [user["email"]], msg.as_string())
+        logging.info(f"Welcome email resent to {user['email']} via Resend API")
         
         await log_activity(
             event_type="WELCOME_EMAIL_RESENT",
             user_email=user["email"],
             user_id=user_id,
-            details={"admin_id": admin_user["id"]},
+            details={"admin_id": admin_user["id"], "method": "resend_api"},
             status="success"
         )
         
         return {"message": "Welcome email sent successfully"}
     except Exception as e:
-        logging.error(f"Failed to send welcome email: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send email")
+        logging.error(f"Failed to send welcome email via Resend: {e}")
+        await log_activity(
+            event_type="WELCOME_EMAIL_RESENT",
+            user_email=user["email"],
+            user_id=user_id,
+            details={"admin_id": admin_user["id"], "error": str(e)},
+            status="failure"
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
 @api_router.post("/admin/user/{user_id}/set-password")
 async def set_user_password(user_id: str, request: SetPasswordRequest, admin_user: dict = Depends(get_admin_user)):
