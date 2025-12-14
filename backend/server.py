@@ -503,6 +503,94 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         "signup_url": signup_url
     }
 
+@api_router.post("/webhook/appointment")
+async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str = None):
+    """Receive appointment booking webhook from GHL - Protected by webhook secret"""
+    
+    # Validate webhook secret
+    if not WEBHOOK_SECRET or webhook_secret != WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook secret"
+        )
+    
+    # Check if user exists with this email
+    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    
+    # Store appointment data
+    appointment_data = {
+        "booking_id": data.booking_id,
+        "session_date": data.session_date,
+        "first_name": data.first_name,
+        "last_name": data.last_name,
+        "email": data.email,
+        "mobile_phone": data.mobile_phone,
+        "user_id": user["id"] if user else None,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Check if appointment with this booking_id already exists
+    existing_appointment = await db.appointments.find_one({"booking_id": data.booking_id})
+    if existing_appointment:
+        # Update existing appointment
+        await db.appointments.update_one(
+            {"booking_id": data.booking_id},
+            {"$set": appointment_data}
+        )
+        action = "updated"
+    else:
+        # Insert new appointment
+        await db.appointments.insert_one(appointment_data)
+        action = "created"
+    
+    # Log appointment creation/update
+    await log_activity(
+        event_type="APPOINTMENT_BOOKED",
+        user_email=data.email,
+        user_id=user["id"] if user else None,
+        details={
+            "booking_id": data.booking_id,
+            "session_date": data.session_date,
+            "action": action
+        },
+        status="success"
+    )
+    
+    return {
+        "message": f"Appointment {action} successfully",
+        "booking_id": data.booking_id,
+        "user_found": user is not None
+    }
+
+@api_router.get("/user/appointment")
+async def get_user_appointment(current_user: dict = Depends(get_current_user)):
+    """Get appointment details for the current user"""
+    
+    # First try to find appointment by user_id
+    appointment = await db.appointments.find_one(
+        {"user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    
+    # If not found, try to find by email
+    if not appointment:
+        appointment = await db.appointments.find_one(
+            {"email": current_user["email"]},
+            {"_id": 0}
+        )
+        
+        # If found by email, update appointment with user_id for future lookups
+        if appointment:
+            await db.appointments.update_one(
+                {"email": current_user["email"]},
+                {"$set": {"user_id": current_user["id"]}}
+            )
+    
+    if not appointment:
+        return {"appointment": None}
+    
+    return {"appointment": appointment}
+
 @api_router.post("/auth/signup", response_model=TokenResponse)
 async def signup(request: SignupRequest):
     """Auto-login user (password already sent via webhook)"""
