@@ -1232,6 +1232,276 @@ async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
     
     return {"message": "User deleted successfully", "user_id": user_id}
 
+class SetPasswordRequest(BaseModel):
+    password: str
+
+class UpdateUserRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+@api_router.post("/admin/user/{user_id}/resend-welcome")
+async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Resend welcome email to user - Admin only"""
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate new auto-login token
+    auto_login_token = await create_auto_login_token(user_id, user["email"])
+    
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
+    auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
+    
+    # Note: We don't have the original password, so we send a generic welcome email
+    try:
+        welcome_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0d9488; margin: 0;">Welcome Back!</h1>
+            </div>
+            <div style="padding: 30px; background: white; border-radius: 0 0 12px 12px;">
+                <p>Hello {user['name']},</p>
+                <p>You can access your wellness portal using the button below:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{auto_login_url}" style="background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                        Access Your Portal
+                    </a>
+                </div>
+                <p style="color: #666; font-size: 14px;">This link is valid for 7 days.</p>
+            </div>
+        </div>
+        """
+        
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Your Wellness Portal Access'
+        msg['From'] = os.environ.get('SMTP_FROM', 'portal@drshumard.com')
+        msg['To'] = user["email"]
+        msg.attach(MIMEText(welcome_html, 'html'))
+        
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_user = os.environ.get('SMTP_USER')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        
+        if smtp_user and smtp_password:
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.sendmail(msg['From'], [user["email"]], msg.as_string())
+        
+        await log_activity(
+            event_type="WELCOME_EMAIL_RESENT",
+            user_email=user["email"],
+            user_id=user_id,
+            details={"admin_id": admin_user["id"]},
+            status="success"
+        )
+        
+        return {"message": "Welcome email sent successfully"}
+    except Exception as e:
+        logging.error(f"Failed to send welcome email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send email")
+
+@api_router.post("/admin/user/{user_id}/set-password")
+async def set_user_password(user_id: str, request: SetPasswordRequest, admin_user: dict = Depends(get_admin_user)):
+    """Set a new password for user and email it to them - Admin only"""
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if len(request.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    
+    # Hash and update password
+    hashed_password = get_password_hash(request.password)
+    await db.users.update_one({"id": user_id}, {"$set": {"password_hash": hashed_password}})
+    
+    # Generate auto-login token
+    auto_login_token = await create_auto_login_token(user_id, user["email"])
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
+    auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
+    
+    # Send email with new password
+    try:
+        email_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0d9488; margin: 0;">Password Updated</h1>
+            </div>
+            <div style="padding: 30px; background: white; border-radius: 0 0 12px 12px;">
+                <p>Hello {user['name']},</p>
+                <p>Your password has been updated. Here are your new credentials:</p>
+                <div style="background: #f0fdfa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p style="margin: 5px 0;"><strong>Email:</strong> {user['email']}</p>
+                    <p style="margin: 5px 0;"><strong>New Password:</strong> {request.password}</p>
+                </div>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{auto_login_url}" style="background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                        Login Now
+                    </a>
+                </div>
+            </div>
+        </div>
+        """
+        
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Your Password Has Been Updated'
+        msg['From'] = os.environ.get('SMTP_FROM', 'portal@drshumard.com')
+        msg['To'] = user["email"]
+        msg.attach(MIMEText(email_html, 'html'))
+        
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_user = os.environ.get('SMTP_USER')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        
+        if smtp_user and smtp_password:
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.sendmail(msg['From'], [user["email"]], msg.as_string())
+        
+        await log_activity(
+            event_type="PASSWORD_SET_BY_ADMIN",
+            user_email=user["email"],
+            user_id=user_id,
+            details={"admin_id": admin_user["id"]},
+            status="success"
+        )
+        
+        return {"message": "Password updated and email sent"}
+    except Exception as e:
+        logging.error(f"Failed to send password email: {e}")
+        # Password was still updated, just email failed
+        return {"message": "Password updated but email failed to send"}
+
+@api_router.post("/admin/user/{user_id}/send-reset-link")
+async def send_password_reset_link(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Send password reset link to user - Admin only"""
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Generate reset token (24 hour validity)
+    reset_token = str(uuid4())
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    
+    # Store reset token
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"reset_token": reset_token, "reset_token_expires": expires_at.isoformat()}}
+    )
+    
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
+    reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+    
+    try:
+        email_html = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #0d9488; margin: 0;">Password Reset</h1>
+            </div>
+            <div style="padding: 30px; background: white; border-radius: 0 0 12px 12px;">
+                <p>Hello {user['name']},</p>
+                <p>A password reset was requested for your account. Click the button below to set a new password:</p>
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_url}" style="background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+                        Reset Password
+                    </a>
+                </div>
+                <p style="color: #666; font-size: 14px;">This link is valid for 24 hours. If you didn't request this, please ignore this email.</p>
+            </div>
+        </div>
+        """
+        
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = 'Reset Your Password'
+        msg['From'] = os.environ.get('SMTP_FROM', 'portal@drshumard.com')
+        msg['To'] = user["email"]
+        msg.attach(MIMEText(email_html, 'html'))
+        
+        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        smtp_user = os.environ.get('SMTP_USER')
+        smtp_password = os.environ.get('SMTP_PASSWORD')
+        
+        if smtp_user and smtp_password:
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.sendmail(msg['From'], [user["email"]], msg.as_string())
+        
+        await log_activity(
+            event_type="PASSWORD_RESET_LINK_SENT",
+            user_email=user["email"],
+            user_id=user_id,
+            details={"admin_id": admin_user["id"]},
+            status="success"
+        )
+        
+        return {"message": "Password reset link sent"}
+    except Exception as e:
+        logging.error(f"Failed to send reset link: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send email")
+
+@api_router.put("/admin/user/{user_id}")
+async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict = Depends(get_admin_user)):
+    """Update user information - Admin only"""
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Build update dict with only provided fields
+    update_data = {}
+    if request.name is not None:
+        update_data["name"] = request.name
+    if request.email is not None:
+        # Check if email is already taken by another user
+        existing = await db.users.find_one({"email": request.email, "id": {"$ne": user_id}})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already in use by another user")
+        update_data["email"] = request.email
+    if request.phone is not None:
+        update_data["phone"] = request.phone
+    if request.first_name is not None:
+        update_data["first_name"] = request.first_name
+    if request.last_name is not None:
+        update_data["last_name"] = request.last_name
+    
+    if not update_data:
+        return {"message": "No changes made"}
+    
+    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    await log_activity(
+        event_type="USER_UPDATED_BY_ADMIN",
+        user_email=request.email or user["email"],
+        user_id=user_id,
+        details={"admin_id": admin_user["id"], "updated_fields": list(update_data.keys())},
+        status="success"
+    )
+    
+    return {"message": "User updated successfully", "updated_fields": list(update_data.keys())}
+
 # Include router
 app.include_router(api_router)
 
