@@ -1397,7 +1397,7 @@ async def set_user_password(user_id: str, request: SetPasswordRequest, admin_use
 
 @api_router.post("/admin/user/{user_id}/send-reset-link")
 async def send_password_reset_link(user_id: str, admin_user: dict = Depends(get_admin_user)):
-    """Send password reset link to user - Admin only"""
+    """Send password reset link to user - Admin only (uses Resend API)"""
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
@@ -1417,57 +1417,61 @@ async def send_password_reset_link(user_id: str, admin_user: dict = Depends(get_
     reset_url = f"{frontend_url}/reset-password?token={reset_token}"
     
     try:
-        email_html = f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #0d9488; margin: 0;">Password Reset</h1>
-            </div>
-            <div style="padding: 30px; background: white; border-radius: 0 0 12px 12px;">
-                <p>Hello {user['name']},</p>
-                <p>A password reset was requested for your account. Click the button below to set a new password:</p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <a href="{reset_url}" style="background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">
-                        Reset Password
-                    </a>
+        # Use Resend API
+        resend.Emails.send({
+            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
+            "to": user["email"],
+            "subject": "Reset Your Password",
+            "html": f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);">
+                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                    <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
+                        <img src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Password Reset</h1>
+                    </div>
+                    <div style="padding: 30px;">
+                        <p style="color: #333; font-size: 16px;">Hello {user.get('name', 'there')},</p>
+                        <p style="color: #666; font-size: 15px;">A password reset was requested for your account. Click the button below to set a new password:</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="{reset_url}" style="display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                                Reset Password
+                            </a>
+                        </div>
+                        <p style="color: #999; font-size: 13px; text-align: center;">This link is valid for 24 hours. If you didn't request this, please ignore this email.</p>
+                    </div>
                 </div>
-                <p style="color: #666; font-size: 14px;">This link is valid for 24 hours. If you didn't request this, please ignore this email.</p>
-            </div>
-        </div>
-        """
+            </body>
+            </html>
+            """
+        })
         
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'Reset Your Password'
-        msg['From'] = os.environ.get('SMTP_FROM', 'portal@drshumard.com')
-        msg['To'] = user["email"]
-        msg.attach(MIMEText(email_html, 'html'))
-        
-        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', 587))
-        smtp_user = os.environ.get('SMTP_USER')
-        smtp_password = os.environ.get('SMTP_PASSWORD')
-        
-        if smtp_user and smtp_password:
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.sendmail(msg['From'], [user["email"]], msg.as_string())
+        logging.info(f"Password reset link sent to {user['email']} via Resend API")
         
         await log_activity(
             event_type="PASSWORD_RESET_LINK_SENT",
             user_email=user["email"],
             user_id=user_id,
-            details={"admin_id": admin_user["id"]},
+            details={"admin_id": admin_user["id"], "method": "resend_api"},
             status="success"
         )
         
         return {"message": "Password reset link sent"}
     except Exception as e:
-        logging.error(f"Failed to send reset link: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send email")
+        logging.error(f"Failed to send reset link via Resend: {e}")
+        await log_activity(
+            event_type="PASSWORD_RESET_LINK_SENT",
+            user_email=user["email"],
+            user_id=user_id,
+            details={"admin_id": admin_user["id"], "error": str(e)},
+            status="failure"
+        )
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
 @api_router.put("/admin/user/{user_id}")
 async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict = Depends(get_admin_user)):
