@@ -60,7 +60,7 @@ const SupportPopup = () => {
               setTurnstileToken(null);
             },
             theme: 'light',
-            size: 'compact'
+            size: 'normal'
           });
         } catch (e) {
           console.error('Error rendering Turnstile:', e);
