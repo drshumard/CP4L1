@@ -214,6 +214,18 @@ const OutcomePage = () => {
           </motion.div>
         </motion.div>
 
+        {/* Appointment Countdown - Show if appointment exists */}
+        {appointmentData && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 0.8 }}
+            className="mb-16 max-w-2xl mx-auto"
+          >
+            <AppointmentCountdown appointment={appointmentData} />
+          </motion.div>
+        )}
+
         {/* Achievements Grid */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
