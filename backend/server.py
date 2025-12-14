@@ -124,6 +124,25 @@ class TaskCompleteRequest(BaseModel):
 class GHLWebhookData(BaseModel):
     email: EmailStr
     name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+class AppointmentWebhookData(BaseModel):
+    booking_id: str
+    session_date: str  # UTC format: 2025-12-24T00:30:00Z
+    first_name: str
+    last_name: str
+    email: EmailStr
+    mobile_phone: Optional[str] = None
+
+class AppointmentResponse(BaseModel):
+    booking_id: str
+    session_date: str
+    first_name: str
+    last_name: str
+    email: str
+    mobile_phone: Optional[str] = None
+    created_at: str
 
 # Helper Functions
 def verify_password(plain_password, hashed_password):
