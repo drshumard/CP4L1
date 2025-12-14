@@ -136,6 +136,9 @@ class AppointmentWebhookData(BaseModel):
     email: EmailStr
     mobile_phone: Optional[str] = None
 
+class AppointmentCancellationData(BaseModel):
+    booking_id: str
+
 class AppointmentResponse(BaseModel):
     booking_id: str
     session_date: str
