@@ -269,6 +269,9 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         user_dict['first_name'] = data.first_name
     if data.last_name:
         user_dict['last_name'] = data.last_name
+    # Store phone if provided
+    if data.phone:
+        user_dict['phone'] = data.phone
     
     await db.users.insert_one(user_dict)
     
@@ -277,7 +280,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         event_type="USER_CREATED",
         user_email=data.email,
         user_id=user.id,
-        details={"name": full_name, "first_name": data.first_name, "last_name": data.last_name, "source": "ghl_webhook"},
+        details={"name": full_name, "first_name": data.first_name, "last_name": data.last_name, "phone": data.phone, "source": "ghl_webhook"},
         status="success"
     )
     
