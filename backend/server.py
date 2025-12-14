@@ -630,6 +630,59 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
         "matched_by": matched_by
     }
 
+@api_router.post("/webhook/appointment/cancel")
+async def cancel_appointment_webhook(data: AppointmentCancellationData, webhook_secret: str = None):
+    """Receive appointment cancellation webhook from GHL - Protected by webhook secret"""
+    
+    # Validate webhook secret
+    if not WEBHOOK_SECRET or webhook_secret != WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook secret"
+        )
+    
+    # Find the appointment
+    appointment = await db.appointments.find_one({"booking_id": data.booking_id}, {"_id": 0})
+    
+    if not appointment:
+        # Log the cancellation attempt for non-existent appointment
+        await log_activity(
+            event_type="APPOINTMENT_CANCEL_NOT_FOUND",
+            details={
+                "booking_id": data.booking_id,
+                "message": "Cancellation received but no matching appointment found"
+            },
+            status="warning"
+        )
+        return {
+            "message": "Appointment not found",
+            "booking_id": data.booking_id,
+            "cancelled": False
+        }
+    
+    # Delete the appointment
+    await db.appointments.delete_one({"booking_id": data.booking_id})
+    
+    # Log the cancellation
+    await log_activity(
+        event_type="APPOINTMENT_CANCELLED",
+        user_email=appointment.get("email"),
+        user_id=appointment.get("user_id"),
+        details={
+            "booking_id": data.booking_id,
+            "session_date": appointment.get("session_date"),
+            "first_name": appointment.get("first_name"),
+            "last_name": appointment.get("last_name")
+        },
+        status="success"
+    )
+    
+    return {
+        "message": "Appointment cancelled successfully",
+        "booking_id": data.booking_id,
+        "cancelled": True
+    }
+
 @api_router.get("/user/appointment")
 async def get_user_appointment(current_user: dict = Depends(get_current_user)):
     """Get appointment details for the current user"""
