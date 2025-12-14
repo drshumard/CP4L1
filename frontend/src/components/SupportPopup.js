@@ -268,7 +268,14 @@ const SupportPopup = () => {
                   <div 
                     ref={turnstileRef}
                     className="flex justify-center min-h-[65px]"
-                  />
+                  >
+                    {!turnstileReady && (
+                      <div className="flex items-center gap-2 text-gray-400">
+                        <Loader2 className="animate-spin" size={16} />
+                        <span className="text-sm">Loading verification...</span>
+                      </div>
+                    )}
+                  </div>
                   {turnstileToken && (
                     <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1">
                       <ShieldCheck size={14} />
