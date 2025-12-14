@@ -6,6 +6,7 @@ import { Card, CardContent } from '../components/ui/card';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Trophy, Star, Heart, TrendingUp, Calendar, CheckCircle2, Sparkles, Award, Home } from 'lucide-react';
+import AppointmentCountdown from '../components/AppointmentCountdown';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
