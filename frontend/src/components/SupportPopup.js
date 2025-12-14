@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
@@ -10,7 +10,7 @@ const SupportPopup = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
-  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
+  const [turnstileReady, setTurnstileReady] = useState(false);
   const turnstileRef = useRef(null);
   const widgetIdRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -20,40 +20,72 @@ const SupportPopup = () => {
     message: ''
   });
 
-  // Initialize Turnstile when modal opens
+  // Check if Turnstile is loaded
   useEffect(() => {
-    if (isOpen && turnstileRef.current && window.turnstile) {
-      // Clear any existing widget
-      if (widgetIdRef.current) {
-        try {
-          window.turnstile.remove(widgetIdRef.current);
-        } catch (e) {
-          // Widget might already be removed
-        }
+    const checkTurnstile = () => {
+      if (window.turnstile) {
+        setTurnstileReady(true);
+      } else {
+        setTimeout(checkTurnstile, 100);
       }
+    };
+    checkTurnstile();
+  }, []);
 
-      // Render new widget
-      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
-        sitekey: TURNSTILE_SITE_KEY,
-        callback: (token) => {
-          setTurnstileToken(token);
-          setTurnstileLoaded(true);
-        },
-        'expired-callback': () => {
-          setTurnstileToken(null);
-        },
-        'error-callback': () => {
-          setTurnstileToken(null);
-          toast.error('Security verification failed. Please try again.');
-        },
-        theme: 'light',
-        size: 'normal'
-      });
+  // Render Turnstile widget when modal opens and Turnstile is ready
+  const renderTurnstile = useCallback(() => {
+    if (!turnstileRef.current || !window.turnstile || !isOpen) return;
+
+    // Clear any existing widget
+    if (widgetIdRef.current !== null) {
+      try {
+        window.turnstile.remove(widgetIdRef.current);
+        widgetIdRef.current = null;
+      } catch (e) {
+        console.log('Error removing widget:', e);
+      }
     }
 
-    // Cleanup on close
-    return () => {
-      if (!isOpen && widgetIdRef.current) {
+    // Small delay to ensure DOM is ready
+    setTimeout(() => {
+      if (turnstileRef.current && window.turnstile && isOpen) {
+        try {
+          widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+            sitekey: TURNSTILE_SITE_KEY,
+            callback: (token) => {
+              console.log('Turnstile token received');
+              setTurnstileToken(token);
+            },
+            'expired-callback': () => {
+              console.log('Turnstile token expired');
+              setTurnstileToken(null);
+            },
+            'error-callback': (error) => {
+              console.log('Turnstile error:', error);
+              setTurnstileToken(null);
+            },
+            theme: 'light',
+            size: 'normal'
+          });
+          console.log('Turnstile widget rendered, ID:', widgetIdRef.current);
+        } catch (e) {
+          console.error('Error rendering Turnstile:', e);
+        }
+      }
+    }, 200);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && turnstileReady) {
+      renderTurnstile();
+    }
+  }, [isOpen, turnstileReady, renderTurnstile]);
+
+  // Cleanup on close
+  useEffect(() => {
+    if (!isOpen) {
+      setTurnstileToken(null);
+      if (widgetIdRef.current !== null && window.turnstile) {
         try {
           window.turnstile.remove(widgetIdRef.current);
           widgetIdRef.current = null;
@@ -61,14 +93,6 @@ const SupportPopup = () => {
           // Widget might already be removed
         }
       }
-    };
-  }, [isOpen]);
-
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setTurnstileToken(null);
-      setTurnstileLoaded(false);
     }
   }, [isOpen]);
 
@@ -89,7 +113,7 @@ const SupportPopup = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('https://hooks.zapier.com/hooks/catch/1815480/uf7u8ms/', {
+      await fetch('https://hooks.zapier.com/hooks/catch/1815480/uf7u8ms/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -243,7 +267,7 @@ const SupportPopup = () => {
                   </div>
                   <div 
                     ref={turnstileRef}
-                    className="flex justify-center"
+                    className="flex justify-center min-h-[65px]"
                   />
                   {turnstileToken && (
                     <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1">
