@@ -283,11 +283,15 @@ const SupportPopup = () => {
                     />
                   </div>
 
-                  {/* Turnstile on mobile - compact */}
-                  <div className="md:hidden mb-3 flex items-center justify-between">
+                  {/* Turnstile on mobile - full width like other fields */}
+                  <div className="md:hidden mb-3">
+                    <div className="flex items-center gap-2 text-gray-600 text-xs mb-2">
+                      <ShieldCheck size={14} className="text-teal-600" />
+                      <span>Security Verification</span>
+                    </div>
                     <div 
                       ref={!turnstileRef.current ? turnstileRef : undefined}
-                      className="transform scale-90 origin-left"
+                      className="flex justify-center"
                     >
                       {!turnstileReady && (
                         <div className="flex items-center gap-2 text-gray-400">
@@ -297,10 +301,10 @@ const SupportPopup = () => {
                       )}
                     </div>
                     {turnstileToken && (
-                      <span className="text-xs text-green-600 flex items-center gap-1">
+                      <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1 mt-2">
                         <ShieldCheck size={12} />
                         Verified
-                      </span>
+                      </p>
                     )}
                   </div>
 
