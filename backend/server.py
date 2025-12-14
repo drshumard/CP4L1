@@ -520,6 +520,64 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
     
     # Check if user exists with this email
     user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    matched_by = "email" if user else None
+    
+    # If no user found by email, try to match by first_name + last_name + phone
+    if not user and data.mobile_phone:
+        # Normalize phone number for comparison (remove spaces, dashes, etc.)
+        normalized_phone = ''.join(filter(str.isdigit, data.mobile_phone))
+        
+        # Find users and check for matching name + phone
+        async for potential_user in db.users.find({}, {"_id": 0}):
+            user_phone = potential_user.get("phone", "")
+            normalized_user_phone = ''.join(filter(str.isdigit, user_phone)) if user_phone else ""
+            
+            user_first = potential_user.get("first_name", "").lower().strip()
+            user_last = potential_user.get("last_name", "").lower().strip()
+            
+            # Check exact match on first_name, last_name, and phone
+            if (user_first == data.first_name.lower().strip() and 
+                user_last == data.last_name.lower().strip() and
+                normalized_user_phone and normalized_phone and
+                normalized_user_phone == normalized_phone):
+                user = potential_user
+                matched_by = "name_phone"
+                
+                # Store appointment email as secondary_email for this user
+                await db.users.update_one(
+                    {"id": user["id"]},
+                    {"$set": {"secondary_email": data.email}}
+                )
+                
+                # Log the secondary email addition
+                await log_activity(
+                    event_type="SECONDARY_EMAIL_ADDED",
+                    user_email=user["email"],
+                    user_id=user["id"],
+                    details={
+                        "secondary_email": data.email,
+                        "matched_by": "first_name + last_name + phone",
+                        "booking_id": data.booking_id
+                    },
+                    status="success"
+                )
+                break
+    
+    # If still no user found, log to admin
+    if not user:
+        await log_activity(
+            event_type="APPOINTMENT_NO_USER_MATCH",
+            user_email=data.email,
+            details={
+                "booking_id": data.booking_id,
+                "session_date": data.session_date,
+                "first_name": data.first_name,
+                "last_name": data.last_name,
+                "mobile_phone": data.mobile_phone,
+                "message": "Appointment received but no matching user found by email or name+phone"
+            },
+            status="warning"
+        )
     
     # Store appointment data
     appointment_data = {
@@ -530,6 +588,7 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
         "email": data.email,
         "mobile_phone": data.mobile_phone,
         "user_id": user["id"] if user else None,
+        "matched_by": matched_by,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
@@ -555,7 +614,8 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
         details={
             "booking_id": data.booking_id,
             "session_date": data.session_date,
-            "action": action
+            "action": action,
+            "matched_by": matched_by
         },
         status="success"
     )
@@ -563,7 +623,8 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
     return {
         "message": f"Appointment {action} successfully",
         "booking_id": data.booking_id,
-        "user_found": user is not None
+        "user_found": user is not None,
+        "matched_by": matched_by
     }
 
 @api_router.get("/user/appointment")
