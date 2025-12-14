@@ -54,7 +54,7 @@ const AppointmentCountdown = ({ appointment }) => {
         const locale = navigator.language || navigator.userLanguage || 'en-US';
         
         // Use the browser timezone but note it's from locale
-        setUserTimezone(`${browserTimezone} (from locale: ${locale})`);
+        setUserTimezone(browserTimezone);
       } catch (e) {
         setUserTimezone('Local Time');
       }
@@ -64,28 +64,41 @@ const AppointmentCountdown = ({ appointment }) => {
   }, []);
 
   useEffect(() => {
-    if (!appointment?.session_date) return;
+    if (!appointment?.session_date || !userTimezone) return;
 
     const appointmentDate = new Date(appointment.session_date);
+    
+    // Extract clean timezone name (remove locale info if present)
+    const cleanTimezone = userTimezone.split(' (')[0];
 
-    // Format date and time in user's timezone
+    // Format date and time in detected timezone
     const dateOptions = {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: cleanTimezone !== 'Local Time' ? cleanTimezone : undefined
     };
     
     const timeOptions = {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
+      timeZone: cleanTimezone !== 'Local Time' ? cleanTimezone : undefined
     };
 
-    setFormattedDateTime({
-      date: appointmentDate.toLocaleDateString('en-US', dateOptions),
-      time: appointmentDate.toLocaleTimeString('en-US', timeOptions)
-    });
+    try {
+      setFormattedDateTime({
+        date: appointmentDate.toLocaleDateString('en-US', dateOptions),
+        time: appointmentDate.toLocaleTimeString('en-US', timeOptions)
+      });
+    } catch (e) {
+      // Fallback if timezone is invalid
+      setFormattedDateTime({
+        date: appointmentDate.toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+        time: appointmentDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      });
+    }
 
     const calculateTimeLeft = () => {
       const now = new Date();
