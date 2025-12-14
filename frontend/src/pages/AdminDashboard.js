@@ -383,16 +383,28 @@ const AdminDashboard = () => {
                       onClick={() => openUserDetails(user)}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-semibold">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
                             {user.name?.charAt(0)?.toUpperCase() || 'U'}
                           </div>
-                          <div>
-                            <p className="font-medium text-gray-800">{user.name}</p>
-                            <p className="text-sm text-gray-500">{user.email}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-gray-800 truncate">{user.name}</p>
+                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                            {/* Tags on mobile - below email */}
+                            <div className="flex items-center gap-1.5 mt-1 md:hidden">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getStepColor(user.current_step)}`}>
+                                Step {user.current_step}
+                              </span>
+                              {user.role === 'admin' && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
+                                  Admin
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        {/* Tags on desktop - right side */}
+                        <div className="hidden md:flex items-center gap-3 flex-shrink-0">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStepColor(user.current_step)}`}>
                             Step {user.current_step}
                           </span>
@@ -403,6 +415,7 @@ const AdminDashboard = () => {
                           )}
                           <ChevronRight className="text-gray-400" size={18} />
                         </div>
+                        <ChevronRight className="text-gray-400 md:hidden flex-shrink-0" size={18} />
                       </div>
                     </motion.div>
                   ))}
