@@ -220,11 +220,11 @@ const SupportPopup = () => {
 
                 {/* Right Side - Form */}
                 <form onSubmit={handleSubmit} className="p-4 md:p-8 md:w-2/3">
-                  {/* Two column grid for email and phone */}
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                  {/* Email and Phone - stacked on mobile, side by side on desktop */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Email <span className="text-red-500">*</span>
+                        Purchase Email <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="email"
@@ -238,7 +238,7 @@ const SupportPopup = () => {
                     </div>
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Phone
+                        Phone Number
                       </label>
                       <input
                         type="tel"
