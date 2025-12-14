@@ -82,6 +82,7 @@ function App() {
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
           <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
         </Routes>
+        <SupportPopup />
         <Toaster position="top-center" />
       </div>
     </BrowserRouter>
