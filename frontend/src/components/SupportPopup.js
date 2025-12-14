@@ -219,9 +219,9 @@ const SupportPopup = () => {
                 </div>
 
                 {/* Right Side - Form */}
-                <form onSubmit={handleSubmit} className="p-6 md:p-8 md:w-2/3">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 md:w-2/3">
                   {/* Two column grid for email and phone */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">
                         Email <span className="text-red-500">*</span>
@@ -252,7 +252,7 @@ const SupportPopup = () => {
                   </div>
 
                   {/* Subject */}
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <label className="text-xs font-medium text-gray-600 mb-1 block">
                       Subject <span className="text-red-500">*</span>
                     </label>
@@ -268,7 +268,7 @@ const SupportPopup = () => {
                   </div>
 
                   {/* Message */}
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <label className="text-xs font-medium text-gray-600 mb-1 block">
                       Message <span className="text-red-500">*</span>
                     </label>
@@ -278,35 +278,37 @@ const SupportPopup = () => {
                       onChange={handleChange}
                       placeholder="Please describe your issue..."
                       required
-                      rows={3}
+                      rows={2}
                       className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
                     />
                   </div>
 
-                  {/* Turnstile on mobile */}
-                  <div className="md:hidden mb-4">
-                    <div className="flex items-center gap-2 text-gray-600 text-xs mb-2">
-                      <ShieldCheck size={14} className="text-teal-600" />
-                      <span>Security Check</span>
-                    </div>
+                  {/* Turnstile on mobile - compact */}
+                  <div className="md:hidden mb-3 flex items-center justify-between">
                     <div 
                       ref={!turnstileRef.current ? turnstileRef : undefined}
-                      className="flex justify-center"
+                      className="transform scale-90 origin-left"
                     >
                       {!turnstileReady && (
                         <div className="flex items-center gap-2 text-gray-400">
                           <Loader2 className="animate-spin" size={14} />
-                          <span className="text-xs">Loading...</span>
+                          <span className="text-xs">Loading verification...</span>
                         </div>
                       )}
                     </div>
+                    {turnstileToken && (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <ShieldCheck size={12} />
+                        Verified
+                      </span>
+                    )}
                   </div>
 
                   {/* Submit Button */}
                   <Button
                     type="submit"
                     disabled={isSubmitting || !turnstileToken}
-                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
@@ -320,12 +322,6 @@ const SupportPopup = () => {
                       </>
                     )}
                   </Button>
-
-                  {!turnstileToken && (
-                    <p className="text-xs text-gray-400 text-center mt-2">
-                      Complete security check to send
-                    </p>
-                  )}
                 </form>
               </div>
             </motion.div>
