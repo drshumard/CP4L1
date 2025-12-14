@@ -307,17 +307,13 @@ const SupportPopup = () => {
                       <ShieldCheck size={14} className="text-teal-600" />
                       <span>Security Verification</span>
                     </div>
-                    <div 
-                      ref={mobileTurnstileRef}
-                      className="flex justify-center bg-gray-50 rounded-lg p-3 min-h-[70px]"
-                    >
-                      {!turnstileReady && (
-                        <div className="flex items-center gap-2 text-gray-400">
-                          <Loader2 className="animate-spin" size={14} />
-                          <span className="text-xs">Loading verification...</span>
-                        </div>
-                      )}
-                    </div>
+                    <div ref={mobileTurnstileRef} className="flex justify-center" />
+                    {!turnstileReady && (
+                      <div className="flex items-center justify-center gap-2 text-gray-400 mt-2">
+                        <Loader2 className="animate-spin" size={14} />
+                        <span className="text-xs">Loading verification...</span>
+                      </div>
+                    )}
                     {turnstileToken && (
                       <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1 mt-2">
                         <ShieldCheck size={12} />
