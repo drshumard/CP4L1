@@ -126,6 +126,7 @@ class GHLWebhookData(BaseModel):
     name: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    phone: Optional[str] = None
 
 class AppointmentWebhookData(BaseModel):
     booking_id: str
