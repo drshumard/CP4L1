@@ -11,7 +11,9 @@ const SupportPopup = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
   const [turnstileReady, setTurnstileReady] = useState(false);
-  const turnstileContainerRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const desktopTurnstileRef = useRef(null);
+  const mobileTurnstileRef = useRef(null);
   const widgetIdRef = useRef(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -19,6 +21,16 @@ const SupportPopup = () => {
     subject: '',
     message: ''
   });
+
+  // Check screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Check if Turnstile is loaded
   useEffect(() => {
@@ -34,7 +46,8 @@ const SupportPopup = () => {
 
   // Render Turnstile widget when modal opens and Turnstile is ready
   const renderTurnstile = useCallback(() => {
-    if (!turnstileContainerRef.current || !window.turnstile || !isOpen) return;
+    const containerRef = isMobile ? mobileTurnstileRef : desktopTurnstileRef;
+    if (!containerRef.current || !window.turnstile || !isOpen) return;
 
     // Remove existing widget if any
     if (widgetIdRef.current !== null) {
@@ -48,9 +61,10 @@ const SupportPopup = () => {
 
     // Render new widget with a delay to ensure DOM is ready
     setTimeout(() => {
-      if (turnstileContainerRef.current && window.turnstile && isOpen) {
+      const container = isMobile ? mobileTurnstileRef.current : desktopTurnstileRef.current;
+      if (container && window.turnstile && isOpen) {
         try {
-          widgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+          widgetIdRef.current = window.turnstile.render(container, {
             sitekey: TURNSTILE_SITE_KEY,
             callback: (token) => {
               console.log('Turnstile verified');
@@ -73,7 +87,7 @@ const SupportPopup = () => {
         }
       }
     }, 300);
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
   useEffect(() => {
     if (isOpen && turnstileReady) {
@@ -200,15 +214,14 @@ const SupportPopup = () => {
                     We're here to help! Fill out the form and we'll get back to you as soon as possible.
                   </p>
 
-                  {/* Turnstile Widget - Single location for both desktop and mobile */}
+                  {/* Turnstile Widget - Desktop only */}
                   <div className="hidden md:block">
                     <div className="flex items-center gap-2 text-white/80 text-sm mb-3">
                       <ShieldCheck size={16} />
                       <span>Security Verification</span>
                     </div>
                     <div 
-                      ref={turnstileContainerRef}
-                      id="turnstile-container"
+                      ref={desktopTurnstileRef}
                       className="min-h-[65px] bg-white/10 rounded-lg p-2"
                     >
                       {!turnstileReady && (
@@ -299,8 +312,7 @@ const SupportPopup = () => {
                       <span>Security Verification</span>
                     </div>
                     <div 
-                      ref={turnstileContainerRef}
-                      id="turnstile-container-mobile"
+                      ref={mobileTurnstileRef}
                       className="flex justify-center bg-gray-50 rounded-lg p-3 min-h-[70px]"
                     >
                       {!turnstileReady && (
