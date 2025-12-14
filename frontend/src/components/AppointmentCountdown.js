@@ -14,14 +14,53 @@ const AppointmentCountdown = ({ appointment }) => {
   const [formattedDateTime, setFormattedDateTime] = useState({ date: '', time: '' });
   const [progress, setProgress] = useState(0);
 
-  // Detect user timezone
+  // Detect user timezone via IP geolocation, then browser locale fallback
   useEffect(() => {
-    try {
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      setUserTimezone(timezone);
-    } catch (e) {
-      setUserTimezone('Local Time');
-    }
+    const detectTimezone = async () => {
+      // Method 1: Try IP geolocation
+      try {
+        const response = await fetch('https://ipapi.co/json/', { timeout: 5000 });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.timezone) {
+            setUserTimezone(data.timezone);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log('IP geolocation failed, trying alternative...');
+      }
+
+      // Method 2: Try alternative IP geolocation service
+      try {
+        const response = await fetch('https://worldtimeapi.org/api/ip', { timeout: 5000 });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.timezone) {
+            setUserTimezone(data.timezone);
+            return;
+          }
+        }
+      } catch (e) {
+        console.log('Alternative IP geolocation failed, using browser locale...');
+      }
+
+      // Method 3: Infer from browser locale and Intl API
+      try {
+        // Get timezone from Intl API (based on system settings)
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
+        // Also get locale info
+        const locale = navigator.language || navigator.userLanguage || 'en-US';
+        
+        // Use the browser timezone but note it's from locale
+        setUserTimezone(`${browserTimezone} (from locale: ${locale})`);
+      } catch (e) {
+        setUserTimezone('Local Time');
+      }
+    };
+
+    detectTimezone();
   }, []);
 
   useEffect(() => {
