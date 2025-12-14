@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+
+const TURNSTILE_SITE_KEY = '0x4AAAAAACGpT_eiqf1jAJaS';
 
 const SupportPopup = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
+  const [turnstileLoaded, setTurnstileLoaded] = useState(false);
+  const turnstileRef = useRef(null);
+  const widgetIdRef = useRef(null);
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -14,12 +20,69 @@ const SupportPopup = () => {
     message: ''
   });
 
+  // Initialize Turnstile when modal opens
+  useEffect(() => {
+    if (isOpen && turnstileRef.current && window.turnstile) {
+      // Clear any existing widget
+      if (widgetIdRef.current) {
+        try {
+          window.turnstile.remove(widgetIdRef.current);
+        } catch (e) {
+          // Widget might already be removed
+        }
+      }
+
+      // Render new widget
+      widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: (token) => {
+          setTurnstileToken(token);
+          setTurnstileLoaded(true);
+        },
+        'expired-callback': () => {
+          setTurnstileToken(null);
+        },
+        'error-callback': () => {
+          setTurnstileToken(null);
+          toast.error('Security verification failed. Please try again.');
+        },
+        theme: 'light',
+        size: 'normal'
+      });
+    }
+
+    // Cleanup on close
+    return () => {
+      if (!isOpen && widgetIdRef.current) {
+        try {
+          window.turnstile.remove(widgetIdRef.current);
+          widgetIdRef.current = null;
+        } catch (e) {
+          // Widget might already be removed
+        }
+      }
+    };
+  }, [isOpen]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setTurnstileToken(null);
+      setTurnstileLoaded(false);
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Validation
     if (!formData.email || !formData.subject || !formData.message) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (!turnstileToken) {
+      toast.error('Please complete the security verification');
       return;
     }
 
@@ -37,6 +100,7 @@ const SupportPopup = () => {
           phone_number: formData.phone,
           subject: formData.subject,
           issue_description: formData.message,
+          turnstile_token: turnstileToken,
           submitted_at: new Date().toISOString()
         }),
       });
@@ -44,6 +108,7 @@ const SupportPopup = () => {
       // With no-cors, we can't read the response, but the request was sent
       toast.success('Support request sent! We\'ll get back to you soon.');
       setFormData({ email: '', phone: '', subject: '', message: '' });
+      setTurnstileToken(null);
       setIsOpen(false);
     } catch (error) {
       console.error('Support request error:', error);
@@ -88,7 +153,7 @@ const SupportPopup = () => {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -170,11 +235,29 @@ const SupportPopup = () => {
                   />
                 </div>
 
+                {/* Cloudflare Turnstile */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                    <ShieldCheck size={16} className="text-teal-600" />
+                    <span>Security Verification</span>
+                  </div>
+                  <div 
+                    ref={turnstileRef}
+                    className="flex justify-center"
+                  />
+                  {turnstileToken && (
+                    <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1">
+                      <ShieldCheck size={14} />
+                      Verified
+                    </p>
+                  )}
+                </div>
+
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
+                  disabled={isSubmitting || !turnstileToken}
+                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
@@ -188,6 +271,12 @@ const SupportPopup = () => {
                     </>
                   )}
                 </Button>
+
+                {!turnstileToken && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Please complete the security verification above to send your message.
+                  </p>
+                )}
               </form>
             </motion.div>
           </motion.div>
