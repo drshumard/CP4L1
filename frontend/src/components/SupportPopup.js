@@ -169,22 +169,26 @@ const SupportPopup = () => {
               {/* Horizontal Layout */}
               <div className="flex flex-col md:flex-row">
                 {/* Left Side - Header/Info */}
-                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-6 md:p-8 text-white md:w-1/3 relative">
+                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-4 md:p-8 text-white md:w-1/3 relative">
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="absolute top-3 right-3 md:top-4 md:right-4 text-white/80 hover:text-white transition-colors"
+                    className="absolute top-3 right-3 text-white/80 hover:text-white transition-colors"
                   >
                     <X size={20} />
                   </button>
                   
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                      <HelpCircle size={24} />
+                  <div className="flex items-center gap-3 md:mb-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center">
+                      <HelpCircle size={20} className="md:w-6 md:h-6" />
+                    </div>
+                    <div className="md:hidden">
+                      <h2 className="text-lg font-bold">Need Help?</h2>
+                      <p className="text-white/80 text-xs">We'll get back to you shortly</p>
                     </div>
                   </div>
                   
-                  <h2 className="text-xl md:text-2xl font-bold mb-2">Need Help?</h2>
-                  <p className="text-white/80 text-sm">
+                  <h2 className="hidden md:block text-xl md:text-2xl font-bold mb-2">Need Help?</h2>
+                  <p className="hidden md:block text-white/80 text-sm">
                     We're here to help! Fill out the form and we'll get back to you shortly.
                   </p>
 
