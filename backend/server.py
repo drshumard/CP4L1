@@ -637,7 +637,7 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     )
     
-    # If not found, try to find by email
+    # If not found, try to find by primary email
     if not appointment:
         appointment = await db.appointments.find_one(
             {"email": current_user["email"]},
@@ -650,6 +650,25 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
                 {"email": current_user["email"]},
                 {"$set": {"user_id": current_user["id"]}}
             )
+    
+    # If still not found, check if user has secondary_email and search by that
+    if not appointment:
+        # Get fresh user data to check for secondary_email
+        user_data = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
+        secondary_email = user_data.get("secondary_email") if user_data else None
+        
+        if secondary_email:
+            appointment = await db.appointments.find_one(
+                {"email": secondary_email},
+                {"_id": 0}
+            )
+            
+            # If found by secondary_email, update appointment with user_id
+            if appointment:
+                await db.appointments.update_one(
+                    {"email": secondary_email},
+                    {"$set": {"user_id": current_user["id"]}}
+                )
     
     if not appointment:
         return {"appointment": None}
