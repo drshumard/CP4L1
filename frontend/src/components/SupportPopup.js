@@ -215,12 +215,16 @@ const SupportPopup = () => {
                   </p>
 
                   {/* Turnstile Widget - Desktop only */}
-                  <div className="hidden md:block mt-auto">
+                  <div className="hidden md:block mt-auto overflow-hidden">
                     <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
                       <ShieldCheck size={16} />
                       <span>Security Verification</span>
                     </div>
-                    <div ref={desktopTurnstileRef} />
+                    <div 
+                      ref={desktopTurnstileRef} 
+                      className="overflow-hidden"
+                      style={{ maxWidth: '100%', transform: 'scale(0.9)', transformOrigin: 'left top' }}
+                    />
                     {!turnstileReady && (
                       <div className="flex items-center gap-2 text-white/60 mt-2">
                         <Loader2 className="animate-spin" size={16} />
