@@ -252,27 +252,40 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40" data-testid="admin-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
               <img 
                 src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" 
                 alt="Logo" 
                 className="h-8 object-contain"
               />
-              <h1 className="text-xl font-bold text-gray-800">Admin Dashboard</h1>
+              <div className="flex items-center gap-3 md:hidden">
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/admin/logs')} 
+                  className="flex items-center gap-2"
+                  size="sm"
+                >
+                  <Activity size={16} />
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" size="sm">
+                  <Home size={16} />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-gray-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">Admin Dashboard</h1>
+            <div className="hidden md:flex items-center gap-3">
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/admin/logs')} 
                 className="flex items-center gap-2"
               >
                 <Activity size={16} />
-                <span className="hidden sm:inline">Logs</span>
+                <span>Logs</span>
               </Button>
               <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
                 <Home size={16} />
-                <span className="hidden sm:inline">Home</span>
+                <span>Home</span>
               </Button>
             </div>
           </div>
