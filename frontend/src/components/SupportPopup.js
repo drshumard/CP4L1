@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Loader2, ShieldCheck } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, ShieldCheck, HelpCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 
@@ -36,7 +36,6 @@ const SupportPopup = () => {
   const renderTurnstile = useCallback(() => {
     if (!turnstileRef.current || !window.turnstile || !isOpen) return;
 
-    // Clear any existing widget
     if (widgetIdRef.current !== null) {
       try {
         window.turnstile.remove(widgetIdRef.current);
@@ -46,28 +45,23 @@ const SupportPopup = () => {
       }
     }
 
-    // Small delay to ensure DOM is ready
     setTimeout(() => {
       if (turnstileRef.current && window.turnstile && isOpen) {
         try {
           widgetIdRef.current = window.turnstile.render(turnstileRef.current, {
             sitekey: TURNSTILE_SITE_KEY,
             callback: (token) => {
-              console.log('Turnstile token received');
               setTurnstileToken(token);
             },
             'expired-callback': () => {
-              console.log('Turnstile token expired');
               setTurnstileToken(null);
             },
-            'error-callback': (error) => {
-              console.log('Turnstile error:', error);
+            'error-callback': () => {
               setTurnstileToken(null);
             },
             theme: 'light',
-            size: 'normal'
+            size: 'compact'
           });
-          console.log('Turnstile widget rendered, ID:', widgetIdRef.current);
         } catch (e) {
           console.error('Error rendering Turnstile:', e);
         }
@@ -81,7 +75,6 @@ const SupportPopup = () => {
     }
   }, [isOpen, turnstileReady, renderTurnstile]);
 
-  // Cleanup on close
   useEffect(() => {
     if (!isOpen) {
       setTurnstileToken(null);
@@ -89,9 +82,7 @@ const SupportPopup = () => {
         try {
           window.turnstile.remove(widgetIdRef.current);
           widgetIdRef.current = null;
-        } catch (e) {
-          // Widget might already be removed
-        }
+        } catch (e) {}
       }
     }
   }, [isOpen]);
@@ -99,7 +90,6 @@ const SupportPopup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation
     if (!formData.email || !formData.subject || !formData.message) {
       toast.error('Please fill in all required fields');
       return;
@@ -115,10 +105,8 @@ const SupportPopup = () => {
     try {
       await fetch('https://hooks.zapier.com/hooks/catch/1815480/uf7u8ms/', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        mode: 'no-cors', // Zapier webhooks require no-cors mode
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors',
         body: JSON.stringify({
           purchase_email: formData.email,
           phone_number: formData.phone,
@@ -129,13 +117,11 @@ const SupportPopup = () => {
         }),
       });
 
-      // With no-cors, we can't read the response, but the request was sent
       toast.success('Support request sent! We\'ll get back to you soon.');
       setFormData({ email: '', phone: '', subject: '', message: '' });
       setTurnstileToken(null);
       setIsOpen(false);
     } catch (error) {
-      console.error('Support request error:', error);
       toast.error('Failed to send request. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -173,142 +159,171 @@ const SupportPopup = () => {
             onClick={() => setIsOpen(false)}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-teal-500 to-cyan-600 p-6 text-white relative">
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-                <h2 className="text-2xl font-bold">Need Help?</h2>
-                <p className="text-white/80 mt-1 text-sm">
-                  Contact us and we'll get back to you as soon as possible.
-                </p>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                {/* Email */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Purchase Email <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email address"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="Enter your phone number"
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  />
-                </div>
-
-                {/* Subject */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Subject <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="subject"
-                    value={formData.subject}
-                    onChange={handleChange}
-                    placeholder="What is this about?"
-                    required
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-                  />
-                </div>
-
-                {/* Message */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Explain what issue you're facing <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    name="message"
-                    value={formData.message}
-                    onChange={handleChange}
-                    placeholder="Please describe your issue in detail..."
-                    required
-                    rows={4}
-                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all resize-none"
-                  />
-                </div>
-
-                {/* Cloudflare Turnstile */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                    <ShieldCheck size={16} className="text-teal-600" />
-                    <span>Security Verification</span>
-                  </div>
-                  <div 
-                    ref={turnstileRef}
-                    className="flex justify-center min-h-[65px]"
+              {/* Horizontal Layout */}
+              <div className="flex flex-col md:flex-row">
+                {/* Left Side - Header/Info */}
+                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-6 md:p-8 text-white md:w-1/3 relative">
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="absolute top-3 right-3 md:top-4 md:right-4 text-white/80 hover:text-white transition-colors"
                   >
-                    {!turnstileReady && (
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <Loader2 className="animate-spin" size={16} />
-                        <span className="text-sm">Loading verification...</span>
-                      </div>
+                    <X size={20} />
+                  </button>
+                  
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                      <HelpCircle size={24} />
+                    </div>
+                  </div>
+                  
+                  <h2 className="text-xl md:text-2xl font-bold mb-2">Need Help?</h2>
+                  <p className="text-white/80 text-sm">
+                    We're here to help! Fill out the form and we'll get back to you shortly.
+                  </p>
+
+                  {/* Turnstile on desktop - below text */}
+                  <div className="hidden md:block mt-6">
+                    <div className="flex items-center gap-2 text-white/80 text-xs mb-2">
+                      <ShieldCheck size={14} />
+                      <span>Security Check</span>
+                    </div>
+                    <div 
+                      ref={turnstileRef}
+                      className="transform scale-90 origin-left"
+                    >
+                      {!turnstileReady && (
+                        <div className="flex items-center gap-2 text-white/60">
+                          <Loader2 className="animate-spin" size={14} />
+                          <span className="text-xs">Loading...</span>
+                        </div>
+                      )}
+                    </div>
+                    {turnstileToken && (
+                      <p className="text-xs text-white/90 flex items-center gap-1 mt-1">
+                        <ShieldCheck size={12} />
+                        Verified
+                      </p>
                     )}
                   </div>
-                  {turnstileToken && (
-                    <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1">
-                      <ShieldCheck size={14} />
-                      Verified
-                    </p>
-                  )}
                 </div>
 
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || !turnstileToken}
-                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="animate-spin" size={20} />
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <Send size={20} />
-                      Send Message
-                    </>
-                  )}
-                </Button>
+                {/* Right Side - Form */}
+                <form onSubmit={handleSubmit} className="p-6 md:p-8 md:w-2/3">
+                  {/* Two column grid for email and phone */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="your@email.com"
+                        required
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleChange}
+                        placeholder="+1 (555) 000-0000"
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
 
-                {!turnstileToken && (
-                  <p className="text-xs text-gray-500 text-center">
-                    Please complete the security verification above to send your message.
-                  </p>
-                )}
-              </form>
+                  {/* Subject */}
+                  <div className="mb-4">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                      Subject <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleChange}
+                      placeholder="What is this about?"
+                      required
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Message */}
+                  <div className="mb-4">
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="message"
+                      value={formData.message}
+                      onChange={handleChange}
+                      placeholder="Please describe your issue..."
+                      required
+                      rows={3}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+
+                  {/* Turnstile on mobile */}
+                  <div className="md:hidden mb-4">
+                    <div className="flex items-center gap-2 text-gray-600 text-xs mb-2">
+                      <ShieldCheck size={14} className="text-teal-600" />
+                      <span>Security Check</span>
+                    </div>
+                    <div 
+                      ref={!turnstileRef.current ? turnstileRef : undefined}
+                      className="flex justify-center"
+                    >
+                      {!turnstileReady && (
+                        <div className="flex items-center gap-2 text-gray-400">
+                          <Loader2 className="animate-spin" size={14} />
+                          <span className="text-xs">Loading...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting || !turnstileToken}
+                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin" size={18} />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={18} />
+                        Send Message
+                      </>
+                    )}
+                  </Button>
+
+                  {!turnstileToken && (
+                    <p className="text-xs text-gray-400 text-center mt-2">
+                      Complete security check to send
+                    </p>
+                  )}
+                </form>
+              </div>
             </motion.div>
           </motion.div>
         )}
