@@ -196,11 +196,11 @@ const SupportPopup = () => {
                   <div className="hidden md:block mt-6">
                     <div className="flex items-center gap-2 text-white/80 text-xs mb-2">
                       <ShieldCheck size={14} />
-                      <span>Security Check</span>
+                      <span>Security Verification</span>
                     </div>
                     <div 
                       ref={turnstileRef}
-                      className="transform scale-90 origin-left"
+                      className="min-h-[65px]"
                     >
                       {!turnstileReady && (
                         <div className="flex items-center gap-2 text-white/60">
