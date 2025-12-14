@@ -7,6 +7,7 @@ import { Progress } from '../components/ui/progress';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { ArrowRight, LogOut, User, Trophy, TrendingUp } from 'lucide-react';
+import AppointmentCountdown from '../components/AppointmentCountdown';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -15,6 +16,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [progressData, setProgressData] = useState(null);
+  const [appointmentData, setAppointmentData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,17 +26,21 @@ const Dashboard = () => {
   const fetchUserData = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const [userRes, progressRes] = await Promise.all([
+      const [userRes, progressRes, appointmentRes] = await Promise.all([
         axios.get(`${API}/user/me`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API}/user/progress`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
+        }),
+        axios.get(`${API}/user/appointment`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => ({ data: { appointment: null } })) // Handle case where endpoint doesn't exist yet
       ]);
 
       setUserData(userRes.data);
       setProgressData(progressRes.data);
+      setAppointmentData(appointmentRes.data?.appointment);
     } catch (error) {
       if (error.response?.status === 401) {
         localStorage.clear();
