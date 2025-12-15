@@ -101,7 +101,7 @@ const Login = () => {
                 >
                   <div className="mb-4 md:mb-8 flex justify-center">
                     <img 
-                      src="/images/logo.png" 
+                      src="https://portal-drshumard.b-cdn.net/logo.png" 
                       alt="Logo" 
                       className="w-40 h-40 md:w-56 md:h-56 object-contain"
                     />

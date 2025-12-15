@@ -84,7 +84,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 sm:gap-3">
               <img 
-                src="/images/logo.png" 
+                src="https://portal-drshumard.b-cdn.net/logo.png" 
                 alt="Logo" 
                 className="h-6 w-auto sm:h-7 md:h-8 object-contain flex-shrink-0"
               />
