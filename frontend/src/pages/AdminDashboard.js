@@ -255,7 +255,7 @@ const AdminDashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-center gap-3">
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
               <img 
-                src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" 
+                src="/images/logo.png" 
                 alt="Logo" 
                 className="h-8 object-contain"
               />

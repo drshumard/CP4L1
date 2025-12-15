@@ -225,7 +225,7 @@ END:VCALENDAR`;
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-20 h-20 rounded-full overflow-hidden bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center">
               <img 
-                src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png"
+                src="/images/logo.png"
                 alt="Dr. Shumard"
                 className="w-16 h-16 object-contain"
               />
