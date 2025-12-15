@@ -1272,7 +1272,7 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
             <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);">
                 <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
                     <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
-                        <img src="https://customer-assets.emergentagent.com/job_wellness-steps-2/artifacts/na68tuph_trans_sized.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
+                        <img src="{frontend_url}/images/logo.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
                         <h1 style="color: white; margin: 0; font-size: 24px;">Welcome Back!</h1>
                     </div>
                     <div style="padding: 30px;">
