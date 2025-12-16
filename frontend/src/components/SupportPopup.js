@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageCircle, X, Send, Loader2, ShieldCheck, HelpCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAACGpT_eiqf1jAJaS';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 const SupportPopup = () => {
   const [isOpen, setIsOpen] = useState(false);
