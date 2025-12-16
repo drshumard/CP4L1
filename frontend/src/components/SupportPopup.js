@@ -126,18 +126,13 @@ const SupportPopup = () => {
     setIsSubmitting(true);
 
     try {
-      await fetch('https://hooks.zapier.com/hooks/catch/1815480/uf7u8ms/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify({
-          purchase_email: formData.email,
-          phone_number: formData.phone,
-          subject: formData.subject,
-          issue_description: formData.message,
-          turnstile_token: turnstileToken,
-          submitted_at: new Date().toISOString()
-        }),
+      // Submit through backend which validates Turnstile server-side
+      await axios.post(`${BACKEND_URL}/api/support/submit`, {
+        email: formData.email,
+        phone: formData.phone || null,
+        subject: formData.subject,
+        message: formData.message,
+        turnstile_token: turnstileToken
       });
 
       toast.success('Support request sent! We\'ll get back to you soon.');
@@ -145,7 +140,20 @@ const SupportPopup = () => {
       setTurnstileToken(null);
       setIsOpen(false);
     } catch (error) {
-      toast.error('Failed to send request. Please try again.');
+      const errorMessage = error.response?.data?.detail || 'Failed to send request. Please try again.';
+      toast.error(errorMessage);
+      
+      // Reset Turnstile if verification failed
+      if (error.response?.status === 400) {
+        setTurnstileToken(null);
+        if (widgetIdRef.current !== null && window.turnstile) {
+          try {
+            window.turnstile.reset(widgetIdRef.current);
+          } catch (e) {
+            console.log('Error resetting Turnstile:', e);
+          }
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
