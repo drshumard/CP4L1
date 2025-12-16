@@ -40,6 +40,12 @@ resend.api_key = os.environ.get('RESEND_API_KEY', '')
 # Webhook Secret
 WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')
 
+# Turnstile Secret Key (for server-side validation)
+TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
+
+# Zapier Webhook URL for support requests
+ZAPIER_SUPPORT_WEBHOOK = os.environ.get('ZAPIER_SUPPORT_WEBHOOK', 'https://hooks.zapier.com/hooks/catch/1815480/uf7u8ms/')
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
