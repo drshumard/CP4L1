@@ -1519,6 +1519,92 @@ async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict
     
     return {"message": "User updated successfully", "updated_fields": list(update_data.keys())}
 
+# Support Request Model
+class SupportRequest(BaseModel):
+    email: EmailStr
+    phone: Optional[str] = None
+    subject: str
+    message: str
+    turnstile_token: str
+
+@api_router.post("/support/submit")
+async def submit_support_request(request: SupportRequest):
+    """
+    Submit a support request with Turnstile verification.
+    Validates the Turnstile token server-side before forwarding to Zapier.
+    """
+    import httpx
+    
+    # Verify Turnstile token with Cloudflare
+    if not TURNSTILE_SECRET_KEY:
+        logging.error("TURNSTILE_SECRET_KEY not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error. Please contact administrator."
+        )
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            turnstile_response = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={
+                    "secret": TURNSTILE_SECRET_KEY,
+                    "response": request.turnstile_token
+                }
+            )
+            turnstile_result = turnstile_response.json()
+            
+            logging.info(f"Turnstile verification result: {turnstile_result}")
+            
+            if not turnstile_result.get("success"):
+                error_codes = turnstile_result.get("error-codes", [])
+                logging.warning(f"Turnstile verification failed: {error_codes}")
+                raise HTTPException(
+                    status_code=400,
+                    detail="Security verification failed. Please try again."
+                )
+    except httpx.RequestError as e:
+        logging.error(f"Turnstile API request failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Could not verify security token. Please try again."
+        )
+    
+    # Turnstile verified - now forward to Zapier
+    try:
+        async with httpx.AsyncClient() as client:
+            zapier_response = await client.post(
+                ZAPIER_SUPPORT_WEBHOOK,
+                json={
+                    "purchase_email": request.email,
+                    "phone_number": request.phone or "",
+                    "subject": request.subject,
+                    "issue_description": request.message,
+                    "submitted_at": datetime.now(timezone.utc).isoformat(),
+                    "verified": True  # Indicates Turnstile was verified
+                },
+                timeout=10.0
+            )
+            logging.info(f"Zapier webhook response: {zapier_response.status_code}")
+    except httpx.RequestError as e:
+        logging.error(f"Zapier webhook failed: {e}")
+        # Still return success since Turnstile was verified - Zapier might just be slow
+        pass
+    
+    # Log the support request
+    await log_activity(
+        event_type="SUPPORT_REQUEST_SUBMITTED",
+        user_email=request.email,
+        details={
+            "subject": request.subject,
+            "has_phone": bool(request.phone),
+            "turnstile_verified": True
+        },
+        status="success"
+    )
+    
+    return {"message": "Support request submitted successfully"}
+
 # Include router
 app.include_router(api_router)
 
