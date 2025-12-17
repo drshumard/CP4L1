@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, AlertCircle, ExternalLink, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, ExternalLink, RefreshCw, Save } from 'lucide-react';
 import { Button } from './ui/button';
+import axios from 'axios';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Practice Better iframe URLs
 const PRACTICE_BETTER_URLS = {
@@ -15,35 +18,159 @@ const FALLBACK_URLS = {
   form: 'https://drshumard.practicebetter.io/#/601a127b2a9c2406dcc94437/forms?f=6021e5d42a9c2406f45aa20f'
 };
 
+// Storage keys
+const STORAGE_KEY_PREFIX = 'pb_form_data_';
+const getStorageKey = (type, userId) => `${STORAGE_KEY_PREFIX}${type}_${userId || 'anonymous'}`;
+
 const PracticeBetterEmbed = ({ 
   type = 'booking', // 'booking' or 'form'
   onLoad,
   onError,
   className = '',
   minHeight = 800,
-  fillContainer = false // When true, iframe fills container height instead of using minHeight
+  fillContainer = false, // When true, iframe fills container height instead of using minHeight
+  userId = null // User ID for backend storage
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [iframeHeight, setIframeHeight] = useState(type === 'form' ? 1200 : minHeight);
+  const [capturedData, setCapturedData] = useState({});
+  const [lastSaved, setLastSaved] = useState(null);
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const timeoutRef = useRef(null);
+  const autoSaveIntervalRef = useRef(null);
   const maxRetries = 3;
 
   const iframeUrl = PRACTICE_BETTER_URLS[type];
   const fallbackUrl = FALLBACK_URLS[type];
+  const storageKey = getStorageKey(type, userId);
+
+  // Save data to all storage mechanisms
+  const saveFormData = useCallback(async (data) => {
+    if (!data || Object.keys(data).length === 0) return;
+    
+    const dataToSave = {
+      ...data,
+      savedAt: new Date().toISOString(),
+      type,
+      userId
+    };
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      console.log('[PB Form] Saved to localStorage:', storageKey);
+    } catch (e) {
+      console.warn('[PB Form] localStorage save failed:', e);
+    }
+
+    // Save to sessionStorage
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      console.log('[PB Form] Saved to sessionStorage:', storageKey);
+    } catch (e) {
+      console.warn('[PB Form] sessionStorage save failed:', e);
+    }
+
+    // Save to backend
+    if (userId && BACKEND_URL) {
+      try {
+        const token = localStorage.getItem('access_token');
+        await axios.post(`${BACKEND_URL}/api/form-draft/save`, {
+          form_type: type,
+          form_data: dataToSave
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        console.log('[PB Form] Saved to backend');
+        setLastSaved(new Date());
+      } catch (e) {
+        console.warn('[PB Form] Backend save failed:', e);
+      }
+    }
+  }, [storageKey, type, userId]);
+
+  // Load saved data from storage
+  const loadSavedData = useCallback(async () => {
+    let savedData = null;
+
+    // Try backend first (most reliable)
+    if (userId && BACKEND_URL) {
+      try {
+        const token = localStorage.getItem('access_token');
+        const response = await axios.get(`${BACKEND_URL}/api/form-draft/${type}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data?.form_data) {
+          savedData = response.data.form_data;
+          console.log('[PB Form] Loaded from backend:', savedData);
+        }
+      } catch (e) {
+        console.log('[PB Form] No backend data found');
+      }
+    }
+
+    // Fallback to localStorage
+    if (!savedData) {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          savedData = JSON.parse(stored);
+          console.log('[PB Form] Loaded from localStorage:', savedData);
+        }
+      } catch (e) {
+        console.warn('[PB Form] localStorage load failed:', e);
+      }
+    }
+
+    // Fallback to sessionStorage
+    if (!savedData) {
+      try {
+        const stored = sessionStorage.getItem(storageKey);
+        if (stored) {
+          savedData = JSON.parse(stored);
+          console.log('[PB Form] Loaded from sessionStorage:', savedData);
+        }
+      } catch (e) {
+        console.warn('[PB Form] sessionStorage load failed:', e);
+      }
+    }
+
+    if (savedData) {
+      setCapturedData(savedData);
+      setLastSaved(savedData.savedAt ? new Date(savedData.savedAt) : null);
+    }
+
+    return savedData;
+  }, [storageKey, type, userId]);
 
   // Handle iframe load success
-  const handleLoad = useCallback(() => {
+  const handleLoad = useCallback(async () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     setLoading(false);
     setError(false);
     onLoad?.();
-  }, [onLoad]);
+
+    // Load any saved data
+    const savedData = await loadSavedData();
+    
+    // Try to send saved data to iframe (might work if PB supports it)
+    if (savedData && iframeRef.current?.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'RESTORE_FORM_DATA',
+          data: savedData
+        }, '*');
+        console.log('[PB Form] Sent restore message to iframe');
+      } catch (e) {
+        console.log('[PB Form] Could not send restore message:', e);
+      }
+    }
+  }, [onLoad, loadSavedData]);
 
   // Handle iframe load error
   const handleError = useCallback(() => {
@@ -89,27 +216,95 @@ const PracticeBetterEmbed = ({
     };
   }, [loading, retryCount, handleError]);
 
-  // Listen for postMessage height updates from Practice Better
+  // Listen for ALL postMessages from Practice Better and capture form data
   useEffect(() => {
     const handleMessage = (event) => {
-      // Validate origin - only trust Practice Better domain
+      // Only process messages from Practice Better
       if (!event.origin.includes('practicebetter.io')) {
         return;
       }
 
-      // Handle height updates
+      // Log ALL messages for debugging
+      console.log('[PB Form] Received postMessage:', event.data);
+
       if (event.data && typeof event.data === 'object') {
+        // Handle height updates
         if (event.data.height && typeof event.data.height === 'number') {
           setIframeHeight(Math.max(event.data.height, minHeight));
         } else if (event.data.frameHeight && typeof event.data.frameHeight === 'number') {
           setIframeHeight(Math.max(event.data.frameHeight, minHeight));
+        }
+
+        // Capture ANY form-related data that might be sent
+        if (event.data.formData || event.data.form_data || event.data.data) {
+          const formData = event.data.formData || event.data.form_data || event.data.data;
+          console.log('[PB Form] Captured form data:', formData);
+          setCapturedData(prev => ({ ...prev, ...formData }));
+          saveFormData(formData);
+        }
+
+        // Capture field-level changes
+        if (event.data.field || event.data.fieldName || event.data.name) {
+          const fieldName = event.data.field || event.data.fieldName || event.data.name;
+          const fieldValue = event.data.value;
+          if (fieldName && fieldValue !== undefined) {
+            console.log(`[PB Form] Field change: ${fieldName} = ${fieldValue}`);
+            setCapturedData(prev => {
+              const updated = { ...prev, [fieldName]: fieldValue };
+              saveFormData(updated);
+              return updated;
+            });
+          }
+        }
+
+        // Capture form submission events
+        if (event.data.type === 'form_submitted' || event.data.event === 'submit') {
+          console.log('[PB Form] Form submitted!');
+          // Clear saved data on successful submission
+          localStorage.removeItem(storageKey);
+          sessionStorage.removeItem(storageKey);
+          setCapturedData({});
+        }
+
+        // Store entire message if it contains useful data
+        if (event.data.type || event.data.action || event.data.event) {
+          console.log('[PB Form] Event captured:', event.data.type || event.data.action || event.data.event);
         }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [minHeight]);
+  }, [minHeight, saveFormData, storageKey]);
+
+  // Auto-save interval (every 10 seconds)
+  useEffect(() => {
+    if (type === 'form' && !loading && !error) {
+      autoSaveIntervalRef.current = setInterval(() => {
+        if (Object.keys(capturedData).length > 0) {
+          console.log('[PB Form] Auto-saving...');
+          saveFormData(capturedData);
+        }
+        
+        // Also try to request form data from iframe
+        if (iframeRef.current?.contentWindow) {
+          try {
+            iframeRef.current.contentWindow.postMessage({
+              type: 'REQUEST_FORM_DATA'
+            }, '*');
+          } catch (e) {
+            // Silent fail - expected if cross-origin
+          }
+        }
+      }, 10000);
+    }
+
+    return () => {
+      if (autoSaveIntervalRef.current) {
+        clearInterval(autoSaveIntervalRef.current);
+      }
+    };
+  }, [type, loading, error, capturedData, saveFormData]);
 
   // Generate unique key for iframe to force reload on retry
   const iframeKey = `pb-${type}-${retryCount}`;
