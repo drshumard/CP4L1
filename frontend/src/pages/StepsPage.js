@@ -823,7 +823,10 @@ const StepsPage = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button
-                        onClick={handleGoBack}
+                        onClick={() => {
+                          trackButtonClicked('go_back_step2', 'steps_page');
+                          handleGoBack();
+                        }}
                         variant="outline"
                         className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-4 rounded-xl flex items-center justify-center gap-2"
                       >
@@ -833,7 +836,10 @@ const StepsPage = () => {
                         Go Back
                       </Button>
                       <Button
-                        onClick={handleAdvanceStep}
+                        onClick={() => {
+                          trackButtonClicked('mark_as_complete_step2', 'steps_page');
+                          handleAdvanceStep();
+                        }}
                         className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
                         data-testid="submit-button"
                       >
