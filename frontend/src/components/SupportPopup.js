@@ -186,7 +186,10 @@ const SupportPopup = () => {
         animate={{ scale: 1 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          setIsOpen(true);
+          trackSupportPopupOpened();
+        }}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-shadow"
         aria-label="Open support"
       >
@@ -201,7 +204,10 @@ const SupportPopup = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              setIsOpen(false);
+              trackSupportPopupClosed();
+            }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -216,7 +222,10 @@ const SupportPopup = () => {
                 {/* Left Side - Header/Info */}
                 <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-4 md:p-8 text-white md:w-2/5 relative">
                   <button
-                    onClick={() => setIsOpen(false)}
+                    onClick={() => {
+                      setIsOpen(false);
+                      trackSupportPopupClosed();
+                    }}
                     className="absolute top-3 right-3 text-white/80 hover:text-white transition-colors"
                   >
                     <X size={20} />
