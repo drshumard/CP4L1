@@ -9,6 +9,19 @@ import { Lock, CheckCircle2, Circle, Home, User as UserIcon, Phone, Calendar, Lo
 import ReactPlayer from 'react-player';
 import { getErrorMessage } from '../utils/errorHandler';
 import PracticeBetterEmbed from '../components/PracticeBetterEmbed';
+import { 
+  trackStepViewed, 
+  trackStepCompleted, 
+  trackVideoStarted, 
+  trackVideoCompleted,
+  trackVideoProgress,
+  trackFormViewed,
+  trackBookingCalendarViewed,
+  trackButtonClicked,
+  trackLogout,
+  trackModalOpened,
+  trackModalClosed
+} from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
