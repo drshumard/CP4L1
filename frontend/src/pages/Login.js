@@ -249,7 +249,10 @@ const Login = () => {
                     <Label htmlFor="password" className="text-sm md:text-base font-medium text-gray-700">Password</Label>
                     <button
                       type="button"
-                      onClick={() => setShowResetModal(true)}
+                      onClick={() => {
+                        trackButtonClicked('forgot_password', 'login_page');
+                        setShowResetModal(true);
+                      }}
                       className="text-xs md:text-base text-teal-600 hover:text-teal-700 font-medium"
                       data-testid="forgot-password-button"
                     >
@@ -273,6 +276,7 @@ const Login = () => {
                   className="w-full h-12 md:h-14 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold rounded-lg shadow-lg text-base md:text-lg mt-6 md:mt-8"
                   disabled={loading}
                   data-testid="login-submit-button"
+                  onClick={() => trackButtonClicked('sign_in', 'login_page')}
                 >
                   {loading ? 'Signing in...' : 'Sign In'}
                 </Button>
