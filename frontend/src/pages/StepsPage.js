@@ -1218,7 +1218,10 @@ const StepsPage = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-              onClick={() => setShowStep1Confirmation(false)}
+              onClick={() => {
+                trackButtonClicked('dismiss_step1_confirmation', 'steps_page');
+                setShowStep1Confirmation(false);
+              }}
             />
             
             {/* Modal */}
@@ -1256,13 +1259,19 @@ const StepsPage = () => {
                       {/* Buttons */}
                       <div className="flex flex-col gap-2 sm:gap-3">
                         <Button
-                          onClick={confirmStep1Complete}
+                          onClick={() => {
+                            trackButtonClicked('confirm_booking_step1', 'steps_page');
+                            confirmStep1Complete();
+                          }}
                           className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold py-3 sm:py-4 rounded-xl shadow-lg text-sm sm:text-base"
                         >
                           ✓ Yes, I've Booked My Call
                         </Button>
                         <Button
-                          onClick={() => setShowStep1Confirmation(false)}
+                          onClick={() => {
+                            trackButtonClicked('cancel_step1_confirmation', 'steps_page');
+                            setShowStep1Confirmation(false);
+                          }}
                           variant="outline"
                           className="w-full border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 sm:py-4 rounded-xl text-sm sm:text-base"
                         >
