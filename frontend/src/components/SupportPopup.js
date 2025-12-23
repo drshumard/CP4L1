@@ -141,12 +141,20 @@ const SupportPopup = () => {
         turnstile_token: turnstileToken
       });
 
+      // Track successful submission
+      trackSupportRequestSubmitted(formData.subject, !!formData.phone);
+
       toast.success('Support request sent! We\'ll get back to you soon.');
       setFormData({ email: '', phone: '', subject: '', message: '' });
       setTurnstileToken(null);
       setIsOpen(false);
+      trackSupportPopupClosed();
     } catch (error) {
       const errorMessage = error.response?.data?.detail || 'Failed to send request. Please try again.';
+      
+      // Track failed submission
+      trackSupportRequestFailed(errorMessage);
+      
       toast.error(errorMessage);
       
       // Reset Turnstile if verification failed
