@@ -1090,14 +1090,20 @@ const StepsPage = () => {
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3">
                       <Button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => {
+                          trackButtonClicked('go_to_dashboard_step1', 'steps_page');
+                          navigate('/dashboard');
+                        }}
                         variant="outline"
                         className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 rounded-xl"
                       >
                         Go to Dashboard
                       </Button>
                       <Button
-                        onClick={handleStep1Complete}
+                        onClick={() => {
+                          trackButtonClicked('mark_as_complete_step1', 'steps_page');
+                          handleStep1Complete();
+                        }}
                         className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-3 rounded-xl shadow-lg"
                         data-testid="submit-button"
                       >
