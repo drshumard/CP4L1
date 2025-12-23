@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { ArrowRight, LogOut, User, Trophy, TrendingUp } from 'lucide-react';
 import AppointmentCountdown from '../components/AppointmentCountdown';
+import { trackDashboardViewed, trackLogout, trackButtonClicked } from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
