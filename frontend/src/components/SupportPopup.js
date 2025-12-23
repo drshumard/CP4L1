@@ -4,6 +4,12 @@ import { MessageCircle, X, Send, Loader2, ShieldCheck, HelpCircle } from 'lucide
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { 
+  trackSupportPopupOpened, 
+  trackSupportPopupClosed, 
+  trackSupportRequestSubmitted, 
+  trackSupportRequestFailed 
+} from '../utils/analytics';
 
 const TURNSTILE_SITE_KEY = '0x4AAAAAACGpT_eiqf1jAJaS';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
