@@ -222,6 +222,7 @@ const StepsPage = () => {
     // Show confirmation modal for Step 2
     if (currentStep === 2) {
       setShowStep2Confirmation(true);
+      trackModalOpened('step2_confirmation');
       return;
     }
 
@@ -241,6 +242,9 @@ const StepsPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      // Track step completion
+      trackStepCompleted(currentStep, STEP_DATA[currentStep].title);
+
       // If completing step 3, redirect to outcome page
       if (currentStep === 3) {
         toast.success('Congratulations! Program complete!');
@@ -258,6 +262,7 @@ const StepsPage = () => {
 
   const confirmStep2Complete = async () => {
     setShowStep2Confirmation(false);
+    trackModalClosed('step2_confirmation');
     try {
       const token = localStorage.getItem('access_token');
       await axios.post(
@@ -265,6 +270,10 @@ const StepsPage = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      // Track step 2 completion
+      trackStepCompleted(2, STEP_DATA[2].title);
+      
       toast.success('Advanced to next step!');
       setCompletedTasks(new Set());
       await fetchData();
@@ -276,10 +285,12 @@ const StepsPage = () => {
   const handleStep2InstructionsUnderstood = () => {
     localStorage.setItem('step2_instructions_seen', 'true');
     setShowStep2Instructions(false);
+    trackModalClosed('step2_instructions');
   };
 
   const handleStep1Complete = () => {
     setShowStep1Confirmation(true);
+    trackModalOpened('step1_confirmation');
   };
 
   const confirmStep1Complete = async () => {
