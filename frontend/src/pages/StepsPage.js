@@ -655,7 +655,10 @@ const StepsPage = () => {
                             className="mt-8"
                           >
                             <Button
-                              onClick={handleStep2InstructionsUnderstood}
+                              onClick={() => {
+                                trackButtonClicked('i_understand_step2_instructions', 'steps_page');
+                                handleStep2InstructionsUnderstood();
+                              }}
                               className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-6 rounded-xl shadow-lg text-lg transition-all hover:scale-[1.02]"
                             >
                               I Understand ✓
