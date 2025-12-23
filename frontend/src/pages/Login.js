@@ -71,6 +71,7 @@ const Login = () => {
 
     try {
       await axios.post(`${API}/auth/request-reset`, { email: resetEmail });
+      trackPasswordResetRequested(resetEmail);
       showNotification('success', 'Password reset link sent to your email');
       setShowResetModal(false);
       setResetEmail('');
