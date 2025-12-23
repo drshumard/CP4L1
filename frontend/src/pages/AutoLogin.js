@@ -4,6 +4,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { trackAutoLogin, trackLoginFailed } from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -26,6 +27,7 @@ const AutoLogin = () => {
       if (!token) {
         setStatus('error');
         setErrorMessage('Invalid login link');
+        trackLoginFailed('auto_login', 'Invalid login link');
         setTimeout(() => navigate('/login', { replace: true }), 3000);
         return;
       }
@@ -36,6 +38,9 @@ const AutoLogin = () => {
         // Store tokens
         localStorage.setItem('access_token', response.data.access_token);
         localStorage.setItem('refresh_token', response.data.refresh_token);
+        
+        // Track successful auto-login
+        trackAutoLogin(response.data.user_id, response.data.email);
         
         setStatus('success');
         toast.success('Welcome back! Logging you in...');
@@ -48,6 +53,7 @@ const AutoLogin = () => {
       } catch (error) {
         setStatus('error');
         const message = error.response?.data?.detail || 'Login link is invalid or has expired';
+        trackLoginFailed('auto_login', message);
         setErrorMessage(message);
         toast.error(message);
         
