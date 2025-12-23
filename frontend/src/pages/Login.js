@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getErrorMessage } from '../utils/errorHandler';
+import { trackLogin, trackLoginFailed, trackPasswordResetRequested, trackPageView } from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -19,6 +20,11 @@ const Login = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: '' }
+
+  // Track page view on mount
+  useEffect(() => {
+    trackPageView('login');
+  }, []);
 
   // Auto-hide notification after 5 seconds
   useEffect(() => {
@@ -43,9 +49,14 @@ const Login = () => {
       localStorage.setItem('access_token', response.data.access_token);
       localStorage.setItem('refresh_token', response.data.refresh_token);
       
+      // Track successful login
+      trackLogin(response.data.user_id, formData.email, 'password');
+      
       showNotification('success', 'Login successful!');
       setTimeout(() => navigate('/'), 1000);
     } catch (error) {
+      // Track failed login
+      trackLoginFailed(formData.email, getErrorMessage(error, 'Login failed'));
       showNotification('error', getErrorMessage(error, 'Login failed'));
     } finally {
       setLoading(false);
