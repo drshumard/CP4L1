@@ -501,7 +501,10 @@ const StepsPage = () => {
             {/* Back Button - Only show for Step 2 and 3 */}
             {currentStep > 1 && (
               <button
-                onClick={handleGoBack}
+                onClick={() => {
+                  trackButtonClicked('back_to_previous_step', 'steps_page');
+                  handleGoBack();
+                }}
                 className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-teal-600 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -536,7 +539,10 @@ const StepsPage = () => {
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-                  onClick={handleStep2InstructionsUnderstood}
+                  onClick={() => {
+                    trackButtonClicked('dismiss_step2_instructions_backdrop', 'steps_page');
+                    handleStep2InstructionsUnderstood();
+                  }}
                 />
                 
                 {/* Modal */}
