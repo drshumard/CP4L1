@@ -42,6 +42,9 @@ const Dashboard = () => {
       setUserData(userRes.data);
       setProgressData(progressRes.data);
       setAppointmentData(appointmentRes.data?.appointment);
+      
+      // Track dashboard view
+      trackDashboardViewed(userRes.data?.current_step);
     } catch (error) {
       if (error.response?.status === 401) {
         localStorage.clear();
@@ -54,12 +57,14 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
+    trackLogout(userData?.id);
     localStorage.clear();
     navigate('/login');
     toast.success('Logged out successfully');
   };
 
   const handleStartJourney = () => {
+    trackButtonClicked('start_journey', 'dashboard');
     navigate('/steps');
   };
 
