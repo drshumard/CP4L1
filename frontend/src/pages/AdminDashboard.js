@@ -10,6 +10,16 @@ import {
   Search, Mail, Phone, Calendar, ChevronRight, X, Eye, EyeOff,
   Send, Key, Edit2, UserCog, Clock, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import { 
+  trackAdminPanelViewed,
+  trackAdminUserViewed,
+  trackAdminUserEdited,
+  trackAdminPasswordReset,
+  trackAdminWelcomeEmailSent,
+  trackAdminUserDeleted,
+  trackModalOpened,
+  trackModalClosed
+} from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
