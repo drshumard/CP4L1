@@ -13,44 +13,12 @@ import OutcomePage from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
 import SupportPopup from './components/SupportPopup';
 import { Toaster } from './components/ui/sonner';
-import { trackSessionStart, trackApiError, trackEvent } from './utils/analytics';
+import { trackSessionStart, trackApiError } from './utils/analytics';
 import './App.css';
 
 // Track session start on app load
 if (typeof window !== 'undefined') {
   trackSessionStart();
-  
-  // Global button click tracker
-  document.addEventListener('click', (e) => {
-    const button = e.target.closest('button, a, [role="button"]');
-    if (button) {
-      const buttonText = button.innerText?.trim()?.substring(0, 50) || '';
-      const buttonId = button.id || '';
-      const buttonClass = button.className || '';
-      const ariaLabel = button.getAttribute('aria-label') || '';
-      const href = button.getAttribute('href') || '';
-      const dataTestId = button.getAttribute('data-testid') || '';
-      
-      // Get the page/component context
-      const pageUrl = window.location.pathname;
-      
-      // Identify button type
-      let buttonType = 'button';
-      if (button.tagName === 'A') buttonType = 'link';
-      if (button.getAttribute('role') === 'button') buttonType = 'role-button';
-      
-      trackEvent('button_clicked', {
-        button_text: buttonText,
-        button_id: buttonId,
-        button_type: buttonType,
-        aria_label: ariaLabel,
-        href: href,
-        data_testid: dataTestId,
-        page_url: pageUrl,
-        element_tag: button.tagName.toLowerCase()
-      });
-    }
-  }, true);
 }
 
 function PrivateRoute({ children }) {
