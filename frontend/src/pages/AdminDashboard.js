@@ -170,6 +170,7 @@ const AdminDashboard = () => {
           { password: passwordFormData.newPassword },
           { headers: { Authorization: `Bearer ${token}` } }
         );
+        trackAdminPasswordReset(selectedUser.id);
         toast.success('Password updated and email sent to user');
       } else {
         await axios.post(
@@ -177,10 +178,12 @@ const AdminDashboard = () => {
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
+        trackAdminPasswordReset(selectedUser.id);
         toast.success('Password reset link sent to user');
       }
       
       setShowResetPasswordModal(false);
+      trackModalClosed('reset_password');
       setPasswordFormData({ mode: 'set', newPassword: '', showPassword: false });
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to reset password');
@@ -201,8 +204,10 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
+      trackAdminUserEdited(selectedUser.id, Object.keys(editFormData));
       toast.success('User updated successfully');
       setShowEditModal(false);
+      trackModalClosed('edit_user');
       fetchData();
       
       // Update selected user
@@ -217,6 +222,8 @@ const AdminDashboard = () => {
   const openUserDetails = (user) => {
     setSelectedUser(user);
     setShowUserModal(true);
+    trackAdminUserViewed(user.id);
+    trackModalOpened('user_details');
   };
 
   const openEditModal = () => {
