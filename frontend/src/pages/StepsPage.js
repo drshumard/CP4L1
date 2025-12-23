@@ -167,9 +167,24 @@ const StepsPage = () => {
       const hasSeenInstructions = localStorage.getItem('step2_instructions_seen');
       if (!hasSeenInstructions) {
         setShowStep2Instructions(true);
+        trackModalOpened('step2_instructions');
       }
     }
   }, [userData]);
+
+  // Track step view when progressData changes
+  useEffect(() => {
+    if (progressData?.current_step && STEP_DATA[progressData.current_step]) {
+      trackStepViewed(progressData.current_step, STEP_DATA[progressData.current_step].title);
+      
+      // Track specific views
+      if (progressData.current_step === 1) {
+        trackBookingCalendarViewed();
+      } else if (progressData.current_step === 2) {
+        trackFormViewed('health_profile', 2);
+      }
+    }
+  }, [progressData?.current_step]);
 
   const fetchData = async () => {
     try {
