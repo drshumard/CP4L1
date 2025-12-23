@@ -117,6 +117,7 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      trackAdminUserDeleted(userId);
       toast.success('User deleted successfully');
       setSelectedUser(null);
       setShowUserModal(false);
@@ -141,6 +142,7 @@ const AdminDashboard = () => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      trackAdminWelcomeEmailSent(userId);
       toast.success('Welcome email sent successfully');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to send email');
