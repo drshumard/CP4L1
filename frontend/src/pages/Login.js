@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getErrorMessage } from '../utils/errorHandler';
-import { trackLogin, trackLoginFailed, trackPasswordResetRequested, trackPageView } from '../utils/analytics';
+import { trackLogin, trackLoginFailed, trackPasswordResetRequested, trackPageView, trackButtonClicked } from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
