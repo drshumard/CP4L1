@@ -97,11 +97,17 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center gap-4">
               {userData?.role === 'admin' && (
-                <Button variant="outline" onClick={() => navigate('/admin')} data-testid="admin-button">
+                <Button variant="outline" onClick={() => {
+                  trackButtonClicked('admin_panel', 'dashboard');
+                  navigate('/admin');
+                }} data-testid="admin-button">
                   Admin Panel
                 </Button>
               )}
-              <Button variant="outline" className="flex items-center gap-2" onClick={handleLogout} data-testid="logout-button">
+              <Button variant="outline" className="flex items-center gap-2" onClick={() => {
+                trackButtonClicked('logout', 'dashboard');
+                handleLogout();
+              }} data-testid="logout-button">
                 <LogOut size={16} />
                 Logout
               </Button>
@@ -143,7 +149,10 @@ const Dashboard = () => {
                 </p>
                 {progressData?.current_step === 3 && completedSteps === 3 ? (
                   <Button 
-                    onClick={() => navigate('/outcome')}
+                    onClick={() => {
+                      trackButtonClicked('view_achievement', 'dashboard');
+                      navigate('/outcome');
+                    }}
                     className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
                     data-testid="view-outcome-button"
                   >
@@ -152,7 +161,10 @@ const Dashboard = () => {
                   </Button>
                 ) : (
                   <Button 
-                    onClick={handleStartJourney}
+                    onClick={() => {
+                      trackButtonClicked('continue_journey', 'dashboard');
+                      handleStartJourney();
+                    }}
                     className="bg-gradient-to-r from-teal-600 to-cyan-700 hover:from-teal-700 hover:to-cyan-800 text-white font-semibold px-8 py-6 text-lg rounded-xl shadow-lg flex items-center gap-2"
                     data-testid="continue-journey-button"
                   >
