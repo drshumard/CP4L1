@@ -421,7 +421,10 @@ const StepsPage = () => {
               {/* Home Button - Icon only on mobile */}
               <Button 
                 variant="outline" 
-                onClick={() => navigate('/')} 
+                onClick={() => {
+                  trackButtonClicked('home', 'steps_page');
+                  navigate('/');
+                }} 
                 className="flex items-center gap-2 p-3 sm:px-4 sm:py-2" 
                 data-testid="home-button"
                 title="Home"
@@ -433,6 +436,8 @@ const StepsPage = () => {
               <Button 
                 variant="outline" 
                 onClick={() => {
+                  trackButtonClicked('logout', 'steps_page');
+                  trackLogout(userData?.id);
                   localStorage.removeItem('access_token');
                   localStorage.removeItem('refresh_token');
                   toast.success('Logged out successfully');
