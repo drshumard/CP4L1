@@ -60,6 +60,9 @@ const AdminDashboard = () => {
 
       setUsers(usersRes.data.users);
       setAnalytics(analyticsRes.data);
+      
+      // Track admin panel view
+      trackAdminPanelViewed(localStorage.getItem('user_id'));
     } catch (error) {
       if (error.response?.status === 403) {
         toast.error('Admin access required');
