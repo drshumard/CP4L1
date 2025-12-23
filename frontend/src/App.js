@@ -13,7 +13,13 @@ import OutcomePage from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
 import SupportPopup from './components/SupportPopup';
 import { Toaster } from './components/ui/sonner';
+import { trackSessionStart, trackApiError } from './utils/analytics';
 import './App.css';
+
+// Track session start on app load
+if (typeof window !== 'undefined') {
+  trackSessionStart();
+}
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('access_token');
