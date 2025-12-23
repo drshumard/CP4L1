@@ -310,7 +310,10 @@ const Login = () => {
                   />
                   <div className="flex flex-col sm:flex-row gap-2">
                     <Button 
-                      onClick={handlePasswordReset} 
+                      onClick={() => {
+                        trackButtonClicked('send_reset_link', 'password_reset_modal');
+                        handlePasswordReset();
+                      }} 
                       className="flex-1 h-11 text-sm md:text-base" 
                       data-testid="send-reset-button"
                     >
@@ -318,7 +321,10 @@ const Login = () => {
                     </Button>
                     <Button 
                       variant="outline" 
-                      onClick={() => setShowResetModal(false)} 
+                      onClick={() => {
+                        trackButtonClicked('cancel_reset', 'password_reset_modal');
+                        setShowResetModal(false);
+                      }} 
                       className="h-11 text-sm md:text-base"
                       data-testid="cancel-reset-button"
                     >
