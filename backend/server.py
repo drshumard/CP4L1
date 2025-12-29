@@ -1284,7 +1284,9 @@ async def promote_user_to_admin(email: EmailStr, secret_key: str):
             detail="Invalid secret key"
         )
     
-    user = await db.users.find_one({"email": email}, {"_id": 0})
+    # Normalize email to lowercase
+    email_lower = email.lower()
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1292,14 +1294,14 @@ async def promote_user_to_admin(email: EmailStr, secret_key: str):
         )
     
     if user.get("role") == "admin":
-        return {"message": "User is already an admin", "email": email}
+        return {"message": "User is already an admin", "email": email_lower}
     
     await db.users.update_one(
-        {"email": email},
+        {"email": email_lower},
         {"$set": {"role": "admin"}}
     )
     
-    return {"message": "User promoted to admin successfully", "email": email}
+    return {"message": "User promoted to admin successfully", "email": email_lower}
 
 @api_router.delete("/admin/user/{user_id}")
 async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
