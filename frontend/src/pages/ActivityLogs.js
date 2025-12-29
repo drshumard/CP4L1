@@ -263,6 +263,12 @@ const ActivityLogs = () => {
                       User
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Device
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Location
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
@@ -273,7 +279,7 @@ const ActivityLogs = () => {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {logs.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
                         No activity logs found
                       </td>
                     </tr>
@@ -294,6 +300,31 @@ const ActivityLogs = () => {
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
                           {log.user_email || <span className="text-gray-400">N/A</span>}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {log.device_info ? (
+                            <div className="flex flex-col">
+                              <span className="font-medium text-gray-700">
+                                {log.device_info.device_type === 'mobile' ? '📱' : 
+                                 log.device_info.device_type === 'tablet' ? '📱' : '💻'} 
+                                {log.device_info.device_type || 'Unknown'}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {log.device_info.browser} / {log.device_info.os}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {log.ip_address ? (
+                            <div className="flex flex-col">
+                              <span className="text-gray-600 font-mono text-xs">{log.ip_address}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(log.status)}`}>
