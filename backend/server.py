@@ -819,8 +819,11 @@ async def signup(request: SignupRequest):
     """Auto-login user (password already sent via webhook)"""
     import asyncio
     
+    # Normalize email to lowercase
+    email_lower = request.email.lower()
+    
     # Initial wait: 10 seconds to give webhook time to process
-    logging.info(f"Signup request for {request.email}. Waiting 10 seconds for webhook processing...")
+    logging.info(f"Signup request for {email_lower}. Waiting 10 seconds for webhook processing...")
     await asyncio.sleep(10)
     
     # Retry logic: Check for user with 5-second intervals for up to 30 seconds (6 retries)
@@ -829,22 +832,22 @@ async def signup(request: SignupRequest):
     user = None
     
     for attempt in range(max_retries + 1):
-        user = await db.users.find_one({"email": request.email}, {"_id": 0})
+        user = await db.users.find_one({"email": email_lower}, {"_id": 0})
         
         if user:
-            logging.info(f"User {request.email} found after {attempt} retries")
+            logging.info(f"User {email_lower} found after {attempt} retries")
             break
         
         if attempt < max_retries:
-            logging.info(f"User {request.email} not found yet. Retry {attempt + 1}/{max_retries} in {retry_delay} seconds...")
+            logging.info(f"User {email_lower} not found yet. Retry {attempt + 1}/{max_retries} in {retry_delay} seconds...")
             await asyncio.sleep(retry_delay)
     
     # After all retries, if still no user, raise error
     if not user:
-        logging.error(f"User {request.email} not found after {max_retries} retries (total wait: {10 + (max_retries * retry_delay)} seconds)")
+        logging.error(f"User {email_lower} not found after {max_retries} retries (total wait: {10 + (max_retries * retry_delay)} seconds)")
         await log_activity(
             event_type="SIGNUP_FAILED",
-            user_email=request.email,
+            user_email=email_lower,
             details={"reason": "user_not_found", "retries": max_retries},
             status="failure"
         )
