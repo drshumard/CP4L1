@@ -452,6 +452,8 @@ test_plan:
 
 agent_communication:
   - agent: "main"
+    message: "Completed geolocation lookup implementation for admin activity logs. The log_activity function now calls ipapi.co to get city, region, country, timezone, and coordinates from the user's IP address. Data is stored in location_info field. Frontend ActivityLogs.js updated to display location data (📍 City, Country) and CSV export includes device, location, and IP columns. Verified 7 logs with working geolocation data. Ready for testing."
+  - agent: "main"
     message: "Implemented custom inline notification component for login page. Used local state instead of global Sonner toast. Notifications positioned inside card at top with brand styling. Initial visual testing shows correct placement. Ready for comprehensive functional testing."
   - agent: "main"
     message: "Extended signup animation timing from 8s to 20s total. Stage 0 (Welcome): 6s, Stage 1 (Setting Up): 4s, Stage 2 (Password Sent): 6s, Stage 3 (Redirecting): 4s. Updated all setTimeout values in startSignupProcess function."
