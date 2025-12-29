@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { Activity, Filter, RefreshCw, Download, ArrowLeft, Clock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Activity, Filter, RefreshCw, Download, ArrowLeft, Clock, User, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -15,25 +15,33 @@ const ActivityLogs = () => {
   const [logs, setLogs] = useState([]);
   const [eventTypes, setEventTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    per_page: 50,
+    total_count: 0,
+    total_pages: 0,
+    has_next: false,
+    has_prev: false
+  });
   const [filters, setFilters] = useState({
     event_type: '',
-    user_email: '',
-    limit: 500
+    user_email: ''
   });
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(1);
   }, []);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (page = pagination.page) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
       const params = new URLSearchParams();
       
+      params.append('page', page);
+      params.append('per_page', pagination.per_page);
       if (filters.event_type) params.append('event_type', filters.event_type);
       if (filters.user_email) params.append('user_email', filters.user_email);
-      params.append('limit', filters.limit);
 
       const response = await axios.get(`${API}/admin/activity-logs?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -41,6 +49,10 @@ const ActivityLogs = () => {
 
       setLogs(response.data.logs);
       setEventTypes(response.data.event_types);
+      setPagination(prev => ({
+        ...prev,
+        ...response.data.pagination
+      }));
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error('Unauthorized access');
@@ -57,38 +69,65 @@ const ActivityLogs = () => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
+  const handlePerPageChange = (value) => {
+    setPagination(prev => ({ ...prev, per_page: parseInt(value), page: 1 }));
+  };
+
   const applyFilters = () => {
-    fetchLogs();
+    fetchLogs(1);
   };
 
   const clearFilters = () => {
-    setFilters({ event_type: '', user_email: '', limit: 500 });
-    setTimeout(() => fetchLogs(), 100);
+    setFilters({ event_type: '', user_email: '' });
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setTimeout(() => fetchLogs(1), 100);
   };
 
-  const exportLogs = () => {
-    const csvContent = [
-      ['Timestamp', 'Event Type', 'User Email', 'User ID', 'Device', 'Location', 'IP Address', 'Status', 'Details'],
-      ...logs.map(log => [
-        log.timestamp,
-        log.event_type,
-        log.user_email || 'N/A',
-        log.user_id || 'N/A',
-        log.device_info ? `${log.device_info.device_type || ''} / ${log.device_info.browser || ''} / ${log.device_info.os || ''}` : 'N/A',
-        log.location_info?.city && log.location_info?.country ? `${log.location_info.city}, ${log.location_info.country}` : 'N/A',
-        log.ip_address || 'N/A',
-        log.status,
-        JSON.stringify(log.details || {}).replace(/,/g, ';')
-      ])
-    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+  const goToPage = (page) => {
+    if (page >= 1 && page <= pagination.total_pages) {
+      fetchLogs(page);
+    }
+  };
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `activity_logs_${new Date().toISOString()}.csv`;
-    a.click();
-    toast.success('Logs exported successfully');
+  const exportLogs = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const params = new URLSearchParams();
+      params.append('page', 1);
+      params.append('per_page', 500); // Export up to 500 at a time
+      if (filters.event_type) params.append('event_type', filters.event_type);
+      if (filters.user_email) params.append('user_email', filters.user_email);
+
+      const response = await axios.get(`${API}/admin/activity-logs?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const exportLogs = response.data.logs;
+      const csvContent = [
+        ['Timestamp', 'Event Type', 'User Email', 'User ID', 'Device', 'Location', 'IP Address', 'Status', 'Details'],
+        ...exportLogs.map(log => [
+          log.timestamp,
+          log.event_type,
+          log.user_email || 'N/A',
+          log.user_id || 'N/A',
+          log.device_info ? `${log.device_info.device_type || ''} / ${log.device_info.browser || ''} / ${log.device_info.os || ''}` : 'N/A',
+          log.location_info?.city && log.location_info?.country ? `${log.location_info.city}, ${log.location_info.country}` : 'N/A',
+          log.ip_address || 'N/A',
+          log.status,
+          JSON.stringify(log.details || {}).replace(/,/g, ';')
+        ])
+      ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `activity_logs_${new Date().toISOString()}.csv`;
+      a.click();
+      toast.success(`Exported ${exportLogs.length} logs`);
+    } catch (error) {
+      toast.error('Failed to export logs');
+    }
   };
 
   const getEventIcon = (eventType) => {
@@ -133,7 +172,24 @@ const ActivityLogs = () => {
     });
   };
 
-  if (loading) {
+  // Generate page numbers to display
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
+    let end = Math.min(pagination.total_pages, start + maxVisible - 1);
+    
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  if (loading && logs.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
         <div className="text-center">
@@ -148,7 +204,7 @@ const ActivityLogs = () => {
     <div className="min-h-screen p-6" style={{ background: 'linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%)' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -163,16 +219,19 @@ const ActivityLogs = () => {
                 <Activity className="text-teal-600" size={32} />
                 Activity Logs
               </h1>
-              <p className="text-gray-600 mt-1">Monitor all backend events and user activities</p>
+              <p className="text-gray-600 mt-1">
+                {pagination.total_count.toLocaleString()} total logs
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={fetchLogs}
+              onClick={() => fetchLogs(pagination.page)}
+              disabled={loading}
               className="flex items-center gap-2"
             >
-              <RefreshCw size={18} />
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
               Refresh
             </Button>
             <Button
@@ -219,18 +278,17 @@ const ActivityLogs = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Limit</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Per Page</label>
                 <select
-                  value={filters.limit}
-                  onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
+                  value={pagination.per_page}
+                  onChange={(e) => handlePerPageChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
+                  <option value="25">25</option>
+                  <option value="50">50</option>
                   <option value="100">100</option>
+                  <option value="200">200</option>
                   <option value="500">500</option>
-                  <option value="1000">1,000</option>
-                  <option value="5000">5,000</option>
-                  <option value="10000">10,000</option>
-                  <option value="50000">50,000</option>
                 </select>
               </div>
               <div className="flex items-end gap-2">
@@ -369,13 +427,78 @@ const ActivityLogs = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination */}
+            {pagination.total_pages > 1 && (
+              <div className="px-4 py-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total_count)} of {pagination.total_count.toLocaleString()} logs
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {/* First Page */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(1)}
+                      disabled={!pagination.has_prev || loading}
+                      className="px-2"
+                    >
+                      <ChevronsLeft size={16} />
+                    </Button>
+                    
+                    {/* Previous Page */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(pagination.page - 1)}
+                      disabled={!pagination.has_prev || loading}
+                      className="px-2"
+                    >
+                      <ChevronLeft size={16} />
+                    </Button>
+
+                    {/* Page Numbers */}
+                    {getPageNumbers().map(pageNum => (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === pagination.page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => goToPage(pageNum)}
+                        disabled={loading}
+                        className={`px-3 ${pageNum === pagination.page ? 'bg-teal-600 text-white' : ''}`}
+                      >
+                        {pageNum}
+                      </Button>
+                    ))}
+
+                    {/* Next Page */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(pagination.page + 1)}
+                      disabled={!pagination.has_next || loading}
+                      className="px-2"
+                    >
+                      <ChevronRight size={16} />
+                    </Button>
+
+                    {/* Last Page */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(pagination.total_pages)}
+                      disabled={!pagination.has_next || loading}
+                      className="px-2"
+                    >
+                      <ChevronsRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* Stats Footer */}
-        <div className="mt-4 text-center text-sm text-gray-600">
-          Showing {logs.length} of {logs.length} logs
-        </div>
       </div>
     </div>
   );
