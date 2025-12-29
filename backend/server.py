@@ -63,85 +63,88 @@ async def log_activity(
     """Log backend activity to MongoDB with device info and geolocation"""
     import httpx
     
-    # Parse user agent for device info
-    device_info = {}
-    if user_agent:
-        ua_lower = user_agent.lower()
-        
-        # Detect device type
-        if 'mobile' in ua_lower or 'android' in ua_lower or 'iphone' in ua_lower or 'ipad' in ua_lower:
-            if 'ipad' in ua_lower or 'tablet' in ua_lower:
-                device_info['device_type'] = 'tablet'
-            else:
-                device_info['device_type'] = 'mobile'
-        else:
-            device_info['device_type'] = 'desktop'
-        
-        # Detect OS
-        if 'windows' in ua_lower:
-            device_info['os'] = 'Windows'
-        elif 'mac os' in ua_lower or 'macos' in ua_lower:
-            device_info['os'] = 'macOS'
-        elif 'iphone' in ua_lower or 'ipad' in ua_lower:
-            device_info['os'] = 'iOS'
-        elif 'android' in ua_lower:
-            device_info['os'] = 'Android'
-        elif 'linux' in ua_lower:
-            device_info['os'] = 'Linux'
-        else:
-            device_info['os'] = 'Unknown'
-        
-        # Detect browser
-        if 'chrome' in ua_lower and 'edg' not in ua_lower:
-            device_info['browser'] = 'Chrome'
-        elif 'safari' in ua_lower and 'chrome' not in ua_lower:
-            device_info['browser'] = 'Safari'
-        elif 'firefox' in ua_lower:
-            device_info['browser'] = 'Firefox'
-        elif 'edg' in ua_lower:
-            device_info['browser'] = 'Edge'
-        else:
-            device_info['browser'] = 'Other'
-        
-        device_info['user_agent'] = user_agent[:500]  # Truncate if too long
-    
-    # Get location from IP using ipapi.co
-    location_info = {}
-    if ip_address and ip_address not in ['127.0.0.1', 'localhost', '::1', '10.', '192.168.']:
-        location_info['ip_address'] = ip_address
-        
-        # Skip internal IPs
-        if not ip_address.startswith('10.') and not ip_address.startswith('192.168.') and not ip_address.startswith('172.'):
-            try:
-                async with httpx.AsyncClient(timeout=3.0) as client:
-                    response = await client.get(f"https://ipapi.co/{ip_address}/json/")
-                    if response.status_code == 200:
-                        geo_data = response.json()
-                        location_info['city'] = geo_data.get('city', '')
-                        location_info['region'] = geo_data.get('region', '')
-                        location_info['country'] = geo_data.get('country_name', '')
-                        location_info['country_code'] = geo_data.get('country_code', '')
-                        location_info['timezone'] = geo_data.get('timezone', '')
-                        location_info['latitude'] = geo_data.get('latitude')
-                        location_info['longitude'] = geo_data.get('longitude')
-            except Exception as e:
-                logging.warning(f"Geolocation lookup failed for {ip_address}: {str(e)}")
-    
-    log_entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "event_type": event_type,
-        "user_email": user_email,
-        "user_id": user_id,
-        "details": details or {},
-        "status": status,
-        "ip_address": ip_address,
-        "device_info": device_info,
-        "location_info": location_info
-    }
     try:
+        # Parse user agent for device info
+        device_info = {}
+        if user_agent:
+            ua_lower = user_agent.lower()
+            
+            # Detect device type
+            if 'mobile' in ua_lower or 'android' in ua_lower or 'iphone' in ua_lower or 'ipad' in ua_lower:
+                if 'ipad' in ua_lower or 'tablet' in ua_lower:
+                    device_info['device_type'] = 'tablet'
+                else:
+                    device_info['device_type'] = 'mobile'
+            else:
+                device_info['device_type'] = 'desktop'
+            
+            # Detect OS
+            if 'windows' in ua_lower:
+                device_info['os'] = 'Windows'
+            elif 'mac os' in ua_lower or 'macos' in ua_lower:
+                device_info['os'] = 'macOS'
+            elif 'iphone' in ua_lower or 'ipad' in ua_lower:
+                device_info['os'] = 'iOS'
+            elif 'android' in ua_lower:
+                device_info['os'] = 'Android'
+            elif 'linux' in ua_lower:
+                device_info['os'] = 'Linux'
+            else:
+                device_info['os'] = 'Unknown'
+            
+            # Detect browser
+            if 'chrome' in ua_lower and 'edg' not in ua_lower:
+                device_info['browser'] = 'Chrome'
+            elif 'safari' in ua_lower and 'chrome' not in ua_lower:
+                device_info['browser'] = 'Safari'
+            elif 'firefox' in ua_lower:
+                device_info['browser'] = 'Firefox'
+            elif 'edg' in ua_lower:
+                device_info['browser'] = 'Edge'
+            else:
+                device_info['browser'] = 'Other'
+            
+            device_info['user_agent'] = user_agent[:500]  # Truncate if too long
+        
+        # Get location from IP using ipapi.co
+        location_info = {}
+        if ip_address and ip_address not in ['127.0.0.1', 'localhost', '::1']:
+            location_info['ip_address'] = ip_address
+            
+            # Skip internal IPs
+            if not ip_address.startswith('10.') and not ip_address.startswith('192.168.') and not ip_address.startswith('172.'):
+                try:
+                    async with httpx.AsyncClient(timeout=3.0) as http_client:
+                        response = await http_client.get(f"https://ipapi.co/{ip_address}/json/")
+                        if response.status_code == 200:
+                            geo_data = response.json()
+                            location_info['city'] = geo_data.get('city', '')
+                            location_info['region'] = geo_data.get('region', '')
+                            location_info['country'] = geo_data.get('country_name', '')
+                            location_info['country_code'] = geo_data.get('country_code', '')
+                            location_info['timezone'] = geo_data.get('timezone', '')
+                            location_info['latitude'] = geo_data.get('latitude')
+                            location_info['longitude'] = geo_data.get('longitude')
+                except Exception as e:
+                    logging.warning(f"Geolocation lookup failed for {ip_address}: {str(e)}")
+        
+        log_entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "event_type": event_type,
+            "user_email": user_email,
+            "user_id": user_id,
+            "details": details or {},
+            "status": status,
+            "ip_address": ip_address,
+            "device_info": device_info,
+            "location_info": location_info
+        }
+        
         await db.activity_logs.insert_one(log_entry)
+        logging.debug(f"Activity logged: {event_type} for {user_email}")
+        
     except Exception as e:
-        logging.error(f"Failed to log activity: {str(e)}")
+        logging.error(f"Failed to log activity {event_type}: {str(e)}")
 
 # Models
 class User(BaseModel):
