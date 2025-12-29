@@ -306,8 +306,11 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             detail="Invalid webhook secret"
         )
     
+    # Normalize email to lowercase
+    email_lower = data.email.lower()
+    
     # Check if user already exists
-    existing_user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    existing_user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     if existing_user:
         return {"message": "User already exists", "user_id": existing_user["id"]}
     
