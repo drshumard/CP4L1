@@ -225,10 +225,12 @@ const ActivityLogs = () => {
                   onChange={(e) => handleFilterChange('limit', parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                 >
-                  <option value="50">50</option>
                   <option value="100">100</option>
-                  <option value="250">250</option>
                   <option value="500">500</option>
+                  <option value="1000">1,000</option>
+                  <option value="5000">5,000</option>
+                  <option value="10000">10,000</option>
+                  <option value="50000">50,000</option>
                 </select>
               </div>
               <div className="flex items-end gap-2">
