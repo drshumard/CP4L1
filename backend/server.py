@@ -857,7 +857,13 @@ async def signup(request: SignupRequest):
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
-async def login(request: LoginRequest):
+async def login(request: LoginRequest, req: Request):
+    # Get client info
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+    user_agent = req.headers.get("User-Agent", "")
+    
     user = await db.users.find_one({"email": request.email}, {"_id": 0})
     
     if not user or not user.get("password_hash"):
@@ -865,7 +871,9 @@ async def login(request: LoginRequest):
             event_type="LOGIN_FAILED",
             user_email=request.email,
             details={"reason": "user_not_found_or_no_password"},
-            status="failure"
+            status="failure",
+            ip_address=ip_address,
+            user_agent=user_agent
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -878,7 +886,9 @@ async def login(request: LoginRequest):
             user_email=request.email,
             user_id=user["id"],
             details={"reason": "incorrect_password"},
-            status="failure"
+            status="failure",
+            ip_address=ip_address,
+            user_agent=user_agent
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -897,12 +907,15 @@ async def login(request: LoginRequest):
         user_email=user["email"],
         user_id=user["id"],
         details={"session_duration_minutes": ACCESS_TOKEN_EXPIRE_MINUTES},
-        status="success"
+        status="success",
+        ip_address=ip_address,
+        user_agent=user_agent
     )
     
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token
+        refresh_token=refresh_token,
+        user_id=user["id"]
     )
 
 @api_router.post("/auth/refresh", response_model=TokenResponse)
