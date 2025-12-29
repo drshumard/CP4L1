@@ -1420,8 +1420,8 @@ class BackendTester:
             return False
 
     def run_all_tests(self):
-        """Run all backend tests including activity logging"""
-        print("🚀 Starting Backend Authentication Flow and Activity Logging Tests")
+        """Run all backend tests including activity logging and geolocation"""
+        print("🚀 Starting Backend Authentication Flow, Activity Logging, and Geolocation Tests")
         print(f"Backend URL: {BACKEND_URL}")
         print(f"Test User: {TEST_USER['email']}")
         print("=" * 60)
@@ -1432,6 +1432,7 @@ class BackendTester:
         self.activity_access_token = None
         self.admin_access_token = None
         self.admin_user_email = None
+        self.geo_test_user_email = None
         
         # Run tests in sequence
         tests = [
@@ -1455,7 +1456,13 @@ class BackendTester:
             # self.test_activity_logging_signup_failure,
             self.create_admin_user,
             self.test_admin_activity_logs_endpoint,
-            self.test_activity_logs_data_structure
+            self.test_activity_logs_data_structure,
+            
+            # New geolocation tests
+            self.test_login_geolocation_capture,
+            self.test_internal_ip_skipping,
+            self.test_geolocation_data_verification,
+            self.test_admin_activity_logs_unauthorized
         ]
         
         passed = 0
@@ -1484,7 +1491,7 @@ class BackendTester:
         print(f"Test Methods: {passed}/{total} test methods completed successfully")
         
         if passed_checks == total_checks:
-            print("🎉 All tests passed! Backend authentication flow is working correctly.")
+            print("🎉 All tests passed! Backend authentication flow and geolocation features are working correctly.")
             return True
         else:
             print(f"⚠️  {total_checks - passed_checks} checks failed. Please review the issues above.")
