@@ -33,7 +33,7 @@ const STEP_DATA = {
     videoUrl: 'https://iframe.mediadelivery.net/embed/538298/faa2085a-bc34-43b4-8212-b6ca6b3a660f',
     videoId: 'faa2085a-bc34-43b4-8212-b6ca6b3a660f',
     description: 'Watch the welcome video and book your personal consultation with our health advocate.',
-    tasks: ['watch_video', 'book_consultation']
+    tasks: ['book_consultation']
   },
   2: {
     title: 'Complete Your Health Profile',
