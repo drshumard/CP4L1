@@ -318,9 +318,23 @@ const ActivityLogs = () => {
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm">
-                          {log.ip_address ? (
+                          {log.location_info || log.ip_address ? (
                             <div className="flex flex-col">
-                              <span className="text-gray-600 font-mono text-xs">{log.ip_address}</span>
+                              {log.location_info?.city && log.location_info?.country ? (
+                                <>
+                                  <span className="font-medium text-gray-700">
+                                    📍 {log.location_info.city}, {log.location_info.country}
+                                  </span>
+                                  {log.location_info.region && (
+                                    <span className="text-xs text-gray-500">{log.location_info.region}</span>
+                                  )}
+                                </>
+                              ) : log.ip_address ? (
+                                <span className="text-gray-500 text-xs">IP: {log.ip_address}</span>
+                              ) : null}
+                              {log.ip_address && log.location_info?.city && (
+                                <span className="text-gray-400 font-mono text-xs mt-0.5">{log.ip_address}</span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-gray-400">-</span>
