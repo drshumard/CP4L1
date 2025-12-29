@@ -241,12 +241,14 @@ const StepsPage = () => {
       return;
     }
 
+    // Log task completion status (for analytics) but don't block progression
     const requiredTasks = STEP_DATA[currentStep].tasks;
     const allTasksCompleted = requiredTasks.every(task => completedTasks.has(task));
-
-    if (!skipValidation && !allTasksCompleted) {
-      toast.error('Please complete all tasks before advancing');
-      return;
+    if (!allTasksCompleted) {
+      console.log(`Step ${currentStep}: Not all tasks completed`, { 
+        required: requiredTasks, 
+        completed: Array.from(completedTasks) 
+      });
     }
 
     try {
