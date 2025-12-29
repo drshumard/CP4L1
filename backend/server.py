@@ -162,6 +162,8 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+    user_id: Optional[str] = None
+    email: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: str
