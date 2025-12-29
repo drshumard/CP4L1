@@ -1044,7 +1044,7 @@ class BackendTester:
                 
                 # Check structure of first log entry
                 log_entry = logs[0]
-                required_fields = ["timestamp", "event_type", "user_email", "user_id", "details", "status", "ip_address"]
+                required_fields = ["timestamp", "event_type", "user_email", "user_id", "details", "status", "ip_address", "device_info", "location_info"]
                 
                 missing_fields = []
                 for field in required_fields:
@@ -1078,6 +1078,16 @@ class BackendTester:
                         structure_issues.append("status not 'success' or 'failure'")
                         structure_valid = False
                     
+                    # Check device_info is object/dict
+                    if not isinstance(log_entry["device_info"], dict):
+                        structure_issues.append("device_info not object")
+                        structure_valid = False
+                    
+                    # Check location_info is object/dict
+                    if not isinstance(log_entry["location_info"], dict):
+                        structure_issues.append("location_info not object")
+                        structure_valid = False
+                    
                     if structure_valid:
                         # Check for expected event types
                         event_types = data.get("event_types", [])
@@ -1087,7 +1097,7 @@ class BackendTester:
                         self.log_result(
                             "Activity Logs Data Structure", 
                             True, 
-                            f"Structure valid. Found event types: {', '.join(found_types)}"
+                            f"Structure valid with device_info and location_info. Found event types: {', '.join(found_types)}"
                         )
                         return True
                     else:
@@ -1116,6 +1126,297 @@ class BackendTester:
                 return False
         except Exception as e:
             self.log_result("Activity Logs Data Structure", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_login_geolocation_capture(self):
+        """Test 8: Login Captures Geolocation with Public IP"""
+        print("\n=== Testing Login Geolocation Capture ===")
+        
+        # Create a test user for geolocation testing
+        geo_user = {
+            "email": f"geotest.{int(time.time())}@example.com",
+            "name": "Geolocation Test User"
+        }
+        
+        # First create user via webhook
+        webhook_url = f"{BACKEND_URL}/webhook/ghl"
+        webhook_payload = {
+            "email": geo_user["email"],
+            "name": geo_user["name"]
+        }
+        params = {"webhook_secret": WEBHOOK_SECRET}
+        
+        try:
+            webhook_response = self.session.post(webhook_url, json=webhook_payload, params=params)
+            
+            if webhook_response.status_code != 200:
+                self.log_result(
+                    "Geolocation Test - User Creation", 
+                    False, 
+                    f"Webhook failed: {webhook_response.status_code}"
+                )
+                return False
+            
+            # Get the generated password from webhook response (we'll need to simulate login)
+            # Since we can't get the actual password, we'll use signup to get tokens first
+            signup_url = f"{BACKEND_URL}/auth/signup"
+            signup_payload = {
+                "email": geo_user["email"],
+                "name": geo_user["name"],
+                "password": "GeoTest123!"
+            }
+            
+            signup_response = self.session.post(signup_url, json=signup_payload)
+            
+            if signup_response.status_code != 200:
+                self.log_result(
+                    "Geolocation Test - Signup", 
+                    False, 
+                    f"Signup failed: {signup_response.status_code}"
+                )
+                return False
+            
+            # Now test login with X-Forwarded-For header (public IP)
+            login_url = f"{BACKEND_URL}/auth/login"
+            login_payload = {
+                "email": geo_user["email"],
+                "password": "GeoTest123!"  # This will fail but will log the attempt
+            }
+            
+            # Use Google's public DNS IP for testing geolocation
+            headers = {
+                "X-Forwarded-For": "8.8.8.8",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            
+            login_response = self.session.post(login_url, json=login_payload, headers=headers)
+            
+            # We expect this to fail (401) but it should log the attempt with geolocation
+            if login_response.status_code == 401:
+                self.log_result(
+                    "Geolocation Test - Login with Public IP", 
+                    True, 
+                    "Login failed as expected, but should have logged geolocation data for IP 8.8.8.8"
+                )
+                
+                # Store the test user email for admin endpoint verification
+                self.geo_test_user_email = geo_user["email"]
+                return True
+            else:
+                self.log_result(
+                    "Geolocation Test - Login with Public IP", 
+                    False, 
+                    f"Unexpected response: {login_response.status_code}",
+                    login_response.json() if login_response.content else None
+                )
+                return False
+                
+        except Exception as e:
+            self.log_result("Geolocation Test - Login with Public IP", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_internal_ip_skipping(self):
+        """Test 9: Internal IP Addresses Skip Geolocation Lookup"""
+        print("\n=== Testing Internal IP Skipping ===")
+        
+        if not hasattr(self, 'geo_test_user_email'):
+            self.log_result(
+                "Internal IP Test - No Test User", 
+                False, 
+                "No geolocation test user available"
+            )
+            return False
+        
+        # Test with internal IP addresses
+        internal_ips = ["192.168.1.1", "10.0.0.1", "172.16.0.1"]
+        
+        login_url = f"{BACKEND_URL}/auth/login"
+        login_payload = {
+            "email": self.geo_test_user_email,
+            "password": "WrongPassword123!"  # Will fail but log the attempt
+        }
+        
+        success_count = 0
+        
+        for internal_ip in internal_ips:
+            try:
+                headers = {
+                    "X-Forwarded-For": internal_ip,
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+                
+                response = self.session.post(login_url, json=login_payload, headers=headers)
+                
+                if response.status_code == 401:
+                    self.log_result(
+                        f"Internal IP Test - {internal_ip}", 
+                        True, 
+                        f"Login failed as expected for internal IP {internal_ip} (should skip geolocation)"
+                    )
+                    success_count += 1
+                else:
+                    self.log_result(
+                        f"Internal IP Test - {internal_ip}", 
+                        False, 
+                        f"Unexpected response for {internal_ip}: {response.status_code}"
+                    )
+                    
+            except Exception as e:
+                self.log_result(f"Internal IP Test - {internal_ip}", False, f"Request failed: {str(e)}")
+        
+        return success_count == len(internal_ips)
+
+    def test_geolocation_data_verification(self):
+        """Test 10: Verify Geolocation Data in Activity Logs"""
+        print("\n=== Testing Geolocation Data Verification ===")
+        
+        if not hasattr(self, 'admin_access_token') or not self.admin_access_token:
+            self.log_result(
+                "Geolocation Verification - No Admin Token", 
+                False, 
+                "No admin token available"
+            )
+            return False
+        
+        if not hasattr(self, 'geo_test_user_email'):
+            self.log_result(
+                "Geolocation Verification - No Test User", 
+                False, 
+                "No geolocation test user available"
+            )
+            return False
+        
+        logs_url = f"{BACKEND_URL}/admin/activity-logs"
+        headers = {"Authorization": f"Bearer {self.admin_access_token}"}
+        
+        try:
+            # Get logs for our geolocation test user
+            response = self.session.get(
+                logs_url, 
+                headers=headers, 
+                params={
+                    "user_email": self.geo_test_user_email,
+                    "limit": 10
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                logs = data.get("logs", [])
+                
+                if not logs:
+                    self.log_result(
+                        "Geolocation Verification", 
+                        False, 
+                        f"No logs found for user {self.geo_test_user_email}"
+                    )
+                    return False
+                
+                # Look for LOGIN_FAILED events with geolocation data
+                geolocation_found = False
+                device_info_found = False
+                
+                for log in logs:
+                    if log.get("event_type") == "LOGIN_FAILED":
+                        location_info = log.get("location_info", {})
+                        device_info = log.get("device_info", {})
+                        
+                        # Check if geolocation data exists
+                        if location_info.get("ip_address") == "8.8.8.8":
+                            if location_info.get("city") and location_info.get("country"):
+                                geolocation_found = True
+                                self.log_result(
+                                    "Geolocation Verification - Location Data", 
+                                    True, 
+                                    f"Found geolocation: {location_info.get('city')}, {location_info.get('country')} for IP 8.8.8.8"
+                                )
+                            
+                            # Check device info
+                            if device_info.get("device_type") and device_info.get("browser") and device_info.get("os"):
+                                device_info_found = True
+                                self.log_result(
+                                    "Geolocation Verification - Device Info", 
+                                    True, 
+                                    f"Found device info: {device_info.get('device_type')}, {device_info.get('browser')}, {device_info.get('os')}"
+                                )
+                            break
+                
+                if not geolocation_found:
+                    self.log_result(
+                        "Geolocation Verification - Location Data", 
+                        False, 
+                        "No geolocation data found for public IP 8.8.8.8"
+                    )
+                
+                if not device_info_found:
+                    self.log_result(
+                        "Geolocation Verification - Device Info", 
+                        False, 
+                        "No device info found in logs"
+                    )
+                
+                return geolocation_found and device_info_found
+                
+            else:
+                self.log_result(
+                    "Geolocation Verification", 
+                    False, 
+                    f"Failed to retrieve logs: {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+                
+        except Exception as e:
+            self.log_result("Geolocation Verification", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_admin_activity_logs_unauthorized(self):
+        """Test 11: Admin Activity Logs Endpoint Without Authorization"""
+        print("\n=== Testing Admin Activity Logs - Unauthorized Access ===")
+        
+        logs_url = f"{BACKEND_URL}/admin/activity-logs"
+        
+        try:
+            # Test without authorization header
+            response = self.session.get(logs_url)
+            
+            if response.status_code == 403:
+                self.log_result(
+                    "Admin Activity Logs - No Auth", 
+                    True, 
+                    "Correctly rejected request without authorization (403)"
+                )
+            else:
+                self.log_result(
+                    "Admin Activity Logs - No Auth", 
+                    False, 
+                    f"Expected 403, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+            
+            # Test with invalid token
+            headers = {"Authorization": "Bearer invalid_token_here"}
+            response = self.session.get(logs_url, headers=headers)
+            
+            if response.status_code == 401:
+                self.log_result(
+                    "Admin Activity Logs - Invalid Token", 
+                    True, 
+                    "Correctly rejected request with invalid token (401)"
+                )
+                return True
+            else:
+                self.log_result(
+                    "Admin Activity Logs - Invalid Token", 
+                    False, 
+                    f"Expected 401, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+                
+        except Exception as e:
+            self.log_result("Admin Activity Logs - Unauthorized", False, f"Request failed: {str(e)}")
             return False
 
     def run_all_tests(self):
