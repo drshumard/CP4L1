@@ -228,6 +228,15 @@ const PracticeBetterEmbed = ({
     }
     setLoading(false);
     setError(false);
+    
+    // Track iframe load
+    const loadTime = Math.round((Date.now() - pageLoadTimeRef.current) / 1000);
+    trackEvent('iframe_loaded', {
+      iframe_type: type,
+      load_time_seconds: loadTime,
+      retry_count: retryCount
+    });
+    
     onLoad?.();
 
     // Load any saved data
