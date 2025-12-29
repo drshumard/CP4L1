@@ -601,8 +601,11 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
             detail="Invalid webhook secret"
         )
     
+    # Normalize email to lowercase
+    email_lower = data.email.lower()
+    
     # Check if user exists with this email
-    user = await db.users.find_one({"email": data.email}, {"_id": 0})
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     matched_by = "email" if user else None
     
     # If no user found by email, try to match by first_name + last_name + phone
