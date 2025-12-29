@@ -62,7 +62,7 @@ const ActivityLogs = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ event_type: '', user_email: '', limit: 100 });
+    setFilters({ event_type: '', user_email: '', limit: 500 });
     setTimeout(() => fetchLogs(), 100);
   };
 
