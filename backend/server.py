@@ -1230,13 +1230,16 @@ async def get_analytics(admin_user: dict = Depends(get_admin_user)):
 @api_router.get("/admin/activity-logs")
 async def get_activity_logs(
     admin_user: dict = Depends(get_admin_user),
-    limit: int = 500,
+    page: int = 1,
+    per_page: int = 50,
     event_type: str = None,
     user_email: str = None
 ):
-    """Get activity logs with optional filtering"""
-    # Cap limit at 50000
-    limit = min(limit, 50000)
+    """Get activity logs with pagination and filtering"""
+    # Cap per_page at 500
+    per_page = min(max(per_page, 10), 500)
+    page = max(page, 1)
+    skip = (page - 1) * per_page
     
     query = {}
     
@@ -1246,15 +1249,23 @@ async def get_activity_logs(
     if user_email:
         query["user_email"] = user_email.lower()
     
+    # Get total count for pagination
+    total_count = await db.activity_logs.count_documents(query)
+    total_pages = (total_count + per_page - 1) // per_page  # Ceiling division
+    
+    # Fetch logs - first normalize all timestamps to ensure consistent sorting
     logs = await db.activity_logs.find(
         query,
         {"_id": 0}
-    ).sort("timestamp", -1).limit(limit).to_list(limit)
+    ).sort("timestamp", -1).skip(skip).limit(per_page).to_list(per_page)
     
     # Convert datetime objects to ISO strings for JSON serialization
     for log in logs:
         if isinstance(log.get("timestamp"), datetime):
             log["timestamp"] = log["timestamp"].isoformat()
+    
+    # Sort logs by timestamp string (ensures consistent ordering)
+    logs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     
     # Get unique event types for filtering
     event_types = await db.activity_logs.distinct("event_type")
@@ -1262,7 +1273,49 @@ async def get_activity_logs(
     return {
         "logs": logs,
         "event_types": event_types,
-        "total_count": await db.activity_logs.count_documents(query)
+        "pagination": {
+            "page": page,
+            "per_page": per_page,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1
+        }
+    }
+
+@api_router.post("/admin/normalize-log-timestamps")
+async def normalize_log_timestamps(secret_key: str):
+    """
+    One-time migration to normalize all activity log timestamps to ISO strings.
+    This fixes the sorting issue between datetime objects and ISO strings.
+    Protected by webhook secret.
+    """
+    if not WEBHOOK_SECRET or secret_key != WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid secret key"
+        )
+    
+    # Find all logs with datetime timestamps and convert to ISO strings
+    logs = await db.activity_logs.find({}).to_list(100000)
+    fixed = 0
+    
+    for log in logs:
+        ts = log.get("timestamp")
+        if isinstance(ts, datetime):
+            # Convert to ISO string with timezone
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            await db.activity_logs.update_one(
+                {"_id": log["_id"]},
+                {"$set": {"timestamp": ts.isoformat()}}
+            )
+            fixed += 1
+    
+    return {
+        "message": f"Migration complete. Normalized {fixed} timestamps.",
+        "total_logs": len(logs),
+        "fixed": fixed
     }
 
 @api_router.post("/admin/user/{user_id}/reset")
