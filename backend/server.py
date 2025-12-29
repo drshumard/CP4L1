@@ -882,7 +882,9 @@ async def login(request: LoginRequest, req: Request):
         ip_address = ip_address.split(",")[0].strip()
     user_agent = req.headers.get("User-Agent", "")
     
-    user = await db.users.find_one({"email": request.email}, {"_id": 0})
+    # Normalize email to lowercase for case-insensitive lookup
+    email_lower = request.email.lower()
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     
     if not user or not user.get("password_hash"):
         await log_activity(
