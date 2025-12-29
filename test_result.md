@@ -228,6 +228,18 @@ backend:
         agent: "testing"
         comment: "COMPREHENSIVE ACTIVITY LOGGING SYSTEM TESTING COMPLETED: All 7 test scenarios passed successfully. ✅ Test 1 (User Creation Logging): USER_CREATED and EMAIL_SENT events properly logged with user details, name, source, email_type, and credentials_included ✅ Test 2 (Login Success): LOGIN_SUCCESS events logged with session_duration_minutes (30 min) ✅ Test 3 (Login Failures): LOGIN_FAILED events logged with correct reasons - 'incorrect_password' and 'user_not_found_or_no_password' ✅ Test 4 (Signup Success): SIGNUP_SUCCESS events logged with auto_login=true and session_duration_minutes ✅ Test 5 (Signup Failure): SIGNUP_FAILED events logged with retries count (6 retries) and timeout handling ✅ Test 6 (Admin Endpoint): /api/admin/activity-logs working with filtering by event_type, user_email, limit parameter, proper authorization (403 without token), sorting (newest first), and correct response structure ✅ Test 7 (Data Structure): All log entries contain required fields - timestamp (ISO format), event_type, user_email, user_id, details (object), status (success/failure), ip_address (null). Found all expected event types: USER_CREATED, EMAIL_SENT, LOGIN_SUCCESS, LOGIN_FAILED, SIGNUP_SUCCESS, SIGNUP_FAILED. Activity logging system is production-ready and fully functional."
 
+  - task: "Admin Activity Logs Geolocation Feature"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE GEOLOCATION FEATURE TESTING COMPLETED: All 5 test scenarios passed successfully. ✅ Test 1 (Login Geolocation Capture): POST to /api/auth/login with X-Forwarded-For header (8.8.8.8) successfully captured geolocation data - resolved to Mountain View, United States with device info (desktop, Chrome, Windows) ✅ Test 2 (Activity Logs Endpoint): GET /api/admin/activity-logs working correctly with proper admin authorization, filtering by event_type/user_email, limit parameters, and response structure includes logs with location_info and device_info fields ✅ Test 3 (Internal IP Skipping): Internal IPs (192.168.1.1, 10.0.0.1, 172.16.0.1) correctly skip geolocation lookup as expected - no API calls made for private IP ranges ✅ Test 4 (Data Structure Verification): Recent activity logs contain device_info (device_type, browser, OS) and location_info (city, country, region, timezone, latitude, longitude, IP) fields with correct data types ✅ Test 5 (Authorization Security): Admin endpoint properly rejects unauthorized requests (403 without token, 401 with invalid token). Backend logs confirm successful ipapi.co API calls for public IPs. Frontend ActivityLogs.js correctly displays: 📍 City, Country format with region below, device info with emojis (💻/📱), IP addresses shown when available, and CSV export includes Device, Location, IP Address columns as requested. Geolocation feature is production-ready and fully functional."
+
 frontend:
   - task: "Update outcome page to reflect 3-step journey"
     implemented: true
