@@ -254,7 +254,7 @@ const PracticeBetterEmbed = ({
         console.log('[PB Form] Could not send restore message:', e);
       }
     }
-  }, [onLoad, loadSavedData]);
+  }, [onLoad, loadSavedData, type, retryCount]);
 
   // Handle iframe load error
   const handleError = useCallback(() => {
@@ -273,16 +273,27 @@ const PracticeBetterEmbed = ({
     } else {
       setLoading(false);
       setError(true);
+      
+      // Track iframe load failure
+      trackEvent('iframe_load_failed', {
+        iframe_type: type,
+        retry_count: retryCount
+      });
+      
       onError?.();
     }
-  }, [retryCount, onError]);
+  }, [retryCount, onError, type]);
 
   // Retry manually
   const handleRetry = useCallback(() => {
+    trackEvent('iframe_retry_clicked', {
+      iframe_type: type,
+      previous_retry_count: retryCount
+    });
     setRetryCount(0);
     setLoading(true);
     setError(false);
-  }, []);
+  }, [type, retryCount]);
 
   // Set up load timeout
   useEffect(() => {
