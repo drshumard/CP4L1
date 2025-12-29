@@ -60,7 +60,8 @@ async def log_activity(
     ip_address: str = None,
     user_agent: str = None
 ):
-    """Log backend activity to MongoDB with device info"""
+    """Log backend activity to MongoDB with device info and geolocation"""
+    import httpx
     
     # Parse user agent for device info
     device_info = {}
@@ -104,12 +105,27 @@ async def log_activity(
         
         device_info['user_agent'] = user_agent[:500]  # Truncate if too long
     
-    # Get location from IP (basic)
+    # Get location from IP using ipapi.co
     location_info = {}
-    if ip_address and ip_address not in ['127.0.0.1', 'localhost', '::1']:
+    if ip_address and ip_address not in ['127.0.0.1', 'localhost', '::1', '10.', '192.168.']:
         location_info['ip_address'] = ip_address
-        # Note: For detailed geolocation, you'd need to call an API like ipapi.co
-        # We'll store the IP and let the admin lookup location if needed
+        
+        # Skip internal IPs
+        if not ip_address.startswith('10.') and not ip_address.startswith('192.168.') and not ip_address.startswith('172.'):
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    response = await client.get(f"https://ipapi.co/{ip_address}/json/")
+                    if response.status_code == 200:
+                        geo_data = response.json()
+                        location_info['city'] = geo_data.get('city', '')
+                        location_info['region'] = geo_data.get('region', '')
+                        location_info['country'] = geo_data.get('country_name', '')
+                        location_info['country_code'] = geo_data.get('country_code', '')
+                        location_info['timezone'] = geo_data.get('timezone', '')
+                        location_info['latitude'] = geo_data.get('latitude')
+                        location_info['longitude'] = geo_data.get('longitude')
+            except Exception as e:
+                logging.warning(f"Geolocation lookup failed for {ip_address}: {str(e)}")
     
     log_entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
