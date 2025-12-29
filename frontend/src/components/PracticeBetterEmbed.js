@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, AlertCircle, ExternalLink, RefreshCw, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import axios from 'axios';
+import { trackEvent } from '../utils/analytics';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -37,15 +38,89 @@ const PracticeBetterEmbed = ({
   const [iframeHeight, setIframeHeight] = useState(type === 'form' ? 1200 : minHeight);
   const [capturedData, setCapturedData] = useState({});
   const [lastSaved, setLastSaved] = useState(null);
+  const [isInView, setIsInView] = useState(false);
+  const [timeOnEmbed, setTimeOnEmbed] = useState(0);
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const timeoutRef = useRef(null);
   const autoSaveIntervalRef = useRef(null);
+  const timeTrackingRef = useRef(null);
+  const pageLoadTimeRef = useRef(Date.now());
   const maxRetries = 3;
 
   const iframeUrl = PRACTICE_BETTER_URLS[type];
   const fallbackUrl = FALLBACK_URLS[type];
   const storageKey = getStorageKey(type, userId);
+
+  // Track scroll to iframe section using Intersection Observer
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !isInView) {
+            setIsInView(true);
+            trackEvent('iframe_scrolled_into_view', {
+              iframe_type: type,
+              time_to_scroll_seconds: Math.round((Date.now() - pageLoadTimeRef.current) / 1000)
+            });
+          }
+        });
+      },
+      { threshold: 0.5 } // Trigger when 50% of iframe is visible
+    );
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [type, isInView]);
+
+  // Track time spent on page with iframe
+  useEffect(() => {
+    // Start tracking time when component mounts
+    timeTrackingRef.current = setInterval(() => {
+      setTimeOnEmbed(prev => prev + 1);
+    }, 1000);
+
+    // Track time when user leaves the page
+    const handleBeforeUnload = () => {
+      trackEvent('iframe_time_spent', {
+        iframe_type: type,
+        time_spent_seconds: timeOnEmbed,
+        iframe_loaded: !loading && !error
+      });
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(timeTrackingRef.current);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      // Track time when component unmounts (navigation)
+      if (timeOnEmbed > 5) { // Only track if spent more than 5 seconds
+        trackEvent('iframe_time_spent', {
+          iframe_type: type,
+          time_spent_seconds: timeOnEmbed,
+          iframe_loaded: !loading && !error
+        });
+      }
+    };
+  }, [type, loading, error, timeOnEmbed]);
+
+  // Track time milestones (30s, 1min, 2min, 5min)
+  useEffect(() => {
+    const milestones = [30, 60, 120, 300];
+    if (milestones.includes(timeOnEmbed)) {
+      trackEvent('iframe_time_milestone', {
+        iframe_type: type,
+        milestone_seconds: timeOnEmbed,
+        milestone_label: timeOnEmbed === 30 ? '30_seconds' : 
+                        timeOnEmbed === 60 ? '1_minute' : 
+                        timeOnEmbed === 120 ? '2_minutes' : '5_minutes'
+      });
+    }
+  }, [timeOnEmbed, type]);
 
   // Save data to all storage mechanisms
   const saveFormData = useCallback(async (data) => {
