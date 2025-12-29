@@ -338,9 +338,9 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     # Hash password
     hashed_password = get_password_hash(generated_password)
     
-    # Create new user with generated password
+    # Create new user with generated password (email stored lowercase)
     user = User(
-        email=data.email,
+        email=email_lower,
         name=full_name,
         password_hash=hashed_password
     )
