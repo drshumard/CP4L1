@@ -1309,6 +1309,38 @@ async def promote_user_to_admin(email: EmailStr, secret_key: str):
     
     return {"message": "User promoted to admin successfully", "email": email_lower}
 
+@api_router.post("/admin/migrate-emails")
+async def migrate_emails_to_lowercase(secret_key: str):
+    """
+    One-time migration to normalize all emails to lowercase.
+    Protected by webhook secret.
+    """
+    if not WEBHOOK_SECRET or secret_key != WEBHOOK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid secret key"
+        )
+    
+    # Find and fix all users with uppercase emails
+    users = await db.users.find({}, {"_id": 1, "email": 1}).to_list(10000)
+    fixed = []
+    
+    for user in users:
+        email = user.get("email", "")
+        if email and email != email.lower():
+            old_email = email
+            new_email = email.lower()
+            await db.users.update_one(
+                {"_id": user["_id"]},
+                {"$set": {"email": new_email}}
+            )
+            fixed.append({"old": old_email, "new": new_email})
+    
+    return {
+        "message": f"Migration complete. Fixed {len(fixed)} emails.",
+        "fixed_emails": fixed
+    }
+
 @api_router.delete("/admin/user/{user_id}")
 async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
     """
