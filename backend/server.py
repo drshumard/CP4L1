@@ -1230,18 +1230,21 @@ async def get_analytics(admin_user: dict = Depends(get_admin_user)):
 @api_router.get("/admin/activity-logs")
 async def get_activity_logs(
     admin_user: dict = Depends(get_admin_user),
-    limit: int = 100,
+    limit: int = 500,
     event_type: str = None,
     user_email: str = None
 ):
     """Get activity logs with optional filtering"""
+    # Cap limit at 50000
+    limit = min(limit, 50000)
+    
     query = {}
     
     if event_type:
         query["event_type"] = event_type
     
     if user_email:
-        query["user_email"] = user_email
+        query["user_email"] = user_email.lower()
     
     logs = await db.activity_logs.find(
         query,
