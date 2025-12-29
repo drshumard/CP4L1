@@ -1020,7 +1020,9 @@ async def auto_login(token: str):
 
 @api_router.post("/auth/request-reset")
 async def request_password_reset(request: PasswordResetRequest):
-    user = await db.users.find_one({"email": request.email}, {"_id": 0})
+    # Normalize email to lowercase
+    email_lower = request.email.lower()
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     
     # Always return success to prevent email enumeration
     if user:
@@ -1029,7 +1031,7 @@ async def request_password_reset(request: PasswordResetRequest):
         expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
         
         await db.users.update_one(
-            {"email": request.email},
+            {"email": email_lower},
             {"$set": {
                 "reset_token": reset_token,
                 "reset_token_expires": expires_at.isoformat()
