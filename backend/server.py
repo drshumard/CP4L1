@@ -1591,11 +1591,13 @@ async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict
     if request.name is not None:
         update_data["name"] = request.name
     if request.email is not None:
+        # Normalize email to lowercase
+        email_lower = request.email.lower()
         # Check if email is already taken by another user
-        existing = await db.users.find_one({"email": request.email, "id": {"$ne": user_id}})
+        existing = await db.users.find_one({"email": email_lower, "id": {"$ne": user_id}})
         if existing:
             raise HTTPException(status_code=400, detail="Email already in use by another user")
-        update_data["email"] = request.email
+        update_data["email"] = email_lower
     if request.phone is not None:
         update_data["phone"] = request.phone
     if request.first_name is not None:
