@@ -68,16 +68,19 @@ const ActivityLogs = () => {
 
   const exportLogs = () => {
     const csvContent = [
-      ['Timestamp', 'Event Type', 'User Email', 'User ID', 'Status', 'Details'],
+      ['Timestamp', 'Event Type', 'User Email', 'User ID', 'Device', 'Location', 'IP Address', 'Status', 'Details'],
       ...logs.map(log => [
         log.timestamp,
         log.event_type,
         log.user_email || 'N/A',
         log.user_id || 'N/A',
+        log.device_info ? `${log.device_info.device_type || ''} / ${log.device_info.browser || ''} / ${log.device_info.os || ''}` : 'N/A',
+        log.location_info?.city && log.location_info?.country ? `${log.location_info.city}, ${log.location_info.country}` : 'N/A',
+        log.ip_address || 'N/A',
         log.status,
-        JSON.stringify(log.details || {})
+        JSON.stringify(log.details || {}).replace(/,/g, ';')
       ])
-    ].map(row => row.join(',')).join('\n');
+    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
