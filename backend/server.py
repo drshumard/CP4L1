@@ -57,17 +57,70 @@ async def log_activity(
     user_id: str = None,
     details: dict = None,
     status: str = "success",
-    ip_address: str = None
+    ip_address: str = None,
+    user_agent: str = None
 ):
-    """Log backend activity to MongoDB"""
+    """Log backend activity to MongoDB with device info"""
+    
+    # Parse user agent for device info
+    device_info = {}
+    if user_agent:
+        ua_lower = user_agent.lower()
+        
+        # Detect device type
+        if 'mobile' in ua_lower or 'android' in ua_lower or 'iphone' in ua_lower or 'ipad' in ua_lower:
+            if 'ipad' in ua_lower or 'tablet' in ua_lower:
+                device_info['device_type'] = 'tablet'
+            else:
+                device_info['device_type'] = 'mobile'
+        else:
+            device_info['device_type'] = 'desktop'
+        
+        # Detect OS
+        if 'windows' in ua_lower:
+            device_info['os'] = 'Windows'
+        elif 'mac os' in ua_lower or 'macos' in ua_lower:
+            device_info['os'] = 'macOS'
+        elif 'iphone' in ua_lower or 'ipad' in ua_lower:
+            device_info['os'] = 'iOS'
+        elif 'android' in ua_lower:
+            device_info['os'] = 'Android'
+        elif 'linux' in ua_lower:
+            device_info['os'] = 'Linux'
+        else:
+            device_info['os'] = 'Unknown'
+        
+        # Detect browser
+        if 'chrome' in ua_lower and 'edg' not in ua_lower:
+            device_info['browser'] = 'Chrome'
+        elif 'safari' in ua_lower and 'chrome' not in ua_lower:
+            device_info['browser'] = 'Safari'
+        elif 'firefox' in ua_lower:
+            device_info['browser'] = 'Firefox'
+        elif 'edg' in ua_lower:
+            device_info['browser'] = 'Edge'
+        else:
+            device_info['browser'] = 'Other'
+        
+        device_info['user_agent'] = user_agent[:500]  # Truncate if too long
+    
+    # Get location from IP (basic)
+    location_info = {}
+    if ip_address and ip_address not in ['127.0.0.1', 'localhost', '::1']:
+        location_info['ip_address'] = ip_address
+        # Note: For detailed geolocation, you'd need to call an API like ipapi.co
+        # We'll store the IP and let the admin lookup location if needed
+    
     log_entry = {
-        "timestamp": datetime.now(timezone.utc),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "event_type": event_type,
         "user_email": user_email,
         "user_id": user_id,
         "details": details or {},
         "status": status,
-        "ip_address": ip_address
+        "ip_address": ip_address,
+        "device_info": device_info,
+        "location_info": location_info
     }
     try:
         await db.activity_logs.insert_one(log_entry)
