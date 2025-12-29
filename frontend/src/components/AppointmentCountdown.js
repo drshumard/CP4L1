@@ -292,55 +292,46 @@ END:VCALENDAR`;
       </div>
 
       {/* Countdown Section */}
-      {!timeLeft.isPast ? (
-        <div className="flex justify-around items-center pt-6 border-t border-blue-100">
-          {/* Days */}
-          <div className="text-center">
-            <motion.div
-              key={timeLeft.days}
-              initial={{ scale: 1.1, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-4xl sm:text-5xl font-bold text-gray-900"
-            >
-              {String(timeLeft.days).padStart(2, '0')}
-            </motion.div>
-            <div className="text-sm text-gray-600 mt-1 font-medium">Days</div>
-          </div>
-
-          {/* Hours */}
-          <div className="text-center">
-            <motion.div
-              key={timeLeft.hours}
-              initial={{ scale: 1.1, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-4xl sm:text-5xl font-bold text-gray-900"
-            >
-              {String(timeLeft.hours).padStart(2, '0')}
-            </motion.div>
-            <div className="text-sm text-gray-600 mt-1 font-medium">Hours</div>
-          </div>
-
-          {/* Minutes */}
-          <div className="text-center">
-            <motion.div
-              key={timeLeft.minutes}
-              initial={{ scale: 1.1, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="text-4xl sm:text-5xl font-bold text-gray-900"
-            >
-              {String(timeLeft.minutes).padStart(2, '0')}
-            </motion.div>
-            <div className="text-sm text-gray-600 mt-1 font-medium">Minutes</div>
-          </div>
+      <div className="flex justify-around items-center pt-6 border-t border-blue-100">
+        {/* Days */}
+        <div className="text-center">
+          <motion.div
+            key={timeLeft.days}
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-4xl sm:text-5xl font-bold text-gray-900"
+          >
+            {String(timeLeft.days).padStart(2, '0')}
+          </motion.div>
+          <div className="text-sm text-gray-600 mt-1 font-medium">Days</div>
         </div>
-      ) : (
-        <div className="text-center pt-6 border-t border-blue-100">
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4">
-            <p className="text-green-700 font-semibold">Your appointment time has arrived!</p>
-            <p className="text-sm text-green-600 mt-1">Check your email for meeting details.</p>
-          </div>
+
+        {/* Hours */}
+        <div className="text-center">
+          <motion.div
+            key={timeLeft.hours}
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-4xl sm:text-5xl font-bold text-gray-900"
+          >
+            {String(timeLeft.hours).padStart(2, '0')}
+          </motion.div>
+          <div className="text-sm text-gray-600 mt-1 font-medium">Hours</div>
         </div>
-      )}
+
+        {/* Minutes */}
+        <div className="text-center">
+          <motion.div
+            key={timeLeft.minutes}
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-4xl sm:text-5xl font-bold text-gray-900"
+          >
+            {String(timeLeft.minutes).padStart(2, '0')}
+          </motion.div>
+          <div className="text-sm text-gray-600 mt-1 font-medium">Minutes</div>
+        </div>
+      </div>
     </div>
   );
 };
