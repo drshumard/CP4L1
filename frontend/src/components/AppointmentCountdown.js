@@ -135,9 +135,6 @@ const AppointmentCountdown = ({ appointment }) => {
 
   if (!appointment) return null;
 
-  // Hide the banner completely if appointment time has passed
-  if (timeLeft.isPast) return null;
-
   const appointmentDate = new Date(appointment.session_date);
 
   // Generate calendar URLs
