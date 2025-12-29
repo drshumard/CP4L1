@@ -18,7 +18,7 @@ const ActivityLogs = () => {
   const [filters, setFilters] = useState({
     event_type: '',
     user_email: '',
-    limit: 100
+    limit: 500
   });
 
   useEffect(() => {
