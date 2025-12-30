@@ -518,14 +518,18 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Extended signup retry wait period with 40-second backend timeout"
+    - "3-Part Intake Form Component"
+    - "Intake Form Save Progress API"
+    - "Intake Form Get Saved Data API"
+    - "Intake Form Submit API"
+    - "Step 2 Layout with Custom Intake Form"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Completed geolocation lookup implementation for admin activity logs. The log_activity function now calls ipapi.co to get city, region, country, timezone, and coordinates from the user's IP address. Data is stored in location_info field. Frontend ActivityLogs.js updated to display location data (📍 City, Country) and CSV export includes device, location, and IP columns. Verified 7 logs with working geolocation data. Ready for testing."
+    message: "Implemented complete 3-part intake form system to replace PracticeBetter embed for Step 2. Part 1: Health Profile form with Legal Last Name field, modern react-datepicker calendar, Country dropdown (US at top, then alphabetical North/South American countries), Motivation Level dropdown (1-3, 4-6, 7-8, 9-10), Medications section with Add Row functionality, removed sticky save/submit bar. Part 2: Full HIPAA Notice of Privacy text with checkbox agreement and digital signature canvas using react-signature-canvas, auto-populated date. Part 3: Telehealth Consent with Dr. Shumard header info, full consent text, amber/red warning boxes for rescheduling and cancellation policies, checkbox agreement, Print Name input field, and digital signature canvas with Submit button. Backend endpoints: GET /api/user/intake-form (load saved progress), POST /api/user/intake-form/save (auto-save every 3 seconds), POST /api/user/intake-form/submit (final submission with signatures stored as base64 image data). Form features: auto-save, progress persistence between sessions, 3-part wizard navigation, validation on each part before proceeding. Testing credentials: testadmin@test.com / test123. Ready for comprehensive testing."
   - agent: "testing"
     message: "GEOLOCATION FEATURE TESTING COMPLETED: All backend API tests passed successfully. ✅ Test 1 (Login Geolocation Capture): Login with X-Forwarded-For header (8.8.8.8) successfully captured geolocation data - resolved to Mountain View, United States ✅ Test 2 (Activity Logs Endpoint): Admin endpoint working correctly with proper authorization, filtering by event_type/user_email, and limit parameters ✅ Test 3 (Internal IP Skipping): Internal IPs (192.168.1.1, 10.0.0.1, 172.16.0.1) correctly skip geolocation lookup as expected ✅ Test 4 (Data Structure): Activity logs contain device_info (device_type, browser, OS) and location_info (city, country, region, IP) fields ✅ Test 5 (Authorization): Admin endpoint properly rejects unauthorized requests (403/401) ✅ Backend logs show successful ipapi.co API calls for public IPs. Frontend ActivityLogs.js correctly displays: 📍 City, Country format, device info with emojis, IP addresses, and CSV export includes all required columns. Geolocation feature is production-ready and fully functional. Minor note: Some older logs lack device_info/location_info fields (expected for pre-implementation logs)."
   - agent: "main"
