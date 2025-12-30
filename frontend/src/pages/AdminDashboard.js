@@ -35,6 +35,7 @@ const AdminDashboard = () => {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [pendingStep, setPendingStep] = useState(null); // Track pending step change
   const [passwordFormData, setPasswordFormData] = useState({
     mode: 'set', // 'set' or 'link'
     newPassword: '',
