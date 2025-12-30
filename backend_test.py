@@ -1574,10 +1574,10 @@ class BackendTester:
                 "recentTests": ["blood_glucose", "hba1c", "lipid_panel"],
                 "otherProviders": "Dr. Sarah Johnson - Endocrinologist, Dr. Mike Wilson - Primary Care"
             },
-            "hipaaAgreed": true,
+            "hipaaAgreed": True,
             "hipaaPrintName": "John Smith",
             "hipaaSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-            "telehealthAgreed": true,
+            "telehealthAgreed": True,
             "telehealthPrintName": "John Smith",
             "telehealthSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
         }
