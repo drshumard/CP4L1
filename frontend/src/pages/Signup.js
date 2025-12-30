@@ -18,6 +18,32 @@ const Signup = () => {
   const [progress, setProgress] = useState(0); // Progress percentage 0-100
   const signupStartedRef = useRef(false); // Prevent double execution
 
+  // Add tracking pixel on page load
+  useEffect(() => {
+    // Get clickID from URL params (common param names: clickID, click_id, cid, transaction_id)
+    const clickID = searchParams.get('clickID') || 
+                    searchParams.get('click_id') || 
+                    searchParams.get('cid') || 
+                    searchParams.get('transaction_id') || 
+                    '';
+    
+    // Create tracking pixel
+    const trackingUrl = `https://www.g30sltrk.com/?nid=876&transaction_id=${clickID}`;
+    const img = document.createElement('img');
+    img.src = trackingUrl;
+    img.width = 1;
+    img.height = 1;
+    img.style.display = 'none';
+    document.body.appendChild(img);
+
+    // Cleanup on unmount
+    return () => {
+      if (img.parentNode) {
+        img.parentNode.removeChild(img);
+      }
+    };
+  }, [searchParams]);
+
   const startSignupProcess = useCallback(async (userEmail, userName) => {
     // Progress animation - smooth updates every 500ms
     // Total: Up to 55s (6s welcome + 4s setting up + backend 40s retry + 5s final)
