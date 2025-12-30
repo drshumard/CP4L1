@@ -2217,7 +2217,11 @@ class BackendTester:
             self.test_intake_form_save_progress,
             self.test_intake_form_get_saved_data,
             self.test_intake_form_submit,
-            self.test_intake_form_submission_logging
+            self.test_intake_form_submission_logging,
+            
+            # Comprehensive intake form tests for diabetes portal
+            self.test_intake_form_comprehensive_submit,
+            self.test_intake_form_auto_save_comprehensive
         ]
         
         passed = 0
