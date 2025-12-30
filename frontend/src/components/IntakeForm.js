@@ -1,18 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check, Plus, Trash2, Loader2, AlertCircle, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Loader2 } from 'lucide-react';
 import axios from 'axios';
-import SignatureCanvas from 'react-signature-canvas';
-import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+
+// Import refactored components
+import { Part1_DiabetesProfile, Part2_HIPAAConsent, Part3_TelehealthConsent, ValidationModal } from './intake-form';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -35,80 +30,6 @@ const FIELD_LABELS = {
   telehealthAgreed: 'Telehealth Agreement Checkbox',
   telehealthSignature: 'Telehealth Signature'
 };
-
-// North and South American countries - US at top, then alphabetical
-const COUNTRIES = [
-  'United States',
-  'Argentina', 'Bahamas', 'Barbados', 'Belize', 'Bolivia', 'Brazil', 'Canada',
-  'Chile', 'Colombia', 'Costa Rica', 'Cuba', 'Dominican Republic', 'Ecuador',
-  'El Salvador', 'Guatemala', 'Guyana', 'Haiti', 'Honduras', 'Jamaica', 'Mexico',
-  'Nicaragua', 'Panama', 'Paraguay', 'Peru', 'Puerto Rico', 'Suriname',
-  'Trinidad and Tobago', 'Uruguay', 'Venezuela'
-];
-
-const MOTIVATION_LEVELS = [
-  { value: '1-3', label: '1-3 (Low)' },
-  { value: '4-6', label: '4-6 (Moderate)' },
-  { value: '7-8', label: '7-8 (High)' },
-  { value: '9-10', label: '9-10 (Very High)' }
-];
-
-const SEVERITY_LEVELS = [
-  { value: 'Minimal', label: 'Minimal (annoying but causing no limitation)' },
-  { value: 'Slight', label: 'Slight (tolerable but causing a little limitation)' },
-  { value: 'Moderate', label: 'Moderate (sometimes tolerable but definitely causing limitation)' },
-  { value: 'Severe', label: 'Severe (causing significant limitation)' },
-  { value: 'Extreme', label: 'Extreme (causing near constant limitation (>80% of the time))' }
-];
-
-const RELATIONSHIP_STATUS = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Partnered'];
-const GENDER_OPTIONS = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
-
-const SYMPTOM_CATEGORIES = {
-  CONSTITUTIONAL: ['Fatigue', 'Recent weight change', 'Fever'],
-  EYES: ['Blurred/Double vision', 'Glasses/contacts', 'Eye disease or injury'],
-  'EAR/NOSE/MOUTH/THROAT': [
-    'Swollen glands in neck', 'Hearing loss or ringing', 'Earaches or drainage',
-    'Chronic sinus problems or rhinitis', 'Nose bleeds', 'Mouth sores/Bleeding gums',
-    'Bad breath/Bad taste', 'Sore throat or voice changes'
-  ],
-  PSYCHIATRIC: ['Insomnia', 'Memory loss or confusion', 'Nervousness', 'Depression'],
-  GENITOURINARY: [
-    'Frequent urination', 'Burning or painful urination', 'Blood in urine',
-    'Change in force of urinating', 'Kidney stones', 'Sexual difficulty',
-    'Male: testicle pain', 'Female: pain/irregular periods', 'Female: pregnant',
-    'Bladder infections', 'Kidney disease', 'Hemorrhoids'
-  ],
-  GASTROINTESTINAL: [
-    'Abdominal pain', 'Nausea or vomiting', 'Rectal bleeding/Blood in stool',
-    'Painful burn/Constipation', 'Ulcer', 'Change in bowel movement',
-    'Frequent diarrhea', 'Loss of appetite'
-  ],
-  ENDOCRINE: [
-    'Glandular or hormone problem', 'Excessive thirst or urination',
-    'Heat or cold intolerance', 'Skin becoming dryer', 'Change in hat or glove size',
-    'Diabetes', 'Thyroid disease'
-  ],
-  MUSCULOSKELETAL: [
-    'Back Pain', 'Joint Pain', 'Joint stiffness and swelling', 'Muscle pain or cramps',
-    'Muscle or joint weakness', 'Difficulty walking', 'Cold extremities'
-  ],
-  INTEGUMENTARY: [
-    'Change in skin color', 'Change in hair or nails', 'Varicose veins',
-    'Breast pain/discharge', 'Breast lump', 'Hives or eczema', 'Rash or itching'
-  ],
-  NEUROLOGICAL: [
-    'Freq/Recurring headaches', 'Migraine headache', 'Convulsions or seizures',
-    'Numbness or tingling', 'Tremors', 'Paralysis', 'Head injury',
-    'Light headed or dizzy', 'Stroke'
-  ],
-  'HEMATOLOGIC/LYMPHATIC': [
-    'Slow to heal after cuts', 'Easy bleeding or bruising', 'Anemia', 'Phlebitis',
-    'Enlarged glands', 'Blood or plasma transfusion', 'Hepatitis', 'Cancer'
-  ]
-};
-
-const RECENT_TESTS = ['Lab work', 'X-rays', 'CT scan', 'MRI', 'Ultrasound', 'EKG', 'Other'];
 
 const IntakeForm = ({ userData, onComplete }) => {
   const [currentPart, setCurrentPart] = useState(1);
@@ -419,7 +340,7 @@ const IntakeForm = ({ userData, onComplete }) => {
     const missing = [];
     
     if (!telehealthPrintName.trim()) {
-      missing.push({ field: 'telehealthPrintName', id: 'printName', label: FIELD_LABELS.telehealthPrintName });
+      missing.push({ field: 'telehealthPrintName', id: 'telehealthPrintName', label: FIELD_LABELS.telehealthPrintName });
     }
     if (!telehealthAgreed) {
       missing.push({ field: 'telehealthAgreed', id: 'telehealthAgreed', label: FIELD_LABELS.telehealthAgreed });
@@ -508,96 +429,6 @@ const IntakeForm = ({ userData, onComplete }) => {
     }
   };
 
-  // Validation Modal Component
-  const ValidationModal = () => (
-    <AnimatePresence>
-      {showValidationModal && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-            onClick={() => setShowValidationModal(false)}
-          />
-          
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-red-500 to-orange-500 p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                    <AlertCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Required Fields Missing</h3>
-                </div>
-                <button
-                  onClick={() => setShowValidationModal(false)}
-                  className="text-white/80 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-              
-              {/* Content */}
-              <div className="p-6">
-                <p className="text-gray-600 mb-4">Please complete the following required fields:</p>
-                
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {missingFields.map((field, index) => (
-                    <div
-                      key={field.field}
-                      className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-100"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-sm font-bold">
-                          {index + 1}
-                        </span>
-                        <span className="text-gray-700 font-medium">{field.label}</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => scrollToField(field.id)}
-                        className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
-                      >
-                        Fix
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Footer */}
-              <div className="bg-gray-50 px-6 py-4 flex justify-end">
-                <Button
-                  onClick={() => setShowValidationModal(false)}
-                  variant="outline"
-                  className="mr-2"
-                >
-                  Close
-                </Button>
-                <Button
-                  onClick={() => scrollToField(missingFields[0]?.id)}
-                  className="bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600"
-                >
-                  Fix First Field
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-
   const renderProgressIndicator = () => (
     <div className="flex items-center justify-center gap-2 mb-6">
       {[1, 2, 3].map((part) => (
@@ -630,464 +461,16 @@ const IntakeForm = ({ userData, onComplete }) => {
     </div>
   );
 
-  const renderPart1 = () => (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      className="space-y-6"
-    >
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Intake Forms: Diabetes</h2>
-        <p className="text-gray-600 mt-2">Please complete all sections below</p>
-      </div>
-
-      {/* General Information */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">General Information *</h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Legal First Name *</Label>
-              <Input id="legalFirstName" value={formData.legalFirstName} onChange={(e) => handleInputChange('legalFirstName', e.target.value)} placeholder="Legal first name" />
-            </div>
-            <div className="space-y-2">
-              <Label>Legal Last Name *</Label>
-              <Input id="legalLastName" value={formData.legalLastName} onChange={(e) => handleInputChange('legalLastName', e.target.value)} placeholder="Legal last name" />
-            </div>
-            <div className="space-y-2">
-              <Label>Preferred First Name</Label>
-              <Input value={formData.preferredFirstName} onChange={(e) => handleInputChange('preferredFirstName', e.target.value)} placeholder="Preferred name (optional)" />
-            </div>
-            <div className="space-y-2">
-              <Label>Email Address</Label>
-              <Input value={formData.email} onChange={(e) => handleInputChange('email', e.target.value)} placeholder="email@example.com" disabled className="bg-gray-50" />
-            </div>
-            <div className="space-y-2">
-              <Label>Preferred Phone</Label>
-              <Input value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="(555) 123-4567" />
-            </div>
-            <div className="space-y-2" data-field="dateOfBirth">
-              <Label>Date of Birth *</Label>
-              <DatePicker
-                id="dateOfBirth"
-                selected={formData.dateOfBirth}
-                onChange={(date) => handleInputChange('dateOfBirth', date)}
-                dateFormat="MMMM d, yyyy"
-                showMonthDropdown showYearDropdown dropdownMode="select"
-                maxDate={new Date()} yearDropdownItemNumber={100} scrollableYearDropdown
-                placeholderText="Select your date of birth"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
-                wrapperClassName="w-full"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Relationship Status</Label>
-              <Select value={formData.relationshipStatus} onValueChange={(v) => handleInputChange('relationshipStatus', v)}>
-                <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                <SelectContent>
-                  {RELATIONSHIP_STATUS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Gender</Label>
-              <Select value={formData.gender} onValueChange={(v) => handleInputChange('gender', v)}>
-                <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
-                <SelectContent>
-                  {GENDER_OPTIONS.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Weight *</Label>
-              <Input id="weight" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} placeholder="e.g., 180 lbs" />
-            </div>
-            <div className="space-y-2">
-              <Label>Current Date *</Label>
-              <Input value={formData.currentDate?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} disabled className="bg-gray-50" />
-            </div>
-          </div>
-
-          {/* Address */}
-          <div className="mt-4 pt-4 border-t">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Address</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Street</Label>
-                <Input value={formData.street} onChange={(e) => handleInputChange('street', e.target.value)} placeholder="Street address" />
-              </div>
-              <div className="space-y-2">
-                <Label>Unit</Label>
-                <Input value={formData.unit} onChange={(e) => handleInputChange('unit', e.target.value)} placeholder="Apt, Suite, etc." />
-              </div>
-              <div className="space-y-2">
-                <Label>Town</Label>
-                <Input value={formData.town} onChange={(e) => handleInputChange('town', e.target.value)} placeholder="City/Town" />
-              </div>
-              <div className="space-y-2">
-                <Label>Postal Code</Label>
-                <Input value={formData.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} placeholder="ZIP/Postal code" />
-              </div>
-              <div className="space-y-2">
-                <Label>Country</Label>
-                <Select value={formData.country} onValueChange={(v) => handleInputChange('country', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select country" /></SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contact Information */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Contact Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Occupation</Label>
-              <Input value={formData.occupation} onChange={(e) => handleInputChange('occupation', e.target.value)} placeholder="Your occupation" />
-            </div>
-            <div className="space-y-2">
-              <Label>Referred By</Label>
-              <Input value={formData.referredBy} onChange={(e) => handleInputChange('referredBy', e.target.value)} placeholder="How did you hear about us?" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Goals and Concerns */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Goals and Concerns</h3>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>List Your Main Problems *</Label>
-              <Textarea id="mainProblems" value={formData.mainProblems} onChange={(e) => handleInputChange('mainProblems', e.target.value)} placeholder="Describe your main health concerns..." rows={3} />
-            </div>
-            <div className="space-y-2">
-              <Label>What are you hoping happens today as a result of your consultation? *</Label>
-              <Textarea id="hopedOutcome" value={formData.hopedOutcome} onChange={(e) => handleInputChange('hopedOutcome', e.target.value)} placeholder="What outcomes are you hoping for?" rows={3} />
-            </div>
-            <div className="space-y-2">
-              <Label>If you cannot find a solution to your problem what do you think will happen? *</Label>
-              <Textarea id="noSolutionOutcome" value={formData.noSolutionOutcome} onChange={(e) => handleInputChange('noSolutionOutcome', e.target.value)} placeholder="What concerns do you have if this isn't resolved?" rows={3} />
-            </div>
-            <div className="space-y-2">
-              <Label>What interventions have you tried in the past that have NOT succeeded?</Label>
-              <Textarea value={formData.previousInterventions} onChange={(e) => handleInputChange('previousInterventions', e.target.value)} placeholder="e.g., diet, cleanse, medication, supplement, etc." rows={3} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2" data-field="severityLevel">
-                <Label>Severity of your problem *</Label>
-                <Select value={formData.severityLevel} onValueChange={(v) => handleInputChange('severityLevel', v)}>
-                  <SelectTrigger id="severityLevel"><SelectValue placeholder="Select severity" /></SelectTrigger>
-                  <SelectContent>
-                    {SEVERITY_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2" data-field="motivationLevel">
-                <Label>Motivation Level *</Label>
-                <Select value={formData.motivationLevel} onValueChange={(v) => handleInputChange('motivationLevel', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select motivation (10 = highest)" /></SelectTrigger>
-                  <SelectContent>
-                    {MOTIVATION_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Prior Medical History */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Prior Medical History</h3>
-          <div className="space-y-2">
-            <Label>Please state if you have any previous diagnosis and dates when this occurred</Label>
-            <Textarea value={formData.priorMedicalHistory} onChange={(e) => handleInputChange('priorMedicalHistory', e.target.value)} placeholder="List any previous diagnoses and their dates..." rows={4} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Medications and Supplements */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Medications and Supplements *</h3>
-          <p className="text-sm text-gray-600 mb-4">Please list Current Medications and dosage.</p>
-          
-          <div className="space-y-3">
-            {formData.medications.map((med, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-gray-50 rounded-lg">
-                <div className="space-y-1">
-                  <Label className="text-xs">Name</Label>
-                  <Input value={med.name} onChange={(e) => updateMedication(index, 'name', e.target.value)} placeholder="Medication/Supplement name" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Dosage</Label>
-                  <Input value={med.dosage} onChange={(e) => updateMedication(index, 'dosage', e.target.value)} placeholder="e.g., 500mg daily" />
-                </div>
-                <div className="flex items-end">
-                  {formData.medications.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeMedicationRow(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-                      <Trash2 size={18} />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-            
-            <Button type="button" variant="outline" onClick={addMedicationRow} className="w-full border-dashed border-2 border-teal-300 text-teal-600 hover:bg-teal-50">
-              <Plus size={18} className="mr-2" /> Add Row
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Review of Symptoms */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Review of Symptoms</h3>
-          <p className="text-sm text-gray-600 mb-4">Select current symptoms that apply to you:</p>
-          
-          <div className="space-y-6">
-            {Object.entries(SYMPTOM_CATEGORIES).map(([category, symptoms]) => (
-              <div key={category} className="border rounded-lg p-4">
-                <h4 className="text-sm font-bold text-gray-700 mb-3 uppercase">{category}</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {symptoms.map(symptom => (
-                    <label key={symptom} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                      <Checkbox
-                        checked={(formData.symptoms[category] || []).includes(symptom)}
-                        onCheckedChange={() => toggleSymptom(category, symptom)}
-                      />
-                      <span className="text-gray-700">{symptom}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Allergies */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Allergies/Other</h3>
-          <div className="space-y-2">
-            <Label>List any allergies (drugs, food, environmental)</Label>
-            <Textarea value={formData.allergies} onChange={(e) => handleInputChange('allergies', e.target.value)} placeholder="List any known allergies..." rows={3} />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Tests */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Recent Tests</h3>
-          <p className="text-sm text-gray-600 mb-3">Select any recent tests you've had:</p>
-          <div className="flex flex-wrap gap-3">
-            {RECENT_TESTS.map(test => (
-              <label key={test} className="flex items-center gap-2 text-sm cursor-pointer bg-gray-50 px-3 py-2 rounded-lg hover:bg-gray-100">
-                <Checkbox checked={formData.recentTests.includes(test)} onCheckedChange={() => toggleRecentTest(test)} />
-                <span>{test}</span>
-              </label>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Other Providers */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Other Providers</h3>
-          <div className="space-y-2">
-            <Label>List any other healthcare providers you are currently seeing</Label>
-            <Textarea value={formData.otherProviders} onChange={(e) => handleInputChange('otherProviders', e.target.value)} placeholder="Name, specialty, reason for treatment..." rows={3} />
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-
-  const renderPart2 = () => (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Part 2: HIPAA - Notice of Privacy</h2>
-        <p className="text-gray-600 mt-2">Please read and sign below</p>
-      </div>
-
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 mb-4">
-            <p className="text-sm text-gray-700 font-medium">Please read the information below and then sign at the bottom of the form. Thank you so much!</p>
-          </div>
-          
-          <div className="prose prose-sm max-w-none text-gray-700 space-y-3 text-sm">
-            <h3 className="text-lg font-bold text-gray-800">Notice Of Privacy Practices</h3>
-            <p className="font-semibold text-red-600 text-xs">THIS NOTICE DESCRIBES HOW MEDICAL INFORMATION ABOUT YOU MAY BE USED AND DISCLOSED AND HOW YOU CAN GET ACCESS TO THIS INFORMATION. PLEASE REVIEW IT CAREFULLY.</p>
-            <p>Dr. Shumard Chiropractic Inc. is committed to providing you with the highest quality of care in an environment that protects a health participant's privacy and the confidentiality of your health information. This notice explains our privacy practices, as well as your rights, with regard to your health information.</p>
-            <p>We want you to know how your Protected Health Information (PHI) is going to be used in our coaching program and your rights concerning those records. Before we will begin any health coaching we require you to read and sign this consent form stating that you understand and agree with how your records will be used.</p>
-            <p className="font-semibold">Some of the terms of uses include:</p>
-            <ol className="list-decimal pl-5 space-y-1 text-xs">
-              <li>The health participant understands that Shumard Chiropractic Inc. and partnering laboratories transmit health information (such as lab results) electronically via a secure internet connection. Shumard Chiropractic Inc. has taken the necessary precautions to enhance all security; Shumard Chiropractic Inc. cannot be held liable if there is any security breach on the part of the laboratories.</li>
-              <li>A health participant's written consent need only be obtained one time for all subsequent coaching given to the health participant.</li>
-              <li>For your security and right to privacy, we have taken all precautions that we know of to assure that your records are not readily available to those who do not need access to them.</li>
-              <li>If the health participant refuses to sign this consent for the purpose of health coaching operations, Shumard Chiropractic Inc. reserves the right to refuse acceptance of the health participant.</li>
-              <li>Every effort is made to ensure cyber-security of your information, including password protection of computers, HIPAA-compliant email servers, and other means. No system is 100% secure and there are potential risks notwithstanding. The health participant agrees to hold Shumard Chiropractic Inc. harmless for information lost due to technical failures.</li>
-              <li>Consultations can be conducted either by audio via phone, PracticeBetter Telehealth or similar, or through video conferencing via Skype, Zoom, G-Suite's 'Meet', PracticeBetter Telehealth or similar. If the transmission fails during your consultation, every reasonable effort will be made to help you get reconnected. There are risks associated with using tele-coaching, including, but may not be limited to a breach of privacy and or PHI due to failure in security protocols.</li>
-            </ol>
-            <h4 className="font-bold text-gray-800 mt-4">Your Rights</h4>
-            <p>When it comes to your health information, you have certain rights. This section explains your rights and how to exercise them. Specifically, you have the right to:</p>
-            <ol className="list-decimal pl-5 space-y-1 text-xs">
-              <li><strong>Get an electronic or paper copy of your medical record</strong> - You can ask to see or get an electronic or paper copy of your medical record and other health information we have about you. We will provide a copy or a summary of your health information, usually within 30 days of your request. We may charge a reasonable, cost-based fee.</li>
-              <li><strong>Ask us to correct or amend your medical record</strong> - You can ask us to correct health information about you that you think is incorrect or incomplete. We may say "no" to your request, but we will tell you why in writing, usually within 60 days of your request.</li>
-              <li><strong>Request confidential communications</strong> - You can ask us to contact you in a specific way (for example, home or office phone) or to send mail to a different address. We will say "yes" to all reasonable requests.</li>
-              <li><strong>Get a copy of this privacy notice</strong> - You can ask for a paper copy of this notice at any time, even if you have agreed to receive the notice electronically. We will provide you with a paper copy promptly.</li>
-              <li><strong>Choose someone to act for you</strong> - If you have given someone health care power of attorney or if someone is your legal guardian, that person (your "personal representative") can exercise your rights and make choices about your health information.</li>
-              <li><strong>File a complaint if you feel your rights are violated</strong> - Protecting your confidential information is important to us. If you feel we have violated your rights, please contact us. You may also file a complaint with the U.S. Department of Health and Human Services Office for Civil Rights.</li>
-            </ol>
-            <h4 className="font-bold text-gray-800 mt-4">Your Choices</h4>
-            <p>For certain health information, you can tell us your choices about what we share. In these cases, you have both the right and choice to tell us to: share information with your family, close friends or others involved in your care; share information in a disaster relief situation; include your information in a hospital directory.</p>
-            <p className="font-semibold">We never share your information unless you give us written authorization:</p>
-            <ul className="list-disc pl-5 space-y-1 text-xs">
-              <li>Marketing purposes</li>
-              <li>Sale of your information</li>
-              <li>Most, but not all, sharing of psychotherapy notes</li>
-            </ul>
-            <h4 className="font-bold text-gray-800 mt-4">How We May Use and Share Your Health Information</h4>
-            <p>We may, without your written permission, use your health information within our organization and share or disclose your health information to others outside our organization for treatment, payment, and healthcare operations.</p>
-            <ol className="list-decimal pl-5 space-y-1 text-xs">
-              <li><strong>Treatment</strong> - We may use your health information and share it with other professionals who are treating you.</li>
-              <li><strong>Payment</strong> - We may use and share your health information to bill and get payment from health plans or other entities.</li>
-              <li><strong>Healthcare operations</strong> - We may use and disclose your health information to run our organization, improve your care, and contact you when necessary.</li>
-            </ol>
-            <h4 className="font-bold text-gray-800 mt-4">Our Responsibilities</h4>
-            <ul className="list-disc pl-5 space-y-1 text-xs">
-              <li>We are required by law to maintain the privacy and security of your protected health information.</li>
-              <li>We will let you know promptly if a breach occurs that may have compromised the privacy or security of your information.</li>
-              <li>We must follow the duties and privacy practices described in this Notice and offer you a written copy of it.</li>
-              <li>We will not use or share your information other than as described here unless you tell us we can do so in writing.</li>
-            </ul>
-            <h4 className="font-bold text-gray-800 mt-4">Changes to This Notice</h4>
-            <p>We can change the terms of this Notice, and the changes will apply to all information we have about you. The new Notice will be available upon request and on our website.</p>
-            <h4 className="font-bold text-gray-800 mt-4">Who To Contact For Information or With a Complaint</h4>
-            <p>If you have any questions about this Notice, or any complaints, please contact Shumard Chiropractic Inc.</p>
-            <p className="font-semibold mt-4">EFFECTIVE DATE OF THIS NOTICE: February, 2021</p>
-            <p className="font-semibold text-teal-700 mt-4">Please sign below saying you have read, understand and agree to the Privacy Notice. Thank you.</p>
-          </div>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <Checkbox id="hipaaAgreed" checked={hipaaAgreed} onCheckedChange={setHipaaAgreed} />
-              <Label htmlFor="hipaaAgreed" className="text-sm leading-relaxed cursor-pointer">I have read, understand, and agree to the HIPAA Notice of Privacy Practices above.</Label>
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <Label htmlFor="hipaaPrintName" className="text-lg font-semibold">Print Name Here *</Label>
-            <Input id="hipaaPrintName" value={hipaaPrintName} onChange={(e) => setHipaaPrintName(e.target.value)} placeholder="Type your full legal name" className="mt-2 text-lg" />
-          </div>
-          
-          <div className="mt-6">
-            <Label className="text-lg font-semibold">Your Signature *</Label>
-            <p className="text-sm text-gray-600 mb-3">Please sign using your mouse or finger below</p>
-            <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
-              <SignatureCanvas
-                ref={hipaaSignatureRef}
-                canvasProps={{ className: 'w-full h-48 bg-white', style: { width: '100%', height: '200px' } }}
-                backgroundColor="white"
-                onEnd={() => { if (hipaaSignatureRef.current) setHipaaSignature(hipaaSignatureRef.current.toDataURL('image/png')); }}
-              />
-            </div>
-            <div className="flex justify-between items-center mt-3">
-              <Button type="button" variant="outline" size="sm" onClick={clearHipaaSignature} className="text-gray-600">Clear Signature</Button>
-              <p className="text-sm text-gray-600">Date: <span className="font-semibold">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-
-  const renderPart3 = () => (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Part 3: Telehealth Consent</h2>
-        <p className="text-gray-600 mt-2">Please read and sign below</p>
-      </div>
-
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <div className="text-center mb-6">
-            <p className="text-xl font-bold text-gray-800">DRSHUMARD</p>
-            <p className="font-semibold text-gray-800 mt-2">Dr. Shumard</p>
-            <p className="text-gray-600 text-sm">740 Nordahl Rd, Suite 294</p>
-            <p className="text-gray-600 text-sm">San Marcos CA 92069</p>
-            <p className="text-gray-600 text-sm">858-564-7081</p>
-            <p className="text-gray-600 text-sm">drjason@drshumard.com</p>
-          </div>
-          
-          <div className="prose prose-sm max-w-none text-gray-700 space-y-3 text-sm">
-            <p>I understand that my health and wellness provider Dr. Shumard, DC wishes me to have a tele-health consultation.</p>
-            <p>This means that through an interactive video connection, I will be able to consult with the above named provider about my health and wellness concerns.</p>
-            <p className="font-semibold mt-4">I understand there are potential risks with this technology:</p>
-            <p>The video connection may not work or it may stop working during the consultation.</p>
-            <p>The video picture or information transmitted may not be clear enough to be useful for the consultation.</p>
-            <p className="font-semibold mt-4">The benefits of a tele-health consultation are:</p>
-            <p>I do not need to travel to the consult location.</p>
-            <p>I have access to a specialist through this consultation.</p>
-            <p className="mt-4">I also understand other individuals may need to use Practice Better tele-health platform and that they will take reasonable steps to maintain confidentiality of the information obtained. I also understand that this may be recorded for training purposes.</p>
-            <p className="mt-4">I understand that I am paying for an initial consultation with Dr. Shumard or one of his director of admissions. I will be allowed to reschedule this appointment one time with no additional charge. If I reschedule this appointment I agree to put a credit card on file for my follow up visit. If I do not inform or cancel with Dr. Shumard at least 24 hrs prior to my rescheduled appointment I will then be charged an additional $97 that is non-refundable.</p>
-            <p className="mt-4">I understand all cancellations must be received 24 hrs prior to my scheduled appointment, otherwise the paid consultation fee of $97.00 will be forfeited and nonrefundable.</p>
-            <p className="mt-4">I have read this document and understand the risk and benefits of the tele-health consultation and have had my questions regarding the procedure explained and I hereby consent to participate in tele-health sessions under the conditions described in this document.</p>
-            <p className="font-semibold mt-4">Client</p>
-            <p>I have read, understand, and accept the information and conditions specified in this agreement.</p>
-          </div>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <Checkbox id="telehealthAgreed" checked={telehealthAgreed} onCheckedChange={setTelehealthAgreed} />
-              <Label htmlFor="telehealthAgreed" className="text-sm leading-relaxed cursor-pointer">I have read, understand, and accept the information and conditions specified in this agreement.</Label>
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <Label htmlFor="printName" className="text-lg font-semibold">Print Name Here *</Label>
-            <Input id="printName" value={telehealthPrintName} onChange={(e) => setTelehealthPrintName(e.target.value)} placeholder="Type your full legal name" className="mt-2 text-lg" />
-          </div>
-          
-          <div className="mt-6">
-            <Label className="text-lg font-semibold">Digital Signature *</Label>
-            <p className="text-sm text-gray-600 mb-3">Please sign using your mouse or finger below</p>
-            <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
-              <SignatureCanvas
-                ref={telehealthSignatureRef}
-                canvasProps={{ className: 'w-full h-48 bg-white', style: { width: '100%', height: '200px' } }}
-                backgroundColor="white"
-                onEnd={() => { if (telehealthSignatureRef.current) setTelehealthSignature(telehealthSignatureRef.current.toDataURL('image/png')); }}
-              />
-            </div>
-            <div className="flex justify-between items-center mt-3">
-              <Button type="button" variant="outline" size="sm" onClick={clearTelehealthSignature} className="text-gray-600">Clear Signature</Button>
-              <p className="text-sm text-gray-600">Date: <span className="font-semibold">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
-
   return (
     <div className="w-full max-w-4xl mx-auto">
+      {/* Validation Modal */}
+      <ValidationModal 
+        showValidationModal={showValidationModal}
+        setShowValidationModal={setShowValidationModal}
+        missingFields={missingFields}
+        scrollToField={scrollToField}
+      />
+      
       <div className="flex justify-end items-center gap-2 mb-4 text-sm text-gray-500">
         {isSaving ? (
           <><Loader2 className="w-4 h-4 animate-spin" /><span>Saving...</span></>
@@ -1099,9 +482,62 @@ const IntakeForm = ({ userData, onComplete }) => {
       {renderProgressIndicator()}
       
       <AnimatePresence mode="wait">
-        {currentPart === 1 && renderPart1()}
-        {currentPart === 2 && renderPart2()}
-        {currentPart === 3 && renderPart3()}
+        {currentPart === 1 && (
+          <motion.div
+            key="part1"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <Part1_DiabetesProfile
+              formData={formData}
+              handleInputChange={handleInputChange}
+              addMedicationRow={addMedicationRow}
+              removeMedicationRow={removeMedicationRow}
+              updateMedication={updateMedication}
+              toggleSymptom={toggleSymptom}
+              toggleRecentTest={toggleRecentTest}
+            />
+          </motion.div>
+        )}
+        {currentPart === 2 && (
+          <motion.div
+            key="part2"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <Part2_HIPAAConsent
+              hipaaAgreed={hipaaAgreed}
+              setHipaaAgreed={setHipaaAgreed}
+              hipaaPrintName={hipaaPrintName}
+              setHipaaPrintName={setHipaaPrintName}
+              hipaaSignatureRef={hipaaSignatureRef}
+              hipaaSignature={hipaaSignature}
+              setHipaaSignature={setHipaaSignature}
+              clearHipaaSignature={clearHipaaSignature}
+            />
+          </motion.div>
+        )}
+        {currentPart === 3 && (
+          <motion.div
+            key="part3"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <Part3_TelehealthConsent
+              telehealthPrintName={telehealthPrintName}
+              setTelehealthPrintName={setTelehealthPrintName}
+              telehealthAgreed={telehealthAgreed}
+              setTelehealthAgreed={setTelehealthAgreed}
+              telehealthSignatureRef={telehealthSignatureRef}
+              telehealthSignature={telehealthSignature}
+              setTelehealthSignature={setTelehealthSignature}
+              clearTelehealthSignature={clearTelehealthSignature}
+            />
+          </motion.div>
+        )}
       </AnimatePresence>
       
       <div className="mt-8 flex justify-between items-center">
