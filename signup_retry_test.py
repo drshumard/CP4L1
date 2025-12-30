@@ -15,7 +15,7 @@ import subprocess
 import os
 
 # Configuration
-BACKEND_URL = "https://wellness-portal-60.preview.emergentagent.com/api"
+BACKEND_URL = "https://patient-intake-pro.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 class SignupRetryTester:
