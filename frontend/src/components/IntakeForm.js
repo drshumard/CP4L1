@@ -116,6 +116,10 @@ const IntakeForm = ({ userData, onComplete }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   
+  // Validation modal state
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [missingFields, setMissingFields] = useState([]);
+  
   // Part 1: Comprehensive Form Data
   const [formData, setFormData] = useState({
     // General Information
