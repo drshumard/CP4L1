@@ -6,9 +6,9 @@ from googleapiclient.http import MediaIoBaseUpload
 
 # Path to service account credentials
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'service_account.json')
-SCOPES = ['https://www.googleapis.com/auth/drive.file']
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# Target folder ID from environment or default
+# Target folder ID from environment or default (Shared Drive folder)
 DRIVE_FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '1TPYIRtU47rNsUuY2YRqIEvSUJJUf8MPj')
 
 def get_drive_service():
@@ -21,7 +21,7 @@ def get_drive_service():
 
 def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) -> dict:
     """
-    Upload a PDF file to Google Drive using service account.
+    Upload a PDF file to Google Drive Shared Drive using service account.
     
     Args:
         pdf_bytes: The PDF file content as bytes
@@ -37,7 +37,17 @@ def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) 
         # Use provided folder_id or default
         target_folder = folder_id or DRIVE_FOLDER_ID
         
-        # File metadata - for Shared Drive, use supportsAllDrives
+        # First, get the Shared Drive ID from the folder
+        # The folder is in a Shared Drive, so we need to find the driveId
+        folder_info = service.files().get(
+            fileId=target_folder,
+            supportsAllDrives=True,
+            fields='driveId'
+        ).execute()
+        
+        drive_id = folder_info.get('driveId')
+        
+        # File metadata - for Shared Drive uploads
         file_metadata = {
             'name': filename,
             'parents': [target_folder]
@@ -50,7 +60,7 @@ def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) 
             resumable=True
         )
         
-        # Upload file with supportsAllDrives for Shared Drive support
+        # Upload file to Shared Drive
         file = service.files().create(
             body=file_metadata,
             media_body=media,
@@ -66,10 +76,11 @@ def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) 
         }
         
     except Exception as e:
-        print(f"Error uploading to Google Drive: {str(e)}")
+        error_msg = str(e)
+        print(f"Error uploading to Google Drive: {error_msg}")
         return {
             'success': False,
-            'error': str(e)
+            'error': error_msg
         }
 
 def list_files_in_folder(folder_id: str = None) -> list:
