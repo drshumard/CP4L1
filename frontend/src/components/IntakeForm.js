@@ -8,7 +8,7 @@ import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Check, Plus, Trash2, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Plus, Trash2, Loader2, AlertCircle, X } from 'lucide-react';
 import axios from 'axios';
 import SignatureCanvas from 'react-signature-canvas';
 import DatePicker from 'react-datepicker';
@@ -16,6 +16,25 @@ import 'react-datepicker/dist/react-datepicker.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Field labels for validation modal
+const FIELD_LABELS = {
+  legalFirstName: 'Legal First Name',
+  legalLastName: 'Legal Last Name',
+  dateOfBirth: 'Date of Birth',
+  weight: 'Weight',
+  mainProblems: 'Main Problems',
+  hopedOutcome: 'Hoped Outcome from Consultation',
+  noSolutionOutcome: 'What happens if no solution',
+  severityLevel: 'Severity Level',
+  motivationLevel: 'Motivation Level',
+  hipaaPrintName: 'HIPAA - Print Name',
+  hipaaAgreed: 'HIPAA Agreement Checkbox',
+  hipaaSignature: 'HIPAA Signature',
+  telehealthPrintName: 'Telehealth - Print Name',
+  telehealthAgreed: 'Telehealth Agreement Checkbox',
+  telehealthSignature: 'Telehealth Signature'
+};
 
 // North and South American countries - US at top, then alphabetical
 const COUNTRIES = [
