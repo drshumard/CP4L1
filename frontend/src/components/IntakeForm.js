@@ -668,9 +668,10 @@ const IntakeForm = ({ userData, onComplete }) => {
               <Label>Preferred Phone</Label>
               <Input value={formData.phone} onChange={(e) => handleInputChange('phone', e.target.value)} placeholder="(555) 123-4567" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2" data-field="dateOfBirth">
               <Label>Date of Birth *</Label>
               <DatePicker
+                id="dateOfBirth"
                 selected={formData.dateOfBirth}
                 onChange={(date) => handleInputChange('dateOfBirth', date)}
                 dateFormat="MMMM d, yyyy"
