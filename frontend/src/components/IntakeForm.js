@@ -768,31 +768,31 @@ const IntakeForm = ({ userData, onComplete }) => {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>List Your Main Problems *</Label>
-              <Textarea value={formData.mainProblems} onChange={(e) => handleInputChange('mainProblems', e.target.value)} placeholder="Describe your main health concerns..." rows={3} />
+              <Textarea id="mainProblems" value={formData.mainProblems} onChange={(e) => handleInputChange('mainProblems', e.target.value)} placeholder="Describe your main health concerns..." rows={3} />
             </div>
             <div className="space-y-2">
               <Label>What are you hoping happens today as a result of your consultation? *</Label>
-              <Textarea value={formData.hopedOutcome} onChange={(e) => handleInputChange('hopedOutcome', e.target.value)} placeholder="What outcomes are you hoping for?" rows={3} />
+              <Textarea id="hopedOutcome" value={formData.hopedOutcome} onChange={(e) => handleInputChange('hopedOutcome', e.target.value)} placeholder="What outcomes are you hoping for?" rows={3} />
             </div>
             <div className="space-y-2">
               <Label>If you cannot find a solution to your problem what do you think will happen? *</Label>
-              <Textarea value={formData.noSolutionOutcome} onChange={(e) => handleInputChange('noSolutionOutcome', e.target.value)} placeholder="What concerns do you have if this isn't resolved?" rows={3} />
+              <Textarea id="noSolutionOutcome" value={formData.noSolutionOutcome} onChange={(e) => handleInputChange('noSolutionOutcome', e.target.value)} placeholder="What concerns do you have if this isn't resolved?" rows={3} />
             </div>
             <div className="space-y-2">
               <Label>What interventions have you tried in the past that have NOT succeeded?</Label>
               <Textarea value={formData.previousInterventions} onChange={(e) => handleInputChange('previousInterventions', e.target.value)} placeholder="e.g., diet, cleanse, medication, supplement, etc." rows={3} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-2" data-field="severityLevel">
                 <Label>Severity of your problem *</Label>
                 <Select value={formData.severityLevel} onValueChange={(v) => handleInputChange('severityLevel', v)}>
-                  <SelectTrigger><SelectValue placeholder="Select severity" /></SelectTrigger>
+                  <SelectTrigger id="severityLevel"><SelectValue placeholder="Select severity" /></SelectTrigger>
                   <SelectContent>
                     {SEVERITY_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2" data-field="motivationLevel">
                 <Label>Motivation Level *</Label>
                 <Select value={formData.motivationLevel} onValueChange={(v) => handleInputChange('motivationLevel', v)}>
                   <SelectTrigger><SelectValue placeholder="Select motivation (10 = highest)" /></SelectTrigger>
