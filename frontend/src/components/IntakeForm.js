@@ -702,7 +702,7 @@ const IntakeForm = ({ userData, onComplete }) => {
             </div>
             <div className="space-y-2">
               <Label>Weight *</Label>
-              <Input value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} placeholder="e.g., 180 lbs" />
+              <Input id="weight" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} placeholder="e.g., 180 lbs" />
             </div>
             <div className="space-y-2">
               <Label>Current Date *</Label>
