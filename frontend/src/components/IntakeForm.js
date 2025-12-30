@@ -423,6 +423,7 @@ const IntakeForm = ({ userData, onComplete }) => {
         },
         hipaaSignature: finalHipaaSignature,
         hipaaSignedAt: new Date().toISOString(),
+        hipaaPrintName,
         telehealthPrintName,
         telehealthSignature: finalTelehealthSignature,
         telehealthSignedAt: new Date().toISOString()
