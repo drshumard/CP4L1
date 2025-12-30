@@ -548,7 +548,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Session expiry handling with axios interceptor"
+    - "PDF Filename Format Fix - Full Email Instead of Prefix"
+    - "Session Expiry Axios Interceptor Improvements"
+    - "Practice Better Activation Card in Step 3"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
