@@ -590,6 +590,21 @@ const AdminDashboard = () => {
                 <div className="pt-4 space-y-3">
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Quick Actions</h4>
                   
+                  {/* Move to Step */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm text-gray-600">Move to Step:</span>
+                    <select
+                      value={selectedUser?.current_step || 1}
+                      onChange={(e) => handleSetStep(selectedUser.id, parseInt(e.target.value))}
+                      disabled={actionLoading}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+                    >
+                      <option value={1}>Step 1 - Welcome & Booking</option>
+                      <option value={2}>Step 2 - Health Profile</option>
+                      <option value={3}>Step 3 - Complete</option>
+                    </select>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="outline"
