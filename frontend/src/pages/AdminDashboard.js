@@ -685,7 +685,7 @@ const AdminDashboard = () => {
                           : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       }`}
                     >
-                      <CheckCircle size={16} />
+                      <CheckCircle2 size={16} />
                       Save Changes
                     </Button>
                     <Button
