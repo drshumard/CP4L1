@@ -1021,45 +1021,75 @@ const StepsPage = () => {
 
           {/* Practice Better Activation Card - Step 3 Only */}
           <Card className="glass-dark border-0 shadow-xl overflow-hidden mb-6" data-testid="practice-better-activation-card">
-            {/* Header - Blue gradient background */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-6">
-              <div className="flex items-center gap-4 mb-4">
-                {/* Logo Circle */}
-                <div className="flex-shrink-0 w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-blue-700 font-bold text-xs">DRSHUMARD</span>
-                </div>
-                <div className="text-white">
-                  <p className="font-bold text-lg">Dr. Shumard</p>
-                  <p className="text-blue-200 text-sm">DrShumard.com</p>
+            <CardContent className="p-4 sm:p-6">
+              <div className="text-center mb-6">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+                  Activate Your Practice Better Portal
+                </h3>
+                <p className="text-gray-600">
+                  Check your email inbox for an invitation from Practice Better that looks like this:
+                </p>
+              </div>
+              
+              {/* Image from CDN */}
+              <div className="flex justify-center mb-6">
+                <img 
+                  src="https://portal-drshumard.b-cdn.net/Screenshot%202025-12-30%20at%2022.03.52.png"
+                  alt="Practice Better invitation email example"
+                  className="max-w-full h-auto rounded-lg shadow-lg border border-gray-200"
+                  style={{ maxHeight: '400px' }}
+                />
+              </div>
+              
+              <p className="text-center text-gray-700 mb-6">
+                Click the <strong>&quot;Activate My Account&quot;</strong> button in that email to set up your portal.
+              </p>
+              
+              {/* Email Provider Buttons */}
+              <div className="space-y-3">
+                <p className="text-center text-sm text-gray-600 font-medium">Open your email:</p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <a
+                    href="https://mail.google.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackButtonClicked('open_gmail', 'steps_page')}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="#EA4335"/>
+                    </svg>
+                    <span className="font-medium text-gray-700">Gmail</span>
+                  </a>
+                  <a
+                    href="https://outlook.live.com/mail"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackButtonClicked('open_outlook', 'steps_page')}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="#0078D4"/>
+                    </svg>
+                    <span className="font-medium text-gray-700">Outlook</span>
+                  </a>
+                  <a
+                    href="https://mail.yahoo.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackButtonClicked('open_yahoo', 'steps_page')}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="#6001D2"/>
+                    </svg>
+                    <span className="font-medium text-gray-700">Yahoo</span>
+                  </a>
                 </div>
               </div>
-              <h3 className="text-xl sm:text-2xl font-bold text-white">
-                Dr. Shumard has invited you to join Practice Better.
-              </h3>
-            </div>
-            
-            {/* Body - White background */}
-            <CardContent className="p-4 sm:p-6 bg-white">
-              <p className="text-gray-800 mb-2">
-                Hi {userData?.name?.split(' ')[0] || 'there'},
-              </p>
-              <p className="font-semibold text-gray-900 mb-3">
-                Practice Better allows me to make my professional recommendations available to you from one secure place.
-              </p>
-              <p className="text-gray-700 mb-6">
-                Activate your account and get access to these resources from your phone or PC any time and anywhere. It&apos;s that simple.
-              </p>
-              <a
-                href="https://my.practicebetter.io"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackButtonClicked('activate_practice_better', 'steps_page')}
-                className="inline-block w-full sm:w-auto text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-colors"
-              >
-                Activate My Account
-              </a>
-              <p className="text-gray-500 text-sm mt-4 italic">
-                Check your email for the invitation from Practice Better to activate your account.
+              
+              <p className="text-center text-gray-500 text-sm mt-4 italic">
+                Can&apos;t find it? Check your spam or junk folder.
               </p>
             </CardContent>
           </Card>
