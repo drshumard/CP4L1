@@ -1096,20 +1096,22 @@ const StepsPage = () => {
               </p>
             </CardContent>
           </Card>
+
+          {/* Complete Onboarding Button */}
+          <div className="flex justify-center mt-6">
+            <Button
+              onClick={() => {
+                trackButtonClicked('complete_onboarding_step3', 'steps_page');
+                handleAdvanceStep();
+              }}
+              className="w-full max-w-md bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg"
+              data-testid="submit-button"
+            >
+              Complete Onboarding
+            </Button>
+          </div>
           </>
         )}
-
-          {/* Bottom Container: Description Card (for Step 3 only) */}
-          {currentStep !== 1 && currentStep !== 2 && (
-            <div className="mt-6">
-              <Card className="glass-dark border-0 shadow-lg" data-testid="description-card">
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">{stepInfo.title}</h3>
-                  <p className="text-gray-600 mb-4">{stepInfo.description}</p>
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
       )}
       </div>
