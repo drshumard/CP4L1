@@ -381,8 +381,22 @@ const AdminDashboard = () => {
                   <CheckCircle2 className="text-green-600" size={20} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_3 || 0}</p>
+                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_4 || 0}</p>
                   <p className="text-xs text-gray-500">Completed</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border border-gray-200 shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Activity className="text-amber-600" size={20} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_3 || 0}</p>
+                  <p className="text-xs text-gray-500">On Step 3</p>
                 </div>
               </div>
             </CardContent>
@@ -405,8 +419,8 @@ const AdminDashboard = () => {
           <Card className="bg-white border border-gray-200 shadow-sm">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <AlertCircle className="text-amber-600" size={20} />
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <AlertCircle className="text-blue-600" size={20} />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_1 || 0}</p>
