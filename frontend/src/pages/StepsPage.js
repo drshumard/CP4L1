@@ -630,18 +630,8 @@ const StepsPage = () => {
               </div>
             </div>
 
-            {/* Form Section - Full width */}
-            <Card className="glass-dark border-0 shadow-xl" data-testid="form-card">
-              <CardContent className="p-4 sm:p-6 lg:p-8">
-                <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
-                
-                {/* Info Banner */}
-                <div className="mb-6 bg-teal-50 border border-cyan-200 rounded-lg p-4 text-center">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Your information:</span> {userData?.name || 'N/A'} ({userData?.email || 'N/A'})
-                  </p>
-                </div>
-                
+            {/* Form Section - No container, direct form */}
+            <div data-testid="form-section">
                 {/* Custom Intake Form */}
                 <IntakeForm 
                   userData={userData}
@@ -665,8 +655,7 @@ const StepsPage = () => {
                     }
                   }}
                 />
-              </CardContent>
-            </Card>
+            </div>
             
             {/* Go Back Button */}
             <div className="flex justify-start">
