@@ -102,9 +102,46 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the new comprehensive activity logging system."
+user_problem_statement: "Test the new 3-part intake form system for Step 2 with HIPAA and Telehealth consent signatures."
 
 backend:
+  - task: "Intake Form Save Progress API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented /api/user/intake-form/save endpoint to auto-save form progress. Uses upsert to update or create intake_forms collection entry. Stores all 3 parts of form data including signatures as base64 image data."
+
+  - task: "Intake Form Get Saved Data API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented /api/user/intake-form endpoint to retrieve saved form progress. Returns form_data object and last_saved timestamp. Used for form persistence and auto-population on page load."
+
+  - task: "Intake Form Submit API"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Implemented /api/user/intake-form/submit endpoint for final form submission. Stores submission in intake_form_submissions collection. Logs INTAKE_FORM_SUBMITTED event with signature presence and profile data fields."
+
+
   - task: "GHL Webhook endpoint for user creation"
     implemented: true
     working: true
