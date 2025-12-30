@@ -1339,12 +1339,12 @@ class SetStepRequest(BaseModel):
 
 @api_router.post("/admin/user/{user_id}/set-step")
 async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict = Depends(get_admin_user)):
-    """Set a user's current step to a specific value (1-3)"""
+    """Set a user's current step to a specific value (1-4)"""
     # Validate step is within range
-    if request.step < 1 or request.step > 3:
+    if request.step < 1 or request.step > 4:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Step must be between 1 and 3"
+            detail="Step must be between 1 and 4"
         )
     
     # Check if user exists
