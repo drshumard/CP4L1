@@ -458,7 +458,7 @@ const AdminDashboard = () => {
                             {/* Tags on mobile - below email */}
                             <div className="flex items-center gap-1.5 mt-1 md:hidden">
                               <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getStepColor(user.current_step)}`}>
-                                Step {user.current_step}
+                                {getStepLabel(user.current_step)}
                               </span>
                               {user.role === 'admin' && (
                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
