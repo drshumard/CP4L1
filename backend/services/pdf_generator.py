@@ -217,7 +217,7 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
             sig_image = Image(io.BytesIO(sig_bytes), width=2.5*inch, height=0.8*inch)
             story.append(Paragraph("<b>Signature:</b>", label_style))
             story.append(sig_image)
-        except:
+        except Exception:
             story.append(Paragraph("<b>Signature:</b> [On file]", normal_style))
     else:
         story.append(Paragraph("<b>Signature:</b> [On file]", normal_style))
@@ -262,7 +262,7 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
             sig_image = Image(io.BytesIO(sig_bytes), width=2.5*inch, height=0.8*inch)
             story.append(Paragraph("<b>Signature:</b>", label_style))
             story.append(sig_image)
-        except:
+        except Exception:
             story.append(Paragraph("<b>Signature:</b> [On file]", normal_style))
     else:
         story.append(Paragraph("<b>Signature:</b> [On file]", normal_style))
