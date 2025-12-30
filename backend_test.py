@@ -1801,6 +1801,8 @@ class BackendTester:
         self.admin_access_token = None
         self.admin_user_email = None
         self.geo_test_user_email = None
+        self.test_admin_token = None
+        self.saved_form_data = None
         
         # Run tests in sequence
         tests = [
@@ -1830,7 +1832,15 @@ class BackendTester:
             self.test_login_geolocation_capture,
             self.test_internal_ip_skipping,
             self.test_geolocation_data_verification,
-            self.test_admin_activity_logs_unauthorized
+            self.test_admin_activity_logs_unauthorized,
+            
+            # Intake form tests
+            self.login_test_admin,
+            self.test_intake_form_get_empty,
+            self.test_intake_form_save_progress,
+            self.test_intake_form_get_saved_data,
+            self.test_intake_form_submit,
+            self.test_intake_form_submission_logging
         ]
         
         passed = 0
