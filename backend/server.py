@@ -1205,6 +1205,102 @@ async def go_back_step(current_user: dict = Depends(get_current_user)):
     
     return {"message": "Returned to previous step", "current_step": prev_step}
 
+# Intake Form Routes
+class IntakeFormSaveRequest(BaseModel):
+    form_data: dict
+
+class IntakeFormSubmitRequest(BaseModel):
+    form_data: dict
+
+@api_router.get("/user/intake-form")
+async def get_intake_form(current_user: dict = Depends(get_current_user)):
+    """Get saved intake form data for the current user"""
+    form = await db.intake_forms.find_one(
+        {"user_id": current_user["id"]},
+        {"_id": 0}
+    )
+    
+    if not form:
+        return {"form_data": None, "last_saved": None}
+    
+    return {
+        "form_data": form.get("form_data"),
+        "last_saved": form.get("last_saved")
+    }
+
+@api_router.post("/user/intake-form/save")
+async def save_intake_form(request: IntakeFormSaveRequest, current_user: dict = Depends(get_current_user)):
+    """Save intake form progress (auto-save)"""
+    user_id = current_user["id"]
+    
+    form_data = {
+        "user_id": user_id,
+        "form_data": request.form_data,
+        "last_saved": datetime.now(timezone.utc).isoformat(),
+        "status": "in_progress"
+    }
+    
+    # Upsert - update if exists, insert if not
+    await db.intake_forms.update_one(
+        {"user_id": user_id},
+        {"$set": form_data},
+        upsert=True
+    )
+    
+    return {"message": "Form progress saved", "last_saved": form_data["last_saved"]}
+
+@api_router.post("/user/intake-form/submit")
+async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, current_user: dict = Depends(get_current_user)):
+    """Submit the completed intake form"""
+    user_id = current_user["id"]
+    
+    # Get client info
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+    user_agent = req.headers.get("User-Agent", "")
+    
+    # Prepare submission data
+    submission_data = {
+        "user_id": user_id,
+        "user_email": current_user.get("email"),
+        "user_name": current_user.get("name"),
+        "form_data": request.form_data,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "status": "submitted",
+        "ip_address": ip_address
+    }
+    
+    # Update the intake form record
+    await db.intake_forms.update_one(
+        {"user_id": user_id},
+        {"$set": submission_data},
+        upsert=True
+    )
+    
+    # Also store in a separate submissions collection for admin review
+    await db.intake_form_submissions.insert_one({
+        **submission_data,
+        "submission_id": str(uuid.uuid4())
+    })
+    
+    # Log the submission
+    await log_activity(
+        event_type="INTAKE_FORM_SUBMITTED",
+        user_email=current_user.get("email"),
+        user_id=user_id,
+        details={
+            "has_hipaa_signature": bool(request.form_data.get("hipaaSignature")),
+            "has_telehealth_signature": bool(request.form_data.get("telehealthSignature")),
+            "profile_data_fields": list(request.form_data.get("profileData", {}).keys()) if request.form_data.get("profileData") else []
+        },
+        status="success",
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+    
+    return {"message": "Form submitted successfully", "submitted_at": submission_data["submitted_at"]}
+
 # Admin Routes
 @api_router.get("/admin/users")
 async def get_all_users(admin_user: dict = Depends(get_admin_user)):
