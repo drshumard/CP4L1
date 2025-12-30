@@ -2407,7 +2407,12 @@ class BackendTester:
             
             # Comprehensive intake form tests for diabetes portal
             self.test_intake_form_comprehensive_submit,
-            self.test_intake_form_auto_save_comprehensive
+            self.test_intake_form_auto_save_comprehensive,
+            
+            # Specific Fix Tests - NEW TESTS FOR REVIEW REQUEST
+            self.test_pdf_filename_format_fix,
+            self.test_session_expiry_handling_fix,
+            self.test_practice_better_activation_card_fix
         ]
         
         passed = 0
