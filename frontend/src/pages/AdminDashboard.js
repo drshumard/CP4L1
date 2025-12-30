@@ -78,6 +78,35 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleSetStep = async (userId, newStep) => {
+    const currentStep = selectedUser?.current_step || 1;
+    if (newStep === currentStep) return;
+    
+    if (!window.confirm(`Move user from Step ${currentStep} to Step ${newStep}?`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(
+        `${API}/admin/user/${userId}/set-step`,
+        { step: newStep },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success(`User moved to Step ${newStep}`);
+      fetchData();
+      if (selectedUser?.id === userId) {
+        setSelectedUser({ ...selectedUser, current_step: newStep });
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to change user step');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleResetProgress = async (userId) => {
     if (!window.confirm('Are you sure you want to reset this user\'s progress to Step 1?')) {
       return;
