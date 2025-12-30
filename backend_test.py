@@ -1526,20 +1526,60 @@ class BackendTester:
         url = f"{BACKEND_URL}/user/intake-form/save"
         headers = {"Authorization": f"Bearer {self.test_admin_token}"}
         
-        # Test form data with all 3 parts
+        # Comprehensive test form data with all diabetes intake form fields
         form_data = {
             "profileData": {
+                "legalFirstName": "John",
                 "legalLastName": "Smith",
+                "preferredFirstName": "Johnny",
+                "email": "testadmin@test.com",
+                "phone": "(555) 123-4567",
                 "dateOfBirth": "1990-05-15",
+                "relationshipStatus": "married",
+                "gender": "male",
+                "weight": "180",
+                "currentDate": "2024-01-15",
+                "street": "123 Main St",
+                "unit": "Apt 2B",
+                "town": "Springfield",
+                "postalCode": "12345",
                 "country": "United States",
+                "occupation": "Software Engineer",
+                "referredBy": "Dr. Johnson",
+                "mainProblems": "Type 2 diabetes management and weight loss",
+                "hopedOutcome": "Better blood sugar control and lose 30 pounds",
+                "noSolutionOutcome": "Continued health deterioration",
+                "previousInterventions": "Diet changes, exercise program",
+                "severity": "moderate",
                 "motivationLevel": "7-8",
+                "priorMedicalHistory": "Type 2 diabetes diagnosed 2020, hypertension",
                 "medications": [
-                    {"name": "Metformin", "dosage": "500mg", "frequency": "Twice daily"}
-                ]
+                    {"name": "Metformin", "dosage": "500mg twice daily"},
+                    {"name": "Lisinopril", "dosage": "10mg daily"}
+                ],
+                "reviewOfSymptoms": {
+                    "constitutional": ["fatigue", "weight_gain"],
+                    "eyes": [],
+                    "ear_nose_mouth_throat": ["dry_mouth"],
+                    "psychiatric": ["anxiety"],
+                    "genitourinary": ["frequent_urination"],
+                    "gastrointestinal": [],
+                    "endocrine": ["excessive_thirst"],
+                    "musculoskeletal": [],
+                    "integumentary": [],
+                    "neurological": ["numbness_tingling"],
+                    "hematologic_lymphatic": []
+                },
+                "allergies": "Penicillin - rash",
+                "recentTests": ["blood_glucose", "hba1c", "lipid_panel"],
+                "otherProviders": "Dr. Sarah Johnson - Endocrinologist, Dr. Mike Wilson - Primary Care"
             },
+            "hipaaAgreed": true,
+            "hipaaPrintName": "John Smith",
             "hipaaSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-            "telehealthSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-            "printName": "John Smith"
+            "telehealthAgreed": true,
+            "telehealthPrintName": "John Smith",
+            "telehealthSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
         }
         
         payload = {"form_data": form_data}
