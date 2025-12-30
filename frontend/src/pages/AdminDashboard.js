@@ -644,7 +644,8 @@ const AdminDashboard = () => {
                     >
                       <option value={1}>Step 1 - Welcome & Booking</option>
                       <option value={2}>Step 2 - Health Profile</option>
-                      <option value={3}>Step 3 - Complete</option>
+                      <option value={3}>Step 3 - Final Preparations</option>
+                      <option value={4}>Complete ✓</option>
                     </select>
                   </div>
                   
