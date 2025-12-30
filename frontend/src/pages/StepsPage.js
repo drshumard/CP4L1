@@ -941,6 +941,7 @@ const StepsPage = () => {
           </>
         ) : (
           /* Step 3: Video + Action Card Layout */
+          <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-4 sm:mb-6 w-full lg:items-stretch">
             {/* Video Section - maintains 16:9 aspect ratio */}
             <div className="aspect-video">
