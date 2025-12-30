@@ -1251,8 +1251,10 @@ async def save_intake_form(request: IntakeFormSaveRequest, current_user: dict = 
 
 @api_router.post("/user/intake-form/submit")
 async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, current_user: dict = Depends(get_current_user)):
-    """Submit the completed intake form"""
+    """Submit the completed intake form, generate PDF, and upload to Google Drive"""
     user_id = current_user["id"]
+    user_name = current_user.get("name", "Unknown")
+    user_email = current_user.get("email", "unknown@email.com")
     
     # Get client info
     ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
@@ -1263,13 +1265,45 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     # Prepare submission data
     submission_data = {
         "user_id": user_id,
-        "user_email": current_user.get("email"),
-        "user_name": current_user.get("name"),
+        "user_email": user_email,
+        "user_name": user_name,
         "form_data": request.form_data,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
         "status": "submitted",
         "ip_address": ip_address
     }
+    
+    # Generate PDF
+    pdf_result = None
+    drive_result = None
+    try:
+        from services.pdf_generator import create_intake_form_pdf
+        from services.google_drive import upload_pdf_to_drive
+        
+        # Create PDF
+        pdf_bytes = create_intake_form_pdf(request.form_data, user_name, user_email)
+        
+        # Generate filename: LastName_FirstName_IntakeForm_YYYYMMDD.pdf
+        profile_data = request.form_data.get("profileData", {})
+        first_name = profile_data.get("legalFirstName", "Unknown").replace(" ", "_")
+        last_name = profile_data.get("legalLastName", "User").replace(" ", "_")
+        date_str = datetime.now().strftime("%Y%m%d")
+        filename = f"{last_name}_{first_name}_IntakeForm_{date_str}.pdf"
+        
+        # Upload to Google Drive
+        drive_result = upload_pdf_to_drive(pdf_bytes, filename)
+        
+        if drive_result.get("success"):
+            submission_data["pdf_file_id"] = drive_result.get("file_id")
+            submission_data["pdf_web_link"] = drive_result.get("web_view_link")
+            submission_data["pdf_filename"] = filename
+            print(f"PDF uploaded to Google Drive: {filename}")
+        else:
+            print(f"Failed to upload PDF to Google Drive: {drive_result.get('error')}")
+            
+    except Exception as e:
+        print(f"Error generating/uploading PDF: {str(e)}")
+        # Continue with submission even if PDF fails
     
     # Update the intake form record
     await db.intake_forms.update_one(
@@ -1279,27 +1313,35 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     )
     
     # Also store in a separate submissions collection for admin review
+    submission_id = str(uuid.uuid4())
     await db.intake_form_submissions.insert_one({
         **submission_data,
-        "submission_id": str(uuid.uuid4())
+        "submission_id": submission_id
     })
     
     # Log the submission
     await log_activity(
         event_type="INTAKE_FORM_SUBMITTED",
-        user_email=current_user.get("email"),
+        user_email=user_email,
         user_id=user_id,
         details={
             "has_hipaa_signature": bool(request.form_data.get("hipaaSignature")),
             "has_telehealth_signature": bool(request.form_data.get("telehealthSignature")),
-            "profile_data_fields": list(request.form_data.get("profileData", {}).keys()) if request.form_data.get("profileData") else []
+            "profile_data_fields": list(request.form_data.get("profileData", {}).keys()) if request.form_data.get("profileData") else [],
+            "pdf_uploaded": drive_result.get("success") if drive_result else False,
+            "pdf_filename": submission_data.get("pdf_filename")
         },
         status="success",
         ip_address=ip_address,
         user_agent=user_agent
     )
     
-    return {"message": "Form submitted successfully", "submitted_at": submission_data["submitted_at"]}
+    return {
+        "message": "Form submitted successfully",
+        "submitted_at": submission_data["submitted_at"],
+        "pdf_uploaded": drive_result.get("success") if drive_result else False,
+        "pdf_link": drive_result.get("web_view_link") if drive_result and drive_result.get("success") else None
+    }
 
 # Admin Routes
 @api_router.get("/admin/users")
