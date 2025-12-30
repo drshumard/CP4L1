@@ -265,6 +265,21 @@ frontend:
       - working: "NA"
         agent: "main"
         comment: "Comprehensive diabetes intake form with: Title 'Intake Forms: Diabetes', General Info (legal names, address, DOB calendar picker, relationship status, gender, weight, current date auto-populated), Contact Info (occupation, referred by), Goals and Concerns (main problems, hoped outcome, no solution outcome, previous interventions, severity dropdown, motivation level 1-3/4-6/7-8/9-10), Prior Medical History, Medications with Add Row, Review of Symptoms (selectable checkboxes by 11 categories), Allergies, Recent Tests multi-select, Other Providers. Part 2 HIPAA: removed scroll (page scrolls naturally), added Print Name field. Part 3 Telehealth: removed styling banners (pure text), Dr. Shumard header in plain text."
+      - working: "NA"
+        agent: "main"
+        comment: "Refactored IntakeForm.js (1100+ lines) into smaller components: Part1_DiabetesProfile.js, Part2_HIPAAConsent.js, Part3_TelehealthConsent.js, ValidationModal.js. Added proper id attributes to all form inputs for validation modal Fix button scrolling. Main IntakeForm.js now imports and composes these components. Validation modal displays missing required fields with Fix buttons that scroll to the specific field."
+
+  - task: "Validation Modal with Fix Buttons"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/intake-form/ValidationModal.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created ValidationModal component in /app/frontend/src/components/intake-form/ValidationModal.js. Modal displays list of missing required fields with numbered items. Each field has a 'Fix' button that closes modal and scrolls to the field with visual highlight (ring-2 ring-red-500). Modal header shows red-orange gradient with AlertCircle icon. Footer has 'Close' and 'Fix First Field' buttons. Uses AnimatePresence for smooth open/close animations."
 
   - task: "Update outcome page to reflect 3-step journey"
     implemented: true
