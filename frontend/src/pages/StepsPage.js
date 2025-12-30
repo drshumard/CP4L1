@@ -1063,6 +1063,8 @@ const StepsPage = () => {
               </p>
             </CardContent>
           </Card>
+          </>
+        )}
 
           {/* Bottom Container: Description Card (for Step 3 only) */}
           {currentStep !== 1 && currentStep !== 2 && (
@@ -1075,7 +1077,6 @@ const StepsPage = () => {
               </Card>
             </div>
           )}
-          </>
         </div>
       )}
       </div>
