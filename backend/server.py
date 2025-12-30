@@ -1283,9 +1283,9 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
         # Create PDF
         pdf_bytes = create_intake_form_pdf(request.form_data, user_name, user_email)
         
-        # Generate filename: email_diabetes_intake_form.pdf
+        # Generate filename: email diabetes intake form.pdf
         email_prefix = user_email.split('@')[0].replace('.', '_').replace('+', '_')
-        filename = f"{email_prefix}_diabetes_intake_form.pdf"
+        filename = f"{email_prefix} diabetes intake form.pdf"
         
         # Upload to Google Drive
         drive_result = upload_pdf_to_drive(pdf_bytes, filename)
