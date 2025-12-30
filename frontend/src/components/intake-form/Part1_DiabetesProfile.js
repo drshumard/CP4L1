@@ -352,7 +352,7 @@ const Part1_DiabetesProfile = ({
       <Card className="border-0 shadow-md">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Recent Tests</h3>
-          <p className="text-sm text-gray-600 mb-3">Select any recent tests you've had:</p>
+          <p className="text-sm text-gray-600 mb-3">Select any recent tests you&apos;ve had:</p>
           <div className="flex flex-wrap gap-3">
             {RECENT_TESTS.map(test => (
               <label key={test} className="flex items-center gap-2 text-sm cursor-pointer bg-gray-50 px-3 py-2 rounded-lg hover:bg-gray-100">
