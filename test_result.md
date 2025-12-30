@@ -102,10 +102,10 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the new 3-part intake form system for Step 2 with HIPAA and Telehealth consent signatures."
+user_problem_statement: "Test the updated 3-part intake form with comprehensive diabetes fields, HIPAA print name, and Google Drive upload."
 
 backend:
-  - task: "Intake Form Save Progress API"
+  - task: "Intake Form Save/Load/Submit APIs with Google Drive Upload"
     implemented: true
     working: "NA"
     file: "/app/backend/server.py"
@@ -115,31 +115,7 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented /api/user/intake-form/save endpoint to auto-save form progress. Uses upsert to update or create intake_forms collection entry. Stores all 3 parts of form data including signatures as base64 image data."
-
-  - task: "Intake Form Get Saved Data API"
-    implemented: true
-    working: "NA"
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Implemented /api/user/intake-form endpoint to retrieve saved form progress. Returns form_data object and last_saved timestamp. Used for form persistence and auto-population on page load."
-
-  - task: "Intake Form Submit API"
-    implemented: true
-    working: "NA"
-    file: "/app/backend/server.py"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Implemented /api/user/intake-form/submit endpoint for final form submission. Stores submission in intake_form_submissions collection. Logs INTAKE_FORM_SUBMITTED event with signature presence and profile data fields."
+        comment: "Updated submit endpoint to generate PDF with email_diabetes_intake_form.pdf filename and upload to Shared Drive folder. PDF generator updated with better styling. Google Drive integration working with new folder ID 1tsCj3ZScOgpPJK0WICFZqMPNTYpEZ8-o."
 
 
   - task: "GHL Webhook endpoint for user creation"
