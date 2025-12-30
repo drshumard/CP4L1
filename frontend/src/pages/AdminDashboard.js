@@ -615,7 +615,7 @@ const AdminDashboard = () => {
                     <BarChart3 className="text-gray-400" size={18} />
                     <div>
                       <p className="text-xs text-gray-500">Current Step</p>
-                      <p className="text-sm font-medium text-gray-800">Step {selectedUser.current_step}</p>
+                      <p className="text-sm font-medium text-gray-800">{getStepLabel(selectedUser.current_step)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
