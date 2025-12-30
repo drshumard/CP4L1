@@ -650,11 +650,11 @@ const IntakeForm = ({ userData, onComplete }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Legal First Name *</Label>
-              <Input value={formData.legalFirstName} onChange={(e) => handleInputChange('legalFirstName', e.target.value)} placeholder="Legal first name" />
+              <Input id="legalFirstName" value={formData.legalFirstName} onChange={(e) => handleInputChange('legalFirstName', e.target.value)} placeholder="Legal first name" />
             </div>
             <div className="space-y-2">
               <Label>Legal Last Name *</Label>
-              <Input value={formData.legalLastName} onChange={(e) => handleInputChange('legalLastName', e.target.value)} placeholder="Legal last name" />
+              <Input id="legalLastName" value={formData.legalLastName} onChange={(e) => handleInputChange('legalLastName', e.target.value)} placeholder="Legal last name" />
             </div>
             <div className="space-y-2">
               <Label>Preferred First Name</Label>
