@@ -6,22 +6,29 @@ from googleapiclient.http import MediaIoBaseUpload
 
 # Path to service account credentials
 SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'service_account.json')
-SCOPES = ['https://www.googleapis.com/auth/drive']
+SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/drive.file']
 
-# Target folder ID from environment or default (Shared Drive folder)
-DRIVE_FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '1tsCj3ZScOgpPJK0WICFZqMPNTYpEZ8-o')
+# Target folder ID from environment (personal Drive folder)
+DRIVE_FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '1TPYIRtU47rNsUuY2YRqIEvSUJJUf8MPj')
+
+# User email to impersonate for domain-wide delegation
+IMPERSONATE_USER = os.environ.get('GOOGLE_DRIVE_IMPERSONATE_USER', 'drjason@drshumard.com')
 
 def get_drive_service():
-    """Create and return a Google Drive service instance using service account."""
+    """Create and return a Google Drive service instance using service account with domain-wide delegation."""
     credentials = service_account.Credentials.from_service_account_file(
         SERVICE_ACCOUNT_FILE, scopes=SCOPES
     )
-    service = build('drive', 'v3', credentials=credentials)
+    
+    # Impersonate the user for domain-wide delegation to access their personal Drive
+    delegated_credentials = credentials.with_subject(IMPERSONATE_USER)
+    
+    service = build('drive', 'v3', credentials=delegated_credentials)
     return service
 
 def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) -> dict:
     """
-    Upload a PDF file to Google Drive Shared Drive using service account.
+    Upload a PDF file to Google Drive using domain-wide delegation.
     
     Args:
         pdf_bytes: The PDF file content as bytes
@@ -37,17 +44,7 @@ def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) 
         # Use provided folder_id or default
         target_folder = folder_id or DRIVE_FOLDER_ID
         
-        # First, get the Shared Drive ID from the folder
-        # The folder is in a Shared Drive, so we need to find the driveId
-        folder_info = service.files().get(
-            fileId=target_folder,
-            supportsAllDrives=True,
-            fields='driveId'
-        ).execute()
-        
-        drive_id = folder_info.get('driveId')
-        
-        # File metadata - for Shared Drive uploads
+        # File metadata for personal Drive upload
         file_metadata = {
             'name': filename,
             'parents': [target_folder]
@@ -60,12 +57,11 @@ def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) 
             resumable=True
         )
         
-        # Upload file to Shared Drive
+        # Upload file to personal Drive (no supportsAllDrives needed)
         file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webViewLink',
-            supportsAllDrives=True
+            fields='id, webViewLink'
         ).execute()
         
         return {
@@ -92,9 +88,7 @@ def list_files_in_folder(folder_id: str = None) -> list:
         results = service.files().list(
             q=f"'{target_folder}' in parents",
             pageSize=100,
-            fields="files(id, name, createdTime)",
-            supportsAllDrives=True,
-            includeItemsFromAllDrives=True
+            fields="files(id, name, createdTime)"
         ).execute()
         
         return results.get('files', [])
