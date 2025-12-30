@@ -254,7 +254,7 @@ backend:
         comment: "COMPREHENSIVE GEOLOCATION FEATURE TESTING COMPLETED: All 5 test scenarios passed successfully. ✅ Test 1 (Login Geolocation Capture): POST to /api/auth/login with X-Forwarded-For header (8.8.8.8) successfully captured geolocation data - resolved to Mountain View, United States with device info (desktop, Chrome, Windows) ✅ Test 2 (Activity Logs Endpoint): GET /api/admin/activity-logs working correctly with proper admin authorization, filtering by event_type/user_email, limit parameters, and response structure includes logs with location_info and device_info fields ✅ Test 3 (Internal IP Skipping): Internal IPs (192.168.1.1, 10.0.0.1, 172.16.0.1) correctly skip geolocation lookup as expected - no API calls made for private IP ranges ✅ Test 4 (Data Structure Verification): Recent activity logs contain device_info (device_type, browser, OS) and location_info (city, country, region, timezone, latitude, longitude, IP) fields with correct data types ✅ Test 5 (Authorization Security): Admin endpoint properly rejects unauthorized requests (403 without token, 401 with invalid token). Backend logs confirm successful ipapi.co API calls for public IPs. Frontend ActivityLogs.js correctly displays: 📍 City, Country format with region below, device info with emojis (💻/📱), IP addresses shown when available, and CSV export includes Device, Location, IP Address columns as requested. Geolocation feature is production-ready and fully functional."
 
 frontend:
-  - task: "3-Part Intake Form Component"
+  - task: "Updated 3-Part Intake Form with Diabetes Fields"
     implemented: true
     working: "NA"
     file: "/app/frontend/src/components/IntakeForm.js"
@@ -264,19 +264,7 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Created new IntakeForm component with 3 parts: Part 1 (Health Profile with legal last name, modern date picker, country dropdown with US at top, motivation levels 1-3/4-6/7-8/9-10, medications with add row), Part 2 (HIPAA Notice with full legal text and digital signature), Part 3 (Telehealth Consent with Dr. Shumard header, print name field, and digital signature). Features auto-save every 3 seconds, progress indicator, form navigation between parts, signature canvas using react-signature-canvas."
-
-  - task: "Step 2 Layout with Custom Intake Form"
-    implemented: true
-    working: "NA"
-    file: "/app/frontend/src/pages/StepsPage.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: "NA"
-        agent: "main"
-        comment: "Replaced PracticeBetterEmbed with custom IntakeForm component for Step 2. Layout includes video at top-left, action steps card at top-right, and full-width form card below. Removed sticky submit bar. Form advances user to Step 3 on successful submission."
+        comment: "Comprehensive diabetes intake form with: Title 'Intake Forms: Diabetes', General Info (legal names, address, DOB calendar picker, relationship status, gender, weight, current date auto-populated), Contact Info (occupation, referred by), Goals and Concerns (main problems, hoped outcome, no solution outcome, previous interventions, severity dropdown, motivation level 1-3/4-6/7-8/9-10), Prior Medical History, Medications with Add Row, Review of Symptoms (selectable checkboxes by 11 categories), Allergies, Recent Tests multi-select, Other Providers. Part 2 HIPAA: removed scroll (page scrolls naturally), added Print Name field. Part 3 Telehealth: removed styling banners (pure text), Dr. Shumard header in plain text."
 
   - task: "Update outcome page to reflect 3-step journey"
     implemented: true
