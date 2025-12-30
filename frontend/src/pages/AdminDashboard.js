@@ -79,13 +79,16 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleSetStep = async (userId, newStep) => {
-    const currentStep = selectedUser?.current_step || 1;
-    if (newStep === currentStep) return;
+  const handleStepChange = (newStep) => {
+    // Just update pending step - don't save yet
+    setPendingStep(newStep);
+  };
+
+  const handleSaveStepChange = async () => {
+    if (!pendingStep || !selectedUser) return;
     
-    if (!window.confirm(`Move user from Step ${currentStep} to Step ${newStep}?`)) {
-      return;
-    }
+    const userId = selectedUser.id;
+    const newStep = pendingStep;
 
     setActionLoading(true);
     try {
@@ -98,9 +101,8 @@ const AdminDashboard = () => {
 
       toast.success(`User moved to Step ${newStep}`);
       fetchData();
-      if (selectedUser?.id === userId) {
-        setSelectedUser({ ...selectedUser, current_step: newStep });
-      }
+      setSelectedUser({ ...selectedUser, current_step: newStep });
+      setPendingStep(null); // Clear pending change
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to change user step');
     } finally {
