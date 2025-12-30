@@ -1175,8 +1175,11 @@ async def advance_step(current_user: dict = Depends(get_current_user)):
         upsert=True
     )
     
-    # Advance to next step (max 3)
-    next_step = min(current_step + 1, 3)
+    # Move to next step (4 means program complete)
+    next_step = current_step + 1
+    if next_step > 4:
+        next_step = 4  # Cap at 4 (complete)
+    
     await db.users.update_one(
         {"id": user_id},
         {"$set": {"current_step": next_step}}
