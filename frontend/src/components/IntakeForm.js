@@ -340,6 +340,10 @@ const IntakeForm = ({ userData, onComplete }) => {
   };
 
   const validatePart2 = () => {
+    if (!hipaaPrintName.trim()) {
+      toast.error('Please print your name');
+      return false;
+    }
     if (!hipaaAgreed) {
       toast.error('Please agree to the HIPAA Privacy Notice');
       return false;
