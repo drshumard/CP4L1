@@ -1331,6 +1331,54 @@ async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin
     
     return {"message": "User progress reset successfully"}
 
+class SetStepRequest(BaseModel):
+    step: int
+
+@api_router.post("/admin/user/{user_id}/set-step")
+async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict = Depends(get_admin_user)):
+    """Set a user's current step to a specific value (1-3)"""
+    # Validate step is within range
+    if request.step < 1 or request.step > 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Step must be between 1 and 3"
+        )
+    
+    # Check if user exists
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    old_step = user.get("current_step", 1)
+    
+    # Update user's step
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"current_step": request.step}}
+    )
+    
+    # Log the activity
+    await log_activity(
+        event_type="USER_STEP_CHANGED",
+        user_email=user.get("email"),
+        user_id=user_id,
+        details={
+            "old_step": old_step,
+            "new_step": request.step,
+            "changed_by": admin_user.get("email")
+        },
+        status="success"
+    )
+    
+    return {
+        "message": f"User moved from step {old_step} to step {request.step}",
+        "old_step": old_step,
+        "new_step": request.step
+    }
+
 @api_router.post("/admin/promote-user")
 async def promote_user_to_admin(email: EmailStr, secret_key: str):
     """
