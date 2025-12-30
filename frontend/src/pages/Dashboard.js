@@ -145,9 +145,12 @@ const Dashboard = () => {
                   <h2 className="text-4xl font-bold text-gray-800">Welcome, {userData?.name}!</h2>
                 </div>
                 <p className="text-lg text-gray-600 mb-6">
-                  You're on Step {progressData?.current_step} of your wellness journey.
+                  {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3)
+                    ? "You have completed your initial onboarding for your diabetes reversal."
+                    : `You're on Step ${progressData?.current_step} of your wellness journey.`
+                  }
                 </p>
-                {progressData?.current_step === 3 && completedSteps === 3 ? (
+                {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3) ? (
                   <Button 
                     onClick={() => {
                       trackButtonClicked('view_achievement', 'dashboard');
@@ -183,12 +186,17 @@ const Dashboard = () => {
                     <div>
                       <div className="flex justify-between text-sm mb-2">
                         <span className="text-gray-600">Overall Completion</span>
-                        <span className="font-semibold text-gray-800">{Math.round(completionPercentage)}%</span>
+                        <span className="font-semibold text-gray-800">{Math.min(Math.round(completionPercentage), 100)}%</span>
                       </div>
-                      <Progress value={completionPercentage} className="h-2" data-testid="progress-bar" />
+                      <Progress value={Math.min(completionPercentage, 100)} className="h-2" data-testid="progress-bar" />
                     </div>
                     <div className="pt-3 border-t border-cyan-200">
-                      <p className="text-sm text-gray-600">Current Step: <span className="font-semibold text-gray-800">{progressData?.current_step}/3</span></p>
+                      <p className="text-sm text-gray-600">
+                        {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3)
+                          ? <span className="font-semibold text-green-600">✓ Onboarding Complete</span>
+                          : <>Current Step: <span className="font-semibold text-gray-800">{progressData?.current_step}/3</span></>
+                        }
+                      </p>
                       <p className="text-sm text-gray-600 mt-1">Completed: <span className="font-semibold text-gray-800">{completedSteps} steps</span></p>
                     </div>
                   </div>
