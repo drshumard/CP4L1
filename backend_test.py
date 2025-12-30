@@ -1419,6 +1419,374 @@ class BackendTester:
             self.log_result("Admin Activity Logs - Unauthorized", False, f"Request failed: {str(e)}")
             return False
 
+    def login_test_admin(self):
+        """Helper: Login as test admin user"""
+        print("\n=== Logging in as Test Admin ===")
+        
+        # Use the test credentials provided
+        login_url = f"{BACKEND_URL}/auth/login"
+        login_payload = {
+            "email": "testadmin@test.com",
+            "password": "test123"
+        }
+        
+        try:
+            response = self.session.post(login_url, json=login_payload)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "access_token" in data:
+                    self.test_admin_token = data["access_token"]
+                    self.log_result(
+                        "Test Admin Login", 
+                        True, 
+                        "Successfully logged in as testadmin@test.com"
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "Test Admin Login", 
+                        False, 
+                        "Missing access token in response",
+                        data
+                    )
+            else:
+                self.log_result(
+                    "Test Admin Login", 
+                    False, 
+                    f"Login failed: {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Test Admin Login", False, f"Request failed: {str(e)}")
+            return False
+            
+        return True
+
+    def test_intake_form_get_empty(self):
+        """Test 12: GET /api/user/intake-form - should return null for new user"""
+        print("\n=== Testing Intake Form GET (Empty) ===")
+        
+        if not hasattr(self, 'test_admin_token') or not self.test_admin_token:
+            self.log_result(
+                "Intake Form GET (Empty) - No Token", 
+                False, 
+                "No test admin token available"
+            )
+            return False
+        
+        url = f"{BACKEND_URL}/user/intake-form"
+        headers = {"Authorization": f"Bearer {self.test_admin_token}"}
+        
+        try:
+            response = self.session.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("form_data") is None and data.get("last_saved") is None:
+                    self.log_result(
+                        "Intake Form GET (Empty)", 
+                        True, 
+                        "Correctly returned null form_data and last_saved for new user"
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "Intake Form GET (Empty)", 
+                        False, 
+                        "Expected null values but got data",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Intake Form GET (Empty)", 
+                    False, 
+                    f"Expected 200, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Intake Form GET (Empty)", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_intake_form_save_progress(self):
+        """Test 13: POST /api/user/intake-form/save - should save form progress"""
+        print("\n=== Testing Intake Form Save Progress ===")
+        
+        if not hasattr(self, 'test_admin_token') or not self.test_admin_token:
+            self.log_result(
+                "Intake Form Save Progress - No Token", 
+                False, 
+                "No test admin token available"
+            )
+            return False
+        
+        url = f"{BACKEND_URL}/user/intake-form/save"
+        headers = {"Authorization": f"Bearer {self.test_admin_token}"}
+        
+        # Test form data with all 3 parts
+        form_data = {
+            "profileData": {
+                "legalLastName": "Smith",
+                "dateOfBirth": "1990-05-15",
+                "country": "United States",
+                "motivationLevel": "7-8",
+                "medications": [
+                    {"name": "Metformin", "dosage": "500mg", "frequency": "Twice daily"}
+                ]
+            },
+            "hipaaSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            "telehealthSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            "printName": "John Smith"
+        }
+        
+        payload = {"form_data": form_data}
+        
+        try:
+            response = self.session.post(url, json=payload, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "message" in data and "last_saved" in data:
+                    self.log_result(
+                        "Intake Form Save Progress", 
+                        True, 
+                        f"Form progress saved successfully at {data.get('last_saved')}"
+                    )
+                    self.saved_form_data = form_data  # Store for next test
+                    return True
+                else:
+                    self.log_result(
+                        "Intake Form Save Progress", 
+                        False, 
+                        "Missing expected fields in response",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Intake Form Save Progress", 
+                    False, 
+                    f"Expected 200, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Intake Form Save Progress", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_intake_form_get_saved_data(self):
+        """Test 14: GET /api/user/intake-form - should return saved form data"""
+        print("\n=== Testing Intake Form GET (Saved Data) ===")
+        
+        if not hasattr(self, 'test_admin_token') or not self.test_admin_token:
+            self.log_result(
+                "Intake Form GET (Saved Data) - No Token", 
+                False, 
+                "No test admin token available"
+            )
+            return False
+        
+        if not hasattr(self, 'saved_form_data'):
+            self.log_result(
+                "Intake Form GET (Saved Data) - No Saved Data", 
+                False, 
+                "No saved form data from previous test"
+            )
+            return False
+        
+        url = f"{BACKEND_URL}/user/intake-form"
+        headers = {"Authorization": f"Bearer {self.test_admin_token}"}
+        
+        try:
+            response = self.session.get(url, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                form_data = data.get("form_data")
+                last_saved = data.get("last_saved")
+                
+                if form_data and last_saved:
+                    # Verify the saved data matches what we sent
+                    if (form_data.get("profileData", {}).get("legalLastName") == "Smith" and
+                        form_data.get("printName") == "John Smith" and
+                        "hipaaSignature" in form_data and
+                        "telehealthSignature" in form_data):
+                        self.log_result(
+                            "Intake Form GET (Saved Data)", 
+                            True, 
+                            f"Successfully retrieved saved form data with last_saved: {last_saved}"
+                        )
+                        return True
+                    else:
+                        self.log_result(
+                            "Intake Form GET (Saved Data)", 
+                            False, 
+                            "Retrieved data doesn't match saved data",
+                            form_data
+                        )
+                        return False
+                else:
+                    self.log_result(
+                        "Intake Form GET (Saved Data)", 
+                        False, 
+                        "Missing form_data or last_saved in response",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Intake Form GET (Saved Data)", 
+                    False, 
+                    f"Expected 200, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Intake Form GET (Saved Data)", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_intake_form_submit(self):
+        """Test 15: POST /api/user/intake-form/submit - should submit form and log event"""
+        print("\n=== Testing Intake Form Submit ===")
+        
+        if not hasattr(self, 'test_admin_token') or not self.test_admin_token:
+            self.log_result(
+                "Intake Form Submit - No Token", 
+                False, 
+                "No test admin token available"
+            )
+            return False
+        
+        url = f"{BACKEND_URL}/user/intake-form/submit"
+        headers = {"Authorization": f"Bearer {self.test_admin_token}"}
+        
+        # Complete form data for submission
+        form_data = {
+            "profileData": {
+                "legalLastName": "Smith",
+                "dateOfBirth": "1990-05-15",
+                "country": "United States",
+                "motivationLevel": "7-8",
+                "medications": [
+                    {"name": "Metformin", "dosage": "500mg", "frequency": "Twice daily"},
+                    {"name": "Lisinopril", "dosage": "10mg", "frequency": "Once daily"}
+                ]
+            },
+            "hipaaSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            "telehealthSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            "printName": "John Smith"
+        }
+        
+        payload = {"form_data": form_data}
+        
+        try:
+            response = self.session.post(url, json=payload, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "message" in data and "submitted_at" in data:
+                    self.log_result(
+                        "Intake Form Submit", 
+                        True, 
+                        f"Form submitted successfully at {data.get('submitted_at')}"
+                    )
+                    return True
+                else:
+                    self.log_result(
+                        "Intake Form Submit", 
+                        False, 
+                        "Missing expected fields in response",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Intake Form Submit", 
+                    False, 
+                    f"Expected 200, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Intake Form Submit", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_intake_form_submission_logging(self):
+        """Test 16: Verify INTAKE_FORM_SUBMITTED event was logged"""
+        print("\n=== Testing Intake Form Submission Logging ===")
+        
+        if not hasattr(self, 'admin_access_token') or not self.admin_access_token:
+            self.log_result(
+                "Intake Form Submission Logging - No Admin Token", 
+                False, 
+                "No admin token available for checking logs"
+            )
+            return False
+        
+        logs_url = f"{BACKEND_URL}/admin/activity-logs"
+        headers = {"Authorization": f"Bearer {self.admin_access_token}"}
+        
+        try:
+            # Get recent logs and look for INTAKE_FORM_SUBMITTED event
+            response = self.session.get(
+                logs_url, 
+                headers=headers, 
+                params={
+                    "event_type": "INTAKE_FORM_SUBMITTED",
+                    "user_email": "testadmin@test.com",
+                    "limit": 5
+                }
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                logs = data.get("logs", [])
+                
+                if logs:
+                    # Check the most recent INTAKE_FORM_SUBMITTED log
+                    log_entry = logs[0]
+                    details = log_entry.get("details", {})
+                    
+                    # Verify the log contains expected details
+                    if (details.get("has_hipaa_signature") is True and
+                        details.get("has_telehealth_signature") is True and
+                        "profile_data_fields" in details):
+                        self.log_result(
+                            "Intake Form Submission Logging", 
+                            True, 
+                            f"INTAKE_FORM_SUBMITTED event logged with correct details: {details}"
+                        )
+                        return True
+                    else:
+                        self.log_result(
+                            "Intake Form Submission Logging", 
+                            False, 
+                            "INTAKE_FORM_SUBMITTED event found but missing expected details",
+                            details
+                        )
+                        return False
+                else:
+                    self.log_result(
+                        "Intake Form Submission Logging", 
+                        False, 
+                        "No INTAKE_FORM_SUBMITTED events found in logs"
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Intake Form Submission Logging", 
+                    False, 
+                    f"Failed to retrieve logs: {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Intake Form Submission Logging", False, f"Request failed: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all backend tests including activity logging and geolocation"""
         print("🚀 Starting Backend Authentication Flow, Activity Logging, and Geolocation Tests")
