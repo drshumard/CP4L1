@@ -9,7 +9,7 @@ SERVICE_ACCOUNT_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 
 SCOPES = ['https://www.googleapis.com/auth/drive']
 
 # Target folder ID from environment or default (Shared Drive folder)
-DRIVE_FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '1TPYIRtU47rNsUuY2YRqIEvSUJJUf8MPj')
+DRIVE_FOLDER_ID = os.environ.get('GOOGLE_DRIVE_FOLDER_ID', '1tsCj3ZScOgpPJK0WICFZqMPNTYpEZ8-o')
 
 def get_drive_service():
     """Create and return a Google Drive service instance using service account."""
