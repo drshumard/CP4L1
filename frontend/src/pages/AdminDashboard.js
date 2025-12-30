@@ -253,6 +253,7 @@ const AdminDashboard = () => {
 
   const openUserDetails = (user) => {
     setSelectedUser(user);
+    setPendingStep(null); // Reset pending step when opening new user
     setShowUserModal(true);
     trackAdminUserViewed(user.id);
     trackModalOpened('user_details');
