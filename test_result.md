@@ -116,6 +116,9 @@ backend:
       - working: "NA"
         agent: "main"
         comment: "Updated submit endpoint to generate PDF with email_diabetes_intake_form.pdf filename and upload to Shared Drive folder. PDF generator updated with better styling. Google Drive integration working with new folder ID 1tsCj3ZScOgpPJK0WICFZqMPNTYpEZ8-o."
+      - working: "NA"
+        agent: "main"
+        comment: "Updated PDF filename format to 'email_prefix diabetes intake form.pdf' (with spaces). Updated pdf_generator.py to display all free text fields in table row format using create_text_field_table() function. Free text fields (Main Problems, Hoped Outcome, No Solution Found, Previous Interventions, Prior Medical History, Allergies, Other Providers) now display in two-column table format with label on left and value on right."
 
 
   - task: "GHL Webhook endpoint for user creation"
