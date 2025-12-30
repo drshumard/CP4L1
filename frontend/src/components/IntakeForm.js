@@ -930,57 +930,6 @@ const IntakeForm = ({ userData, onComplete }) => {
       </Card>
     </motion.div>
   );
-              <li>The video connection may not work or it may stop working during the consultation.</li>
-              <li>The video picture or information transmitted may not be clear enough to be useful.</li>
-            </ul>
-            <h4 className="font-bold text-gray-800">Benefits:</h4>
-            <ul className="list-disc pl-5 space-y-1 text-xs">
-              <li>I do not need to travel to the consult location.</li>
-              <li>I have access to a specialist through this consultation.</li>
-            </ul>
-            <div className="bg-amber-50 border-l-4 border-amber-500 p-3 my-4">
-              <p className="text-amber-800 text-xs font-semibold">I understand that I am paying for an initial consultation with Dr. Shumard. I will be allowed to reschedule one time with no additional charge. If I reschedule, I agree to put a credit card on file. If I do not cancel at least 24 hrs prior to my rescheduled appointment, I will be charged $97 that is non-refundable.</p>
-            </div>
-            <div className="bg-red-50 border-l-4 border-red-500 p-3 my-4">
-              <p className="text-red-800 text-xs font-semibold">I understand all cancellations must be received 24 hrs prior to my scheduled appointment, otherwise the paid consultation fee of $97.00 will be forfeited and nonrefundable.</p>
-            </div>
-            <div className="bg-teal-50 border-l-4 border-teal-500 p-3 my-4">
-              <p className="font-bold text-teal-800 text-xs">Client: I have read, understand, and accept the information and conditions specified in this agreement.</p>
-            </div>
-          </div>
-          
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <Checkbox id="telehealthAgreed" checked={telehealthAgreed} onCheckedChange={setTelehealthAgreed} />
-              <Label htmlFor="telehealthAgreed" className="text-sm leading-relaxed cursor-pointer">I have read, understand, and accept the information and conditions specified in this agreement.</Label>
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <Label htmlFor="printName" className="text-lg font-semibold">Print Name Here *</Label>
-            <Input id="printName" value={telehealthPrintName} onChange={(e) => setTelehealthPrintName(e.target.value)} placeholder="Type your full legal name" className="mt-2 text-lg" />
-          </div>
-          
-          <div className="mt-6">
-            <Label className="text-lg font-semibold">Digital Signature *</Label>
-            <p className="text-sm text-gray-600 mb-3">Please sign using your mouse or finger below</p>
-            <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
-              <SignatureCanvas
-                ref={telehealthSignatureRef}
-                canvasProps={{ className: 'w-full h-48 bg-white', style: { width: '100%', height: '200px' } }}
-                backgroundColor="white"
-                onEnd={() => { if (telehealthSignatureRef.current) setTelehealthSignature(telehealthSignatureRef.current.toDataURL('image/png')); }}
-              />
-            </div>
-            <div className="flex justify-between items-center mt-3">
-              <Button type="button" variant="outline" size="sm" onClick={clearTelehealthSignature} className="text-gray-600">Clear Signature</Button>
-              <p className="text-sm text-gray-600">Date: <span className="font-semibold">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
 
   return (
     <div className="w-full max-w-4xl mx-auto">
