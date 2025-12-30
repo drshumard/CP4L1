@@ -233,6 +233,7 @@ const IntakeForm = ({ userData, onComplete }) => {
         },
         hipaaSignature: hipaaSignatureData,
         hipaaAgreed,
+        hipaaPrintName,
         telehealthPrintName,
         telehealthSignature: telehealthSignatureData,
         telehealthAgreed,
