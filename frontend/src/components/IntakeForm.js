@@ -173,7 +173,7 @@ const IntakeForm = ({ userData, onComplete }) => {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [formData, hipaaSignature, hipaaAgreed, telehealthPrintName, telehealthSignature, telehealthAgreed]);
+  }, [formData, hipaaSignature, hipaaAgreed, hipaaPrintName, telehealthPrintName, telehealthSignature, telehealthAgreed]);
 
   const loadSavedData = async () => {
     try {
