@@ -211,20 +211,23 @@ const Dashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12 w-full overflow-hidden"
+          className={`grid grid-cols-1 ${progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3) ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12 w-full overflow-hidden`}
         >
-          <Card className="glass-dark border-0 shadow-lg" data-testid="stat-card-1">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="text-green-600" size={20} />
-                Active Step
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-gray-800">Step {progressData?.current_step}</p>
-              <p className="text-sm text-gray-600 mt-1">Keep up the great work!</p>
-            </CardContent>
-          </Card>
+          {/* Active Step Card - Hide when complete */}
+          {!(progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3)) && (
+            <Card className="glass-dark border-0 shadow-lg" data-testid="stat-card-1">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUp className="text-green-600" size={20} />
+                  Active Step
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-gray-800">Step {progressData?.current_step}</p>
+                <p className="text-sm text-gray-600 mt-1">Keep up the great work!</p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="glass-dark border-0 shadow-lg" data-testid="stat-card-2">
             <CardHeader>
@@ -248,10 +251,12 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-800">
-                {progressData?.current_step === 3 ? 'Complete!' : `Step ${progressData?.current_step + 1}`}
+                {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3) 
+                  ? 'Your Consultation Call' 
+                  : `Step ${progressData?.current_step + 1}`}
               </p>
               <p className="text-sm text-gray-600 mt-1">
-                {progressData?.current_step === 3 ? 'Congratulations!' : 'Coming up next'}
+                Coming up next
               </p>
             </CardContent>
           </Card>
