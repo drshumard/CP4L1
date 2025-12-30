@@ -1017,6 +1017,51 @@ const StepsPage = () => {
               </Card>
             </div>
           </div>
+
+          {/* Practice Better Activation Card - Step 3 Only */}
+          <Card className="glass-dark border-0 shadow-xl overflow-hidden mb-6" data-testid="practice-better-activation-card">
+            {/* Header - Blue gradient background */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 sm:p-6">
+              <div className="flex items-center gap-4 mb-4">
+                {/* Logo Circle */}
+                <div className="flex-shrink-0 w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-blue-700 font-bold text-xs">DRSHUMARD</span>
+                </div>
+                <div className="text-white">
+                  <p className="font-bold text-lg">Dr. Shumard</p>
+                  <p className="text-blue-200 text-sm">DrShumard.com</p>
+                </div>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white">
+                Dr. Shumard has invited you to join Practice Better.
+              </h3>
+            </div>
+            
+            {/* Body - White background */}
+            <CardContent className="p-4 sm:p-6 bg-white">
+              <p className="text-gray-800 mb-2">
+                Hi {userData?.name?.split(' ')[0] || 'there'},
+              </p>
+              <p className="font-semibold text-gray-900 mb-3">
+                Practice Better allows me to make my professional recommendations available to you from one secure place.
+              </p>
+              <p className="text-gray-700 mb-6">
+                Activate your account and get access to these resources from your phone or PC any time and anywhere. It&apos;s that simple.
+              </p>
+              <a
+                href="https://my.practicebetter.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackButtonClicked('activate_practice_better', 'steps_page')}
+                className="inline-block w-full sm:w-auto text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-colors"
+              >
+                Activate My Account
+              </a>
+              <p className="text-gray-500 text-sm mt-4 italic">
+                Check your email for the invitation from Practice Better to activate your account.
+              </p>
+            </CardContent>
+          </Card>
         )}
 
           {/* Bottom Container: Description Card (for Step 3 only) */}
