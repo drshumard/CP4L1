@@ -1001,18 +1001,21 @@ const StepsPage = () => {
                           </p>
                         </div>
                       </div>
-                    </div>
 
-                    <Button
-                      onClick={() => {
-                        trackButtonClicked('complete_program_step3', 'steps_page');
-                        handleAdvanceStep();
-                      }}
-                      className="w-full mt-4 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
-                      data-testid="submit-button"
-                    >
-                      Complete Program
-                    </Button>
+                      {/* Action Step 3 */}
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
+                          3
+                        </div>
+                        <div>
+                          <p className="font-semibold text-gray-800 text-sm mb-1">Activate Your Portal:</p>
+                          <p className="text-xs text-gray-700 leading-relaxed">
+                            Check your email for an invitation from Practice Better and click &quot;Activate My Account&quot; to 
+                            set up your secure patient portal.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
