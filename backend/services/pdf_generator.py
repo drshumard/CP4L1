@@ -15,7 +15,7 @@ GRAY_BG = colors.HexColor('#F9FAFB')
 GRAY_BORDER = colors.HexColor('#E5E7EB')
 
 def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> bytes:
-    """Generate a professionally styled PDF from intake form data."""
+    """Generate a professionally styled PDF from intake form data with free text in table rows."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -36,11 +36,12 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=9, textColor=TEAL_DARK, fontName='Helvetica-Bold')
     normal_style = ParagraphStyle('CustomNormal', parent=styles['Normal'], fontSize=9, spaceAfter=3)
     small_style = ParagraphStyle('SmallText', parent=styles['Normal'], fontSize=8, textColor=colors.gray, spaceAfter=2)
+    table_text_style = ParagraphStyle('TableText', parent=styles['Normal'], fontSize=8, leading=10)
     
     story = []
     profile = form_data.get('profileData', {})
     
-    # Helper function for field tables
+    # Helper function for field tables (2-column layout)
     def create_field_table(data, col_widths=None):
         if col_widths is None:
             col_widths = [1.4*inch, 2*inch, 1.4*inch, 2*inch]
@@ -55,10 +56,29 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
         ]))
         return t
     
-    def add_text_field(label, value):
-        story.append(Paragraph(f"<b>{label}:</b>", label_style))
-        story.append(Paragraph(str(value) if value else 'N/A', normal_style))
-        story.append(Spacer(1, 6))
+    # Helper function for free text fields in table row format
+    def create_text_field_table(label, value):
+        """Create a table row for free text fields"""
+        value_text = str(value) if value else 'N/A'
+        # Wrap long text in Paragraph for proper formatting
+        value_para = Paragraph(value_text, table_text_style)
+        
+        data = [[Paragraph(f"<b>{label}</b>", label_style), value_para]]
+        t = Table(data, colWidths=[2.2*inch, 4.8*inch])
+        t.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('TEXTCOLOR', (0, 0), (0, -1), TEAL_DARK),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, GRAY_BORDER),
+            ('BACKGROUND', (0, 0), (0, -1), GRAY_BG),
+            ('BACKGROUND', (1, 0), (1, -1), colors.white),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        return t
     
     # ===== HEADER =====
     story.append(Paragraph("INTAKE FORMS: DIABETES", title_style))
@@ -89,17 +109,21 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     story.append(Paragraph("Contact Information", subsection_style))
     story.append(create_field_table([['Occupation:', profile.get('occupation', 'N/A'), 'Referred By:', profile.get('referredBy', 'N/A')]]))
     
-    # ===== GOALS AND CONCERNS =====
+    # ===== GOALS AND CONCERNS - Using Table Rows for Free Text =====
     story.append(Paragraph("GOALS AND CONCERNS", section_style))
-    add_text_field("Main Problems", profile.get('mainProblems'))
-    add_text_field("Hoped Outcome from Consultation", profile.get('hopedOutcome'))
-    add_text_field("If No Solution Found", profile.get('noSolutionOutcome'))
-    add_text_field("Previous Interventions That Did NOT Work", profile.get('previousInterventions'))
+    story.append(create_text_field_table("Main Problems", profile.get('mainProblems')))
+    story.append(Spacer(1, 4))
+    story.append(create_text_field_table("Hoped Outcome from Consultation", profile.get('hopedOutcome')))
+    story.append(Spacer(1, 4))
+    story.append(create_text_field_table("If No Solution Found", profile.get('noSolutionOutcome')))
+    story.append(Spacer(1, 4))
+    story.append(create_text_field_table("Previous Interventions (Not Worked)", profile.get('previousInterventions')))
+    story.append(Spacer(1, 4))
     story.append(create_field_table([['Severity Level:', profile.get('severityLevel', 'N/A'), 'Motivation Level:', profile.get('motivationLevel', 'N/A')]]))
     
-    # ===== PRIOR MEDICAL HISTORY =====
+    # ===== PRIOR MEDICAL HISTORY - Using Table Row for Free Text =====
     story.append(Paragraph("PRIOR MEDICAL HISTORY", section_style))
-    add_text_field("Previous Diagnosis and Dates", profile.get('priorMedicalHistory'))
+    story.append(create_text_field_table("Previous Diagnosis and Dates", profile.get('priorMedicalHistory')))
     
     # ===== MEDICATIONS AND SUPPLEMENTS =====
     story.append(Paragraph("MEDICATIONS AND SUPPLEMENTS", section_style))
@@ -135,13 +159,20 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     if not has_symptoms:
         story.append(Paragraph("No symptoms reported", normal_style))
     
-    # Allergies, Recent Tests, Other Providers
+    # Allergies - Using Table Row for Free Text
+    story.append(Spacer(1, 6))
     if profile.get('allergies'):
-        story.append(Paragraph(f"<b>ALLERGIES/OTHER:</b> {profile.get('allergies')}", small_style))
+        story.append(create_text_field_table("Allergies/Other", profile.get('allergies')))
+    
+    # Recent Tests
     if profile.get('recentTests'):
-        story.append(Paragraph(f"<b>RECENT TESTS:</b> {', '.join(profile.get('recentTests', []))}", small_style))
+        story.append(Spacer(1, 4))
+        story.append(create_text_field_table("Recent Tests", ', '.join(profile.get('recentTests', []))))
+    
+    # Other Providers - Using Table Row for Free Text
     if profile.get('otherProviders'):
-        story.append(Paragraph(f"<b>OTHER PROVIDERS:</b> {profile.get('otherProviders')}", small_style))
+        story.append(Spacer(1, 4))
+        story.append(create_text_field_table("Other Providers", profile.get('otherProviders')))
     
     story.append(PageBreak())
     
