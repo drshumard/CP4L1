@@ -197,6 +197,7 @@ const IntakeForm = ({ userData, onComplete }) => {
         
         if (saved.hipaaSignature) setHipaaSignature(saved.hipaaSignature);
         if (saved.hipaaAgreed) setHipaaAgreed(saved.hipaaAgreed);
+        if (saved.hipaaPrintName) setHipaaPrintName(saved.hipaaPrintName);
         if (saved.telehealthPrintName) setTelehealthPrintName(saved.telehealthPrintName);
         if (saved.telehealthSignature) setTelehealthSignature(saved.telehealthSignature);
         if (saved.telehealthAgreed) setTelehealthAgreed(saved.telehealthAgreed);
