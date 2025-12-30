@@ -142,6 +142,7 @@ const IntakeForm = ({ userData, onComplete }) => {
   // Part 2: HIPAA Signature
   const [hipaaSignature, setHipaaSignature] = useState(null);
   const [hipaaAgreed, setHipaaAgreed] = useState(false);
+  const [hipaaPrintName, setHipaaPrintName] = useState('');
   const hipaaSignatureRef = useRef(null);
   
   // Part 3: Telehealth Signature
