@@ -471,7 +471,7 @@ const AdminDashboard = () => {
                         {/* Tags on desktop - right side */}
                         <div className="hidden md:flex items-center gap-3 flex-shrink-0">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStepColor(user.current_step)}`}>
-                            Step {user.current_step}
+                            {getStepLabel(user.current_step)}
                           </span>
                           {user.role === 'admin' && (
                             <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
