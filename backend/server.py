@@ -1294,6 +1294,41 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
             submission_data["pdf_web_link"] = drive_result.get("web_view_link")
             submission_data["pdf_filename"] = filename
             print(f"PDF uploaded to Google Drive: {filename}")
+            
+            # Send webhook to Zapier with email, full name, and PDF file
+            try:
+                import base64
+                import httpx
+                
+                ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/1815480/uw4ih9b/"
+                
+                # Prepare webhook payload with PDF as base64
+                pdf_base64 = base64.b64encode(pdf_bytes).decode('utf-8')
+                
+                webhook_payload = {
+                    "email": user_email,
+                    "full_name": user_name,
+                    "file_name": filename,
+                    "file_content": pdf_base64,
+                    "file_type": "application/pdf",
+                    "google_drive_link": drive_result.get("web_view_link"),
+                    "submitted_at": submission_data["submitted_at"]
+                }
+                
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    webhook_response = await client.post(
+                        ZAPIER_WEBHOOK_URL,
+                        json=webhook_payload
+                    )
+                    
+                    if webhook_response.status_code == 200:
+                        print(f"Zapier webhook sent successfully for {user_email}")
+                    else:
+                        print(f"Zapier webhook failed: {webhook_response.status_code} - {webhook_response.text}")
+                        
+            except Exception as webhook_error:
+                print(f"Error sending Zapier webhook: {str(webhook_error)}")
+                # Continue even if webhook fails
         else:
             print(f"Failed to upload PDF to Google Drive: {drive_result.get('error')}")
             
