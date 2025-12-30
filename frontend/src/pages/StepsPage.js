@@ -197,6 +197,12 @@ const StepsPage = () => {
       setUserData(userRes.data);
       setProgressData(progressRes.data);
 
+      // If user has completed the program (step 4), redirect to outcome
+      if (progressRes.data.current_step === 4) {
+        navigate('/outcome');
+        return;
+      }
+
       // Load completed tasks for current step
       const currentStepProgress = progressRes.data.progress.find(
         p => p.step_number === progressRes.data.current_step
