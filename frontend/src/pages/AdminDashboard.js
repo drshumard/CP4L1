@@ -624,10 +624,10 @@ const AdminDashboard = () => {
                   
                   {/* Move to Step */}
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm text-gray-600">Move to Step:</span>
+                    <span className="text-sm text-gray-600 whitespace-nowrap">Move to Step:</span>
                     <select
-                      value={selectedUser?.current_step || 1}
-                      onChange={(e) => handleSetStep(selectedUser.id, parseInt(e.target.value))}
+                      value={pendingStep !== null ? pendingStep : (selectedUser?.current_step || 1)}
+                      onChange={(e) => handleStepChange(parseInt(e.target.value))}
                       disabled={actionLoading}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                     >
@@ -674,15 +674,30 @@ const AdminDashboard = () => {
                     </Button>
                   </div>
 
-                  <Button
-                    variant="outline"
-                    className="w-full flex items-center justify-center gap-2 py-5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name, selectedUser.email)}
-                    disabled={actionLoading}
-                  >
-                    <Trash2 size={16} />
-                    Delete User
-                  </Button>
+                  {/* Save and Delete buttons side by side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={handleSaveStepChange}
+                      disabled={pendingStep === null || pendingStep === selectedUser?.current_step || actionLoading}
+                      className={`flex items-center justify-center gap-2 py-5 ${
+                        pendingStep !== null && pendingStep !== selectedUser?.current_step
+                          ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white'
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <CheckCircle size={16} />
+                      Save Changes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 py-5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name, selectedUser.email)}
+                      disabled={actionLoading}
+                    >
+                      <Trash2 size={16} />
+                      Delete User
+                    </Button>
+                  </div>
                 </div>
               </div>
             </motion.div>
