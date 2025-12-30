@@ -31,31 +31,36 @@ function AxiosInterceptor() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Flag to prevent multiple 401 handlers running simultaneously
+    let isHandling401 = false;
+    
     // Response interceptor to handle 401 errors globally
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !isHandling401) {
           // Check if we're already on login/signup to avoid infinite redirects
           const currentPath = window.location.pathname;
-          if (currentPath !== '/login' && currentPath !== '/signup') {
-            // Token expired or invalid
+          if (currentPath !== '/login' && currentPath !== '/signup' && currentPath !== '/reset-password') {
+            isHandling401 = true;
+            
+            // Token expired or invalid - clear all auth data
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
+            localStorage.removeItem('user_data');
+            sessionStorage.clear();
             
-            // Show toast only once by checking if we haven't already shown it
-            if (!sessionStorage.getItem('session_expired_toast_shown')) {
-              sessionStorage.setItem('session_expired_toast_shown', 'true');
-              toast.error('Your session has expired. Please login again.');
-              
-              // Clear the flag after navigation
-              setTimeout(() => {
-                sessionStorage.removeItem('session_expired_toast_shown');
-              }, 1000);
-            }
+            // Show toast only once
+            toast.error('Your session has expired. Please login again.', {
+              id: 'session-expired', // Prevents duplicate toasts with same ID
+              duration: 4000
+            });
             
-            // Force navigate to login
-            window.location.href = '/login';
+            // Use setTimeout to ensure state cleanup happens before redirect
+            setTimeout(() => {
+              isHandling401 = false;
+              window.location.replace('/login');
+            }, 100);
           }
         }
         return Promise.reject(error);
