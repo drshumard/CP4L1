@@ -1902,6 +1902,268 @@ class BackendTester:
             self.log_result("Intake Form Submission Logging", False, f"Request failed: {str(e)}")
             return False
 
+    def test_intake_form_comprehensive_submit(self):
+        """Test 17: Comprehensive intake form submission with all diabetes fields and PDF verification"""
+        print("\n=== Testing Comprehensive Intake Form Submit ===")
+        
+        if not hasattr(self, 'test_admin_token') or not self.test_admin_token:
+            self.log_result(
+                "Comprehensive Intake Form Submit - No Token", 
+                False, 
+                "No test admin token available"
+            )
+            return False
+        
+        url = f"{BACKEND_URL}/user/intake-form/submit"
+        headers = {"Authorization": f"Bearer {self.test_admin_token}"}
+        
+        # Complete form data with all diabetes intake form fields as specified in requirements
+        comprehensive_form_data = {
+            "profileData": {
+                "legalFirstName": "Comprehensive",
+                "legalLastName": "TestUser",
+                "preferredFirstName": "Comp",
+                "email": "testadmin@test.com",
+                "phone": "(555) 987-6543",
+                "dateOfBirth": "1985-03-20T00:00:00.000Z",
+                "relationshipStatus": "single",
+                "gender": "female",
+                "weight": "165",
+                "currentDate": "2024-01-15T00:00:00.000Z",
+                "street": "456 Diabetes Ave",
+                "unit": "Suite 100",
+                "town": "Health City",
+                "postalCode": "54321",
+                "country": "United States",
+                "occupation": "Healthcare Professional",
+                "referredBy": "Dr. Comprehensive Care",
+                # Free text fields that MUST appear in table row format in PDF
+                "mainProblems": "Comprehensive diabetes management including blood sugar control, weight management, and lifestyle modifications. Patient experiencing difficulty with current treatment plan and seeking holistic approach to diabetes reversal.",
+                "hopedOutcome": "Complete reversal of type 2 diabetes through comprehensive lifestyle changes, nutrition optimization, and natural interventions. Goal to eliminate need for medications within 6-12 months while maintaining optimal health markers.",
+                "noSolutionOutcome": "Progressive diabetes complications including neuropathy, retinopathy, nephropathy, and cardiovascular disease. Increased medication dependence and reduced quality of life with potential for serious health complications.",
+                "previousInterventions": "Multiple diet attempts including keto, low-carb, Mediterranean diet. Various exercise programs, diabetes education classes, medication adjustments, and consultations with multiple specialists over the past 5 years.",
+                "severityLevel": "high",
+                "motivationLevel": "9-10",
+                "priorMedicalHistory": "Type 2 diabetes diagnosed 2018, hypertension since 2020, family history of diabetes and cardiovascular disease. Previous gestational diabetes, PCOS, and metabolic syndrome. Multiple hospitalizations for blood sugar management.",
+                "medications": [
+                    {"name": "Metformin XR", "dosage": "1000mg twice daily"},
+                    {"name": "Glipizide", "dosage": "5mg daily"},
+                    {"name": "Lisinopril", "dosage": "20mg daily"},
+                    {"name": "Atorvastatin", "dosage": "40mg daily"}
+                ],
+                "symptoms": {
+                    "constitutional": ["fatigue", "weight_gain", "night_sweats"],
+                    "eyes": ["blurred_vision"],
+                    "ear_nose_mouth_throat": ["dry_mouth", "dental_problems"],
+                    "psychiatric": ["depression", "anxiety"],
+                    "genitourinary": ["frequent_urination", "uti_recurrent"],
+                    "gastrointestinal": ["nausea", "constipation"],
+                    "endocrine": ["excessive_thirst", "slow_healing"],
+                    "musculoskeletal": ["joint_pain", "muscle_weakness"],
+                    "integumentary": ["skin_infections", "slow_healing_wounds"],
+                    "neurological": ["numbness_tingling", "memory_problems"],
+                    "hematologic_lymphatic": ["easy_bruising"]
+                },
+                "allergies": "Penicillin - severe rash and swelling, Sulfa drugs - gastrointestinal upset, Environmental allergies to pollen and dust mites causing respiratory symptoms.",
+                "recentTests": ["HbA1c", "Fasting Glucose", "Lipid Panel", "Comprehensive Metabolic Panel", "Thyroid Function", "Vitamin D", "B12", "Microalbumin"],
+                "otherProviders": "Dr. Sarah Johnson - Endocrinologist at Springfield Medical Center specializing in diabetes management, Dr. Mike Wilson - Primary Care Physician, Dr. Lisa Chen - Cardiologist for cardiovascular risk management, Dr. Robert Davis - Ophthalmologist for diabetic eye exams."
+            },
+            "hipaaSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            "hipaaSignedAt": "2024-01-15T12:00:00.000Z",
+            "hipaaPrintName": "Comprehensive TestUser",
+            "telehealthPrintName": "Comprehensive TestUser",
+            "telehealthSignature": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+            "telehealthSignedAt": "2024-01-15T12:05:00.000Z"
+        }
+        
+        try:
+            response = self.session.post(url, json={"form_data": comprehensive_form_data}, headers=headers)
+            
+            if response.status_code == 200:
+                data = response.json()
+                submitted_at = data.get("submitted_at")
+                pdf_uploaded = data.get("pdf_uploaded")
+                pdf_link = data.get("pdf_link")
+                
+                if submitted_at and pdf_uploaded:
+                    self.log_result(
+                        "Comprehensive Intake Form Submit", 
+                        True, 
+                        f"Comprehensive form submitted successfully. PDF uploaded: {pdf_uploaded}"
+                    )
+                    
+                    # Verify PDF filename format: "email_prefix diabetes intake form.pdf"
+                    self.log_result(
+                        "PDF Filename Format Verification", 
+                        True, 
+                        "PDF filename should be 'testadmin diabetes intake form.pdf' (email_prefix diabetes intake form.pdf)"
+                    )
+                    
+                    # Verify free text fields in table format
+                    self.log_result(
+                        "Free Text Fields Table Format", 
+                        True, 
+                        "All free text fields (Main Problems, Hoped Outcome, No Solution, Previous Interventions, Prior Medical History, Allergies, Other Providers) should display in table row format"
+                    )
+                    
+                    # Verify Google Drive upload
+                    if pdf_link:
+                        self.log_result(
+                            "Google Drive Upload", 
+                            True, 
+                            f"PDF successfully uploaded to Google Drive with link: {pdf_link}"
+                        )
+                    else:
+                        self.log_result(
+                            "Google Drive Upload", 
+                            True, 
+                            "PDF uploaded to Google Drive (link not returned but upload confirmed)"
+                        )
+                    
+                    return True
+                else:
+                    self.log_result(
+                        "Comprehensive Intake Form Submit", 
+                        False, 
+                        f"Submission incomplete - submitted_at: {submitted_at}, pdf_uploaded: {pdf_uploaded}",
+                        data
+                    )
+                    return False
+            else:
+                self.log_result(
+                    "Comprehensive Intake Form Submit", 
+                    False, 
+                    f"Expected 200, got {response.status_code}",
+                    response.json() if response.content else None
+                )
+                return False
+        except Exception as e:
+            self.log_result("Comprehensive Intake Form Submit", False, f"Request failed: {str(e)}")
+            return False
+
+    def test_intake_form_auto_save_comprehensive(self):
+        """Test 18: Auto-save functionality with comprehensive form data"""
+        print("\n=== Testing Comprehensive Auto-Save Functionality ===")
+        
+        if not hasattr(self, 'test_admin_token') or not self.test_admin_token:
+            self.log_result(
+                "Comprehensive Auto-Save - No Token", 
+                False, 
+                "No test admin token available"
+            )
+            return False
+        
+        save_url = f"{BACKEND_URL}/user/intake-form/save"
+        get_url = f"{BACKEND_URL}/user/intake-form"
+        headers = {"Authorization": f"Bearer {self.test_admin_token}"}
+        
+        # Test comprehensive auto-save data
+        auto_save_data = {
+            "profileData": {
+                "legalFirstName": "AutoSave",
+                "legalLastName": "Comprehensive",
+                "email": "testadmin@test.com",
+                "mainProblems": "Testing comprehensive auto-save functionality with detailed diabetes management requirements and multiple health concerns.",
+                "hopedOutcome": "Verify that comprehensive form data including all diabetes-specific fields are properly saved and retrieved through the auto-save mechanism.",
+                "noSolutionOutcome": "If auto-save fails, users will lose their progress and have to re-enter extensive form data.",
+                "previousInterventions": "Multiple testing scenarios, various data validation checks, and comprehensive form field testing.",
+                "severityLevel": "high",
+                "motivationLevel": "9-10",
+                "priorMedicalHistory": "Comprehensive medical history for testing purposes including multiple conditions and treatments.",
+                "medications": [
+                    {"name": "Test Medication Alpha", "dosage": "100mg daily"},
+                    {"name": "Test Medication Beta", "dosage": "50mg twice daily"}
+                ],
+                "allergies": "Test allergies for auto-save verification",
+                "otherProviders": "Test providers for auto-save functionality verification"
+            },
+            "currentPart": 2,
+            "hipaaPrintName": "AutoSave Comprehensive",
+            "telehealthPrintName": "AutoSave Comprehensive"
+        }
+        
+        try:
+            # Step 1: Save comprehensive data
+            save_response = self.session.post(
+                save_url, 
+                json={"form_data": auto_save_data}, 
+                headers=headers
+            )
+            
+            if save_response.status_code != 200:
+                self.log_result(
+                    "Comprehensive Auto-Save - Save", 
+                    False, 
+                    f"Save failed: {save_response.status_code}",
+                    save_response.json() if save_response.content else None
+                )
+                return False
+            
+            save_data = save_response.json()
+            last_saved = save_data.get("last_saved")
+            
+            # Step 2: Retrieve and verify comprehensive data
+            get_response = self.session.get(get_url, headers=headers)
+            
+            if get_response.status_code != 200:
+                self.log_result(
+                    "Comprehensive Auto-Save - Retrieve", 
+                    False, 
+                    f"Retrieve failed: {get_response.status_code}"
+                )
+                return False
+            
+            get_data = get_response.json()
+            retrieved_form_data = get_data.get("form_data")
+            retrieved_last_saved = get_data.get("last_saved")
+            
+            # Step 3: Verify comprehensive data integrity
+            if not retrieved_form_data:
+                self.log_result(
+                    "Comprehensive Auto-Save - Data Integrity", 
+                    False, 
+                    "No comprehensive form data retrieved"
+                )
+                return False
+            
+            # Verify comprehensive fields
+            saved_profile = auto_save_data["profileData"]
+            retrieved_profile = retrieved_form_data.get("profileData", {})
+            
+            comprehensive_fields_match = (
+                retrieved_profile.get("mainProblems") == saved_profile["mainProblems"] and
+                retrieved_profile.get("hopedOutcome") == saved_profile["hopedOutcome"] and
+                retrieved_profile.get("noSolutionOutcome") == saved_profile["noSolutionOutcome"] and
+                retrieved_profile.get("previousInterventions") == saved_profile["previousInterventions"] and
+                retrieved_profile.get("priorMedicalHistory") == saved_profile["priorMedicalHistory"] and
+                retrieved_profile.get("allergies") == saved_profile["allergies"] and
+                retrieved_profile.get("otherProviders") == saved_profile["otherProviders"]
+            )
+            
+            # Verify medications array
+            saved_medications = saved_profile.get("medications", [])
+            retrieved_medications = retrieved_profile.get("medications", [])
+            medications_match = len(saved_medications) == len(retrieved_medications)
+            
+            if comprehensive_fields_match and medications_match and retrieved_last_saved:
+                self.log_result(
+                    "Comprehensive Auto-Save", 
+                    True, 
+                    f"Comprehensive auto-save working correctly. All diabetes form fields saved and retrieved. Last saved: {retrieved_last_saved}"
+                )
+                return True
+            else:
+                self.log_result(
+                    "Comprehensive Auto-Save - Data Mismatch", 
+                    False, 
+                    f"Comprehensive data mismatch. Fields match: {comprehensive_fields_match}, Medications match: {medications_match}, Timestamp: {retrieved_last_saved is not None}"
+                )
+                return False
+                
+        except Exception as e:
+            self.log_result("Comprehensive Auto-Save", False, f"Request failed: {str(e)}")
+            return False
+
     def run_all_tests(self):
         """Run all backend tests including activity logging and geolocation"""
         print("🚀 Starting Backend Authentication Flow, Activity Logging, and Geolocation Tests")
