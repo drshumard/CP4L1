@@ -351,46 +351,87 @@ const IntakeForm = ({ userData, onComplete }) => {
     setTelehealthSignature(null);
   };
 
-  const validatePart1 = () => {
-    const required = ['legalFirstName', 'legalLastName', 'dateOfBirth', 'mainProblems', 'hopedOutcome', 'noSolutionOutcome', 'severityLevel', 'motivationLevel', 'weight'];
-    for (const field of required) {
-      if (!formData[field]) {
-        toast.error('Please fill in all required fields marked with *');
-        return false;
+  // Scroll to a specific field
+  const scrollToField = (fieldId) => {
+    setShowValidationModal(false);
+    setTimeout(() => {
+      const element = document.getElementById(fieldId) || document.querySelector(`[data-field="${fieldId}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.focus?.();
+        // Add highlight effect
+        element.classList.add('ring-2', 'ring-red-500');
+        setTimeout(() => element.classList.remove('ring-2', 'ring-red-500'), 3000);
       }
+    }, 100);
+  };
+
+  const validatePart1 = () => {
+    const required = [
+      { field: 'legalFirstName', id: 'legalFirstName' },
+      { field: 'legalLastName', id: 'legalLastName' },
+      { field: 'dateOfBirth', id: 'dateOfBirth' },
+      { field: 'weight', id: 'weight' },
+      { field: 'mainProblems', id: 'mainProblems' },
+      { field: 'hopedOutcome', id: 'hopedOutcome' },
+      { field: 'noSolutionOutcome', id: 'noSolutionOutcome' },
+      { field: 'severityLevel', id: 'severityLevel' },
+      { field: 'motivationLevel', id: 'motivationLevel' }
+    ];
+    
+    const missing = required.filter(r => !formData[r.field]).map(r => ({
+      field: r.field,
+      id: r.id,
+      label: FIELD_LABELS[r.field] || r.field
+    }));
+    
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setShowValidationModal(true);
+      return false;
     }
     return true;
   };
 
   const validatePart2 = () => {
+    const missing = [];
+    
     if (!hipaaPrintName.trim()) {
-      toast.error('Please print your name');
-      return false;
+      missing.push({ field: 'hipaaPrintName', id: 'hipaaPrintName', label: FIELD_LABELS.hipaaPrintName });
     }
     if (!hipaaAgreed) {
-      toast.error('Please agree to the HIPAA Privacy Notice');
-      return false;
+      missing.push({ field: 'hipaaAgreed', id: 'hipaaAgreed', label: FIELD_LABELS.hipaaAgreed });
     }
     const hasSignature = hipaaSignatureRef.current && !hipaaSignatureRef.current.isEmpty();
     if (!hasSignature && !hipaaSignature) {
-      toast.error('Please provide your signature');
+      missing.push({ field: 'hipaaSignature', id: 'hipaaSignature', label: FIELD_LABELS.hipaaSignature });
+    }
+    
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setShowValidationModal(true);
       return false;
     }
     return true;
   };
 
   const validatePart3 = () => {
+    const missing = [];
+    
     if (!telehealthPrintName.trim()) {
-      toast.error('Please print your name');
-      return false;
+      missing.push({ field: 'telehealthPrintName', id: 'printName', label: FIELD_LABELS.telehealthPrintName });
     }
     if (!telehealthAgreed) {
-      toast.error('Please agree to the Telehealth Consent');
-      return false;
+      missing.push({ field: 'telehealthAgreed', id: 'telehealthAgreed', label: FIELD_LABELS.telehealthAgreed });
     }
     const hasSignature = telehealthSignatureRef.current && !telehealthSignatureRef.current.isEmpty();
     if (!hasSignature && !telehealthSignature) {
-      toast.error('Please provide your signature');
+      missing.push({ field: 'telehealthSignature', id: 'telehealthSignature', label: FIELD_LABELS.telehealthSignature });
+    }
+    
+    if (missing.length > 0) {
+      setMissingFields(missing);
+      setShowValidationModal(true);
       return false;
     }
     return true;
