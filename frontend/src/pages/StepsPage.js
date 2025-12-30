@@ -536,152 +536,8 @@ const StepsPage = () => {
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden" data-main-content>
       {currentStep === 2 ? (
-        /* Step 2: Video + Instructions on Left, Form on Right */
-        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 h-full">
-          {/* Step 2 Instructions Modal */}
-          <AnimatePresence>
-            {showStep2Instructions && (
-              <>
-                {/* Backdrop */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-                  onClick={() => {
-                    trackButtonClicked('dismiss_step2_instructions_backdrop', 'steps_page');
-                    handleStep2InstructionsUnderstood();
-                  }}
-                />
-                
-                {/* Modal */}
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                    transition={{ type: "spring", duration: 0.5 }}
-                    className="max-w-2xl w-full"
-                  >
-                    <Card className="shadow-2xl border-0 overflow-hidden">
-                      <CardContent className="p-0">
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-teal-500 to-cyan-600 p-6 text-center">
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                            className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center"
-                          >
-                            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </motion.div>
-                          <h2 className="text-2xl md:text-3xl font-bold text-white">
-                            📋 Important: How to Complete This Form
-                          </h2>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-8 bg-white">
-                          <ol className="space-y-4 text-gray-700">
-                            <motion.li
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.3 }}
-                              className="flex items-start gap-3"
-                            >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
-                                1
-                              </span>
-                              <p className="pt-1 leading-relaxed">
-                                <strong className="text-gray-900">This form has 4 pages</strong> - Fill out all fields on each page
-                              </p>
-                            </motion.li>
-
-                            <motion.li
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.4 }}
-                              className="flex items-start gap-3"
-                            >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
-                                2
-                              </span>
-                              <p className="pt-1 leading-relaxed">
-                                Click the <strong className="text-gray-900">"Next Page"</strong> button in the <strong className="text-gray-900">bottom-right corner</strong> of the form to advance through all pages
-                              </p>
-                            </motion.li>
-
-                            <motion.li
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.5 }}
-                              className="flex items-start gap-3"
-                            >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
-                                3
-                              </span>
-                              <p className="pt-1 leading-relaxed">
-                                On the <strong className="text-gray-900">final page (page 4)</strong>, you'll need to <strong className="text-gray-900">provide your signature</strong>
-                              </p>
-                            </motion.li>
-
-                            <motion.li
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.6 }}
-                              className="flex items-start gap-3"
-                            >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
-                                4
-                              </span>
-                              <p className="pt-1 leading-relaxed">
-                                Click <strong className="text-gray-900">"Submit"</strong> to submit your completed form
-                              </p>
-                            </motion.li>
-
-                            <motion.li
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.7 }}
-                              className="flex items-start gap-3"
-                            >
-                              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-teal-100 text-teal-600 font-bold flex items-center justify-center text-sm">
-                                5
-                              </span>
-                              <p className="pt-1 leading-relaxed">
-                                <strong className="text-gray-900">After submission</strong>, scroll down to find the <strong className="text-gray-900">"Continue to Next Step"</strong> button below the form
-                              </p>
-                            </motion.li>
-                          </ol>
-
-                          {/* Button */}
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.8 }}
-                            className="mt-8"
-                          >
-                            <Button
-                              onClick={() => {
-                                trackButtonClicked('i_understand_step2_instructions', 'steps_page');
-                                handleStep2InstructionsUnderstood();
-                              }}
-                              className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-6 rounded-xl shadow-lg text-lg transition-all hover:scale-[1.02]"
-                            >
-                              I Understand ✓
-                            </Button>
-                          </motion.div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </div>
-              </>
-            )}
-          </AnimatePresence>
-
+        /* Step 2: Custom Intake Form */
+        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
           {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
             {/* Top Row: Video + Action Steps Side by Side */}
@@ -722,9 +578,9 @@ const StepsPage = () => {
                             1
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Locate the Form:</p>
+                            <p className="font-semibold text-gray-800 text-sm mb-1">Complete Part 1:</p>
                             <p className="text-xs text-gray-700 leading-relaxed">
-                              Find the secure Patient Intake Form below on this page
+                              Fill out your personal and health information
                             </p>
                           </div>
                         </div>
@@ -735,9 +591,9 @@ const StepsPage = () => {
                             2
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Be Thorough:</p>
+                            <p className="font-semibold text-gray-800 text-sm mb-1">Sign HIPAA Notice:</p>
                             <p className="text-xs text-gray-700 leading-relaxed">
-                              Complete every question fully and honestly across all 4 pages
+                              Read and sign the privacy notice in Part 2
                             </p>
                           </div>
                         </div>
@@ -748,9 +604,9 @@ const StepsPage = () => {
                             3
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Scroll Down in the form:</p>
+                            <p className="font-semibold text-gray-800 text-sm mb-1">Sign Telehealth Consent:</p>
                             <p className="text-xs text-gray-700 leading-relaxed">
-                              Make sure you reach the end of each page of the form before clicking Next
+                              Complete Part 3 with your consent signature
                             </p>
                           </div>
                         </div>
@@ -761,9 +617,9 @@ const StepsPage = () => {
                             4
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Sign & Submit:</p>
+                            <p className="font-semibold text-gray-800 text-sm mb-1">Auto-Save Enabled:</p>
                             <p className="text-xs text-gray-700 leading-relaxed">
-                              Provide your signature on page 4, then click Submit to proceed immediately to Step 3
+                              Your progress is automatically saved as you go
                             </p>
                           </div>
                         </div>
@@ -774,90 +630,59 @@ const StepsPage = () => {
               </div>
             </div>
 
-            {/* Form Section - Centered, 3/4 width */}
-            <div className="flex justify-center">
-              <div className="w-full lg:w-3/4">
-                <Card className="glass-dark border-0 shadow-xl" data-testid="form-card">
-                  <CardContent className="p-4">
-                    <h3 className="text-base font-bold text-gray-800 mb-3 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
-                    
-                    {/* Warning Banner */}
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                        <p className="text-red-700 text-sm font-medium text-center">
-                          Do not refresh page while completing form before you submit, as you will lose all previously filled information
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {/* User Info Card - Centered */}
-                    <div className="mb-4 bg-teal-50 border border-cyan-200 rounded-lg p-4 text-center">
-                      <p className="text-sm text-gray-700 font-semibold mb-3">Use this information on the form:</p>
-                      <div className="flex flex-col sm:flex-row justify-center gap-4 text-sm">
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="font-medium text-gray-600 text-sm">Name:</span>
-                          <span className="font-semibold text-gray-800 text-sm">{userData?.name || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="font-medium text-gray-600 text-sm">Email:</span>
-                          <span className="font-semibold text-gray-800 text-sm">{userData?.email || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Form Container - Extended height */}
-                    <div className="rounded-lg" data-testid="form-container">
-                      {/* Direct iframe implementation - Full expanded height */}
-                      <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg overflow-hidden">
-                        <PracticeBetterEmbed 
-                          type="form"
-                          minHeight={2000}
-                          fillContainer={false}
-                          onLoad={() => console.log('Form loaded successfully')}
-                          onError={() => console.log('Form failed to load')}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            {/* Form Section - Full width */}
+            <Card className="glass-dark border-0 shadow-xl" data-testid="form-card">
+              <CardContent className="p-4 sm:p-6 lg:p-8">
+                <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">COMPLETE YOUR HEALTH PROFILE</h3>
                 
-                {/* Continue Button - Same width as form, two buttons */}
-                <Card className="glass-dark border-0 shadow-lg mt-4">
-                  <CardContent className="p-4">
-                    <p className="text-xs text-gray-600 mb-3 italic text-center">
-                      ⚠️ Only click Mark as Complete after completing and submitting the form above
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        onClick={() => {
-                          trackButtonClicked('go_back_step2', 'steps_page');
-                          handleGoBack();
-                        }}
-                        variant="outline"
-                        className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-4 rounded-xl flex items-center justify-center gap-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        Go Back
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          trackButtonClicked('mark_as_complete_step2', 'steps_page');
-                          handleAdvanceStep();
-                        }}
-                        className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg"
-                        data-testid="submit-button"
-                      >
-                        Mark as Complete →
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                {/* Info Banner */}
+                <div className="mb-6 bg-teal-50 border border-cyan-200 rounded-lg p-4 text-center">
+                  <p className="text-sm text-gray-700">
+                    <span className="font-semibold">Your information:</span> {userData?.name || 'N/A'} ({userData?.email || 'N/A'})
+                  </p>
+                </div>
+                
+                {/* Custom Intake Form */}
+                <IntakeForm 
+                  userData={userData}
+                  onComplete={async () => {
+                    trackButtonClicked('intake_form_submitted', 'steps_page');
+                    trackStepCompleted(2, STEP_DATA[2].title);
+                    
+                    // Advance to next step
+                    try {
+                      const token = localStorage.getItem('access_token');
+                      await axios.post(
+                        `${API}/user/advance-step`,
+                        {},
+                        { headers: { Authorization: `Bearer ${token}` } }
+                      );
+                      toast.success('Form submitted! Moving to Step 3...');
+                      setCompletedTasks(new Set());
+                      await fetchData();
+                    } catch (error) {
+                      toast.error('Failed to advance to next step');
+                    }
+                  }}
+                />
+              </CardContent>
+            </Card>
+            
+            {/* Go Back Button */}
+            <div className="flex justify-start">
+              <Button
+                onClick={() => {
+                  trackButtonClicked('go_back_step2', 'steps_page');
+                  handleGoBack();
+                }}
+                variant="outline"
+                className="border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 px-6 rounded-xl flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Go Back to Step 1
+              </Button>
             </div>
           </div>
         </div>
