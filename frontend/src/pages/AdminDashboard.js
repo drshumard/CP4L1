@@ -553,7 +553,7 @@ const AdminDashboard = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowUserModal(false)}
+            onClick={() => { setShowUserModal(false); setPendingStep(null); }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -575,7 +575,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => setShowUserModal(false)}
+                    onClick={() => { setShowUserModal(false); setPendingStep(null); }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <X size={24} />
