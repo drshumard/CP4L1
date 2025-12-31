@@ -371,13 +371,14 @@ const IntakeForm = ({ userData, onComplete }) => {
     
     // Scroll to top after component re-renders
     setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      // Also scroll the main content container if it exists
+      // Scroll the main content container (has overflow-y-auto)
       const mainContent = document.querySelector('[data-main-content]');
       if (mainContent) {
         mainContent.scrollTo({ top: 0, behavior: 'instant' });
       }
-    }, 100);
+      // Also try window scroll as fallback
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 150);
   };
 
   const goToPreviousPart = () => {
@@ -392,12 +393,12 @@ const IntakeForm = ({ userData, onComplete }) => {
     
     // Scroll to top after component re-renders
     setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'instant' });
       const mainContent = document.querySelector('[data-main-content]');
       if (mainContent) {
         mainContent.scrollTo({ top: 0, behavior: 'instant' });
       }
-    }, 100);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 150);
   };
 
   const handleSubmit = async () => {
