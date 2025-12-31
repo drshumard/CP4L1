@@ -548,16 +548,15 @@ metadata:
 
 test_plan:
   current_focus:
-    - "PDF Filename Format Fix - Full Email Instead of Prefix"
-    - "Session Expiry Axios Interceptor Improvements"
-    - "Practice Better Activation Card in Step 3"
+    - "Toast Message Deduplication Fix"
+    - "Admin Reset Progress with Intake Form Clear"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
-    message: "Completed all requested tasks: 1) VALIDATION MODAL - Created ValidationModal.js component with list of missing fields and Fix buttons that scroll to and highlight the error field. Added proper id attributes to all form inputs across Part1, Part2, Part3 components. 2) REFACTORING - Split IntakeForm.js (1100+ lines) into smaller components: Part1_DiabetesProfile.js, Part2_HIPAAConsent.js, Part3_TelehealthConsent.js, ValidationModal.js, and index.js for exports. 3) PDF NAMING - Updated filename format to 'email_prefix diabetes intake form.pdf' (with spaces). 4) FREE TEXT IN TABLE ROWS - Updated pdf_generator.py with create_text_field_table() function that creates two-column tables for all free text fields (Main Problems, Hoped Outcome, No Solution, Previous Interventions, Prior Medical History, Allergies, Other Providers). Test credentials: testadmin@test.com / test123"
+    message: "Completed two fixes: 1) TOAST MESSAGE DEDUPLICATION - Added unique 'id' property to all toast calls across AutoLogin.js, Dashboard.js, and Signup.js to prevent multiple toast messages from appearing (using Sonner's deduplication feature). 2) ADMIN RESET PROGRESS - Updated /api/admin/user/{user_id}/reset endpoint to also clear intake form data from the database. The endpoint now: (a) Resets user to step 1, (b) Deletes all user progress, (c) Deletes intake form data from intake_forms collection, (d) Logs the reset action with details. The IntakeForm component already auto-fills first_name/last_name from userData on load, so when form is reset, these fields will be auto-populated again. Test credentials: testadmin@test.com / test123"
   - agent: "main"
     message: "Completed major update to intake form. Changes: 1) New comprehensive 'Intake Forms: Diabetes' with all requested fields (General Info, Contact, Goals and Concerns, Prior Medical History, Medications with Add Row, Review of Symptoms with 11 categories of selectable checkboxes, Allergies, Recent Tests multi-select, Other Providers). 2) Part 2 HIPAA: removed scroll container so page scrolls naturally, added Print Name field before signature. 3) Part 3 Telehealth: removed all styling banners (amber/red/teal) - now pure text, Dr. Shumard header is plain centered text. 4) PDF generation styled similar to form with TEAL_PRIMARY color scheme. 5) Google Drive upload working with new Shared Drive folder (1tsCj3ZScOgpPJK0WICFZqMPNTYpEZ8-o), filename format is email_diabetes_intake_form.pdf. 6) Auto-save working every 3 seconds. Backend verified: PDF generation and Google Drive upload successful. Test credentials: testadmin@test.com / test123"
   - agent: "testing"
