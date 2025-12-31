@@ -50,7 +50,7 @@ const Dashboard = () => {
         localStorage.clear();
         navigate('/login');
       }
-      toast.error('Failed to load dashboard data');
+      toast.error('Failed to load dashboard data', { id: 'dashboard-load-error' });
     } finally {
       setLoading(false);
     }
@@ -60,7 +60,7 @@ const Dashboard = () => {
     trackLogout(userData?.id);
     localStorage.clear();
     navigate('/login');
-    toast.success('Logged out successfully');
+    toast.success('Logged out successfully', { id: 'logout-success' });
   };
 
   const handleStartJourney = () => {
