@@ -363,7 +363,7 @@ const StepsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -376,7 +376,7 @@ const StepsPage = () => {
   const stepInfo = STEP_DATA[currentStep];
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col" style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}>
+    <div className="h-screen overflow-hidden flex flex-col" style={{ background: '#F4F3F2' }}>
       {/* Header */}
       <div className="glass-dark border-b border-gray-200 w-full" data-testid="steps-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">

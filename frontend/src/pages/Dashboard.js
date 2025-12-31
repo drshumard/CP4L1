@@ -70,7 +70,7 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
@@ -83,7 +83,7 @@ const Dashboard = () => {
   const completedSteps = progressData?.progress?.filter(p => p.completed_at).length || 0;
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ background: '#F4F3F2' }}>
       {/* Header */}
       <div className="glass-dark border-b border-gray-200 w-full overflow-hidden" data-testid="dashboard-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
