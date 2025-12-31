@@ -195,19 +195,22 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     
     # ===== HIPAA NOTICE =====
     story.append(create_section_header("HIPAA - NOTICE OF PRIVACY"))
-    story.append(Spacer(1, 6))
     
-    hipaa_text = """<b>Notice Of Privacy Practices</b><br/><br/>
-THIS NOTICE DESCRIBES HOW MEDICAL INFORMATION ABOUT YOU MAY BE USED AND DISCLOSED AND HOW YOU CAN GET ACCESS TO THIS INFORMATION. PLEASE REVIEW IT CAREFULLY.<br/><br/>
-Dr. Shumard Chiropractic Inc. is committed to providing you with the highest quality of care in an environment that protects a health participant's privacy and the confidentiality of your health information.<br/><br/>
-<b>Terms of Use:</b> 1) Health information transmitted electronically via secure connection. 2) Written consent obtained one time for all subsequent coaching. 3) Records secured with appropriate precautions. 4) Refusal to sign may result in refusal of services. 5) Cyber-security measures in place including password protection. 6) Consultations via phone or video conferencing.<br/><br/>
-<b>Your Rights:</b> Get copies of medical records, request corrections, request confidential communications, get privacy notice copies, choose representatives, file complaints.<br/><br/>
-<b>How We Use Information:</b> Treatment, Payment, Healthcare operations.<br/><br/>
-<b>EFFECTIVE DATE: February 2021</b>"""
+    hipaa_full_text = """Notice Of Privacy Practices
+
+THIS NOTICE DESCRIBES HOW MEDICAL INFORMATION ABOUT YOU MAY BE USED AND DISCLOSED AND HOW YOU CAN GET ACCESS TO THIS INFORMATION. PLEASE REVIEW IT CAREFULLY.
+
+Dr. Shumard Chiropractic Inc. is committed to providing you with the highest quality of care in an environment that protects a health participant's privacy and the confidentiality of your health information.
+
+Terms of Use: 1) Health information transmitted electronically via secure connection. 2) Written consent obtained one time for all subsequent coaching. 3) Records secured with appropriate precautions. 4) Refusal to sign may result in refusal of services. 5) Cyber-security measures in place including password protection. 6) Consultations via phone or video conferencing.
+
+Your Rights: Get copies of medical records, request corrections, request confidential communications, get privacy notice copies, choose representatives, file complaints.
+
+How We Use Information: Treatment, Payment, Healthcare operations.
+
+EFFECTIVE DATE: February 2021"""
     
-    story.append(Paragraph(hipaa_text, small_style))
-    story.append(Spacer(1, 10))
-    
+    story.append(create_row('HIPAA Notice', hipaa_full_text))
     story.append(create_row('Print Name', form_data.get('hipaaPrintName', 'N/A')))
     story.append(create_row('Agreement', 'I have read, understand, and agree to the HIPAA Notice of Privacy Practices.'))
     
