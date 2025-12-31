@@ -218,7 +218,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Goals and Concerns */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Goals and Concerns</h3>
           <div className="space-y-4">
@@ -270,7 +270,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Prior Medical History */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Prior Medical History</h3>
           <div className="space-y-2">
@@ -281,7 +281,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Medications and Supplements */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Medications and Supplements *</h3>
           <p className="text-sm text-gray-600 mb-4">Please list Current Medications and dosage.</p>
@@ -315,7 +315,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Review of Symptoms */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Review of Symptoms</h3>
           <p className="text-sm text-gray-600 mb-4">Select current symptoms that apply to you:</p>
@@ -343,7 +343,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Allergies */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Allergies/Other</h3>
           <div className="space-y-2">
@@ -354,7 +354,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Recent Tests */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Recent Tests</h3>
           <p className="text-sm text-gray-600 mb-3">Select any recent tests you&apos;ve had:</p>
@@ -370,7 +370,7 @@ const Part1_DiabetesProfile = ({
       </Card>
 
       {/* Other Providers */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Other Providers</h3>
           <div className="space-y-2">
