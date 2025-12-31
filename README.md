@@ -81,9 +81,10 @@ A comprehensive customer portal for managing a 7-step diabetes wellness program 
 │   ├── server.py              # Main FastAPI application
 │   ├── requirements.txt       # Python dependencies
 │   ├── .env                   # Environment variables
-│   ├── service_account.json   # Google service account credentials
+│   ├── service_account.json   # (Legacy - Google credentials, can be removed)
 │   └── services/
-│       ├── google_drive.py    # Google Drive upload with domain-wide delegation
+│       ├── dropbox_service.py # Dropbox upload service
+│       ├── google_drive.py    # (Legacy - Google Drive, replaced by Dropbox)
 │       └── pdf_generator.py   # PDF generation with ReportLab
 ├── frontend/
 │   ├── src/
