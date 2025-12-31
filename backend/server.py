@@ -1279,25 +1279,36 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     
     # Generate PDF
     pdf_result = None
-    drive_result = None
+    dropbox_result = None
     try:
         from services.pdf_generator import create_intake_form_pdf
-        from services.google_drive import upload_pdf_to_drive
+        from services.dropbox_service import upload_pdf_to_dropbox
+        
+        # Get legal name from form for filename
+        profile_data = request.form_data.get('profileData', {})
+        legal_first_name = profile_data.get('legalFirstName', '').strip()
+        legal_last_name = profile_data.get('legalLastName', '').strip()
+        
+        # Use legal name if available, otherwise fall back to user_name
+        if legal_first_name and legal_last_name:
+            pdf_name = f"{legal_first_name} {legal_last_name}"
+        else:
+            pdf_name = user_name
         
         # Create PDF
         pdf_bytes = create_intake_form_pdf(request.form_data, user_name, user_email)
         
-        # Generate filename: original email + Diabetes Intake Form.pdf
-        filename = f"{user_email} Diabetes Intake Form.pdf"
+        # Generate filename: Legal Name Diabetes Intake Form.pdf
+        filename = f"{pdf_name} Diabetes Intake Form.pdf"
         
-        # Upload to Google Drive
-        drive_result = upload_pdf_to_drive(pdf_bytes, filename)
+        # Upload to Dropbox
+        dropbox_result = upload_pdf_to_dropbox(pdf_bytes, filename)
         
-        if drive_result.get("success"):
-            submission_data["pdf_file_id"] = drive_result.get("file_id")
-            submission_data["pdf_web_link"] = drive_result.get("web_view_link")
+        if dropbox_result.get("success"):
+            submission_data["pdf_dropbox_path"] = dropbox_result.get("dropbox_path")
+            submission_data["pdf_shared_link"] = dropbox_result.get("shared_link")
             submission_data["pdf_filename"] = filename
-            print(f"PDF uploaded to Google Drive: {filename}")
+            print(f"PDF uploaded to Dropbox: {filename}")
             
             # Send webhook to Zapier with email, full name, and PDF file
             try:
@@ -1315,7 +1326,7 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
                     "file_name": filename,
                     "file_content": pdf_base64,
                     "file_type": "application/pdf",
-                    "google_drive_link": drive_result.get("web_view_link"),
+                    "dropbox_link": dropbox_result.get("shared_link"),
                     "submitted_at": submission_data["submitted_at"]
                 }
                 
