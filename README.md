@@ -17,7 +17,7 @@ A comprehensive customer portal for managing a 7-step diabetes wellness program 
 - **Auto-Save**: Form progress saved automatically as you type
 - **Validation Modal**: Lists all missing required fields with "Fix" buttons
 - **PDF Generation**: Professional PDF generated on form submission
-- **Google Drive Integration**: PDFs automatically uploaded to specified Drive folder
+- **Dropbox Integration**: PDFs automatically uploaded to specified Dropbox folder
 - **Zapier Webhook**: Form submissions trigger Zapier workflows
 - **Step 3 Email Activation**: Instructions to activate Practice Better account
 - **Progress Tracking**: Visual step indicators showing completed, current, and locked steps
