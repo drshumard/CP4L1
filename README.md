@@ -234,9 +234,9 @@ FRONTEND_URL="https://yourdomain.com"
 # Bot Protection (Cloudflare Turnstile)
 TURNSTILE_SECRET_KEY="0x4AAA..."
 
-# Google Drive Integration
-GOOGLE_DRIVE_FOLDER_ID="your-folder-id"
-GOOGLE_DRIVE_IMPERSONATE_USER="user@yourdomain.com"
+# Dropbox Integration (for PDF uploads)
+DROPBOX_ACCESS_TOKEN="your-dropbox-access-token"
+DROPBOX_UPLOAD_FOLDER="/Patient Intake Forms"
 ```
 
 ### Frontend (.env)
