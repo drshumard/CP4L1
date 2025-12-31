@@ -43,9 +43,9 @@ const IntakeForm = ({ userData, onComplete }) => {
   
   // Part 1: Comprehensive Form Data
   const [formData, setFormData] = useState({
-    // General Information
-    legalFirstName: userData?.name?.split(' ')[0] || '',
-    legalLastName: userData?.name?.split(' ').slice(1).join(' ') || '',
+    // General Information - Use first_name/last_name from GHL if available, fallback to splitting name
+    legalFirstName: userData?.first_name || userData?.name?.split(' ')[0] || '',
+    legalLastName: userData?.last_name || userData?.name?.split(' ').slice(1).join(' ') || '',
     preferredFirstName: '',
     street: '',
     unit: '',
