@@ -596,7 +596,10 @@ const IntakeForm = ({ userData, onComplete }) => {
               hipaaAgreed={hipaaAgreed}
               setHipaaAgreed={setHipaaAgreed}
               hipaaPrintName={hipaaPrintName}
-              setHipaaPrintName={setHipaaPrintName}
+              setHipaaPrintName={(value) => {
+                printNameManuallyEdited.current.hipaa = true;
+                setHipaaPrintName(value);
+              }}
               hipaaSignatureRef={hipaaSignatureRef}
               hipaaSignature={hipaaSignature}
               setHipaaSignature={setHipaaSignature}
@@ -613,7 +616,10 @@ const IntakeForm = ({ userData, onComplete }) => {
           >
             <Part3_TelehealthConsent
               telehealthPrintName={telehealthPrintName}
-              setTelehealthPrintName={setTelehealthPrintName}
+              setTelehealthPrintName={(value) => {
+                printNameManuallyEdited.current.telehealth = true;
+                setTelehealthPrintName(value);
+              }}
               telehealthAgreed={telehealthAgreed}
               setTelehealthAgreed={setTelehealthAgreed}
               telehealthSignatureRef={telehealthSignatureRef}
