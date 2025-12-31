@@ -199,21 +199,18 @@ const Part1_DiabetesProfile = ({
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Contact Information */}
-      <Card className="border-0 shadow-md">
-        <CardContent className="p-6">
-          <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Contact Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Occupation</Label>
-              <Input id="occupation" value={formData.occupation} onChange={(e) => handleInputChange('occupation', e.target.value)} placeholder="Your occupation" />
-            </div>
-            <div className="space-y-2">
-              <Label>Referred By</Label>
-              <Input id="referredBy" value={formData.referredBy} onChange={(e) => handleInputChange('referredBy', e.target.value)} placeholder="How did you hear about us?" />
+          {/* Occupation & Referred By (moved from Contact Information) */}
+          <div className="mt-4 pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Occupation</Label>
+                <Input id="occupation" value={formData.occupation} onChange={(e) => handleInputChange('occupation', e.target.value)} placeholder="Your occupation" />
+              </div>
+              <div className="space-y-2">
+                <Label>Referred By</Label>
+                <Input id="referredBy" value={formData.referredBy} onChange={(e) => handleInputChange('referredBy', e.target.value)} placeholder="How did you hear about us?" />
+              </div>
             </div>
           </div>
         </CardContent>
