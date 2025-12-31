@@ -1374,7 +1374,7 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
             "has_hipaa_signature": bool(request.form_data.get("hipaaSignature")),
             "has_telehealth_signature": bool(request.form_data.get("telehealthSignature")),
             "profile_data_fields": list(request.form_data.get("profileData", {}).keys()) if request.form_data.get("profileData") else [],
-            "pdf_uploaded": drive_result.get("success") if drive_result else False,
+            "pdf_uploaded": dropbox_result.get("success") if dropbox_result else False,
             "pdf_filename": submission_data.get("pdf_filename")
         },
         status="success",
@@ -1385,8 +1385,8 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     return {
         "message": "Form submitted successfully",
         "submitted_at": submission_data["submitted_at"],
-        "pdf_uploaded": drive_result.get("success") if drive_result else False,
-        "pdf_link": drive_result.get("web_view_link") if drive_result and drive_result.get("success") else None
+        "pdf_uploaded": dropbox_result.get("success") if dropbox_result else False,
+        "pdf_link": dropbox_result.get("shared_link") if dropbox_result and dropbox_result.get("success") else None
     }
 
 # Admin Routes
