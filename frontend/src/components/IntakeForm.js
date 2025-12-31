@@ -369,15 +369,19 @@ const IntakeForm = ({ userData, onComplete }) => {
     await saveProgress(true);
     setCurrentPart(prev => Math.min(prev + 1, 3));
     
-    // Scroll to top after component re-renders
+    // Scroll to top of form section after component re-renders
     setTimeout(() => {
-      // Scroll the main content container (has overflow-y-auto)
-      const mainContent = document.querySelector('[data-main-content]');
-      if (mainContent) {
-        mainContent.scrollTo({ top: 0, behavior: 'instant' });
+      // Find the form section and scroll to it
+      const formSection = document.querySelector('[data-testid="form-section"]');
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'instant', block: 'start' });
+      } else {
+        // Fallback: scroll the main content container
+        const mainContent = document.querySelector('[data-main-content]');
+        if (mainContent) {
+          mainContent.scrollTo({ top: 0, behavior: 'instant' });
+        }
       }
-      // Also try window scroll as fallback
-      window.scrollTo({ top: 0, behavior: 'instant' });
     }, 150);
   };
 
@@ -391,13 +395,17 @@ const IntakeForm = ({ userData, onComplete }) => {
     
     setCurrentPart(prev => Math.max(prev - 1, 1));
     
-    // Scroll to top after component re-renders
+    // Scroll to top of form section after component re-renders
     setTimeout(() => {
-      const mainContent = document.querySelector('[data-main-content]');
-      if (mainContent) {
-        mainContent.scrollTo({ top: 0, behavior: 'instant' });
+      const formSection = document.querySelector('[data-testid="form-section"]');
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'instant', block: 'start' });
+      } else {
+        const mainContent = document.querySelector('[data-main-content]');
+        if (mainContent) {
+          mainContent.scrollTo({ top: 0, behavior: 'instant' });
+        }
       }
-      window.scrollTo({ top: 0, behavior: 'instant' });
     }, 150);
   };
 
