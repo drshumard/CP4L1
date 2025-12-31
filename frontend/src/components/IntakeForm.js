@@ -96,11 +96,29 @@ const IntakeForm = ({ userData, onComplete }) => {
   const telehealthSignatureRef = useRef(null);
   
   const autoSaveTimeoutRef = useRef(null);
+  
+  // Track if print names have been manually edited
+  const printNameManuallyEdited = useRef({ hipaa: false, telehealth: false });
 
   // Load saved form data on mount
   useEffect(() => {
     loadSavedData();
   }, []);
+  
+  // Auto-fill print names when legal names change (only if not manually edited)
+  useEffect(() => {
+    const fullLegalName = `${formData.legalFirstName} ${formData.legalLastName}`.trim();
+    
+    // Only auto-fill if there's a legal name and print name hasn't been manually edited
+    if (fullLegalName) {
+      if (!printNameManuallyEdited.current.hipaa && !hipaaPrintName) {
+        setHipaaPrintName(fullLegalName);
+      }
+      if (!printNameManuallyEdited.current.telehealth && !telehealthPrintName) {
+        setTelehealthPrintName(fullLegalName);
+      }
+    }
+  }, [formData.legalFirstName, formData.legalLastName]);
 
   // Auto-save with debounce
   useEffect(() => {
