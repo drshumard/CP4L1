@@ -507,8 +507,8 @@ const StepsPage = () => {
       <div className="glass-dark border-b border-gray-200 w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-center gap-4">
-            {/* Back Button - Only show for Step 2 and 3 */}
-            {currentStep > 1 && (
+            {/* Back Button - Only show for Step 3 (not Step 2 to avoid confusion with form navigation) */}
+            {currentStep > 2 && (
               <button
                 onClick={() => {
                   trackButtonClicked('back_to_previous_step', 'steps_page');
@@ -528,7 +528,7 @@ const StepsPage = () => {
               {currentStep === 3 && "Step 3: Final Preparations - You Are Ready!"}
             </h2>
             {/* Spacer to balance the back button */}
-            {currentStep > 1 && <div className="w-14"></div>}
+            {currentStep > 2 && <div className="w-14"></div>}
           </div>
         </div>
       </div>
