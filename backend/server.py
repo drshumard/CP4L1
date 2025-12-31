@@ -325,20 +325,47 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     else:
         full_name = data.name
     
-    # Generate simple password using user's name + 2026@ or 2026!
+    # Generate memorable password using random word combinations
     import random
-    # Split name and get first or last name (prefer longer one for better security)
-    name_parts = full_name.strip().split()
-    if len(name_parts) >= 2:
-        # Choose the longer name part
-        base_name = max(name_parts, key=len)
-    else:
-        # Use the full name if only one part
-        base_name = name_parts[0] if name_parts else "User"
     
-    # Capitalize first letter and add 2026@ or 2026! randomly
-    suffix = random.choice(["2026@", "2026!"])
-    generated_password = base_name.capitalize() + suffix
+    # Word lists for memorable passwords
+    adjectives = [
+        "Swift", "Bright", "Golden", "Silver", "Crystal", "Cosmic", "Solar", "Lunar",
+        "Velvet", "Royal", "Noble", "Brave", "Clever", "Mighty", "Happy", "Lucky",
+        "Gentle", "Bold", "Calm", "Wise", "Cool", "Fresh", "Warm", "Wild"
+    ]
+    
+    nouns = [
+        "Tiger", "Eagle", "Wolf", "Phoenix", "Dragon", "Falcon", "Lion", "Bear",
+        "Dolphin", "Panther", "Hawk", "Raven", "Fox", "Owl", "Cobra", "Shark"
+    ]
+    
+    elements = [
+        "Carbon", "Helium", "Neon", "Argon", "Copper", "Silver", "Gold", "Iron",
+        "Cobalt", "Nickel", "Zinc", "Titanium", "Platinum", "Mercury", "Radium", "Xenon"
+    ]
+    
+    foods = [
+        "Apple", "Mango", "Lemon", "Berry", "Peach", "Grape", "Melon", "Cherry",
+        "Orange", "Banana", "Coconut", "Kiwi", "Plum", "Fig", "Lime", "Pear"
+    ]
+    
+    # Choose password pattern randomly
+    pattern = random.choice([1, 2, 3, 4])
+    number = random.randint(10, 99)
+    
+    if pattern == 1:
+        # Adjective + Number + Noun (e.g., Swift42Tiger)
+        generated_password = random.choice(adjectives) + str(number) + random.choice(nouns)
+    elif pattern == 2:
+        # Element + Number + Food (e.g., Gold55Apple)
+        generated_password = random.choice(elements) + str(number) + random.choice(foods)
+    elif pattern == 3:
+        # Food + Number + Noun (e.g., Mango23Eagle)
+        generated_password = random.choice(foods) + str(number) + random.choice(nouns)
+    else:
+        # Adjective + Number + Element (e.g., Cosmic88Neon)
+        generated_password = random.choice(adjectives) + str(number) + random.choice(elements)
     
     # Hash password
     hashed_password = get_password_hash(generated_password)
