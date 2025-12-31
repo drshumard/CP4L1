@@ -537,15 +537,11 @@ mongodump --db customer_portal_db --out /path/to/backup
 
 ### Common Issues
 
-**PDF Generation Fails**
-- Check `service_account.json` exists
-- Verify `GOOGLE_DRIVE_FOLDER_ID` is correct
+**Dropbox Upload Fails**
+- Check `DROPBOX_ACCESS_TOKEN` is set correctly
+- Verify the token hasn't expired (regenerate if needed)
+- Check `DROPBOX_UPLOAD_FOLDER` path exists in Dropbox
 - Check backend logs: `journalctl -u customer-portal-backend -n 100`
-
-**Google Drive Upload Fails**
-- Verify domain-wide delegation is configured
-- Check impersonation user has access to folder
-- Ensure scopes are authorized in Google Admin
 
 **Cloudflare Turnstile "Invalid Domain"**
 - Add your domain to Turnstile allowed domains in Cloudflare dashboard
