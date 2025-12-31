@@ -2636,7 +2636,11 @@ class BackendTester:
             # Specific Fix Tests - NEW TESTS FOR REVIEW REQUEST
             self.test_pdf_filename_format_fix,
             self.test_session_expiry_handling_fix,
-            self.test_practice_better_activation_card_fix
+            self.test_practice_better_activation_card_fix,
+            
+            # NEW FEATURE TESTS - Admin Reset and Toast Deduplication
+            self.test_admin_reset_progress_with_intake_clear,
+            self.test_toast_message_deduplication_code_check
         ]
         
         passed = 0
