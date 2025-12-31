@@ -102,7 +102,7 @@ const Part1_DiabetesProfile = ({
       </div>
 
       {/* General Information */}
-      <Card className="border-0 shadow-md">
+      <Card className="border-0 shadow-md hover-lift card-accent overflow-hidden">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">General Information *</h3>
           
