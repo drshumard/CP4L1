@@ -352,16 +352,35 @@ This Notice is effective as of February, 2021."""
     
     story.append(create_two_column_row('Provider', 'Dr. Shumard, DC', 'Phone', '858-564-7081'))
     story.append(create_row('Address', '740 Nordahl Rd, Suite 294, San Marcos CA 92069'))
+    story.append(create_row('Email', 'drjason@drshumard.com'))
     
-    telehealth_full_text = """I understand that my health and wellness provider wishes me to have a tele-health consultation through an interactive video connection.
+    telehealth_full_text = """I understand that my health and wellness provider Dr. Shumard, DC wishes me to have a tele-health consultation.
 
-Potential Risks: Video connection may not work or stop during consultation. Video quality may not be sufficient.
+This means that through an interactive video connection, I will be able to consult with the above named provider about my health and wellness concerns.
 
-Benefits: No travel required. Access to specialist consultation.
+I understand there are potential risks with this technology:
 
-Cancellation Policy: Cancellations must be received 24 hours prior to appointment. Consultation fee of $97.00 will be forfeited if not cancelled in time. One reschedule allowed without charge.
+The video connection may not work or it may stop working during the consultation.
 
-I have read this document and understand the risks and benefits of tele-health consultation."""
+The video picture or information transmitted may not be clear enough to be useful for the consultation.
+
+The benefits of a tele-health consultation are:
+
+I do not need to travel to the consult location.
+
+I have access to a specialist through this consultation.
+
+I also understand other individuals may need to use Practice Better tele-health platform and that they will take reasonable steps to maintain confidentiality of the information obtained. I also understand that this may be recorded for training purposes.
+
+I understand that I am paying for an initial consultation with Dr. Shumard or one of his director of admissions. I will be allowed to reschedule this appointment one time with no additional charge. If I reschedule this appointment I agree to put a credit card on file for my follow up visit. If I do not inform or cancel with Dr. Shumard at least 24 hrs prior to my rescheduled appointment I will then be charged an additional $97 that is non-refundable.
+
+I understand all cancellations must be received 24 hrs prior to my scheduled appointment, otherwise the paid consultation fee of $97.00 will be forfeited and nonrefundable.
+
+I have read this document and understand the risk and benefits of the tele-health consultation and have had my questions regarding the procedure explained and I hereby consent to participate in tele-health sessions under the conditions described in this document.
+
+Client
+
+I have read, understand, and accept the information and conditions specified in this agreement."""
     
     story.append(create_row('Telehealth Consent', telehealth_full_text))
     story.append(create_row('Print Name', form_data.get('telehealthPrintName', 'N/A')))
