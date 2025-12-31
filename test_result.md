@@ -540,6 +540,21 @@ frontend:
         agent: "testing"
         comment: "✅ PRACTICE BETTER ACTIVATION CARD VERIFIED: New card successfully implemented in Step 3 with all requested features. ✅ Test 1 (Card Structure): Found Practice Better activation card at lines 1023-1065 in StepsPage.js with proper data-testid='practice-better-activation-card' ✅ Test 2 (Blue Header): Card has blue gradient header (bg-gradient-to-r from-blue-600 to-blue-700) with DRSHUMARD logo circle ✅ Test 3 (Heading): Displays 'Dr. Shumard has invited you to join Practice Better' heading as requested ✅ Test 4 (Personalized Greeting): Shows personalized greeting 'Hi {userData?.name?.split(' ')[0] || 'there'},' using user's first name ✅ Test 5 (Activation Button): 'Activate My Account' button links to https://my.practicebetter.io with proper styling ✅ Test 6 (Email Note): Includes note about checking email for invitation from Practice Better ✅ Test 7 (Backend Support): Backend provides user name 'Test Admin' for personalized greeting (first name: 'Test'). Practice Better activation card is fully functional and ready for production."
 
+  - task: "Toast Message Deduplication Fix"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/AutoLogin.js, /app/frontend/src/pages/Dashboard.js, /app/frontend/src/pages/Signup.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added unique 'id' property to all toast calls across AutoLogin.js, Dashboard.js, and Signup.js to prevent multiple toast messages from appearing (using Sonner's deduplication feature). Toast calls now include: id: 'auto-login-success', id: 'auto-login-error', id: 'dashboard-load-error', id: 'logout-success', id: 'signup-error', id: 'invalid-signup-link'."
+      - working: "NA"
+        agent: "testing"
+        comment: "FRONTEND FEATURE: This is a frontend code change verification. Backend testing agent cannot test frontend code. Main agent should verify AutoLogin.js, Dashboard.js, and Signup.js have toast calls with unique 'id' properties for deduplication. This feature requires frontend testing to verify the toast deduplication is working correctly."
+
   - task: "Admin Reset Progress with Intake Form Clear"
     implemented: true
     working: true
