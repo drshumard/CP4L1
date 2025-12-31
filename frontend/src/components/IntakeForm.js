@@ -368,7 +368,16 @@ const IntakeForm = ({ userData, onComplete }) => {
     
     await saveProgress(true);
     setCurrentPart(prev => Math.min(prev + 1, 3));
-    window.scrollTo(0, 0);
+    
+    // Scroll to top after component re-renders
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      // Also scroll the main content container if it exists
+      const mainContent = document.querySelector('[data-main-content]');
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }, 100);
   };
 
   const goToPreviousPart = () => {
@@ -380,7 +389,15 @@ const IntakeForm = ({ userData, onComplete }) => {
     }
     
     setCurrentPart(prev => Math.max(prev - 1, 1));
-    window.scrollTo(0, 0);
+    
+    // Scroll to top after component re-renders
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      const mainContent = document.querySelector('[data-main-content]');
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'instant' });
+      }
+    }, 100);
   };
 
   const handleSubmit = async () => {
