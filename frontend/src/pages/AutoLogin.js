@@ -43,7 +43,10 @@ const AutoLogin = () => {
         trackAutoLogin(response.data.user_id, response.data.email);
         
         setStatus('success');
-        toast.success('Welcome back! Logging you in...');
+        toast.success('Welcome back! Logging you in...', {
+          id: 'auto-login-success', // Prevents duplicate toasts
+          duration: 3000
+        });
         
         // Redirect to steps page after brief success message
         setTimeout(() => {
@@ -55,7 +58,10 @@ const AutoLogin = () => {
         const message = error.response?.data?.detail || 'Login link is invalid or has expired';
         trackLoginFailed('auto_login', message);
         setErrorMessage(message);
-        toast.error(message);
+        toast.error(message, {
+          id: 'auto-login-error', // Prevents duplicate toasts
+          duration: 4000
+        });
         
         // Redirect to login after showing error
         setTimeout(() => {
