@@ -473,7 +473,7 @@ const IntakeForm = ({ userData, onComplete }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      toast.success('Form submitted successfully! PDF has been uploaded to Google Drive.');
+      toast.success('Form submitted successfully!', { id: 'form-submit-success' });
       onComplete?.();
     } catch (error) {
       console.error('Failed to submit form:', error);
