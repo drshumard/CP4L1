@@ -235,8 +235,10 @@ FRONTEND_URL="https://yourdomain.com"
 # Bot Protection (Cloudflare Turnstile)
 TURNSTILE_SECRET_KEY="0x4AAA..."
 
-# Dropbox Integration (for PDF uploads)
-DROPBOX_ACCESS_TOKEN="your-dropbox-access-token"
+# Dropbox Integration (for PDF uploads - with auto refresh)
+DROPBOX_APP_KEY="your-app-key"
+DROPBOX_APP_SECRET="your-app-secret"
+DROPBOX_REFRESH_TOKEN="your-refresh-token"
 DROPBOX_UPLOAD_FOLDER="/Patient Intake Forms"
 ```
 
