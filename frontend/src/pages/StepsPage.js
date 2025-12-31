@@ -376,9 +376,9 @@ const StepsPage = () => {
   const stepInfo = STEP_DATA[currentStep];
 
   return (
-    <div className="h-screen overflow-hidden flex flex-col" style={{ background: '#F4F3F2' }}>
+    <div className="h-screen overflow-hidden flex flex-col bg-grid-pattern" style={{ background: '#F4F3F2' }}>
       {/* Header */}
-      <div className="glass-dark border-b border-gray-200 w-full" data-testid="steps-header">
+      <div className="glass-dark border-b border-gray-200/80 w-full" data-testid="steps-header">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
           <div className="flex justify-between items-center relative">
             {/* Logo - Left Side */}
