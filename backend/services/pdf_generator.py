@@ -245,21 +245,21 @@ EFFECTIVE DATE: February 2021"""
     
     # ===== TELEHEALTH CONSENT =====
     story.append(create_section_header("TELEHEALTH CONSENT"))
-    story.append(Spacer(1, 6))
     
     story.append(create_two_column_row('Provider', 'Dr. Shumard, DC', 'Phone', '858-564-7081'))
     story.append(create_row('Address', '740 Nordahl Rd, Suite 294, San Marcos CA 92069'))
-    story.append(Spacer(1, 6))
     
-    telehealth_text = """I understand that my health and wellness provider wishes me to have a tele-health consultation through an interactive video connection.<br/><br/>
-<b>Potential Risks:</b> Video connection may not work or stop during consultation. Video quality may not be sufficient.<br/><br/>
-<b>Benefits:</b> No travel required. Access to specialist consultation.<br/><br/>
-<b>Cancellation Policy:</b> Cancellations must be received 24 hours prior to appointment. Consultation fee of $97.00 will be forfeited if not cancelled in time. One reschedule allowed without charge.<br/><br/>
+    telehealth_full_text = """I understand that my health and wellness provider wishes me to have a tele-health consultation through an interactive video connection.
+
+Potential Risks: Video connection may not work or stop during consultation. Video quality may not be sufficient.
+
+Benefits: No travel required. Access to specialist consultation.
+
+Cancellation Policy: Cancellations must be received 24 hours prior to appointment. Consultation fee of $97.00 will be forfeited if not cancelled in time. One reschedule allowed without charge.
+
 I have read this document and understand the risks and benefits of tele-health consultation."""
     
-    story.append(Paragraph(telehealth_text, small_style))
-    story.append(Spacer(1, 10))
-    
+    story.append(create_row('Telehealth Consent', telehealth_full_text))
     story.append(create_row('Print Name', form_data.get('telehealthPrintName', 'N/A')))
     story.append(create_row('Agreement', 'I have read, understand, and accept the telehealth consent terms.'))
     
