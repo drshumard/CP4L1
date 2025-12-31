@@ -1396,7 +1396,8 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
             "has_hipaa_signature": bool(request.form_data.get("hipaaSignature")),
             "has_telehealth_signature": bool(request.form_data.get("telehealthSignature")),
             "profile_data_fields": list(request.form_data.get("profileData", {}).keys()) if request.form_data.get("profileData") else [],
-            "pdf_uploaded": dropbox_result.get("success") if dropbox_result else False,
+            "pdf_uploaded_dropbox": dropbox_result.get("success") if dropbox_result else False,
+            "pdf_uploaded_drive": drive_result.get("success") if drive_result else False,
             "pdf_filename": submission_data.get("pdf_filename")
         },
         status="success",
