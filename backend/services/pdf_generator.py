@@ -129,9 +129,23 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
         return t
     
     # ===== HEADER =====
+    # Get legal name from profile data for the Patient field
+    profile = form_data.get('profileData', {})
+    legal_first = profile.get('legalFirstName', '').strip()
+    legal_last = profile.get('legalLastName', '').strip()
+    patient_name = f"{legal_first} {legal_last}" if legal_first and legal_last else user_name
+    
+    # Get California timezone for submitted timestamp
+    california_tz = pytz.timezone('America/Los_Angeles')
+    ca_time = datetime.now(california_tz)
+    submitted_str = ca_time.strftime('%B %d, %Y at %I:%M %p %Z')
+    
     story.append(Paragraph("INTAKE FORMS: DIABETES", title_style))
-    story.append(Paragraph(f"Patient: {user_name} | Email: {user_email}", subtitle_style))
-    story.append(Paragraph(f"Submitted: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", small_style))
+    story.append(Paragraph(f"Patient: {patient_name} | Email: {user_email}", subtitle_style))
+    
+    # Centered submitted text style
+    submitted_style = ParagraphStyle('SubmittedText', parent=styles['Normal'], fontSize=8, textColor=colors.gray, alignment=TA_CENTER, spaceAfter=8)
+    story.append(Paragraph(f"Submitted: {submitted_str}", submitted_style))
     story.append(Spacer(1, 8))
     
     # ===== GENERAL INFORMATION =====
