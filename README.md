@@ -562,7 +562,7 @@ sudo systemctl status nginx
 ### v2.0 (Latest)
 - Custom 3-part intake form replacing Practice Better
 - PDF generation with ReportLab (professional table layout)
-- Google Drive integration with domain-wide delegation
+- Dropbox integration with shared links
 - Zapier webhook on form submission
 - Auto-fill legal names from GHL data
 - Validation modal with "Fix" buttons
