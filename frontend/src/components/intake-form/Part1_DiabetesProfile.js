@@ -241,9 +241,16 @@ const Part1_DiabetesProfile = ({
               <div className="space-y-2" data-field="severityLevel">
                 <Label>Severity of your problem *</Label>
                 <Select value={formData.severityLevel} onValueChange={(v) => handleInputChange('severityLevel', v)}>
-                  <SelectTrigger id="severityLevel"><SelectValue placeholder="Select severity" /></SelectTrigger>
-                  <SelectContent>
-                    {SEVERITY_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
+                  <SelectTrigger id="severityLevel" className="w-full"><SelectValue placeholder="Select severity" /></SelectTrigger>
+                  <SelectContent className="max-w-[90vw]">
+                    {SEVERITY_LEVELS.map(l => (
+                      <SelectItem key={l.value} value={l.value} className="whitespace-normal">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{l.label}</span>
+                          <span className="text-xs text-gray-500">{l.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
