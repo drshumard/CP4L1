@@ -1408,8 +1408,10 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     return {
         "message": "Form submitted successfully",
         "submitted_at": submission_data["submitted_at"],
-        "pdf_uploaded": dropbox_result.get("success") if dropbox_result else False,
-        "pdf_link": dropbox_result.get("shared_link") if dropbox_result and dropbox_result.get("success") else None
+        "pdf_uploaded_dropbox": dropbox_result.get("success") if dropbox_result else False,
+        "pdf_uploaded_drive": drive_result.get("success") if drive_result else False,
+        "dropbox_link": dropbox_result.get("shared_link") if dropbox_result and dropbox_result.get("success") else None,
+        "drive_link": drive_result.get("web_view_link") if drive_result and drive_result.get("success") else None
     }
 
 # Admin Routes
