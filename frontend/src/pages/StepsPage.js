@@ -657,22 +657,6 @@ const StepsPage = () => {
                 />
             </div>
             
-            {/* Go Back Button */}
-            <div className="flex justify-start">
-              <Button
-                onClick={() => {
-                  trackButtonClicked('go_back_step2', 'steps_page');
-                  handleGoBack();
-                }}
-                variant="outline"
-                className="border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 px-6 rounded-xl flex items-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                Go Back to Step 1
-              </Button>
-            </div>
           </div>
         </div>
       ) : (
