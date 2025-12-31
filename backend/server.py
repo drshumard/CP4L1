@@ -188,6 +188,8 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     current_step: int
     role: str
 
