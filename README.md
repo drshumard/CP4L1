@@ -63,7 +63,7 @@ A comprehensive customer portal for managing a 7-step diabetes wellness program 
 - JWT authentication with python-jose
 - Bcrypt for password hashing
 - ReportLab for PDF generation
-- Google Drive API for file uploads
+- Dropbox API for file uploads
 - Resend for email notifications
 - HTTPX for webhook calls
 
