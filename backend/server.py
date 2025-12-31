@@ -1280,9 +1280,11 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     # Generate PDF
     pdf_result = None
     dropbox_result = None
+    drive_result = None
     try:
         from services.pdf_generator import create_intake_form_pdf
         from services.dropbox_service import upload_pdf_to_dropbox
+        from services.google_drive import upload_pdf_to_drive
         
         # Get legal name from form for filename
         profile_data = request.form_data.get('profileData', {})
@@ -1306,9 +1308,28 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
         
         if dropbox_result.get("success"):
             submission_data["pdf_dropbox_path"] = dropbox_result.get("dropbox_path")
-            submission_data["pdf_shared_link"] = dropbox_result.get("shared_link")
-            submission_data["pdf_filename"] = filename
+            submission_data["pdf_dropbox_link"] = dropbox_result.get("shared_link")
             print(f"PDF uploaded to Dropbox: {filename}")
+        else:
+            print(f"Dropbox upload failed: {dropbox_result.get('error')}")
+        
+        # Upload to Google Drive
+        drive_result = upload_pdf_to_drive(pdf_bytes, filename)
+        
+        if drive_result.get("success"):
+            submission_data["pdf_drive_file_id"] = drive_result.get("file_id")
+            submission_data["pdf_drive_link"] = drive_result.get("web_view_link")
+            print(f"PDF uploaded to Google Drive: {filename}")
+        else:
+            print(f"Google Drive upload failed: {drive_result.get('error')}")
+        
+        # Set common filename
+        submission_data["pdf_filename"] = filename
+        
+        # Consider upload successful if at least one service worked
+        upload_success = dropbox_result.get("success") or drive_result.get("success")
+        
+        if upload_success:
             
             # Send webhook to Zapier with email, full name, and PDF file
             try:
