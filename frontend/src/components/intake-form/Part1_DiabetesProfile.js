@@ -28,11 +28,11 @@ const MOTIVATION_LEVELS = [
 ];
 
 const SEVERITY_LEVELS = [
-  { value: 'Minimal', label: 'Minimal (annoying but causing no limitation)' },
-  { value: 'Slight', label: 'Slight (tolerable but causing a little limitation)' },
-  { value: 'Moderate', label: 'Moderate (sometimes tolerable but definitely causing limitation)' },
-  { value: 'Severe', label: 'Severe (causing significant limitation)' },
-  { value: 'Extreme', label: 'Extreme (causing near constant limitation (>80% of the time))' }
+  { value: 'Minimal', label: 'Minimal', description: 'annoying but causing no limitation' },
+  { value: 'Slight', label: 'Slight', description: 'tolerable but causing a little limitation' },
+  { value: 'Moderate', label: 'Moderate', description: 'sometimes tolerable but definitely causing limitation' },
+  { value: 'Severe', label: 'Severe', description: 'causing significant limitation' },
+  { value: 'Extreme', label: 'Extreme', description: 'causing near constant limitation (>80% of the time)' }
 ];
 
 const RELATIONSHIP_STATUS = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Partnered'];
