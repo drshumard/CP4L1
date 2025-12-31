@@ -1343,11 +1343,12 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
                 
                 webhook_payload = {
                     "email": user_email,
-                    "full_name": user_name,
+                    "full_name": pdf_name,
                     "file_name": filename,
                     "file_content": pdf_base64,
                     "file_type": "application/pdf",
-                    "dropbox_link": dropbox_result.get("shared_link"),
+                    "dropbox_link": dropbox_result.get("shared_link") if dropbox_result else None,
+                    "google_drive_link": drive_result.get("web_view_link") if drive_result else None,
                     "submitted_at": submission_data["submitted_at"]
                 }
                 
