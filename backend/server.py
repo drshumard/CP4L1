@@ -1496,6 +1496,11 @@ async def normalize_log_timestamps(secret_key: str):
 
 @api_router.post("/admin/user/{user_id}/reset")
 async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    # Get user info to preserve auto-filled data
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
     # Reset user to step 1
     await db.users.update_one(
         {"id": user_id},
@@ -1505,7 +1510,34 @@ async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin
     # Delete all progress
     await db.user_progress.delete_many({"user_id": user_id})
     
-    return {"message": "User progress reset successfully"}
+    # Clear intake form data but preserve auto-filled info (first_name, last_name)
+    # Create a fresh form with only the auto-filled fields preserved
+    preserved_data = {}
+    if user.get("first_name"):
+        preserved_data["legalFirstName"] = user.get("first_name")
+    if user.get("last_name"):
+        preserved_data["legalLastName"] = user.get("last_name")
+    
+    # Delete existing intake form
+    await db.intake_forms.delete_many({"user_id": user_id})
+    
+    # Log the reset action
+    await log_activity(
+        event_type="USER_PROGRESS_RESET",
+        user_email=user.get("email"),
+        user_id=user_id,
+        details={
+            "reset_by": admin_user.get("email"),
+            "intake_form_cleared": True,
+            "preserved_fields": list(preserved_data.keys())
+        },
+        status="success"
+    )
+    
+    return {
+        "message": "User progress and intake form reset successfully",
+        "preserved_fields": list(preserved_data.keys())
+    }
 
 class SetStepRequest(BaseModel):
     step: int
