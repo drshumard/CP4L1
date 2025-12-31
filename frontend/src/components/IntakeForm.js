@@ -540,7 +540,8 @@ const IntakeForm = ({ userData, onComplete }) => {
         )}
       </AnimatePresence>
       
-      <div className="mt-8 flex justify-between items-center">
+      {/* Navigation Buttons - centered on mobile with padding to avoid support icon */}
+      <div className="mt-8 mb-20 sm:mb-8 flex justify-center sm:justify-between items-center gap-4 px-4 sm:px-0">
         <Button type="button" variant="outline" onClick={goToPreviousPart} disabled={currentPart === 1} className="flex items-center gap-2">
           <ChevronLeft size={18} /> Previous
         </Button>
