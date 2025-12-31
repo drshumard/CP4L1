@@ -99,24 +99,34 @@ const IntakeForm = ({ userData, onComplete }) => {
   
   // Track if print names have been manually edited
   const printNameManuallyEdited = useRef({ hipaa: false, telehealth: false });
+  
+  // Store the last auto-filled name to detect when legal name changes
+  const lastAutoFilledName = useRef('');
 
   // Load saved form data on mount
   useEffect(() => {
     loadSavedData();
   }, []);
   
-  // Auto-fill print names when legal names change (only if not manually edited)
+  // Auto-fill print names when legal names change
   useEffect(() => {
     const fullLegalName = `${formData.legalFirstName} ${formData.legalLastName}`.trim();
     
-    // Only auto-fill if there's a legal name and print name hasn't been manually edited
-    if (fullLegalName) {
-      if (!printNameManuallyEdited.current.hipaa && !hipaaPrintName) {
+    // Only auto-fill if there's a legal name
+    if (fullLegalName && fullLegalName !== lastAutoFilledName.current) {
+      // Update HIPAA print name if it hasn't been manually edited OR if it matches the old auto-filled name
+      if (!printNameManuallyEdited.current.hipaa || hipaaPrintName === lastAutoFilledName.current || !hipaaPrintName) {
         setHipaaPrintName(fullLegalName);
+        printNameManuallyEdited.current.hipaa = false; // Reset since we're auto-filling
       }
-      if (!printNameManuallyEdited.current.telehealth && !telehealthPrintName) {
+      
+      // Update Telehealth print name if it hasn't been manually edited OR if it matches the old auto-filled name
+      if (!printNameManuallyEdited.current.telehealth || telehealthPrintName === lastAutoFilledName.current || !telehealthPrintName) {
         setTelehealthPrintName(fullLegalName);
+        printNameManuallyEdited.current.telehealth = false; // Reset since we're auto-filling
       }
+      
+      lastAutoFilledName.current = fullLegalName;
     }
   }, [formData.legalFirstName, formData.legalLastName]);
 
