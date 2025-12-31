@@ -579,7 +579,6 @@ metadata:
 test_plan:
   current_focus:
     - "Toast Message Deduplication Fix"
-    - "Admin Reset Progress with Intake Form Clear"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
