@@ -41,6 +41,8 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=8, textColor=TEAL_DARK, fontName='Helvetica-Bold', leading=10)
     value_style = ParagraphStyle('Value', parent=styles['Normal'], fontSize=8, textColor=colors.black, leading=10)
     small_style = ParagraphStyle('SmallText', parent=styles['Normal'], fontSize=7, textColor=colors.gray, leading=9)
+    consent_style = ParagraphStyle('ConsentText', parent=styles['Normal'], fontSize=7, textColor=colors.black, leading=9, spaceBefore=2, spaceAfter=2)
+    consent_bold_style = ParagraphStyle('ConsentBold', parent=styles['Normal'], fontSize=7, textColor=colors.black, leading=9, fontName='Helvetica-Bold', spaceBefore=6, spaceAfter=2)
     
     story = []
     profile = form_data.get('profileData', {})
@@ -69,6 +71,31 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
             ('GRID', (0, 0), (-1, -1), 0.5, GRAY_BORDER),
             ('TOPPADDING', (0, 0), (-1, -1), 5),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        return t
+    
+    def create_full_width_content_row(label, content_paragraphs):
+        """Create a row with label and full-width content that can span multiple lines"""
+        # Create the content from list of paragraphs
+        content_table = Table([[p] for p in content_paragraphs], colWidths=[VALUE_WIDTH])
+        content_table.setStyle(TableStyle([
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        
+        data = [[Paragraph(f"<b>{label}</b>", label_style), content_table]]
+        t = Table(data, colWidths=[LABEL_WIDTH, VALUE_WIDTH])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), LABEL_BG),
+            ('BACKGROUND', (1, 0), (1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 0.5, GRAY_BORDER),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
             ('RIGHTPADDING', (0, 0), (-1, -1), 6),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
