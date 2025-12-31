@@ -246,51 +246,49 @@ DROPBOX_UPLOAD_FOLDER="/Patient Intake Forms"
 REACT_APP_BACKEND_URL="https://api.yourdomain.com"
 ```
 
-## 📁 Google Drive Setup
+## 📁 Dropbox Setup
 
-The application uses Google Drive with Domain-Wide Delegation to upload PDFs to a specified folder.
+The application uses Dropbox to upload intake form PDFs to a specified folder.
 
-### 1. Create Service Account
+### 1. Create a Dropbox App
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create project → Enable **Google Drive API**
-3. Go to **IAM & Admin → Service Accounts**
-4. Create service account → Download JSON key
-5. Save as `backend/service_account.json`
+1. Go to [Dropbox Developer Console](https://www.dropbox.com/developers/apps)
+2. Click "Create app"
+3. Choose "Scoped access" 
+4. Choose "Full Dropbox" access
+5. Name your app (e.g., "Patient Intake Forms")
+6. Click "Create app"
 
-### 2. Enable Domain-Wide Delegation
+### 2. Configure Permissions
 
-1. In service account settings, enable "Domain-wide Delegation"
-2. Note the **Client ID**
+In your app settings, go to the "Permissions" tab and enable:
+- `files.metadata.read` - View file/folder metadata
+- `files.content.write` - Upload files
+- `files.content.read` - Download files (optional)
+- `sharing.write` - Create shared links
 
-### 3. Authorize in Google Workspace Admin
+Click "Submit" to save permissions.
 
-1. Go to [Google Admin Console](https://admin.google.com)
-2. Navigate to **Security → API Controls → Domain-wide Delegation**
-3. Add new:
-   - **Client ID**: Your service account client ID
-   - **Scopes**: `https://www.googleapis.com/auth/drive.file`
+### 3. Generate Access Token
+
+In the "Settings" tab:
+1. Scroll to "OAuth 2" section
+2. Under "Generated access token", click "Generate"
+3. Copy the token - this is your `DROPBOX_ACCESS_TOKEN`
+
+**Note**: This token expires. For production, implement OAuth 2.0 with refresh tokens.
 
 ### 4. Create Target Folder
 
-1. Log into Google Drive as the impersonation user
-2. Create a folder for intake forms
-3. Copy folder ID from URL: `https://drive.google.com/drive/folders/FOLDER_ID_HERE`
-4. Set `GOOGLE_DRIVE_FOLDER_ID` in `.env`
+1. Log into Dropbox
+2. Create a folder for intake forms (e.g., "Patient Intake Forms")
+3. The folder path (e.g., `/Patient Intake Forms`) goes in `DROPBOX_UPLOAD_FOLDER`
 
-### service_account.json Structure
+### Environment Variables
 
-```json
-{
-  "type": "service_account",
-  "project_id": "your-project-id",
-  "private_key_id": "...",
-  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-  "client_email": "service-account@project.iam.gserviceaccount.com",
-  "client_id": "123456789",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token"
-}
+```env
+DROPBOX_ACCESS_TOKEN=sl.xxxxxxxxxxxxx...
+DROPBOX_UPLOAD_FOLDER=/Patient Intake Forms
 ```
 
 ## 📊 Database Schema
