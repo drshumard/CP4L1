@@ -191,7 +191,7 @@ const ActivityLogs = () => {
 
   if (loading && logs.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 50%, #B4C6D4 100%)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading activity logs...</p>
@@ -201,7 +201,7 @@ const ActivityLogs = () => {
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 50%, #B4C6D4 100%)' }}>
+    <div className="min-h-screen p-6" style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">

@@ -70,7 +70,7 @@ const AutoLogin = () => {
   return (
     <div 
       className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: 'linear-gradient(135deg, #E2E8F0 0%, #CBD5E1 50%, #B4C6D4 100%)' }}
+      style={{ background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #115E59 100%)' }}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
