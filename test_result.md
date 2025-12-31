@@ -540,6 +540,21 @@ frontend:
         agent: "testing"
         comment: "✅ PRACTICE BETTER ACTIVATION CARD VERIFIED: New card successfully implemented in Step 3 with all requested features. ✅ Test 1 (Card Structure): Found Practice Better activation card at lines 1023-1065 in StepsPage.js with proper data-testid='practice-better-activation-card' ✅ Test 2 (Blue Header): Card has blue gradient header (bg-gradient-to-r from-blue-600 to-blue-700) with DRSHUMARD logo circle ✅ Test 3 (Heading): Displays 'Dr. Shumard has invited you to join Practice Better' heading as requested ✅ Test 4 (Personalized Greeting): Shows personalized greeting 'Hi {userData?.name?.split(' ')[0] || 'there'},' using user's first name ✅ Test 5 (Activation Button): 'Activate My Account' button links to https://my.practicebetter.io with proper styling ✅ Test 6 (Email Note): Includes note about checking email for invitation from Practice Better ✅ Test 7 (Backend Support): Backend provides user name 'Test Admin' for personalized greeting (first name: 'Test'). Practice Better activation card is fully functional and ready for production."
 
+  - task: "Admin Reset Progress with Intake Form Clear"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated /api/admin/user/{user_id}/reset endpoint to also clear intake form data from the database. The endpoint now: (a) Resets user to step 1, (b) Deletes all user progress, (c) Deletes intake form data from intake_forms collection, (d) Logs the reset action with details. The IntakeForm component already auto-fills first_name/last_name from userData on load, so when form is reset, these fields will be auto-populated again."
+      - working: true
+        agent: "testing"
+        comment: "✅ ADMIN RESET PROGRESS WITH INTAKE FORM CLEAR TESTING COMPLETED: All test scenarios passed successfully. ✅ Test 1 (Admin Login): Successfully authenticated with testadmin@test.com credentials ✅ Test 2 (Get Users): Retrieved 39 users from /api/admin/users endpoint ✅ Test 3 (Create Test Data): Created test intake form data for reset testing ✅ Test 4 (Reset Endpoint): POST /api/admin/user/{user_id}/reset returned correct response message 'User progress and intake form reset successfully' with preserved_fields array ✅ Test 5 (Intake Form Cleared): Verified intake form data successfully cleared from database (form_data returned null after reset) ✅ Test 6 (Activity Logging): USER_PROGRESS_RESET event logged in activity_logs with intake_form_cleared: True and reset_by admin details. Admin reset functionality is production-ready and fully functional."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
