@@ -102,7 +102,7 @@ const Signup = () => {
           ? 'Please make sure you have completed payment. If you have and believe this is a mistake, contact admin@drshumard.com'
           : getErrorMessage(error, 'Signup failed. Please try again.');
         
-        toast.error(errorMessage, { duration: 8000 });
+        toast.error(errorMessage, { id: 'signup-error', duration: 8000 });
         setTimeout(() => navigate('/login', { replace: true }), 8000);
         return;
       }
@@ -128,7 +128,7 @@ const Signup = () => {
       setName(decodedName);
       startSignupProcess(fixedEmail, decodedName);
     } else {
-      toast.error('Invalid signup link');
+      toast.error('Invalid signup link', { id: 'invalid-signup-link' });
       navigate('/login');
     }
   }, [searchParams, navigate, startSignupProcess]);
