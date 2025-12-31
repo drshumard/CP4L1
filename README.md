@@ -248,7 +248,7 @@ REACT_APP_BACKEND_URL="https://api.yourdomain.com"
 
 ## 📁 Dropbox Setup
 
-The application uses Dropbox to upload intake form PDFs to a specified folder.
+The application uses Dropbox with OAuth2 refresh tokens for automatic token renewal.
 
 ### 1. Create a Dropbox App
 
@@ -269,27 +269,55 @@ In your app settings, go to the "Permissions" tab and enable:
 
 Click "Submit" to save permissions.
 
-### 3. Generate Access Token
+### 3. Get App Key and Secret
 
-In the "Settings" tab:
-1. Scroll to "OAuth 2" section
-2. Under "Generated access token", click "Generate"
-3. Copy the token - this is your `DROPBOX_ACCESS_TOKEN`
+In the "Settings" tab, note down:
+- **App key** (e.g., `fehhcslllg7sed2`)
+- **App secret** (click "Show" to reveal)
 
-**Note**: This token expires. For production, implement OAuth 2.0 with refresh tokens.
+### 4. Generate Refresh Token
 
-### 4. Create Target Folder
+Run this Python script to get a refresh token (one-time setup):
+
+```python
+import dropbox
+from dropbox import DropboxOAuth2FlowNoRedirect
+
+APP_KEY = "your_app_key"
+APP_SECRET = "your_app_secret"
+
+auth_flow = DropboxOAuth2FlowNoRedirect(
+    APP_KEY, 
+    APP_SECRET,
+    token_access_type='offline'
+)
+
+# Get authorization URL
+print("Open this URL:", auth_flow.start())
+print("Authorize the app, then paste the code here:")
+
+auth_code = input("Enter code: ")
+oauth_result = auth_flow.finish(auth_code)
+
+print(f"DROPBOX_REFRESH_TOKEN={oauth_result.refresh_token}")
+```
+
+### 5. Create Target Folder
 
 1. Log into Dropbox
 2. Create a folder for intake forms (e.g., "Patient Intake Forms")
-3. The folder path (e.g., `/Patient Intake Forms`) goes in `DROPBOX_UPLOAD_FOLDER`
+3. The folder path goes in `DROPBOX_UPLOAD_FOLDER`
 
 ### Environment Variables
 
 ```env
-DROPBOX_ACCESS_TOKEN=sl.xxxxxxxxxxxxx...
-DROPBOX_UPLOAD_FOLDER=/Patient Intake Forms
+DROPBOX_APP_KEY=fehhcslllg7sed2
+DROPBOX_APP_SECRET=jccwpl6hc9y65r5
+DROPBOX_REFRESH_TOKEN=8UMBXE567wcAAAAAAAAAAZgVjxnR4XYOv0qpWyOIvg5vkbCkn7st60Up0CdzWPIR
+DROPBOX_UPLOAD_FOLDER="/Patient Intake Forms"
 ```
+
+**Note**: The refresh token never expires. The SDK automatically obtains new access tokens (which expire every 4 hours) using the refresh token.
 
 ## 📊 Database Schema
 
