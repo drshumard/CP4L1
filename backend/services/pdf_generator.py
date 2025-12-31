@@ -130,7 +130,6 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     
     # ===== HEADER =====
     # Get legal name from profile data for the Patient field
-    profile = form_data.get('profileData', {})
     legal_first = profile.get('legalFirstName', '').strip()
     legal_last = profile.get('legalLastName', '').strip()
     patient_name = f"{legal_first} {legal_last}" if legal_first and legal_last else user_name
