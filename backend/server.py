@@ -1367,7 +1367,7 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
                 print(f"Error sending Zapier webhook: {str(webhook_error)}")
                 # Continue even if webhook fails
         else:
-            print(f"Failed to upload PDF to Google Drive: {drive_result.get('error')}")
+            print(f"Failed to upload PDF to both services")
             
     except Exception as e:
         print(f"Error generating/uploading PDF: {str(e)}")
