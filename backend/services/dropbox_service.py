@@ -1,6 +1,6 @@
 """
 Dropbox Service for uploading PDF files to a specific folder.
-Uses the Dropbox Python SDK with access token authentication.
+Uses OAuth2 with refresh tokens for automatic token renewal.
 """
 
 import dropbox
@@ -12,8 +12,33 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Get configuration from environment
-DROPBOX_ACCESS_TOKEN = os.environ.get("DROPBOX_ACCESS_TOKEN", "")
+DROPBOX_APP_KEY = os.environ.get("DROPBOX_APP_KEY", "")
+DROPBOX_APP_SECRET = os.environ.get("DROPBOX_APP_SECRET", "")
+DROPBOX_REFRESH_TOKEN = os.environ.get("DROPBOX_REFRESH_TOKEN", "")
 DROPBOX_UPLOAD_FOLDER = os.environ.get("DROPBOX_UPLOAD_FOLDER", "/Patient Intake Forms")
+
+
+def get_dropbox_client():
+    """
+    Create a Dropbox client with automatic token refresh.
+    
+    Using refresh token allows the SDK to automatically obtain new access tokens
+    when they expire (every 4 hours), without requiring user re-authorization.
+    """
+    if not all([DROPBOX_APP_KEY, DROPBOX_APP_SECRET, DROPBOX_REFRESH_TOKEN]):
+        logger.error("Dropbox credentials not fully configured")
+        return None
+    
+    try:
+        dbx = dropbox.Dropbox(
+            app_key=DROPBOX_APP_KEY,
+            app_secret=DROPBOX_APP_SECRET,
+            oauth2_refresh_token=DROPBOX_REFRESH_TOKEN
+        )
+        return dbx
+    except Exception as e:
+        logger.error(f"Failed to create Dropbox client: {e}")
+        return None
 
 
 def upload_pdf_to_dropbox(pdf_bytes: bytes, filename: str) -> dict:
@@ -27,25 +52,23 @@ def upload_pdf_to_dropbox(pdf_bytes: bytes, filename: str) -> dict:
     Returns:
         dict with success status, dropbox_path, and shared_link (if successful)
     """
-    if not DROPBOX_ACCESS_TOKEN:
-        logger.error("DROPBOX_ACCESS_TOKEN not configured")
+    dbx = get_dropbox_client()
+    
+    if not dbx:
         return {
             "success": False,
-            "error": "Dropbox access token not configured"
+            "error": "Dropbox client not configured. Check DROPBOX_APP_KEY, DROPBOX_APP_SECRET, and DROPBOX_REFRESH_TOKEN."
         }
     
     try:
-        # Initialize Dropbox client
-        dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
-        
-        # Verify the token is valid
+        # Verify the connection is valid
         try:
             dbx.users_get_current_account()
         except AuthError as e:
             logger.error(f"Dropbox authentication failed: {e}")
             return {
                 "success": False,
-                "error": "Dropbox authentication failed - token may be invalid or expired"
+                "error": "Dropbox authentication failed - refresh token may be invalid"
             }
         
         # Construct full path (must start with /)
@@ -73,13 +96,10 @@ def upload_pdf_to_dropbox(pdf_bytes: bytes, filename: str) -> dict:
             existing_links = dbx.sharing_list_shared_links(path=dropbox_path)
             if existing_links.links:
                 shared_link = existing_links.links[0].url
-                # Convert to direct link format
-                shared_link = shared_link.replace("?dl=0", "?dl=1")
             else:
                 # Create a new shared link
                 link_metadata = dbx.sharing_create_shared_link_with_settings(dropbox_path)
                 shared_link = link_metadata.url
-                shared_link = shared_link.replace("?dl=0", "?dl=1")
                 
             logger.info(f"Shared link created: {shared_link}")
         except ApiError as e:
@@ -136,14 +156,15 @@ def verify_dropbox_connection() -> dict:
     Returns:
         dict with success status and account info or error
     """
-    if not DROPBOX_ACCESS_TOKEN:
+    dbx = get_dropbox_client()
+    
+    if not dbx:
         return {
             "success": False,
-            "error": "DROPBOX_ACCESS_TOKEN not configured"
+            "error": "Dropbox credentials not configured"
         }
     
     try:
-        dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
         account = dbx.users_get_current_account()
         
         return {
