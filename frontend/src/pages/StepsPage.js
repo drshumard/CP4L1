@@ -1263,6 +1263,86 @@ const StepsPage = () => {
         )}
       </AnimatePresence>
 
+      {/* Manual Booking Confirmation Modal - Shows when localStorage unavailable */}
+      <AnimatePresence>
+        {showBookingManualConfirm && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="max-w-md w-full"
+              >
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-teal-500 to-cyan-600 p-6 sm:p-8 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur rounded-full flex items-center justify-center"
+                      >
+                        <Calendar className="w-10 h-10 text-white" />
+                      </motion.div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                        Booking Detected
+                      </h2>
+                      <p className="text-white/90 text-sm sm:text-base">
+                        It looks like you just booked a consultation
+                      </p>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-6 text-center bg-gradient-to-b from-gray-50 to-white">
+                      <p className="text-gray-600 mb-6 text-sm sm:text-base">
+                        Please confirm your booking to continue to the next step.
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          onClick={() => setShowBookingManualConfirm(false)}
+                          variant="outline"
+                          className="flex-1 border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 rounded-xl"
+                          disabled={manualConfirmLoading}
+                        >
+                          Not Yet
+                        </Button>
+                        <Button
+                          onClick={handleManualBookingConfirm}
+                          disabled={manualConfirmLoading}
+                          className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-3 rounded-xl shadow-lg"
+                        >
+                          {manualConfirmLoading ? (
+                            <span className="flex items-center gap-2">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Confirming...
+                            </span>
+                          ) : (
+                            "Yes, I Booked!"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Step 1 Confirmation Modal */}
       <AnimatePresence>
         {showStep1Confirmation && (
