@@ -112,6 +112,9 @@ const StepsPage = () => {
         bookingProcessed = true;
         console.log('Booking complete detected!', event.data);
         
+        // Show the success modal
+        setShowBookingSuccess(true);
+        
         try {
           const token = localStorage.getItem('access_token');
           
@@ -129,14 +132,20 @@ const StepsPage = () => {
             { headers: { Authorization: `Bearer ${token}` } }
           );
           
-          toast.success('Consultation booked! Moving to Step 2...', { id: 'booking-complete' });
-          
-          // Refresh data to show step 2
-          await fetchData();
+          // Wait 3 seconds then refresh to show step 2
+          setTimeout(async () => {
+            setShowBookingSuccess(false);
+            await fetchData();
+            toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+          }, 3000);
           
         } catch (error) {
           console.error('Error advancing to step 2:', error);
-          toast.success('Consultation booked!', { id: 'booking-complete' });
+          // Still close modal after delay and try to refresh
+          setTimeout(async () => {
+            setShowBookingSuccess(false);
+            await fetchData();
+          }, 3000);
         }
       }
     };
