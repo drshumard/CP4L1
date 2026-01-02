@@ -87,6 +87,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auto-login/:token" element={<AutoLogin />} />
+          <Route path="/booking-complete" element={<BookingThankYou />} />
           <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/steps" element={<PrivateRoute><StepsPage /></PrivateRoute>} />
