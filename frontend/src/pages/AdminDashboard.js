@@ -3,12 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, Users, TrendingUp, BarChart3, RefreshCw, Trash2, Activity,
-  Search, Mail, Phone, Calendar, ChevronRight, X, Eye, EyeOff,
-  Send, Key, Edit2, UserCog, Clock, CheckCircle2, AlertCircle
+  Search, Mail, Phone, Calendar, X, Eye, EyeOff,
+  Send, Key, Edit2, Clock, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { 
   trackAdminPanelViewed,
@@ -35,9 +43,9 @@ const AdminDashboard = () => {
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
-  const [pendingStep, setPendingStep] = useState(null); // Track pending step change
+  const [pendingStep, setPendingStep] = useState(null);
   const [passwordFormData, setPasswordFormData] = useState({
-    mode: 'set', // 'set' or 'link'
+    mode: 'set',
     newPassword: '',
     showPassword: false
   });
@@ -62,17 +70,16 @@ const AdminDashboard = () => {
       setUsers(usersRes.data.users);
       setAnalytics(analyticsRes.data);
       
-      // Track admin panel view
       trackAdminPanelViewed(localStorage.getItem('user_id'));
     } catch (error) {
       if (error.response?.status === 403) {
-        toast.error('Admin access required');
+        toast.error('Admin access required', { id: 'admin-access-required' });
         navigate('/');
       } else if (error.response?.status === 401) {
         localStorage.clear();
         navigate('/login');
       } else {
-        toast.error('Failed to load admin data');
+        toast.error('Failed to load admin data', { id: 'admin-load-error' });
       }
     } finally {
       setLoading(false);
@@ -80,7 +87,6 @@ const AdminDashboard = () => {
   };
 
   const handleStepChange = (newStep) => {
-    // Just update pending step - don't save yet
     setPendingStep(newStep);
   };
 
@@ -99,12 +105,12 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.success(`User moved to Step ${newStep}`);
+      toast.success(`User moved to Step ${newStep}`, { id: 'step-change-success' });
       fetchData();
       setSelectedUser({ ...selectedUser, current_step: newStep });
-      setPendingStep(null); // Clear pending change
+      setPendingStep(null);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to change user step');
+      toast.error(error.response?.data?.detail || 'Failed to change user step', { id: 'step-change-error' });
     } finally {
       setActionLoading(false);
     }
@@ -124,13 +130,13 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.success('User progress reset successfully');
+      toast.success('User progress reset successfully', { id: 'reset-progress-success' });
       fetchData();
       if (selectedUser?.id === userId) {
         setSelectedUser({ ...selectedUser, current_step: 1 });
       }
     } catch (error) {
-      toast.error('Failed to reset user progress');
+      toast.error('Failed to reset user progress', { id: 'reset-progress-error' });
     } finally {
       setActionLoading(false);
     }
@@ -150,15 +156,15 @@ const AdminDashboard = () => {
       );
 
       trackAdminUserDeleted(userId);
-      toast.success('User deleted successfully');
+      toast.success('User deleted successfully', { id: 'delete-user-success' });
       setSelectedUser(null);
       setShowUserModal(false);
       fetchData();
     } catch (error) {
       if (error.response?.status === 400) {
-        toast.error('Cannot delete your own admin account');
+        toast.error('Cannot delete your own admin account', { id: 'delete-self-error' });
       } else {
-        toast.error(error.response?.data?.detail || 'Failed to delete user');
+        toast.error(error.response?.data?.detail || 'Failed to delete user', { id: 'delete-user-error' });
       }
     } finally {
       setActionLoading(false);
@@ -175,9 +181,9 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       trackAdminWelcomeEmailSent(userId);
-      toast.success('Welcome email sent successfully');
+      toast.success('Welcome email sent successfully', { id: 'welcome-email-success' });
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to send email');
+      toast.error(error.response?.data?.detail || 'Failed to send email', { id: 'welcome-email-error' });
     } finally {
       setActionLoading(false);
     }
@@ -192,7 +198,7 @@ const AdminDashboard = () => {
       
       if (passwordFormData.mode === 'set') {
         if (!passwordFormData.newPassword || passwordFormData.newPassword.length < 6) {
-          toast.error('Password must be at least 6 characters');
+          toast.error('Password must be at least 6 characters', { id: 'password-length-error' });
           setActionLoading(false);
           return;
         }
@@ -203,7 +209,7 @@ const AdminDashboard = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         trackAdminPasswordReset(selectedUser.id);
-        toast.success('Password updated and email sent to user');
+        toast.success('Password updated and email sent to user', { id: 'password-set-success' });
       } else {
         await axios.post(
           `${API}/admin/user/${selectedUser.id}/send-reset-link`,
@@ -211,14 +217,14 @@ const AdminDashboard = () => {
           { headers: { Authorization: `Bearer ${token}` } }
         );
         trackAdminPasswordReset(selectedUser.id);
-        toast.success('Password reset link sent to user');
+        toast.success('Password reset link sent to user', { id: 'password-link-success' });
       }
       
       setShowResetPasswordModal(false);
       trackModalClosed('reset_password');
       setPasswordFormData({ mode: 'set', newPassword: '', showPassword: false });
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to reset password');
+      toast.error(error.response?.data?.detail || 'Failed to reset password', { id: 'password-reset-error' });
     } finally {
       setActionLoading(false);
     }
@@ -237,15 +243,14 @@ const AdminDashboard = () => {
       );
       
       trackAdminUserEdited(selectedUser.id, Object.keys(editFormData));
-      toast.success('User updated successfully');
+      toast.success('User updated successfully', { id: 'edit-user-success' });
       setShowEditModal(false);
       trackModalClosed('edit_user');
       fetchData();
       
-      // Update selected user
       setSelectedUser({ ...selectedUser, ...editFormData });
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to update user');
+      toast.error(error.response?.data?.detail || 'Failed to update user', { id: 'edit-user-error' });
     } finally {
       setActionLoading(false);
     }
@@ -253,7 +258,7 @@ const AdminDashboard = () => {
 
   const openUserDetails = (user) => {
     setSelectedUser(user);
-    setPendingStep(null); // Reset pending step when opening new user
+    setPendingStep(null);
     setShowUserModal(true);
     trackAdminUserViewed(user.id);
     trackModalOpened('user_details');
@@ -275,6 +280,7 @@ const AdminDashboard = () => {
     setShowResetPasswordModal(true);
   };
 
+  // Sort by created_at descending (newest first) and filter
   const filteredUsers = users
     .filter(user =>
       user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -282,7 +288,6 @@ const AdminDashboard = () => {
       user.phone?.includes(searchTerm)
     )
     .sort((a, b) => {
-      // Sort by created_at descending (newest first)
       const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
       const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
       return dateB - dateA;
@@ -307,6 +312,30 @@ const AdminDashboard = () => {
     };
     return colors[step] || 'bg-gray-100 text-gray-700 border-gray-200';
   };
+
+  // Format date as "Jan 15, 2025, 2:30 PM"
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  // Step distribution data for horizontal bar chart
+  const stepDistribution = [
+    { label: 'Step 1', count: analytics?.step_distribution?.step_1 || 0, color: 'bg-blue-500' },
+    { label: 'Step 2', count: analytics?.step_distribution?.step_2 || 0, color: 'bg-purple-500' },
+    { label: 'Step 3', count: analytics?.step_distribution?.step_3 || 0, color: 'bg-amber-500' },
+    { label: 'Complete', count: analytics?.step_distribution?.step_4 || 0, color: 'bg-green-500' },
+  ];
+
+  const maxStepCount = Math.max(...stepDistribution.map(s => s.count), 1);
 
   if (loading) {
     return (
@@ -365,215 +394,150 @@ const AdminDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <Users className="text-blue-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{analytics?.total_users || 0}</p>
-                  <p className="text-xs text-gray-500">Total Users</p>
-                </div>
+        {/* Step Distribution - Horizontal Bar Chart at Top */}
+        <Card className="bg-white border border-gray-200 shadow-sm mb-6">
+          <CardHeader className="border-b border-gray-100 pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <BarChart3 className="text-teal-600" size={20} />
+                Step Distribution
+              </CardTitle>
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <span className="flex items-center gap-1.5">
+                  <Users size={16} />
+                  {analytics?.total_users || 0} Total Users
+                </span>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle2 className="text-green-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_4 || 0}</p>
-                  <p className="text-xs text-gray-500">Completed</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                  <Activity className="text-amber-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_3 || 0}</p>
-                  <p className="text-xs text-gray-500">On Step 3</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                  <Clock className="text-purple-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_2 || 0}</p>
-                  <p className="text-xs text-gray-500">On Step 2</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white border border-gray-200 shadow-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                  <AlertCircle className="text-blue-600" size={20} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-gray-800">{analytics?.step_distribution?.step_1 || 0}</p>
-                  <p className="text-xs text-gray-500">On Step 1</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Users List */}
-          <div className="lg:col-span-2">
-            <Card className="bg-white border border-gray-200 shadow-sm">
-              <CardHeader className="border-b border-gray-100 pb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <CardTitle className="text-lg">Users</CardTitle>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                    <input
-                      type="text"
-                      placeholder="Search users..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent w-full sm:w-64"
-                    />
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
-                  {filteredUsers.map(user => (
-                    <motion.div
-                      key={user.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => openUserDetails(user)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
-                            {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-gray-800 truncate">{user.name}</p>
-                            <p className="text-sm text-gray-500 truncate">{user.email}</p>
-                            {/* Tags on mobile - below email */}
-                            <div className="flex items-center gap-1.5 mt-1 md:hidden">
-                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${getStepColor(user.current_step)}`}>
-                                {getStepLabel(user.current_step)}
-                              </span>
-                              {user.role === 'admin' && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
-                                  Admin
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {/* Tags on desktop - right side */}
-                        <div className="hidden md:flex items-center gap-3 flex-shrink-0">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getStepColor(user.current_step)}`}>
-                            {getStepLabel(user.current_step)}
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {stepDistribution.map((step, index) => {
+                const percentage = analytics?.total_users 
+                  ? Math.round((step.count / analytics.total_users) * 100) 
+                  : 0;
+                const barWidth = maxStepCount > 0 
+                  ? Math.round((step.count / maxStepCount) * 100) 
+                  : 0;
+                
+                return (
+                  <div key={step.label} className="flex items-center gap-4">
+                    <div className="w-20 text-sm font-medium text-gray-700 flex-shrink-0">
+                      {step.label}
+                    </div>
+                    <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden relative">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${barWidth}%` }}
+                        transition={{ duration: 0.6, delay: index * 0.1 }}
+                        className={`h-full ${step.color} rounded-lg flex items-center`}
+                      >
+                        {barWidth > 15 && (
+                          <span className="text-white text-sm font-medium px-3">
+                            {step.count}
                           </span>
-                          {user.role === 'admin' && (
-                            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
-                              Admin
-                            </span>
-                          )}
-                          <ChevronRight className="text-gray-400" size={18} />
-                        </div>
-                        <ChevronRight className="text-gray-400 md:hidden flex-shrink-0" size={18} />
-                      </div>
-                    </motion.div>
-                  ))}
-                  {filteredUsers.length === 0 && (
-                    <div className="p-8 text-center text-gray-500">
-                      No users found
+                        )}
+                      </motion.div>
+                      {barWidth <= 15 && step.count > 0 && (
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600 text-sm font-medium">
+                          {step.count}
+                        </span>
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Quick Stats / Step Distribution */}
-          <div className="lg:col-span-1">
-            <Card className="bg-white border border-gray-200 shadow-sm">
-              <CardHeader className="border-b border-gray-100 pb-4">
-                <CardTitle className="text-lg">Step Distribution</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-4">
-                  {[1, 2, 3].map(step => {
-                    const count = analytics?.step_distribution?.[`step_${step}`] || 0;
-                    const percentage = analytics?.total_users ? Math.round((count / analytics.total_users) * 100) : 0;
-                    return (
-                      <div key={step} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-gray-600">Step {step}</span>
-                          <span className="font-medium text-gray-800">{count} users</span>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${percentage}%` }}
-                            transition={{ duration: 0.5, delay: step * 0.1 }}
-                            className={`h-full rounded-full ${
-                              step === 1 ? 'bg-blue-500' : step === 2 ? 'bg-purple-500' : 'bg-green-500'
-                            }`}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h4 className="font-medium text-gray-800 mb-4">Recent Activity</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                        <Users className="text-green-600" size={14} />
-                      </div>
-                      <div>
-                        <p className="text-gray-700">{analytics?.total_users || 0} total users</p>
-                        <p className="text-xs text-gray-400">All time</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
-                        <TrendingUp className="text-teal-600" size={14} />
-                      </div>
-                      <div>
-                        <p className="text-gray-700">{analytics?.completed_steps || 0} steps completed</p>
-                        <p className="text-xs text-gray-400">Across all users</p>
-                      </div>
+                    <div className="w-12 text-right text-sm text-gray-500 flex-shrink-0">
+                      {percentage}%
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Users Table */}
+        <Card className="bg-white border border-gray-200 shadow-sm">
+          <CardHeader className="border-b border-gray-100 pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Users className="text-teal-600" size={20} />
+                Users ({filteredUsers.length})
+              </CardTitle>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent w-full sm:w-64"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold text-gray-700">Date Joined</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Name</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Email</TableHead>
+                    <TableHead className="font-semibold text-gray-700">Tags</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                        No users found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredUsers.map((user, index) => (
+                      <TableRow 
+                        key={user.id}
+                        onClick={() => openUserDetails(user)}
+                        className={`cursor-pointer transition-colors hover:bg-teal-50 ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                        }`}
+                      >
+                        <TableCell className="text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={14} className="text-gray-400" />
+                            {formatDate(user.created_at)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium text-gray-800">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                              {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <span className="truncate max-w-[150px]">{user.name || 'Unknown'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          <span className="truncate max-w-[200px] block">{user.email}</span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStepColor(user.current_step)}`}>
+                              {getStepLabel(user.current_step)}
+                            </span>
+                            {user.role === 'admin' && (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
+                                Admin
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* User Details Modal */}
@@ -644,7 +608,7 @@ const AdminDashboard = () => {
                     <div>
                       <p className="text-xs text-gray-500">Joined</p>
                       <p className="text-sm font-medium text-gray-800">
-                        {selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString() : 'N/A'}
+                        {formatDate(selectedUser.created_at)}
                       </p>
                     </div>
                   </div>
@@ -893,7 +857,7 @@ const AdminDashboard = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Full Name</label>
+                  <label className="text-sm font-medium text-gray-700">Display Name</label>
                   <input
                     type="text"
                     value={editFormData.name || ''}
@@ -918,7 +882,6 @@ const AdminDashboard = () => {
                     type="tel"
                     value={editFormData.phone || ''}
                     onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                    placeholder="+1234567890"
                     className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                 </div>
