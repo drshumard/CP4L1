@@ -9,13 +9,13 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 // Practice Better iframe URLs
 const PRACTICE_BETTER_URLS = {
-  booking: 'https://drshumard.practicebetter.io/?fl_wtc=0D9488&fl_wtac=0891B2#/601a127b2a9c2406dcc94437/widgets/bookings?r=6931baa6ac26faba7eb5602b',
+  booking: 'https://drshumard.practicebetter.io/?fl_wtc=0D9488&fl_wtac=0891B2#/601a127b2a9c2406dcc94437/widgets/bookings?r=6957cec7123f30c97213ee38',
   form: 'https://drshumard.practicebetter.io/?fl_wtc=0D9488&fl_wtac=0891B2#/601a127b2a9c2406dcc94437/widgets/forms?f=6021e5d42a9c2406f45aa20f'
 };
 
 // Direct links for fallback (opens in new tab)
 const FALLBACK_URLS = {
-  booking: 'https://drshumard.practicebetter.io/#/601a127b2a9c2406dcc94437/bookings?r=6931baa6ac26faba7eb5602b',
+  booking: 'https://drshumard.practicebetter.io/#/601a127b2a9c2406dcc94437/bookings?r=6957cec7123f30c97213ee38',
   form: 'https://drshumard.practicebetter.io/#/601a127b2a9c2406dcc94437/forms?f=6021e5d42a9c2406f45aa20f'
 };
 
