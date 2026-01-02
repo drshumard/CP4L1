@@ -66,7 +66,13 @@ const Login = () => {
       trackLogin(response.data.user_id, formData.email, 'password');
       
       showNotification('success', 'Login successful!');
-      setTimeout(() => navigate('/'), 1000);
+      
+      // If user came from booking, redirect to steps with booking success
+      if (bookingSuccess || bookingMessage) {
+        setTimeout(() => navigate('/steps?booking=success'), 1000);
+      } else {
+        setTimeout(() => navigate('/'), 1000);
+      }
     } catch (error) {
       // Track failed login
       trackLoginFailed(formData.email, getErrorMessage(error, 'Login failed'));
