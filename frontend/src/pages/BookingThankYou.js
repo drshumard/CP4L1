@@ -53,27 +53,33 @@ const BookingThankYou = () => {
         console.log('Not in iframe - advancing step via API');
         
         const token = localStorage.getItem('access_token');
+        console.log('Token exists:', !!token);
         
         if (token) {
           try {
             // Complete the booking task
+            console.log('Calling complete-task API...');
             await axios.post(
               `${BACKEND_URL}/api/user/complete-task`,
               { task_id: 'book_consultation' },
               { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log('Task completed successfully');
             
             // Advance to step 2
+            console.log('Calling advance-step API...');
             await axios.post(
               `${BACKEND_URL}/api/user/advance-step`,
               {},
               { headers: { Authorization: `Bearer ${token}` } }
             );
+            console.log('Step advanced successfully');
             
             setStatus('success');
             
             // Redirect to steps page after showing success
             setTimeout(() => {
+              console.log('Redirecting to /steps...');
               navigate('/steps', { replace: true });
             }, 2500);
             
