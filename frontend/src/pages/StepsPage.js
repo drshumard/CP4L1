@@ -88,8 +88,16 @@ const StepsPage = () => {
       
       // Process the booking advancement
       const processBooking = async () => {
+        let apiSuccess = false;
+        
         try {
-          const token = localStorage.getItem('access_token');
+          // Check localStorage availability
+          let token = null;
+          try {
+            token = localStorage.getItem('access_token');
+          } catch (e) {
+            console.warn('localStorage not available:', e);
+          }
           
           if (token) {
             // Complete the booking task
@@ -107,17 +115,31 @@ const StepsPage = () => {
             );
             
             console.log('Booking processed, step advanced');
+            apiSuccess = true;
+          } else {
+            console.warn('No token available for booking processing');
           }
         } catch (error) {
           console.error('Error processing booking:', error);
+          // Even if API fails, we still show success (booking was made in Practice Better)
         }
         
         // After 3 seconds, close modal and refresh data
         setTimeout(async () => {
           setShowBookingSuccess(false);
           setBookingProcessing(false);
-          await fetchData();
-          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+          
+          try {
+            await fetchData();
+          } catch (e) {
+            console.error('Error fetching data:', e);
+          }
+          
+          if (apiSuccess) {
+            toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+          } else {
+            toast.success('Consultation booked! Your progress will update shortly.', { id: 'booking-success' });
+          }
         }, 3000);
       };
       
