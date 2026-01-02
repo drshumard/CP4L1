@@ -570,6 +570,18 @@ frontend:
         agent: "testing"
         comment: "✅ ADMIN RESET PROGRESS WITH INTAKE FORM CLEAR TESTING COMPLETED: All test scenarios passed successfully. ✅ Test 1 (Admin Login): Successfully authenticated with testadmin@test.com credentials ✅ Test 2 (Get Users): Retrieved 39 users from /api/admin/users endpoint ✅ Test 3 (Create Test Data): Created test intake form data for reset testing ✅ Test 4 (Reset Endpoint): POST /api/admin/user/{user_id}/reset returned correct response message 'User progress and intake form reset successfully' with preserved_fields array ✅ Test 5 (Intake Form Cleared): Verified intake form data successfully cleared from database (form_data returned null after reset) ✅ Test 6 (Activity Logging): USER_PROGRESS_RESET event logged in activity_logs with intake_form_cleared: True and reset_by admin details. Admin reset functionality is production-ready and fully functional."
 
+  - task: "Redesigned Admin Dashboard UI Testing"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/AdminDashboard.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "COMPREHENSIVE ADMIN DASHBOARD TESTING COMPLETED: All 7 requested features tested successfully at https://patient-portal-99.preview.emergentagent.com/admin with testadmin@test.com credentials. ✅ Test 1 (Step Distribution Horizontal Bar Chart): Chart displays perfectly with 4 bars (Step 1: 22 users/85%, Step 2: 2 users/8%, Step 3: 2 users/8%, Complete: 0 users/0%) and shows '26 Total Users' count as requested ✅ Test 2 (Users Table Layout): All 4 columns present (Date Joined, Name, Email, Tags), 26 user rows with striped backgrounds, hover effect changes row color to teal/light blue, users sorted by newest first ✅ Test 3 (Date Format): Dates display in correct format 'Dec 31, 2025, 4:54 PM' (Month Day, Year, Time) ✅ Test 4 (Tags Column): Step badges show correctly (Step 1, Step 2, Step 3), Admin badges display for admin users, found 28 step badges and 20 admin badges ✅ Test 5 (Search Functionality): Search input filters users by name/email correctly ✅ Test 6 (User Details Modal): Modal opens on row click showing Email, Phone, Current Step, Joined date. All action buttons present: Edit User, Reset Password, Resend Welcome, Reset Progress, Delete User (styled in red) ✅ Test 7 (Navigation): Logs button navigates to /admin/logs, Home button navigates to /. Admin Dashboard is production-ready and fully functional with excellent UI/UX design."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
