@@ -89,6 +89,50 @@ const StepsPage = () => {
     */
   }, []);
 
+  // Listen for booking complete message from the thank you page iframe
+  useEffect(() => {
+    const handleBookingComplete = async (event) => {
+      // Check if message is from our booking complete page
+      if (event.data?.type === 'BOOKING_COMPLETE' && event.data?.action === 'advance_to_step_2') {
+        console.log('Booking complete message received!', event.data);
+        
+        // Only process if user is on step 1
+        if (progressData?.current_step === 1) {
+          try {
+            const token = localStorage.getItem('access_token');
+            
+            // Complete the booking task
+            await axios.post(
+              `${API}/user/complete-task`,
+              { task_id: 'book_consultation' },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            // Advance to step 2
+            await axios.post(
+              `${API}/user/advance-step`,
+              {},
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            toast.success('Consultation booked! Moving to Step 2...', { id: 'booking-complete' });
+            
+            // Refresh data to show step 2
+            await fetchData();
+            
+          } catch (error) {
+            console.error('Error advancing to step 2:', error);
+            // Still show success since booking was completed
+            toast.success('Consultation booked!', { id: 'booking-complete' });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('message', handleBookingComplete);
+    return () => window.removeEventListener('message', handleBookingComplete);
+  }, [progressData?.current_step]);
+
   // Scroll to top when step changes
   useEffect(() => {
     if (progressData?.current_step) {
