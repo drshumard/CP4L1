@@ -505,7 +505,7 @@ const PracticeBetterEmbed = ({
           height: `${iframeHeight}px`,
           minHeight: `${minHeight}px`
         }}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
         referrerPolicy="strict-origin-when-cross-origin"
         allow="payment"
       />
