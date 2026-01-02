@@ -90,41 +90,52 @@ const StepsPage = () => {
   }, []);
 
   // Listen for booking complete message from the thank you page iframe
+  // Also listen for Practice Better's internal confirmation messages
   useEffect(() => {
+    let bookingProcessed = false; // Prevent duplicate processing
+    
     const handleBookingComplete = async (event) => {
-      // Check if message is from our booking complete page
-      if (event.data?.type === 'BOOKING_COMPLETE' && event.data?.action === 'advance_to_step_2') {
-        console.log('Booking complete message received!', event.data);
+      // Prevent duplicate processing
+      if (bookingProcessed) return;
+      
+      // Check for our custom booking complete message
+      const isOurMessage = event.data?.type === 'BOOKING_COMPLETE' && event.data?.action === 'advance_to_step_2';
+      
+      // Check for Practice Better confirmation (they might send a message when booking completes)
+      const isPBConfirmation = event.data?.type === 'booking_confirmed' || 
+                               event.data?.event === 'booking_confirmed' ||
+                               event.data?.action === 'booking_complete' ||
+                               (typeof event.data === 'string' && event.data.includes('confirmation'));
+      
+      if ((isOurMessage || isPBConfirmation) && progressData?.current_step === 1) {
+        bookingProcessed = true;
+        console.log('Booking complete detected!', event.data);
         
-        // Only process if user is on step 1
-        if (progressData?.current_step === 1) {
-          try {
-            const token = localStorage.getItem('access_token');
-            
-            // Complete the booking task
-            await axios.post(
-              `${API}/user/complete-task`,
-              { task_id: 'book_consultation' },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            // Advance to step 2
-            await axios.post(
-              `${API}/user/advance-step`,
-              {},
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            toast.success('Consultation booked! Moving to Step 2...', { id: 'booking-complete' });
-            
-            // Refresh data to show step 2
-            await fetchData();
-            
-          } catch (error) {
-            console.error('Error advancing to step 2:', error);
-            // Still show success since booking was completed
-            toast.success('Consultation booked!', { id: 'booking-complete' });
-          }
+        try {
+          const token = localStorage.getItem('access_token');
+          
+          // Complete the booking task
+          await axios.post(
+            `${API}/user/complete-task`,
+            { task_id: 'book_consultation' },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          // Advance to step 2
+          await axios.post(
+            `${API}/user/advance-step`,
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          
+          toast.success('Consultation booked! Moving to Step 2...', { id: 'booking-complete' });
+          
+          // Refresh data to show step 2
+          await fetchData();
+          
+        } catch (error) {
+          console.error('Error advancing to step 2:', error);
+          toast.success('Consultation booked!', { id: 'booking-complete' });
         }
       }
     };
