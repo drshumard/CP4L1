@@ -66,6 +66,7 @@ const StepsPage = () => {
   const [videoAutoplay, setVideoAutoplay] = useState(false);
   const [showStep1Confirmation, setShowStep1Confirmation] = useState(false);
   const [showStep2Confirmation, setShowStep2Confirmation] = useState(false);
+  const [showBookingSuccess, setShowBookingSuccess] = useState(false);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
   useEffect(() => {
