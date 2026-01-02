@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -15,16 +15,29 @@ const API = `${BACKEND_URL}/api`;
 
 const Login = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [notification, setNotification] = useState(null); // { type: 'success' | 'error', message: '' }
+  
+  // Check for booking success message from redirect
+  const bookingSuccess = searchParams.get('booking') === 'success';
+  const bookingMessage = searchParams.get('message') === 'booking_complete';
 
   // Track page view on mount
   useEffect(() => {
     trackPageView('login');
-  }, []);
+    
+    // Show booking success notification if redirected from booking
+    if (bookingSuccess || bookingMessage) {
+      toast.success('Your consultation has been booked! Please log in to continue.', { 
+        id: 'booking-login-prompt',
+        duration: 6000 
+      });
+    }
+  }, [bookingSuccess, bookingMessage]);
 
   // Auto-hide notification after 5 seconds
   useEffect(() => {
