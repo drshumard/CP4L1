@@ -11,6 +11,7 @@ import ActivityLogs from './pages/ActivityLogs';
 import ResetPassword from './pages/ResetPassword';
 import OutcomePage from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
+import BookingThankYou from './pages/BookingThankYou';
 import SupportPopup from './components/SupportPopup';
 import { Toaster } from './components/ui/sonner';
 import { trackSessionStart, trackApiError } from './utils/analytics';
