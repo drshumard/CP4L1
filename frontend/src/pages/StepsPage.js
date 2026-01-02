@@ -56,6 +56,7 @@ const STEP_DATA = {
 
 const StepsPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [userData, setUserData] = useState(null);
   const [progressData, setProgressData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +68,62 @@ const StepsPage = () => {
   const [showStep1Confirmation, setShowStep1Confirmation] = useState(false);
   const [showStep2Confirmation, setShowStep2Confirmation] = useState(false);
   const [showBookingSuccess, setShowBookingSuccess] = useState(false);
+  const [bookingProcessing, setBookingProcessing] = useState(false);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
+
+  // Handle booking success from URL parameter (redirected from Practice Better)
+  useEffect(() => {
+    const bookingParam = searchParams.get('booking');
+    
+    if (bookingParam === 'success' && !bookingProcessing) {
+      setBookingProcessing(true);
+      console.log('Booking success detected from URL parameter');
+      
+      // Remove the query parameter from URL (clean URL)
+      searchParams.delete('booking');
+      setSearchParams(searchParams, { replace: true });
+      
+      // Show the success modal
+      setShowBookingSuccess(true);
+      
+      // Process the booking advancement
+      const processBooking = async () => {
+        try {
+          const token = localStorage.getItem('access_token');
+          
+          if (token) {
+            // Complete the booking task
+            await axios.post(
+              `${API}/user/complete-task`,
+              { task_id: 'book_consultation' },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            // Advance to step 2
+            await axios.post(
+              `${API}/user/advance-step`,
+              {},
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            console.log('Booking processed, step advanced');
+          }
+        } catch (error) {
+          console.error('Error processing booking:', error);
+        }
+        
+        // After 3 seconds, close modal and refresh data
+        setTimeout(async () => {
+          setShowBookingSuccess(false);
+          setBookingProcessing(false);
+          await fetchData();
+          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+        }, 3000);
+      };
+      
+      processBooking();
+    }
+  }, [searchParams, setSearchParams, bookingProcessing]);
 
   useEffect(() => {
     fetchData();
