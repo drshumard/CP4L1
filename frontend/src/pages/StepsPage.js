@@ -68,18 +68,21 @@ const StepsPage = () => {
   const [showStep1Confirmation, setShowStep1Confirmation] = useState(false);
   const [showStep2Confirmation, setShowStep2Confirmation] = useState(false);
   const [showBookingSuccess, setShowBookingSuccess] = useState(false);
+  const [showBookingManualConfirm, setShowBookingManualConfirm] = useState(false);
   const [bookingProcessing, setBookingProcessing] = useState(false);
+  const [manualConfirmLoading, setManualConfirmLoading] = useState(false);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
-  // Handle booking success from URL parameter (redirected from Practice Better)
+  // Handle booking from URL parameter (redirected from Practice Better)
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
     
+    // Auto flow - localStorage worked, advance automatically
     if (bookingParam === 'success' && !bookingProcessing) {
       setBookingProcessing(true);
-      console.log('Booking success detected from URL parameter');
+      console.log('Auto booking flow detected');
       
-      // Remove the query parameter from URL (clean URL)
+      // Remove the query parameter from URL
       searchParams.delete('booking');
       setSearchParams(searchParams, { replace: true });
       
@@ -88,26 +91,16 @@ const StepsPage = () => {
       
       // Process the booking advancement
       const processBooking = async () => {
-        let apiSuccess = false;
-        
         try {
-          // Check localStorage availability
-          let token = null;
-          try {
-            token = localStorage.getItem('access_token');
-          } catch (e) {
-            console.warn('localStorage not available:', e);
-          }
+          const token = localStorage.getItem('access_token');
           
           if (token) {
-            // Complete the booking task
             await axios.post(
               `${API}/user/complete-task`,
               { task_id: 'book_consultation' },
               { headers: { Authorization: `Bearer ${token}` } }
             );
             
-            // Advance to step 2
             await axios.post(
               `${API}/user/advance-step`,
               {},
@@ -115,37 +108,67 @@ const StepsPage = () => {
             );
             
             console.log('Booking processed, step advanced');
-            apiSuccess = true;
-          } else {
-            console.warn('No token available for booking processing');
           }
         } catch (error) {
           console.error('Error processing booking:', error);
-          // Even if API fails, we still show success (booking was made in Practice Better)
         }
         
-        // After 3 seconds, close modal and refresh data
+        // After 3 seconds, close modal and refresh
         setTimeout(async () => {
           setShowBookingSuccess(false);
           setBookingProcessing(false);
-          
-          try {
-            await fetchData();
-          } catch (e) {
-            console.error('Error fetching data:', e);
-          }
-          
-          if (apiSuccess) {
-            toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-          } else {
-            toast.success('Consultation booked! Your progress will update shortly.', { id: 'booking-success' });
-          }
+          await fetchData();
+          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
         }, 3000);
       };
       
       processBooking();
     }
+    
+    // Manual flow - localStorage issues, show manual confirm modal
+    if (bookingParam === 'manual' && !bookingProcessing) {
+      console.log('Manual booking flow detected');
+      
+      // Remove the query parameter from URL
+      searchParams.delete('booking');
+      setSearchParams(searchParams, { replace: true });
+      
+      // Show the manual confirmation modal
+      setShowBookingManualConfirm(true);
+    }
   }, [searchParams, setSearchParams, bookingProcessing]);
+  
+  // Handle manual booking confirmation
+  const handleManualBookingConfirm = async () => {
+    setManualConfirmLoading(true);
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      
+      if (token) {
+        await axios.post(
+          `${API}/user/complete-task`,
+          { task_id: 'book_consultation' },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        await axios.post(
+          `${API}/user/advance-step`,
+          {},
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
+      
+      setShowBookingManualConfirm(false);
+      await fetchData();
+      toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+    } catch (error) {
+      console.error('Error confirming booking:', error);
+      toast.error('Failed to update progress. Please try again.', { id: 'booking-error' });
+    } finally {
+      setManualConfirmLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
