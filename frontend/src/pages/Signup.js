@@ -18,24 +18,7 @@ const Signup = () => {
   const [progress, setProgress] = useState(0); // Progress percentage 0-100
   const signupStartedRef = useRef(false); // Prevent double execution
 
-  // Add tracking pixel on page load
-  useEffect(() => {
-    // Get clickID from URL params (common param names: clickID, click_id, cid, transaction_id)
-    const clickID = searchParams.get('clickID') || 
-                    searchParams.get('click_id') || 
-                    searchParams.get('cid') || 
-                    searchParams.get('transaction_id') || 
-                    '';
-    
-    
-
-    // Cleanup on unmount
-    return () => {
-      if (img.parentNode) {
-        img.parentNode.removeChild(img);
-      }
-    };
-  }, [searchParams]);
+  // Signup process starts automatically via the other useEffect
 
   const startSignupProcess = useCallback(async (userEmail, userName) => {
     // Progress animation - smooth updates every 500ms
