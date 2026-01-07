@@ -27,14 +27,7 @@ const Signup = () => {
                     searchParams.get('transaction_id') || 
                     '';
     
-    // Create tracking pixel
-    const trackingUrl = `https://www.g30sltrk.com/?nid=876&transaction_id=${clickID}`;
-    const img = document.createElement('img');
-    img.src = trackingUrl;
-    img.width = 1;
-    img.height = 1;
-    img.style.display = 'none';
-    document.body.appendChild(img);
+    
 
     // Cleanup on unmount
     return () => {
