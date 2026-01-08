@@ -56,6 +56,7 @@ const Signup = () => {
 
         localStorage.setItem('access_token', response.data.access_token);
         localStorage.setItem('refresh_token', response.data.refresh_token);
+        localStorage.setItem('user_email', userEmail);
         
         // Move to stage 2 after successful signup
         setStage(2);
