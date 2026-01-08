@@ -54,6 +54,9 @@ const STEP_DATA = {
   }
 };
 
+// Webhook URL for step completion notifications
+const STEP_COMPLETION_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/6bd6dddc-0a6a-49f5-9d48-4b00d6beea5f';
+
 const StepsPage = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -72,6 +75,27 @@ const StepsPage = () => {
   const [bookingProcessing, setBookingProcessing] = useState(false);
   const [manualConfirmLoading, setManualConfirmLoading] = useState(false);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
+
+  // Helper function to send step completion webhook
+  const sendStepCompletionWebhook = async (email, step) => {
+    try {
+      await fetch(STEP_COMPLETION_WEBHOOK, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          step: step
+        }),
+        mode: 'no-cors' // External webhook, don't need response
+      });
+      console.log(`Step ${step} completion webhook sent for ${email}`);
+    } catch (error) {
+      console.error('Failed to send step completion webhook:', error);
+      // Don't block user flow if webhook fails
+    }
+  };
 
   // Handle booking from URL parameter (redirected from Practice Better)
   useEffect(() => {
