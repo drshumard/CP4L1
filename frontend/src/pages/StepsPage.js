@@ -55,7 +55,7 @@ const STEP_DATA = {
 };
 
 // Webhook URL for step completion notifications
-const STEP_COMPLETION_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/6bd6dddc-0a6a-49f5-9d48-4b00d6beea5f';
+const STEP_COMPLETION_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/64b3e792-3c1e-4887-b8e3-efa79c58a704';
 
 const StepsPage = () => {
   const navigate = useNavigate();
