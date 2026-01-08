@@ -678,9 +678,28 @@ const StepsPage = () => {
         <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
           {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
-            {/* Top Row: Video + Action Steps Side by Side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 lg:items-stretch">
-              {/* Video Section - maintains 16:9 aspect ratio */}
+            {/* Mobile-only Welcome Card for Step 2 */}
+            <div className="lg:hidden">
+              <Card className="glass-dark border-0 shadow-xl" data-testid="mobile-welcome-card">
+                <CardContent className="p-4">
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+                    <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Complete Your Health Profile
+                    </h3>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      Please fill your intake form now to give our team information to help you.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Top Row: Video + Action Steps Side by Side - Desktop Only */}
+            <div className="hidden lg:grid lg:grid-cols-2 gap-4 lg:gap-6 lg:items-stretch">
+              {/* Video Section - maintains 16:9 aspect ratio - DESKTOP ONLY */}
               <div className="aspect-video">
                 <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
                   <div className="relative w-full h-full">
@@ -696,7 +715,7 @@ const StepsPage = () => {
                 </Card>
               </div>
 
-              {/* Action Steps Card - matches video height on desktop, expands on mobile */}
+              {/* Action Steps Card - matches video height on desktop */}
               <div className="lg:aspect-video">
                 <Card className="glass-dark border-0 shadow-xl h-full" data-testid="instructions-card">
                   <CardContent className="p-4 lg:p-6 h-full flex items-center justify-center">
