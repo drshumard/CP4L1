@@ -930,11 +930,11 @@ const StepsPage = () => {
                   <div className="mb-6">
                     <h3 className="text-lg font-bold text-gray-800 mb-3">Welcome!</h3>
                     <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                      You've taken the critical first step toward reversing your diabetes concerns, but immediate action 
+                      You&apos;ve taken the critical first step toward reversing your diabetes concerns, but immediate action 
                       is essential to prevent delays. Your first task is to complete <strong>Step 1: Booking Your Initial Consult</strong>.
                     </p>
                     <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                      This 30-minute session is where we'll discuss your unique situation and create your mutual gameplan 
+                      This 30-minute session is where we&apos;ll discuss your unique situation and create your mutual gameplan 
                       to reach your health goals.
                     </p>
                     <p className="text-sm text-gray-700 leading-relaxed">
