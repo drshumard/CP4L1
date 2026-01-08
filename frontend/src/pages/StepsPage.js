@@ -831,8 +831,27 @@ const StepsPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full" style={{ minHeight: '750px' }}>
             {/* Left Column: Video + Action Steps */}
             <div className="flex flex-col gap-6 h-full">
-              {/* Video Section - Bunny.net Official Embed */}
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
+              {/* Mobile-only Welcome Card for Step 1 */}
+              <div className="lg:hidden">
+                <Card className="glass-dark border-0 shadow-xl" data-testid="mobile-welcome-card-step1">
+                  <CardContent className="p-4">
+                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
+                      <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Welcome!
+                      </h3>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        Please complete the following steps in the next 20 minutes to give our team the information we need.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Video Section - Bunny.net Official Embed - DESKTOP ONLY */}
+              <Card className="hidden lg:block glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
                     key={videoAutoplay ? 'autoplay' : 'manual'}
