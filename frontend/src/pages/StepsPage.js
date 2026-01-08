@@ -84,7 +84,6 @@ const StepsPage = () => {
     }
     
     try {
-      // Use standard fetch without no-cors to ensure request is sent properly
       const response = await fetch(STEP_COMPLETION_WEBHOOK, {
         method: 'POST',
         headers: {
@@ -100,6 +99,11 @@ const StepsPage = () => {
       // CORS error is expected but request still goes through
       console.log(`Step ${step} completion webhook sent for ${email} (CORS expected)`);
     }
+  };
+
+  // Helper to get user email - always use userData from database
+  const getUserEmail = () => {
+    return userData?.email || null;
   };
 
   // Handle booking from URL parameter (redirected from Practice Better)
