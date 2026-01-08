@@ -200,7 +200,7 @@ const StepsPage = () => {
         );
         
         // Send webhook for Step 1 completion
-        const userEmail = localStorage.getItem('user_email') || userData?.email;
+        const userEmail = getUserEmail();
         if (userEmail) {
           sendStepCompletionWebhook(userEmail, 1);
         } else {
