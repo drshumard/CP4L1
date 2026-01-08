@@ -785,6 +785,13 @@ const StepsPage = () => {
                         {},
                         { headers: { Authorization: `Bearer ${token}` } }
                       );
+                      
+                      // Send webhook for Step 2 completion
+                      const userEmail = localStorage.getItem('user_email');
+                      if (userEmail) {
+                        sendStepCompletionWebhook(userEmail, 2);
+                      }
+                      
                       toast.success('Form submitted! Moving to Step 3...');
                       setCompletedTasks(new Set());
                       await fetchData();
