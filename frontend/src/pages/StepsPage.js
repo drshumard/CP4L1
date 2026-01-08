@@ -131,6 +131,12 @@ const StepsPage = () => {
               { headers: { Authorization: `Bearer ${token}` } }
             );
             
+            // Send webhook for Step 1 completion
+            const userEmail = localStorage.getItem('user_email');
+            if (userEmail) {
+              sendStepCompletionWebhook(userEmail, 1);
+            }
+            
             console.log('Booking processed, step advanced');
           }
         } catch (error) {
