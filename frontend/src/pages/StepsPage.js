@@ -137,9 +137,11 @@ const StepsPage = () => {
             );
             
             // Send webhook for Step 1 completion
-            const userEmail = localStorage.getItem('user_email');
+            const userEmail = localStorage.getItem('user_email') || userData?.email;
             if (userEmail) {
               sendStepCompletionWebhook(userEmail, 1);
+            } else {
+              console.warn('No user email found for Step 1 webhook');
             }
             
             console.log('Booking processed, step advanced');
