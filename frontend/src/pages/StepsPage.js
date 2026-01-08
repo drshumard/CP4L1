@@ -923,8 +923,8 @@ const StepsPage = () => {
                 </div>
               </Card>
 
-              {/* Action Steps Card */}
-              <Card className="glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="action-steps-card">
+              {/* Action Steps Card - DESKTOP ONLY */}
+              <Card className="hidden lg:block glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="action-steps-card">
                 <CardContent className="p-6 h-full flex flex-col">
                   {/* Welcome Message */}
                   <div className="mb-6">
