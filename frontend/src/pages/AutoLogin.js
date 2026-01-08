@@ -38,6 +38,7 @@ const AutoLogin = () => {
         // Store tokens
         localStorage.setItem('access_token', response.data.access_token);
         localStorage.setItem('refresh_token', response.data.refresh_token);
+        localStorage.setItem('user_email', response.data.email);
         
         // Track successful auto-login
         trackAutoLogin(response.data.user_id, response.data.email);
