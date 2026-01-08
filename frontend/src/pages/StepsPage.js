@@ -811,9 +811,11 @@ const StepsPage = () => {
                       );
                       
                       // Send webhook for Step 2 completion
-                      const userEmail = localStorage.getItem('user_email');
+                      const userEmail = localStorage.getItem('user_email') || userData?.email;
                       if (userEmail) {
                         sendStepCompletionWebhook(userEmail, 2);
+                      } else {
+                        console.warn('No user email found for Step 2 webhook');
                       }
                       
                       toast.success('Form submitted! Moving to Step 3...');
