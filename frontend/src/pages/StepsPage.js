@@ -115,7 +115,18 @@ const StepsPage = () => {
       return;
     }
 
+    let pollCount = 0;
+    const maxPolls = 20; // Stop polling after 60 seconds (20 * 3s)
+
     const pollForStepChange = async () => {
+      pollCount++;
+      
+      // Stop polling after max attempts
+      if (pollCount > maxPolls) {
+        console.log('Polling stopped after max attempts');
+        return;
+      }
+
       try {
         const token = localStorage.getItem('access_token');
         if (!token) return;
@@ -127,11 +138,13 @@ const StepsPage = () => {
         // If user was advanced to Step 2 (by backend webhook), show success and refresh
         if (res.data?.current_step === 2 && progressData?.current_step === 1) {
           console.log('Step advancement detected via polling!');
+          setBookingProcessing(true); // Prevent other handlers
           setShowBookingSuccess(true);
           
           // After 3 seconds, refresh data and show welcome message
           setTimeout(async () => {
             setShowBookingSuccess(false);
+            setBookingProcessing(false);
             await fetchData();
             toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
           }, 3000);
@@ -149,7 +162,6 @@ const StepsPage = () => {
   }, [progressData?.current_step, bookingProcessing, loading]);
 
   // Handle booking from URL parameter (redirected from Practice Better)
-  // This is a backup in case user returns to same tab with ?booking=success
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
     
@@ -161,15 +173,50 @@ const StepsPage = () => {
       searchParams.delete('booking');
       setSearchParams(searchParams, { replace: true });
       
-      // Show the success modal and refresh data
+      // Show the success modal
       setShowBookingSuccess(true);
       
-      setTimeout(async () => {
-        setShowBookingSuccess(false);
-        setBookingProcessing(false);
-        await fetchData();
-        toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-      }, 3000);
+      // Check if user needs to be advanced (in case webhook was slow/failed)
+      const ensureAdvancement = async () => {
+        try {
+          const token = localStorage.getItem('access_token');
+          if (!token) return;
+          
+          // Check current step
+          const progressRes = await axios.get(`${API}/user/progress`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          // If still on Step 1, advance them (webhook may have failed)
+          if (progressRes.data?.current_step === 1) {
+            console.log('User still on Step 1, advancing via frontend...');
+            
+            await axios.post(
+              `${API}/user/complete-task`,
+              { task_id: 'book_consultation' },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            await axios.post(
+              `${API}/user/advance-step`,
+              {},
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+          }
+        } catch (error) {
+          console.error('Error ensuring advancement:', error);
+        }
+        
+        // After 3 seconds, close modal and refresh
+        setTimeout(async () => {
+          setShowBookingSuccess(false);
+          setBookingProcessing(false);
+          await fetchData();
+          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+        }, 3000);
+      };
+      
+      ensureAdvancement();
     }
     
     // Manual flow - show manual confirm modal (fallback for edge cases)
