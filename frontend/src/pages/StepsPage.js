@@ -1130,6 +1130,40 @@ const StepsPage = () => {
                       minHeight={750}
                       onLoad={() => console.log('Booking calendar loaded successfully')}
                       onError={() => console.log('Booking calendar failed to load')}
+                      onBookingComplete={async () => {
+                        // Safari fallback: Practice Better couldn't redirect, handle it here
+                        console.log('Booking completion detected via postMessage (Safari fallback)');
+                        if (!bookingProcessing) {
+                          setBookingProcessing(true);
+                          setShowBookingSuccess(true);
+                          
+                          // Advance user to Step 2
+                          try {
+                            const token = localStorage.getItem('access_token');
+                            if (token) {
+                              await axios.post(
+                                `${API}/user/complete-task`,
+                                { task_id: 'book_consultation' },
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                              await axios.post(
+                                `${API}/user/advance-step`,
+                                {},
+                                { headers: { Authorization: `Bearer ${token}` } }
+                              );
+                            }
+                          } catch (error) {
+                            console.error('Error advancing step:', error);
+                          }
+                          
+                          setTimeout(async () => {
+                            setShowBookingSuccess(false);
+                            setBookingProcessing(false);
+                            await fetchData();
+                            toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+                          }, 3000);
+                        }
+                      }}
                     />
                   </div>
                   
