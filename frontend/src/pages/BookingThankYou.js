@@ -100,16 +100,4 @@ const BookingThankYou = () => {
   );
 };
 
-  return (
-    <div className="min-h-screen bg-[#F4F3F2] flex flex-col items-center justify-center p-4">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-      {error ? (
-        <p className="text-gray-600 text-sm">{error}</p>
-      ) : (
-        <p className="text-gray-600 text-sm">Confirming your booking...</p>
-      )}
-    </div>
-  );
-};
-
 export default BookingThankYou;
