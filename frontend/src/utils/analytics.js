@@ -11,15 +11,24 @@ const getPostHog = () => {
   return null;
 };
 
-// Identify user (call after login)
+// Identify user (call after login) - uses email as primary identifier for readability
 export const identifyUser = (userId, properties = {}) => {
   const posthog = getPostHog();
-  if (posthog) {
+  if (posthog && properties.email) {
+    // Use email as the distinct_id so users are identifiable in PostHog
+    posthog.identify(properties.email, {
+      user_id: userId,  // Store UUID as a property
+      ...properties,
+      identified_at: new Date().toISOString()
+    });
+    console.log('[Analytics] User identified:', properties.email);
+  } else if (posthog) {
+    // Fallback to userId if no email provided
     posthog.identify(userId, {
       ...properties,
       identified_at: new Date().toISOString()
     });
-    console.log('[Analytics] User identified:', userId);
+    console.log('[Analytics] User identified by ID:', userId);
   }
 };
 
