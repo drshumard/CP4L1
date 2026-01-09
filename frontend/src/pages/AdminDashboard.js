@@ -629,6 +629,7 @@ const AdminDashboard = () => {
                       disabled={actionLoading}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
                     >
+                      <option value={0}>⚠️ Refunded</option>
                       <option value={1}>Step 1 - Welcome & Booking</option>
                       <option value={2}>Step 2 - Health Profile</option>
                       <option value={3}>Step 3 - Final Preparations</option>
