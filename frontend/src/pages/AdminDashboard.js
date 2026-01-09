@@ -105,7 +105,8 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      toast.success(`User moved to Step ${newStep}`, { id: 'step-change-success' });
+      const stepLabel = newStep === 0 ? 'Refunded' : `Step ${newStep}`;
+      toast.success(`User moved to ${stepLabel}`, { id: 'step-change-success' });
       fetchData();
       setSelectedUser({ ...selectedUser, current_step: newStep });
       setPendingStep(null);
