@@ -91,7 +91,7 @@ const AdminDashboard = () => {
   };
 
   const handleSaveStepChange = async () => {
-    if (!pendingStep || !selectedUser) return;
+    if (pendingStep === null || pendingStep === undefined || !selectedUser) return;
     
     const userId = selectedUser.id;
     const newStep = pendingStep;
