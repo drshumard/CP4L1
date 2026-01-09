@@ -172,25 +172,15 @@ const StepsPage = () => {
       }, 3000);
     }
               console.log('User already advanced to step', progressRes.data?.current_step, '(via backend webhook)');
-            }
-          }
-        } catch (error) {
-          console.error('Error processing booking:', error);
-        }
-        
-        // After 3 seconds, close modal and refresh
-        setTimeout(async () => {
-          setShowBookingSuccess(false);
-          setBookingProcessing(false);
-          await fetchData();
-          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-        }, 3000);
-      };
-      
-      processBooking();
+      setTimeout(async () => {
+        setShowBookingSuccess(false);
+        setBookingProcessing(false);
+        await fetchData();
+        toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+      }, 3000);
     }
     
-    // Manual flow - localStorage issues, show manual confirm modal
+    // Manual flow - show manual confirm modal (fallback for edge cases)
     if (bookingParam === 'manual' && !bookingProcessing) {
       console.log('Manual booking flow detected');
       
@@ -211,17 +201,6 @@ const StepsPage = () => {
       const token = localStorage.getItem('access_token');
       
       if (token) {
-        // First fetch user data to get email for webhook
-        let userEmail = null;
-        try {
-          const userRes = await axios.get(`${API}/user/me`, { 
-            headers: { Authorization: `Bearer ${token}` } 
-          });
-          userEmail = userRes.data?.email;
-        } catch (e) {
-          console.warn('Could not fetch user email for webhook');
-        }
-        
         await axios.post(
           `${API}/user/complete-task`,
           { task_id: 'book_consultation' },
@@ -233,25 +212,6 @@ const StepsPage = () => {
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        
-        // Send webhook for Step 1 completion
-        if (userEmail) {
-          sendStepCompletionWebhook(userEmail, 1);
-        } else {
-          console.warn('No user email found for Step 1 manual webhook');
-        }
-      }
-      
-      setShowBookingManualConfirm(false);
-      await fetchData();
-      toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-    } catch (error) {
-      console.error('Error confirming booking:', error);
-      toast.error('Failed to update progress. Please try again.', { id: 'booking-error' });
-    } finally {
-      setManualConfirmLoading(false);
-    }
-  };
 
   useEffect(() => {
     fetchData();
