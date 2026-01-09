@@ -212,6 +212,18 @@ const StepsPage = () => {
           {},
           { headers: { Authorization: `Bearer ${token}` } }
         );
+      }
+      
+      setShowBookingManualConfirm(false);
+      await fetchData();
+      toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+    } catch (error) {
+      console.error('Error confirming booking:', error);
+      toast.error('Failed to update progress. Please try again.', { id: 'booking-error' });
+    } finally {
+      setManualConfirmLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
