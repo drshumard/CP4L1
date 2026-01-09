@@ -321,7 +321,7 @@ const PracticeBetterEmbed = ({
       }
 
       // Log ALL messages for debugging
-      console.log('[PB Form] Received postMessage:', event.data);
+      console.log('[PB] Received postMessage:', event.data);
 
       if (event.data && typeof event.data === 'object') {
         // Handle height updates
@@ -329,6 +329,24 @@ const PracticeBetterEmbed = ({
           setIframeHeight(Math.max(event.data.height, minHeight));
         } else if (event.data.frameHeight && typeof event.data.frameHeight === 'number') {
           setIframeHeight(Math.max(event.data.frameHeight, minHeight));
+        }
+
+        // Detect booking completion - Practice Better may send various signals
+        // Check for confirmation/success events
+        if (type === 'booking') {
+          const eventType = event.data.type || event.data.event || event.data.action || '';
+          const eventTypeStr = String(eventType).toLowerCase();
+          
+          // Look for booking completion signals
+          if (eventTypeStr.includes('booked') || 
+              eventTypeStr.includes('confirmed') || 
+              eventTypeStr.includes('complete') ||
+              eventTypeStr.includes('success') ||
+              event.data.booking_confirmed ||
+              event.data.appointment_booked) {
+            console.log('[PB] Booking completion detected via postMessage!');
+            onBookingComplete?.();
+          }
         }
 
         // Capture ANY form-related data that might be sent
@@ -364,14 +382,14 @@ const PracticeBetterEmbed = ({
 
         // Store entire message if it contains useful data
         if (event.data.type || event.data.action || event.data.event) {
-          console.log('[PB Form] Event captured:', event.data.type || event.data.action || event.data.event);
+          console.log('[PB] Event captured:', event.data.type || event.data.action || event.data.event);
         }
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [minHeight, saveFormData, storageKey]);
+  }, [minHeight, saveFormData, storageKey, type, onBookingComplete]);
 
   // Auto-save interval (every 10 seconds)
   useEffect(() => {
