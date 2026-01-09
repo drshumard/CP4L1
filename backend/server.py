@@ -949,6 +949,59 @@ async def signup(request: SignupRequest):
             detail="Account not properly initialized. Please contact support."
         )
     
+    # Check if user was in "refunded" state (step 0)
+    # If so, reset them to step 1 and send notification email
+    was_refunded = user.get("current_step", 1) == 0
+    
+    if was_refunded:
+        # Reset user to step 1
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"current_step": 1}}
+        )
+        await db.progress.update_one(
+            {"user_id": user["id"]},
+            {"$set": {"current_step": 1}}
+        )
+        
+        # Send notification email to admin
+        try:
+            notification_email = os.environ.get("ADMIN_NOTIFICATION_EMAIL", "drjason@drshumard.com")
+            resend.Emails.send({
+                "from": "Dr. Shumard's Office <noreply@email.drshumard.com>",
+                "to": notification_email,
+                "subject": f"🔔 Refunded User Re-entered Portal: {user['email']}",
+                "html": f"""
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <h2 style="color: #333;">Refunded User Re-entered Portal</h2>
+                        <p>A previously refunded user has re-entered the portal onboarding:</p>
+                        <ul style="line-height: 1.8;">
+                            <li><strong>Name:</strong> {user.get('name', 'N/A')}</li>
+                            <li><strong>Email:</strong> {user['email']}</li>
+                            <li><strong>Phone:</strong> {user.get('phone', 'N/A')}</li>
+                            <li><strong>Time:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</li>
+                        </ul>
+                        <p style="color: #666;">Please check if they have repurchased before their consultation.</p>
+                    </div>
+                """
+            })
+            logging.info(f"Sent refunded user re-entry notification for {email_lower}")
+        except Exception as e:
+            logging.error(f"Failed to send refunded user notification: {e}")
+        
+        # Log the re-entry
+        await log_activity(
+            event_type="REFUNDED_USER_REENTERED",
+            user_email=user["email"],
+            user_id=user["id"],
+            details={
+                "previous_step": 0,
+                "new_step": 1,
+                "notification_sent": True
+            },
+            status="success"
+        )
+    
     # User already has password (set via webhook), just login them
     access_token = create_access_token(
         data={"sub": user["id"]},
@@ -961,7 +1014,11 @@ async def signup(request: SignupRequest):
         event_type="SIGNUP_SUCCESS",
         user_email=user["email"],
         user_id=user["id"],
-        details={"auto_login": True, "session_duration_minutes": ACCESS_TOKEN_EXPIRE_MINUTES},
+        details={
+            "auto_login": True, 
+            "session_duration_minutes": ACCESS_TOKEN_EXPIRE_MINUTES,
+            "was_refunded": was_refunded
+        },
         status="success"
     )
     
