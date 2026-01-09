@@ -507,42 +507,6 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             """
                                 <span class="credential-value">{data.email}</span>
                             </div>
-                            <div style="margin: 12px 0;">
-                                <span style="font-weight: 600; margin-right: 8px; color: #0d9488 !important; -webkit-text-fill-color: #0d9488 !important;">Password:</span>
-                                <span class="credential-value">{generated_password}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="important-note">
-                            <strong>⚠️ Important:</strong> Please save this password securely. You can change it anytime after logging in to your account settings.
-                        </div>
-                        
-                        <center>
-                            <a href="{auto_login_url}" class="button">
-                                Access Your Portal Now →
-                            </a>
-                        </center>
-                        
-                        <p style="font-size: 12px; color: #6b7280; text-align: center; margin-top: 12px;">
-                            This link will automatically log you in and is valid for 7 days.
-                        </p>
-                        
-                        <div class="divider"></div>
-                        
-                        <p class="message" style="margin-bottom: 0;">
-                            <strong>What's Next?</strong><br>
-                            Click the button above to access your personalized wellness portal and begin your 3-step journey to better health.
-                        </p>
-                    </div>
-                    
-                    <div class="footer">
-                        <p style="margin: 0 0 8px 0;">Dr. Jason Shumard Wellness Portal</p>
-                        <p style="margin: 0;">If you have any questions, our support team is here to help.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
         })
         logging.info(f"Welcome email with credentials sent to {data.email}")
         await log_activity(
