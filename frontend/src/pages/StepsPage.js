@@ -110,10 +110,11 @@ const StepsPage = () => {
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
     
-    // Auto flow - localStorage worked, advance automatically
+    // Auto flow - show success modal and refresh data
+    // Note: The backend webhook already advanced the user to Step 2
     if (bookingParam === 'success' && !bookingProcessing) {
       setBookingProcessing(true);
-      console.log('Auto booking flow detected');
+      console.log('Booking success flow detected');
       
       // Remove the query parameter from URL
       searchParams.delete('booking');
@@ -122,43 +123,51 @@ const StepsPage = () => {
       // Show the success modal
       setShowBookingSuccess(true);
       
-      // Process the booking advancement
+      // The backend webhook already advanced the user, just refresh data
       const processBooking = async () => {
         try {
           const token = localStorage.getItem('access_token');
           
           if (token) {
-            // First fetch user data to get email for webhook
-            let userEmail = null;
-            try {
-              const userRes = await axios.get(`${API}/user/me`, { 
-                headers: { Authorization: `Bearer ${token}` } 
-              });
-              userEmail = userRes.data?.email;
-            } catch (e) {
-              console.warn('Could not fetch user email for webhook');
-            }
+            // Fetch current user data to check if already advanced
+            const progressRes = await axios.get(`${API}/user/progress`, { 
+              headers: { Authorization: `Bearer ${token}` } 
+            });
             
-            await axios.post(
-              `${API}/user/complete-task`,
-              { task_id: 'book_consultation' },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            await axios.post(
-              `${API}/user/advance-step`,
-              {},
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            
-            // Send webhook for Step 1 completion
-            if (userEmail) {
-              sendStepCompletionWebhook(userEmail, 1);
+            // If user is still on step 1 (webhook hasn't processed yet), advance them
+            if (progressRes.data?.current_step === 1) {
+              // Get email for webhook
+              let userEmail = null;
+              try {
+                const userRes = await axios.get(`${API}/user/me`, { 
+                  headers: { Authorization: `Bearer ${token}` } 
+                });
+                userEmail = userRes.data?.email;
+              } catch (e) {
+                console.warn('Could not fetch user email');
+              }
+              
+              await axios.post(
+                `${API}/user/complete-task`,
+                { task_id: 'book_consultation' },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              
+              await axios.post(
+                `${API}/user/advance-step`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              
+              // Send webhook for Step 1 completion (backup if backend webhook failed)
+              if (userEmail) {
+                sendStepCompletionWebhook(userEmail, 1);
+              }
+              
+              console.log('Booking processed, step advanced via frontend');
             } else {
-              console.warn('No user email found for Step 1 webhook');
+              console.log('User already advanced to step', progressRes.data?.current_step, '(via backend webhook)');
             }
-            
-            console.log('Booking processed, step advanced');
           }
         } catch (error) {
           console.error('Error processing booking:', error);
