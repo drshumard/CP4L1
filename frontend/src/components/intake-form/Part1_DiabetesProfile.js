@@ -194,8 +194,21 @@ const Part1_DiabetesProfile = ({
                 <Input id="unit" value={formData.unit} onChange={(e) => handleInputChange('unit', e.target.value)} placeholder="Apt, Suite, etc." />
               </div>
               <div className="space-y-2">
-                <Label>Town</Label>
+                <Label>Town/City</Label>
                 <Input id="town" value={formData.town} onChange={(e) => handleInputChange('town', e.target.value)} placeholder="City/Town" />
+              </div>
+              <div className="space-y-2">
+                <Label>State/Province</Label>
+                {formData.country === 'United States' ? (
+                  <Select value={formData.state} onValueChange={(v) => handleInputChange('state', v)}>
+                    <SelectTrigger id="state"><SelectValue placeholder="Select state" /></SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {US_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input id="state" value={formData.state} onChange={(e) => handleInputChange('state', e.target.value)} placeholder="State/Province/Region" />
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Postal Code</Label>
