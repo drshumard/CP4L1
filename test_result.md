@@ -582,6 +582,18 @@ frontend:
         agent: "testing"
         comment: "COMPREHENSIVE ADMIN DASHBOARD TESTING COMPLETED: All 7 requested features tested successfully at https://patient-portal-99.preview.emergentagent.com/admin with testadmin@test.com credentials. ✅ Test 1 (Step Distribution Horizontal Bar Chart): Chart displays perfectly with 4 bars (Step 1: 22 users/85%, Step 2: 2 users/8%, Step 3: 2 users/8%, Complete: 0 users/0%) and shows '26 Total Users' count as requested ✅ Test 2 (Users Table Layout): All 4 columns present (Date Joined, Name, Email, Tags), 26 user rows with striped backgrounds, hover effect changes row color to teal/light blue, users sorted by newest first ✅ Test 3 (Date Format): Dates display in correct format 'Dec 31, 2025, 4:54 PM' (Month Day, Year, Time) ✅ Test 4 (Tags Column): Step badges show correctly (Step 1, Step 2, Step 3), Admin badges display for admin users, found 28 step badges and 20 admin badges ✅ Test 5 (Search Functionality): Search input filters users by name/email correctly ✅ Test 6 (User Details Modal): Modal opens on row click showing Email, Phone, Current Step, Joined date. All action buttons present: Edit User, Reset Password, Resend Welcome, Reset Progress, Delete User (styled in red) ✅ Test 7 (Navigation): Logs button navigates to /admin/logs, Home button navigates to /. Admin Dashboard is production-ready and fully functional with excellent UI/UX design."
 
+  - task: "Refunded Step Functionality - Admin Set User to Step 0"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ REFUNDED STEP FUNCTIONALITY TESTING COMPLETED: All 4 test scenarios passed successfully. ✅ Test 1 (Set User to Refunded Step): Admin endpoint POST /api/admin/user/{user_id}/set-step with step=0 working correctly. Successfully set raymond@fireside360.co.uk to step 0 with response message 'User moved from Step 1 to Refunded' ✅ Test 2 (Refunded User Access): User login successful with step 0, GET /api/user/progress correctly returns current_step=0 confirming refunded status ✅ Test 3 (Reset User to Step 1): Admin endpoint successfully reset user from step 0 to step 1 with response 'User moved from Refunded to Step 1' ✅ Test 4 (Resend Welcome Email): Admin endpoint POST /api/admin/user/{user_id}/resend-welcome working correctly with response 'Welcome email sent successfully'. All refunded step admin functionality is production-ready and fully functional. Test credentials used: Admin (testadmin@test.com/test123), Test user (raymond@fireside360.co.uk/akosua1001)."
+
 metadata:
   created_by: "main_agent"
   version: "1.0"
