@@ -198,6 +198,15 @@ const Part1_DiabetesProfile = ({
                 <Input id="town" value={formData.town} onChange={(e) => handleInputChange('town', e.target.value)} placeholder="City/Town" />
               </div>
               <div className="space-y-2">
+                <Label>Country</Label>
+                <Select value={formData.country} onValueChange={(v) => handleInputChange('country', v)}>
+                  <SelectTrigger id="country"><SelectValue placeholder="Select country" /></SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>State/Province</Label>
                 {formData.country === 'United States' ? (
                   <Select value={formData.state} onValueChange={(v) => handleInputChange('state', v)}>
@@ -210,18 +219,9 @@ const Part1_DiabetesProfile = ({
                   <Input id="state" value={formData.state} onChange={(e) => handleInputChange('state', e.target.value)} placeholder="State/Province/Region" />
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 md:col-span-2">
                 <Label>Postal Code</Label>
-                <Input id="postalCode" value={formData.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} placeholder="ZIP/Postal code" />
-              </div>
-              <div className="space-y-2">
-                <Label>Country</Label>
-                <Select value={formData.country} onValueChange={(v) => handleInputChange('country', v)}>
-                  <SelectTrigger id="country"><SelectValue placeholder="Select country" /></SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Input id="postalCode" value={formData.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} placeholder="ZIP/Postal code" className="md:w-1/2" />
               </div>
             </div>
           </div>
