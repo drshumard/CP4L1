@@ -46,8 +46,13 @@ const PracticeBetterEmbed = ({
   const timeoutRef = useRef(null);
   const autoSaveIntervalRef = useRef(null);
   const timeTrackingRef = useRef(null);
-  const pageLoadTimeRef = useRef(Date.now());
+  const pageLoadTimeRef = useRef(null);
   const maxRetries = 3;
+
+  // Initialize page load time on mount
+  useEffect(() => {
+    pageLoadTimeRef.current = Date.now();
+  }, []);
 
   const iframeUrl = PRACTICE_BETTER_URLS[type];
   const fallbackUrl = FALLBACK_URLS[type];
