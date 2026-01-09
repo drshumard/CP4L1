@@ -1167,19 +1167,26 @@ const StepsPage = () => {
                     />
                   </div>
                   
-                  {/* Buttons inside booking card - only Go to Dashboard */}
+                  {/* Buttons inside booking card */}
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <p className="text-xs text-gray-600 mb-3 italic text-center">
                       Your progress will automatically update after booking your consultation
                     </p>
-                    <div className="flex justify-center">
+                    <div className="flex flex-col sm:flex-row justify-center gap-3">
+                      {/* Manual confirmation button - Safari fallback */}
+                      <Button
+                        onClick={() => setShowBookingManualConfirm(true)}
+                        className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 px-6 rounded-xl"
+                      >
+                        I&apos;ve Booked My Call
+                      </Button>
                       <Button
                         onClick={() => {
                           trackButtonClicked('go_to_dashboard_step1', 'steps_page');
                           navigate('/dashboard');
                         }}
                         variant="outline"
-                        className="border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 px-8 rounded-xl"
+                        className="border-2 border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold py-3 px-6 rounded-xl"
                       >
                         Go to Dashboard
                       </Button>
