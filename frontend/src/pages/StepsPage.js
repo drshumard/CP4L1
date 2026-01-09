@@ -128,6 +128,17 @@ const StepsPage = () => {
           const token = localStorage.getItem('access_token');
           
           if (token) {
+            // First fetch user data to get email for webhook
+            let userEmail = null;
+            try {
+              const userRes = await axios.get(`${API}/user/me`, { 
+                headers: { Authorization: `Bearer ${token}` } 
+              });
+              userEmail = userRes.data?.email;
+            } catch (e) {
+              console.warn('Could not fetch user email for webhook');
+            }
+            
             await axios.post(
               `${API}/user/complete-task`,
               { task_id: 'book_consultation' },
@@ -141,7 +152,6 @@ const StepsPage = () => {
             );
             
             // Send webhook for Step 1 completion
-            const userEmail = getUserEmail();
             if (userEmail) {
               sendStepCompletionWebhook(userEmail, 1);
             } else {
