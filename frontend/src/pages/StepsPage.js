@@ -149,65 +149,28 @@ const StepsPage = () => {
   }, [progressData?.current_step, bookingProcessing, loading]);
 
   // Handle booking from URL parameter (redirected from Practice Better)
+  // This is a backup in case user returns to same tab with ?booking=success
   useEffect(() => {
     const bookingParam = searchParams.get('booking');
     
-    // Auto flow - show success modal and refresh data
-    // Note: The backend webhook already advanced the user to Step 2
     if (bookingParam === 'success' && !bookingProcessing) {
       setBookingProcessing(true);
-      console.log('Booking success flow detected');
+      console.log('Booking success URL param detected');
       
       // Remove the query parameter from URL
       searchParams.delete('booking');
       setSearchParams(searchParams, { replace: true });
       
-      // Show the success modal
+      // Show the success modal and refresh data
       setShowBookingSuccess(true);
       
-      // The backend webhook already advanced the user, just refresh data
-      const processBooking = async () => {
-        try {
-          const token = localStorage.getItem('access_token');
-          
-          if (token) {
-            // Fetch current user data to check if already advanced
-            const progressRes = await axios.get(`${API}/user/progress`, { 
-              headers: { Authorization: `Bearer ${token}` } 
-            });
-            
-            // If user is still on step 1 (webhook hasn't processed yet), advance them
-            if (progressRes.data?.current_step === 1) {
-              // Get email for webhook
-              let userEmail = null;
-              try {
-                const userRes = await axios.get(`${API}/user/me`, { 
-                  headers: { Authorization: `Bearer ${token}` } 
-                });
-                userEmail = userRes.data?.email;
-              } catch (e) {
-                console.warn('Could not fetch user email');
-              }
-              
-              await axios.post(
-                `${API}/user/complete-task`,
-                { task_id: 'book_consultation' },
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              
-              await axios.post(
-                `${API}/user/advance-step`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              
-              // Send webhook for Step 1 completion (backup if backend webhook failed)
-              if (userEmail) {
-                sendStepCompletionWebhook(userEmail, 1);
-              }
-              
-              console.log('Booking processed, step advanced via frontend');
-            } else {
+      setTimeout(async () => {
+        setShowBookingSuccess(false);
+        setBookingProcessing(false);
+        await fetchData();
+        toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+      }, 3000);
+    }
               console.log('User already advanced to step', progressRes.data?.current_step, '(via backend webhook)');
             }
           }
