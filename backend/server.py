@@ -505,8 +505,6 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             </body>
             </html>
             """
-                                <span class="credential-value">{data.email}</span>
-                            </div>
         })
         logging.info(f"Welcome email with credentials sent to {data.email}")
         await log_activity(
