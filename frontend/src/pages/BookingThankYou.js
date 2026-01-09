@@ -6,64 +6,59 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
  * 
  * Handles redirect from Practice Better after booking.
  * The backend webhook automatically advances the user to Step 2.
+ * The original tab polls for changes and auto-updates.
  * 
  * Flow:
- * - token exists → /steps?booking=success (show success modal, refresh data)
- * - no token → Show friendly message to return to original tab
+ * - token exists → /steps?booking=success (show success modal)
+ * - no token → Show message that original tab will auto-update
  */
 const BookingThankYou = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [showReturnMessage, setShowReturnMessage] = useState(false);
+  const [showMessage, setShowMessage] = useState(false);
   
   const bookingStatus = searchParams.get('status');
 
   useEffect(() => {
     const handleRedirect = () => {
+      // Check if we have a token (same session)
+      let hasToken = false;
+      
       try {
-        // Check if localStorage is available and has token
-        let hasToken = false;
-        
-        try {
-          hasToken = !!localStorage.getItem('access_token');
-        } catch (e) {
-          console.warn('localStorage not available:', e);
-        }
+        hasToken = !!localStorage.getItem('access_token');
+      } catch (e) {
+        console.warn('localStorage not available:', e);
+      }
 
-        console.log('Booking status:', bookingStatus);
-        console.log('Has token:', hasToken);
+      console.log('Booking status:', bookingStatus);
+      console.log('Has token:', hasToken);
 
-        if (bookingStatus === 'booked') {
-          if (hasToken) {
-            // User is logged in - redirect to steps with success
-            console.log('Auto flow: redirecting to /steps?booking=success');
-            navigate('/steps?booking=success', { replace: true });
-          } else {
-            // User's session not available in this tab
-            // The backend webhook already advanced them to Step 2
-            // Show a message to return to their original tab
-            console.log('No session in this tab - showing return message');
-            setShowReturnMessage(true);
-          }
+      if (bookingStatus === 'booked') {
+        if (hasToken) {
+          // Same session - redirect to steps with success flag
+          console.log('Same session: redirecting to /steps?booking=success');
+          navigate('/steps?booking=success', { replace: true });
         } else {
-          // No booking status - redirect based on auth state
-          if (hasToken) {
-            navigate('/steps', { replace: true });
-          } else {
-            navigate('/login', { replace: true });
-          }
+          // Different tab/session - show message
+          // The original tab will auto-update via polling
+          console.log('Different session - showing confirmation message');
+          setShowMessage(true);
         }
-      } catch (error) {
-        console.error('Redirect error:', error);
-        setShowReturnMessage(true);
+      } else {
+        // No booking status
+        if (hasToken) {
+          navigate('/steps', { replace: true });
+        } else {
+          navigate('/login', { replace: true });
+        }
       }
     };
 
     handleRedirect();
   }, [bookingStatus, navigate]);
 
-  // Show return to original tab message
-  if (showReturnMessage) {
+  // Show confirmation message for different tab scenario
+  if (showMessage) {
     return (
       <div className="min-h-screen bg-[#F4F3F2] flex flex-col items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
@@ -74,11 +69,11 @@ const BookingThankYou = () => {
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Booking Confirmed!</h1>
           <p className="text-gray-600 mb-6">
-            Your consultation has been successfully scheduled. Please return to your original browser tab to continue with Step 2.
+            Your consultation has been successfully scheduled.
           </p>
           <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4">
             <p className="text-sm text-teal-800">
-              <strong>Tip:</strong> You can close this tab and go back to where you started the booking.
+              <strong>Your original tab will automatically update</strong> to Step 2 within a few seconds. You can close this tab now.
             </p>
           </div>
           <button
