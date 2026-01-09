@@ -1806,35 +1806,71 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
     auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
     
     try:
-        # Use Resend API (same as webhook emails)
+        # Use Resend API - Simple accessible design for 50+ users
         resend.Emails.send({
             "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
             "to": user["email"],
-            "subject": "Your Wellness Portal Access",
+            "subject": "Access Your Dr. Shumard Portal",
             "html": f"""
             <!DOCTYPE html>
-            <html>
+            <html lang="en">
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Portal Access</title>
             </head>
-            <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);">
-                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
-                    <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
-                        <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
-                        <h1 style="color: white; margin: 0; font-size: 24px;">Welcome Back!</h1>
-                    </div>
-                    <div style="padding: 30px;">
-                        <p style="color: #333; font-size: 16px;">Hello {user.get('name', 'there')},</p>
-                        <p style="color: #666; font-size: 15px;">You can access your wellness portal using the button below:</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="{auto_login_url}" style="display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+            <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <tr>
+                        <td>
+                            <!-- Header -->
+                            <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
                                 Access Your Portal
-                            </a>
-                        </div>
-                        <p style="color: #999; font-size: 13px; text-align: center;">This link is valid for 7 days.</p>
-                    </div>
-                </div>
+                            </h1>
+                            
+                            <!-- Greeting -->
+                            <p style="font-size: 18px; margin: 20px 0;">
+                                Hello {user.get('name', 'there')},
+                            </p>
+                            
+                            <!-- Main Message -->
+                            <p style="margin: 20px 0;">
+                                Click the button below to access your wellness portal. This link will log you in automatically.
+                            </p>
+                            
+                            <!-- Login Button -->
+                            <p style="margin: 30px 0; text-align: center;">
+                                <a href="{auto_login_url}" 
+                                   style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
+                                    ACCESS YOUR PORTAL
+                                </a>
+                            </p>
+                            
+                            <!-- Alternative Link -->
+                            <p style="margin: 20px 0; font-size: 14px;">
+                                If the button doesn't work, copy and paste this link into your browser:<br>
+                                <span style="word-break: break-all;">{auto_login_url}</span>
+                            </p>
+                            
+                            <!-- Note -->
+                            <p style="margin: 25px 0; padding: 15px; border: 1px solid #cccccc; background-color: #f5f5f5;">
+                                <strong>Note:</strong> This link is valid for 7 days. If it expires, you can always log in with your email and password at {frontend_url}/login
+                            </p>
+                            
+                            <!-- Need Help -->
+                            <p style="margin: 30px 0;">
+                                <strong>Need Help?</strong><br>
+                                If you have any questions, please reply to this email or contact our support team.
+                            </p>
+                            
+                            <!-- Footer -->
+                            <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
+                                Best regards,<br>
+                                <strong>Dr. Shumard's Team</strong>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
             </body>
             </html>
             """
