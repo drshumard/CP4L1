@@ -8,7 +8,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
  * 
  * Flow:
  * - localStorage available + token → /steps?booking=success (auto advance)
- * - localStorage unavailable OR no token → /steps?booking=manual (manual confirm modal)
+ * - localStorage unavailable OR no token → /login?booking=success (re-auth then advance)
  */
 const BookingThankYou = () => {
   const [searchParams] = useSearchParams();
@@ -44,21 +44,25 @@ const BookingThankYou = () => {
             console.log('Auto flow: redirecting to /steps?booking=success');
             navigate('/steps?booking=success', { replace: true });
           } else {
-            // Manual flow - localStorage issue or not logged in
-            // Redirect to steps with manual param so they can confirm manually
-            console.log('Manual flow: redirecting to /steps?booking=manual');
-            navigate('/steps?booking=manual', { replace: true });
+            // User lost their session - redirect to login with booking success flag
+            // After they log back in, they'll be advanced to step 2
+            console.log('Session lost: redirecting to /login?booking=success');
+            navigate('/login?booking=success', { replace: true });
           }
         } else {
-          // No booking status - just go to steps
-          navigate('/steps', { replace: true });
+          // No booking status - just go to steps or login
+          if (hasToken) {
+            navigate('/steps', { replace: true });
+          } else {
+            navigate('/login', { replace: true });
+          }
         }
       } catch (error) {
         console.error('Redirect error:', error);
         setError('Something went wrong. Redirecting...');
-        // Fallback - go to steps with manual confirmation
+        // Fallback - go to login with booking success
         setTimeout(() => {
-          window.location.href = '/steps?booking=manual';
+          window.location.href = '/login?booking=success';
         }, 1500);
       }
     };
