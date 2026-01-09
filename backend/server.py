@@ -724,6 +724,59 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
         await db.appointments.insert_one(appointment_data)
         action = "created"
     
+    # AUTO-ADVANCE USER TO STEP 2 if user found and they're on step 1
+    step_advanced = False
+    if user and user.get("current_step", 1) == 1:
+        # Mark booking task as complete
+        progress = await db.progress.find_one({"user_id": user["id"]}, {"_id": 0})
+        if progress:
+            step_progress = next(
+                (p for p in progress.get("progress", []) if p["step_number"] == 1),
+                None
+            )
+            if step_progress and "book_consultation" not in step_progress.get("tasks_completed", []):
+                step_progress["tasks_completed"].append("book_consultation")
+                await db.progress.update_one(
+                    {"user_id": user["id"]},
+                    {"$set": {"progress": progress["progress"]}}
+                )
+        
+        # Advance to step 2
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"current_step": 2}}
+        )
+        await db.progress.update_one(
+            {"user_id": user["id"]},
+            {"$set": {"current_step": 2}}
+        )
+        step_advanced = True
+        
+        # Send webhook to LeadConnector for Step 1 completion
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    "https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/64b3e792-3c1e-4887-b8e3-efa79c58a704",
+                    json={"email": user["email"], "step": 1},
+                    timeout=10.0
+                )
+        except Exception as e:
+            print(f"Failed to send step completion webhook: {e}")
+        
+        await log_activity(
+            event_type="STEP_ADVANCED_VIA_WEBHOOK",
+            user_email=user["email"],
+            user_id=user["id"],
+            details={
+                "from_step": 1,
+                "to_step": 2,
+                "booking_id": data.booking_id,
+                "trigger": "appointment_webhook"
+            },
+            status="success"
+        )
+    
     # Log appointment creation/update
     await log_activity(
         event_type="APPOINTMENT_BOOKED",
@@ -733,7 +786,8 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
             "booking_id": data.booking_id,
             "session_date": data.session_date,
             "action": action,
-            "matched_by": matched_by
+            "matched_by": matched_by,
+            "step_advanced": step_advanced
         },
         status="success"
     )
@@ -742,7 +796,8 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
         "message": f"Appointment {action} successfully",
         "booking_id": data.booking_id,
         "user_found": user is not None,
-        "matched_by": matched_by
+        "matched_by": matched_by,
+        "step_advanced": step_advanced
     }
 
 @api_router.post("/webhook/appointment/cancel")
