@@ -1662,12 +1662,12 @@ class SetStepRequest(BaseModel):
 
 @api_router.post("/admin/user/{user_id}/set-step")
 async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict = Depends(get_admin_user)):
-    """Set a user's current step to a specific value (1-4)"""
-    # Validate step is within range
-    if request.step < 1 or request.step > 4:
+    """Set a user's current step to a specific value (0=refunded, 1-4 normal steps)"""
+    # Validate step is within range (0 = refunded, 1-4 = normal steps)
+    if request.step < 0 or request.step > 4:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Step must be between 1 and 4"
+            detail="Step must be between 0 (refunded) and 4"
         )
     
     # Check if user exists
@@ -1686,7 +1686,16 @@ async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict 
         {"$set": {"current_step": request.step}}
     )
     
+    # Also update progress collection
+    await db.progress.update_one(
+        {"user_id": user_id},
+        {"$set": {"current_step": request.step}}
+    )
+    
     # Log the activity
+    step_name = "Refunded" if request.step == 0 else f"Step {request.step}"
+    old_step_name = "Refunded" if old_step == 0 else f"Step {old_step}"
+    
     await log_activity(
         event_type="USER_STEP_CHANGED",
         user_email=user.get("email"),
@@ -1694,13 +1703,15 @@ async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict 
         details={
             "old_step": old_step,
             "new_step": request.step,
+            "old_step_name": old_step_name,
+            "new_step_name": step_name,
             "changed_by": admin_user.get("email")
         },
         status="success"
     )
     
     return {
-        "message": f"User moved from step {old_step} to step {request.step}",
+        "message": f"User moved from {old_step_name} to {step_name}",
         "old_step": old_step,
         "new_step": request.step
     }
