@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import Signup from './pages/Signup';
@@ -12,10 +12,13 @@ import ResetPassword from './pages/ResetPassword';
 import OutcomePage from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
 import BookingThankYou from './pages/BookingThankYou';
+import RefundedPage from './pages/RefundedPage';
 import SupportPopup from './components/SupportPopup';
 import { Toaster } from './components/ui/sonner';
 import { trackSessionStart, trackApiError } from './utils/analytics';
 import './App.css';
+
+const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
 // Track session start on app load
 if (typeof window !== 'undefined') {
@@ -25,6 +28,58 @@ if (typeof window !== 'undefined') {
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('access_token');
   return token ? children : <Navigate to="/login" />;
+}
+
+// Protected route that checks for refunded status
+function RefundedProtectedRoute({ children }) {
+  const [loading, setLoading] = useState(true);
+  const [isRefunded, setIsRefunded] = useState(false);
+  const token = localStorage.getItem('access_token');
+  const location = useLocation();
+
+  useEffect(() => {
+    const checkRefundedStatus = async () => {
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await axios.get(`${API}/user/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Step 0 = refunded
+        if (res.data?.current_step === 0) {
+          setIsRefunded(true);
+        }
+      } catch (error) {
+        // If error, let other error handlers deal with it
+      }
+      setLoading(false);
+    };
+
+    checkRefundedStatus();
+  }, [token, location.pathname]);
+
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
+      </div>
+    );
+  }
+
+  // If user is refunded, redirect to refunded page
+  if (isRefunded) {
+    return <Navigate to="/refunded" replace />;
+  }
+
+  return children;
 }
 
 // Axios interceptor component
