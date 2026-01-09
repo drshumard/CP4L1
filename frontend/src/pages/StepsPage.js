@@ -171,14 +171,6 @@ const StepsPage = () => {
         toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
       }, 3000);
     }
-              console.log('User already advanced to step', progressRes.data?.current_step, '(via backend webhook)');
-      setTimeout(async () => {
-        setShowBookingSuccess(false);
-        setBookingProcessing(false);
-        await fetchData();
-        toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-      }, 3000);
-    }
     
     // Manual flow - show manual confirm modal (fallback for edge cases)
     if (bookingParam === 'manual' && !bookingProcessing) {
