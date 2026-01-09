@@ -50,6 +50,7 @@ const IntakeForm = ({ userData, onComplete }) => {
     street: '',
     unit: '',
     town: '',
+    state: '',
     postalCode: '',
     country: 'United States',
     email: userData?.email || '',
