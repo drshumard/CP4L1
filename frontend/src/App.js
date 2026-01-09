@@ -143,10 +143,11 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/auto-login/:token" element={<AutoLogin />} />
           <Route path="/booking-complete" element={<BookingThankYou />} />
-          <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/steps" element={<PrivateRoute><StepsPage /></PrivateRoute>} />
-          <Route path="/outcome" element={<PrivateRoute><OutcomePage /></PrivateRoute>} />
+          <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
+          <Route path="/" element={<RefundedProtectedRoute><Dashboard /></RefundedProtectedRoute>} />
+          <Route path="/dashboard" element={<RefundedProtectedRoute><Dashboard /></RefundedProtectedRoute>} />
+          <Route path="/steps" element={<RefundedProtectedRoute><StepsPage /></RefundedProtectedRoute>} />
+          <Route path="/outcome" element={<RefundedProtectedRoute><OutcomePage /></RefundedProtectedRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
           <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
         </Routes>
