@@ -74,6 +74,7 @@ const StepsPage = () => {
   const [showBookingManualConfirm, setShowBookingManualConfirm] = useState(false);
   const [bookingProcessing, setBookingProcessing] = useState(false);
   const [manualConfirmLoading, setManualConfirmLoading] = useState(false);
+  const [previousStep, setPreviousStep] = useState(null);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
   // Helper function to send step completion webhook
@@ -105,6 +106,47 @@ const StepsPage = () => {
   const getUserEmail = () => {
     return userData?.email || null;
   };
+
+  // POLLING: Check for step advancement every 3 seconds while on Step 1
+  // This detects when the backend webhook advances the user after booking
+  useEffect(() => {
+    // Only poll if user is on Step 1 and not currently processing a booking
+    if (progressData?.current_step !== 1 || bookingProcessing || loading) {
+      return;
+    }
+
+    const pollForStepChange = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        const res = await axios.get(`${API}/user/progress`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // If user was advanced to Step 2 (by backend webhook), show success and refresh
+        if (res.data?.current_step === 2 && progressData?.current_step === 1) {
+          console.log('Step advancement detected via polling!');
+          setShowBookingSuccess(true);
+          
+          // After 3 seconds, refresh data and show welcome message
+          setTimeout(async () => {
+            setShowBookingSuccess(false);
+            await fetchData();
+            toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+          }, 3000);
+        }
+      } catch (error) {
+        // Silently fail - polling shouldn't disrupt user experience
+        console.log('Polling check failed:', error.message);
+      }
+    };
+
+    // Poll every 3 seconds
+    const pollInterval = setInterval(pollForStepChange, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [progressData?.current_step, bookingProcessing, loading]);
 
   // Handle booking from URL parameter (redirected from Practice Better)
   useEffect(() => {
