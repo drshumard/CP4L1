@@ -47,8 +47,8 @@ const RefundedPage = () => {
           {/* Support info */}
           <p className="text-sm text-gray-500 mt-6">
             Questions? Contact us at{' '}
-            <a href="mailto:support@drshumard.com" className="text-teal-600 underline">
-              support@drshumard.com
+            <a href="mailto:concierge@drshumard.com" className="text-teal-600 underline">
+              concierge@drshumard.com
             </a>
           </p>
         </CardContent>
