@@ -27,6 +27,7 @@ const PracticeBetterEmbed = ({
   type = 'booking', // 'booking' or 'form'
   onLoad,
   onError,
+  onBookingComplete, // Callback when booking is confirmed (for Safari fallback)
   className = '',
   minHeight = 800,
   fillContainer = false, // When true, iframe fills container height instead of using minHeight
