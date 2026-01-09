@@ -2923,7 +2923,13 @@ class BackendTester:
             
             # NEW FEATURE TESTS - Admin Reset and Toast Deduplication
             self.test_admin_reset_progress_with_intake_clear,
-            self.test_toast_message_deduplication_code_check
+            self.test_toast_message_deduplication_code_check,
+            
+            # REFUNDED STEP FUNCTIONALITY TESTS
+            self.test_refunded_step_set_user_to_step_0,
+            self.test_refunded_user_access_restrictions,
+            self.test_reset_user_to_step_1,
+            self.test_resend_welcome_email
         ]
         
         passed = 0
