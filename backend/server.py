@@ -417,147 +417,94 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
             "subject": "Welcome to Your Diabetes Reversal Journey",
             "html": f"""
             <!DOCTYPE html>
-            <html>
+            <html lang="en">
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <meta name="color-scheme" content="light only">
-                <meta name="supported-color-schemes" content="light">
-                <style>
-                    body {{
-                        margin: 0;
-                        padding: 0;
-                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-                        background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%);
-                    }}
-                    .container {{
-                        max-width: 600px;
-                        margin: 40px auto;
-                        background: white;
-                        border-radius: 16px;
-                        overflow: hidden;
-                        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-                    }}
-                    .header {{
-                        background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
-                        padding: 40px 30px;
-                        text-align: center;
-                    }}
-                    .header h1 {{
-                        color: white;
-                        margin: 0;
-                        font-size: 28px;
-                        font-weight: 700;
-                    }}
-                    .content {{
-                        padding: 40px 30px;
-                    }}
-                    .greeting {{
-                        font-size: 24px;
-                        color: #1e293b;
-                        font-weight: 600;
-                        margin-bottom: 16px;
-                    }}
-                    .message {{
-                        color: #64748b;
-                        font-size: 16px;
-                        line-height: 1.6;
-                        margin-bottom: 30px;
-                    }}
-                    .credentials-card {{
-                        background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);
-                        border-radius: 12px;
-                        padding: 24px;
-                        margin: 24px 0;
-                        border: 1px solid #A5F3FC;
-                    }}
-                    .credentials-title {{
-                        color: #0d9488;
-                        font-size: 18px;
-                        font-weight: 600;
-                        margin-bottom: 16px;
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                    }}
-                    .credential-row {{
-                        margin: 12px 0;
-                        color: #475569;
-                    }}
-                    .credential-label {{
-                        font-weight: 600;
-                        margin-right: 8px;
-                        color: #000000;
-                    }}
-                    .credential-value {{
-                        font-family: 'Courier New', monospace;
-                        background: white !important;
-                        padding: 8px 12px;
-                        border-radius: 6px;
-                        display: inline-block;
-                        font-size: 16px;
-                        font-weight: bold;
-                        color: #1e293b !important;
-                        border: 1px solid #cbd5e1;
-                    }}
-                    .button {{
-                        display: inline-block;
-                        margin-top: 24px;
-                        padding: 16px 32px;
-                        background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 10px;
-                        font-weight: 600;
-                        font-size: 16px;
-                        box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
-                    }}
-                    .button:hover {{
-                        background: linear-gradient(135deg, #0f766e 0%, #0e7490 100%);
-                    }}
-                    .important-note {{
-                        background: #fef3c7;
-                        border-left: 4px solid #f59e0b;
-                        padding: 16px;
-                        border-radius: 6px;
-                        margin: 24px 0;
-                        color: #92400e;
-                        font-size: 14px;
-                    }}
-                    .footer {{
-                        background: #f8fafc;
-                        padding: 30px;
-                        text-align: center;
-                        border-top: 1px solid #e2e8f0;
-                        color: #94a3b8;
-                        font-size: 13px;
-                    }}
-                    .divider {{
-                        height: 1px;
-                        background: #e2e8f0;
-                        margin: 30px 0;
-                    }}
-                </style>
+                <title>Welcome to Dr. Shumard's Portal</title>
             </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>Welcome to Your Wellness Portal</h1>
-                    </div>
-                    
-                    <div class="content">
-                        <div class="greeting">Hello {data.name}!</div>
-                        
-                        <p class="message">
-                            We're thrilled to have you begin your diabetes wellness journey with us! Your account has been created and is ready to go.
-                        </p>
-                        
-                        <div class="credentials-card">
-                            <div class="credentials-title">
-                                🔐 Your Login Credentials
-                            </div>
-                            <div style="margin: 12px 0;">
-                                <span style="font-weight: 600; margin-right: 8px; color: #0d9488 !important; -webkit-text-fill-color: #0d9488 !important;">Email:</span>
+            <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <tr>
+                        <td>
+                            <!-- Header -->
+                            <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
+                                Welcome to Dr. Shumard's Portal
+                            </h1>
+                            
+                            <!-- Greeting -->
+                            <p style="font-size: 18px; margin: 20px 0;">
+                                Hello {data.name},
+                            </p>
+                            
+                            <!-- Main Message -->
+                            <p style="margin: 20px 0;">
+                                Thank you for joining us. Your account has been created and you can now access your wellness portal.
+                            </p>
+                            
+                            <!-- Credentials Box -->
+                            <table width="100%" cellpadding="15" cellspacing="0" border="1" style="border-color: #000000; border-collapse: collapse; margin: 25px 0;">
+                                <tr>
+                                    <td colspan="2" style="background-color: #f5f5f5; font-weight: bold; font-size: 18px;">
+                                        Your Login Information
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; width: 120px;">Email:</td>
+                                    <td style="font-size: 16px;">{email_lower}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold;">Password:</td>
+                                    <td style="font-family: Courier, monospace; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{generated_password}</td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Important Note -->
+                            <p style="margin: 25px 0; padding: 15px; border: 2px solid #000000; background-color: #fffde7;">
+                                <strong>IMPORTANT:</strong> Please save your password in a safe place. You will need it to log into your portal.
+                            </p>
+                            
+                            <!-- Login Button -->
+                            <p style="margin: 30px 0; text-align: center;">
+                                <a href="{frontend_url}/login" 
+                                   style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
+                                    LOG IN TO YOUR PORTAL
+                                </a>
+                            </p>
+                            
+                            <!-- Alternative Link -->
+                            <p style="margin: 20px 0; font-size: 14px;">
+                                If the button above doesn't work, copy and paste this link into your browser:<br>
+                                <span style="word-break: break-all;">{frontend_url}/login</span>
+                            </p>
+                            
+                            <!-- What's Next -->
+                            <h2 style="font-size: 18px; color: #000000; margin: 30px 0 15px 0; border-bottom: 1px solid #cccccc; padding-bottom: 10px;">
+                                What to Do Next
+                            </h2>
+                            <ol style="margin: 15px 0; padding-left: 25px;">
+                                <li style="margin: 10px 0;"><strong>Step 1:</strong> Book your initial consultation</li>
+                                <li style="margin: 10px 0;"><strong>Step 2:</strong> Complete your health profile form</li>
+                                <li style="margin: 10px 0;"><strong>Step 3:</strong> Review final preparations for your appointment</li>
+                            </ol>
+                            
+                            <!-- Need Help -->
+                            <p style="margin: 30px 0; padding: 15px; background-color: #f5f5f5;">
+                                <strong>Need Help?</strong><br>
+                                If you have any questions or need assistance, please reply to this email or contact our support team.
+                            </p>
+                            
+                            <!-- Footer -->
+                            <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
+                                Best regards,<br>
+                                <strong>Dr. Shumard's Team</strong>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """
                                 <span class="credential-value">{data.email}</span>
                             </div>
                             <div style="margin: 12px 0;">
