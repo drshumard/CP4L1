@@ -483,7 +483,7 @@ class PracticeBetterService:
         days: int = 14,
         correlation_id: str = None
     ) -> Tuple[List[TimeSlot], List[str]]:
-        """Get availability for all consultants using /public/availability endpoint"""
+        """Get availability for all consultants using /consultant/availability/slots endpoint"""
         cid = correlation_id or str(uuid.uuid4())[:8]
         
         cache_key = f"{start_date}:{days}"
@@ -506,21 +506,24 @@ class PracticeBetterService:
                 consultant_name = f"{consultant.get('firstName', '')} {consultant.get('lastName', '')}".strip()
             
             try:
-                # Use /public/availability endpoint with correct parameters
+                # Use /consultant/availability/slots endpoint
                 result = await self._request(
                     "GET",
-                    "/public/availability",
+                    "/consultant/availability/slots",
                     correlation_id=cid,
                     params={
-                        "as_consultant": consultant_id,
-                        "day": start_date,
+                        "consultantId": consultant_id,
                         "serviceId": self.config.service_id,
-                        "type": self.config.session_type,
+                        "startDate": start_date,
+                        "days": days,
+                        "duration": self.config.session_duration * 60,
                     }
                 )
                 
                 # Parse the availability response
-                slots_data = result if isinstance(result, list) else result.get("items", result.get("slots", []))
+                slots_data = result.get("items", result.get("slots", []))
+                if isinstance(result, list):
+                    slots_data = result
                 
                 for slot_data in slots_data:
                     # Handle different response formats
