@@ -553,29 +553,32 @@ export function OnboardingBooking({
   return (
     <div className={styles.container}>
       {/* Header */}
-      <header className={styles.header}>
+      <header className={styles.header} style={{ paddingTop: step === 'select-date' ? '8px' : '16px', paddingBottom: '8px' }}>
         <div className={styles.headerTop}>
           {(step === 'select-time' || step === 'fill-form') && (
             <button className={styles.backButton} onClick={handleBack} type="button">
               ← Back
             </button>
           )}
-          <span className={styles.headerTimezone}>{timezone.replace(/_/g, ' ')}</span>
+          {/* Only show timezone on time selection and form steps */}
+          {step !== 'select-date' && (
+            <span className={styles.headerTimezone}>{timezone.replace(/_/g, ' ')}</span>
+          )}
         </div>
 
         <div className={styles.headerMain}>
-          <h1 className={styles.headerTitle} style={{ textAlign: 'center' }}>
+          <h1 className={styles.headerTitle} style={{ textAlign: 'center', marginBottom: step === 'select-date' ? '4px' : '8px' }}>
             {step === 'select-date' && 'Step 1: Book Your One-On-One Consult'}
             {step === 'select-time' && formatDateFull(selectedDate)}
             {step === 'fill-form' && 'Your Details'}
           </h1>
           {step === 'select-date' && (
-            <p className={styles.headerSubtitle} style={{ textAlign: 'center' }}>Select a date and time for your consultation</p>
+            <p className={styles.headerSubtitle} style={{ textAlign: 'center', marginBottom: '0' }}>Select a date and time for your consultation</p>
           )}
         </div>
       </header>
 
-      <div className={styles.divider} />
+      {step !== 'select-date' && <div className={styles.divider} />}
 
       {/* Slot Expired Banner */}
       {isSlotExpired && (
