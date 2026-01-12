@@ -229,6 +229,7 @@ export function formatTimeRange(startTime, endTime) {
 
 /**
  * Group slots by date for calendar display
+ * Deduplicates slots with the same start time (picks first available consultant)
  */
 export function groupSlotsByDate(slots) {
   return slots.reduce((acc, slot) => {
@@ -236,7 +237,17 @@ export function groupSlotsByDate(slots) {
     if (!acc[date]) {
       acc[date] = [];
     }
-    acc[date].push(slot);
+    
+    // Check if we already have a slot at this exact time
+    const existingSlotIndex = acc[date].findIndex(
+      s => s.start_time === slot.start_time
+    );
+    
+    // Only add if no slot exists at this time (deduplicate)
+    if (existingSlotIndex === -1) {
+      acc[date].push(slot);
+    }
+    
     return acc;
   }, {});
 }
