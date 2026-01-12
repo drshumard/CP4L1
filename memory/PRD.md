@@ -16,11 +16,18 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 
 ### Step 1: Video + Booking
 - [x] Educational video display (with mobile-specific views)
-- [x] Practice Better booking embed
+- [x] **NEW: Custom Booking Calendar** (replaced Practice Better iframe)
+  - Practice Better API integration via `/company/administration/members` and `/consultant/availability/slots`
+  - 6 configured practitioners with availability
+  - React Query for data fetching with 60s cache
+  - Calendar view showing dates with availability
+  - Time slot selection with booking form
+  - Pre-populated user information
 - [x] Backend webhook from Practice Better for step advancement
 - [x] Frontend polling for seamless step transitions
 - [x] Manual "I've Booked My Call" fallback button
 - [x] LeadConnector webhook on step completion
+- [x] ROACH checkpoint: Old Practice Better iframe preserved in comments for rollback
 
 ### Step 2: Intake Form
 - [x] Part 1: Diabetes Profile (personal info, health history, symptoms)
