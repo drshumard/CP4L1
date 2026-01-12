@@ -92,5 +92,12 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 - User: `raymond@fireside360.co.uk` / `akosua1001`
 - Admin: `testadmin@test.com` / `test123`
 
+## API Endpoints (Custom Booking)
+- `GET /api/booking/health` - Health check, returns Practice Better connection status
+- `GET /api/booking/availability?start_date=YYYY-MM-DD&days=14` - Get available slots
+- `GET /api/booking/availability/{date}` - Get slots for specific date
+- `POST /api/booking/book` - Book a session
+- `GET /api/booking/cache-status` - Cache status info
+
 ## Last Updated
-January 2026 - Added required validation for address fields in intake form
+January 2026 - Replaced Practice Better iframe with custom booking calendar widget using Practice Better API
