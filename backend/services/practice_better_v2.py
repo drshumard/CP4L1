@@ -467,7 +467,8 @@ class PracticeBetterService:
         team_members = result.get("members", result.get("items", []))
         consultants = [
             member for member in team_members
-            if member.get("status") == "active" and member.get("role") in ["owner", "practitioner"]
+            if member.get("activationStatus") == "activated" and 
+               (member.get("isOwner") or member.get("isPractitioner"))
         ]
         
         # If practitioner IDs are configured, filter to only those
