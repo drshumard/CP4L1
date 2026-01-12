@@ -1048,7 +1048,23 @@ const StepsPage = () => {
                       // Store the Practice Better client record ID for Step 3 activation
                       if (bookingResult?.client_record_id) {
                         setPbClientRecordId(bookingResult.client_record_id);
-                        // Also save to localStorage for persistence
+                        localStorage.setItem('pb_client_record_id', bookingResult.client_record_id);
+                      }
+                      
+                      // Just refresh data and show success - the advance-step was already called
+                      // by the OnboardingBooking component's internal flow
+                      setShowBookingSuccess(false);
+                      setBookingProcessing(false);
+                      await fetchData();
+                      toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+                    }}
+                    onBookingSuccess={async (bookingResult) => {
+                      // This is called immediately when booking succeeds (before redirect)
+                      console.log('Booking success - advancing to Step 2:', bookingResult);
+                      
+                      // Store the Practice Better client record ID
+                      if (bookingResult?.client_record_id) {
+                        setPbClientRecordId(bookingResult.client_record_id);
                         localStorage.setItem('pb_client_record_id', bookingResult.client_record_id);
                       }
                       
@@ -1073,13 +1089,6 @@ const StepsPage = () => {
                       } catch (error) {
                         console.error('Error advancing step:', error);
                       }
-                      
-                      setTimeout(async () => {
-                        setShowBookingSuccess(false);
-                        setBookingProcessing(false);
-                        await fetchData();
-                        toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-                      }, 3000);
                     }}
                   />
                     
