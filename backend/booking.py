@@ -371,19 +371,24 @@ async def book_session(
         today = date.today().isoformat()
         cached_slots, _ = await get_cached_availability(today, 60, pb_service)
         
-        # Check if slot exists in cache
-        slot_exists = any(
-            slot.consultant_id == request.consultant_id and
-            slot.start_time.isoformat().replace("+00:00", "Z") == request.slot_start_time
-            for slot in cached_slots
-        )
+        # Find any slot at the requested time (frontend may send different consultant due to deduplication)
+        matching_slot = None
+        for slot in cached_slots:
+            slot_time = slot.start_time.isoformat().replace("+00:00", "Z")
+            if slot_time == request.slot_start_time:
+                matching_slot = slot
+                break
         
-        if not slot_exists:
+        if not matching_slot:
             await idempotency_store.remove(request.email, request.consultant_id, request.slot_start_time)
             raise HTTPException(
                 status_code=409,
                 detail="This time slot is no longer available. Please select another time."
             )
+        
+        # Use the consultant from the matching slot (may differ from frontend request)
+        actual_consultant_id = matching_slot.consultant_id
+        logger.info(f"[{correlation_id}] Using consultant {actual_consultant_id} for slot {request.slot_start_time}")
         
         booking_request = BookingRequest(
             first_name=request.first_name,
@@ -392,7 +397,7 @@ async def book_session(
             phone=request.phone,
             timezone=request.timezone,
             slot_start_time=request.slot_start_time,
-            consultant_id=request.consultant_id,
+            consultant_id=actual_consultant_id,  # Use the actual consultant with this slot
             notes=request.notes
         )
         
