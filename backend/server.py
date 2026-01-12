@@ -2208,3 +2208,9 @@ logger = logging.getLogger(__name__)
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    # Shutdown Practice Better service
+    try:
+        from services.practice_better_v2 import shutdown_service
+        await shutdown_service()
+    except Exception as e:
+        logger.warning(f"Error shutting down Practice Better service: {e}")
