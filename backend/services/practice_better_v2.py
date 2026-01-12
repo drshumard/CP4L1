@@ -506,43 +506,35 @@ class PracticeBetterService:
                 consultant_name = f"{consultant.get('firstName', '')} {consultant.get('lastName', '')}".strip()
             
             try:
-                # Use /consultant/availability/slots endpoint
+                # Use /consultant/availability/slots endpoint with correct params
                 result = await self._request(
                     "GET",
                     "/consultant/availability/slots",
                     correlation_id=cid,
                     params={
-                        "consultantId": consultant_id,
+                        "as_consultant": consultant_id,
+                        "day": start_date,
                         "serviceId": self.config.service_id,
-                        "startDate": start_date,
-                        "days": days,
-                        "duration": self.config.session_duration * 60,
+                        "type": self.config.session_type,
                     }
                 )
                 
-                # Parse the availability response
-                slots_data = result.get("items", result.get("slots", []))
-                if isinstance(result, list):
-                    slots_data = result
+                # Response is a list of slots directly
+                slots_data = result if isinstance(result, list) else result.get("items", result.get("slots", []))
                 
                 for slot_data in slots_data:
-                    # Handle different response formats
-                    if isinstance(slot_data, str):
-                        # If slots are returned as ISO strings
-                        start_time = datetime.fromisoformat(slot_data.replace("Z", "+00:00"))
-                        end_time = start_time + timedelta(minutes=self.config.session_duration)
+                    # Parse startDate and endDate from response
+                    start_str = slot_data.get("startDate") or slot_data.get("startTime") or slot_data.get("start")
+                    if start_str:
+                        start_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
                     else:
-                        start_str = slot_data.get("startTime") or slot_data.get("start") or slot_data.get("time")
-                        if start_str:
-                            start_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-                        else:
-                            continue
-                        
-                        end_str = slot_data.get("endTime") or slot_data.get("end")
-                        if end_str:
-                            end_time = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-                        else:
-                            end_time = start_time + timedelta(minutes=self.config.session_duration)
+                        continue
+                    
+                    end_str = slot_data.get("endDate") or slot_data.get("endTime") or slot_data.get("end")
+                    if end_str:
+                        end_time = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                    else:
+                        end_time = start_time + timedelta(minutes=self.config.session_duration)
                     
                     slot = TimeSlot(
                         start_time=start_time,
