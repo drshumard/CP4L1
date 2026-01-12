@@ -531,7 +531,12 @@ export function OnboardingBooking({
 
   const handleDone = useCallback(() => {
     if (bookingResult && onBookingComplete) {
-      onBookingComplete(bookingResult.sessionId);
+      // Pass the full booking result including client_record_id for Step 3 activation
+      onBookingComplete({
+        session_id: bookingResult.sessionId,
+        client_record_id: bookingResult.clientRecordId,
+        is_new_client: bookingResult.isNewClient,
+      });
     }
   }, [bookingResult, onBookingComplete]);
 
