@@ -137,9 +137,29 @@ function SuccessState({
   portalBaseUrl,
   onDone,
 }) {
-  const activationUrl = clientRecordId && isNewClient
-    ? `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`
-    : null;
+  const [countdown, setCountdown] = React.useState(5);
+  const [isRedirecting, setIsRedirecting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!onDone) return;
+    
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsRedirecting(true);
+          // Trigger the redirect
+          setTimeout(() => {
+            onDone();
+          }, 500);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [onDone]);
 
   return (
     <div className={styles.successContainer}>
@@ -155,21 +175,24 @@ function SuccessState({
         )}
         <p className={styles.successNote}>Check your email for confirmation details</p>
 
-        {activationUrl && (
-          <a
-            href={activationUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.activateButton}
-          >
-            Activate Your Account
-          </a>
-        )}
-
         {onDone && (
-          <button onClick={onDone} className={styles.doneButton}>
-            Done
-          </button>
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            {isRedirecting ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div className={styles.loadingSpinner} />
+                <p style={{ color: '#64748b', fontSize: '14px' }}>Moving you to Step 2...</p>
+              </div>
+            ) : (
+              <>
+                <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '12px' }}>
+                  Redirecting to Step 2 in {countdown} seconds...
+                </p>
+                <button onClick={onDone} className={styles.doneButton}>
+                  Click here if not automatically redirected
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>
