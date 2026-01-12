@@ -1213,91 +1213,77 @@ const StepsPage = () => {
             </div>
           </div>
 
-          {/* Practice Better Activation Card - Step 3 Only */}
-          <Card className="glass-dark border-0 shadow-xl overflow-hidden mb-6" data-testid="practice-better-activation-card">
-            <CardContent className="p-4 sm:p-6">
-              <div className="text-center mb-6">
-                <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
-                  Activate Your Practice Better Portal
+          {/* Onboarding Complete - Activation Card */}
+          <Card className="glass-dark border-0 shadow-xl overflow-hidden mb-6" data-testid="onboarding-complete-card">
+            <CardContent className="p-6 sm:p-8">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-10 h-10 text-white" />
+                </div>
+                <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
+                  Your Onboarding is Complete!
                 </h3>
-                <p className="text-gray-600">
-                  Check your email inbox for an invitation from Practice Better that looks like this:
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  Click below to activate your Practice Better Health Portal and access your personalized care dashboard.
+                </p>
+                
+                <Button
+                  onClick={async () => {
+                    trackButtonClicked('activate_practice_better_portal', 'steps_page');
+                    
+                    // Mark as complete
+                    try {
+                      const token = localStorage.getItem('access_token');
+                      if (token) {
+                        await axios.post(
+                          `${API}/user/complete-task`,
+                          { task_id: 'activate_portal' },
+                          { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                        await axios.post(
+                          `${API}/user/advance-step`,
+                          {},
+                          { headers: { Authorization: `Bearer ${token}` } }
+                        );
+                      }
+                    } catch (error) {
+                      console.error('Error marking complete:', error);
+                    }
+                    
+                    // Get the client record ID and build activation URL
+                    const clientRecordId = pbClientRecordId || localStorage.getItem('pb_client_record_id');
+                    const portalBaseUrl = 'https://portal.practicebetter.io';
+                    
+                    if (clientRecordId) {
+                      // Calculate activation ID (same logic as OnboardingBooking)
+                      const calculateActivationId = (recordId) => {
+                        const timestamp = parseInt(recordId.substring(0, 8), 16);
+                        const activationId = timestamp.toString(16).padStart(8, '0') + recordId.substring(8);
+                        return activationId;
+                      };
+                      const activationUrl = `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`;
+                      window.open(activationUrl, '_blank');
+                    } else {
+                      // Fallback to generic portal URL
+                      window.open('https://drshumard.practicebetter.io', '_blank');
+                    }
+                    
+                    // Refresh data to show completion state
+                    await fetchData();
+                  }}
+                  className="w-full max-w-sm bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg"
+                  data-testid="activate-portal-button"
+                >
+                  Activate Your Practice Better Portal
+                </Button>
+                
+                <p className="text-gray-500 text-sm mt-4 italic">
+                  Can&apos;t find the activation email? Check your spam folder.
                 </p>
               </div>
-              
-              {/* Image from CDN */}
-              <div className="flex justify-center mb-6">
-                <img 
-                  src="https://portal-drshumard.b-cdn.net/Screenshot%202025-12-30%20at%2022.03.52.png"
-                  alt="Practice Better invitation email example"
-                  className="max-w-full h-auto rounded-lg shadow-lg border border-gray-200"
-                  style={{ maxHeight: '400px' }}
-                />
-              </div>
-              
-              <p className="text-center text-gray-700 mb-6">
-                Click the <strong>&quot;Activate My Account&quot;</strong> button in that email to set up your portal.
-              </p>
-              
-              {/* Email Provider Buttons */}
-              <div className="space-y-3">
-                <p className="text-center text-sm text-gray-600 font-medium">Open your email:</p>
-                <div className="flex flex-wrap justify-center gap-3">
-                  <a
-                    href="https://mail.google.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackButtonClicked('open_gmail', 'steps_page')}
-                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="#EA4335"/>
-                    </svg>
-                    <span className="font-medium text-gray-700">Gmail</span>
-                  </a>
-                  <a
-                    href="https://outlook.live.com/mail"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackButtonClicked('open_outlook', 'steps_page')}
-                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="#0078D4"/>
-                    </svg>
-                    <span className="font-medium text-gray-700">Outlook</span>
-                  </a>
-                  <a
-                    href="https://mail.yahoo.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => trackButtonClicked('open_yahoo', 'steps_page')}
-                    className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
-                      <path d="M22 6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6ZM20 6L12 11L4 6H20ZM20 18H4V8L12 13L20 8V18Z" fill="#6001D2"/>
-                    </svg>
-                    <span className="font-medium text-gray-700">Yahoo</span>
-                  </a>
-                </div>
-              </div>
-              
-              <p className="text-center text-gray-500 text-sm mt-4 italic">
-                Can&apos;t find it? Check your spam or junk folder.
-              </p>
             </CardContent>
           </Card>
-
-          {/* Complete Onboarding Button */}
-          <div className="flex justify-center mt-6">
-            <Button
-              onClick={() => {
-                trackButtonClicked('complete_onboarding_step3', 'steps_page');
-                handleAdvanceStep();
-              }}
-              className="w-full max-w-md bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg"
-              data-testid="submit-button"
-            >
+        </>
               Complete Onboarding
             </Button>
           </div>
