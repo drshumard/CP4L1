@@ -126,10 +126,10 @@ class ErrorResponse(BaseModel):
 # Dependencies
 # ============================================================================
 
-# Cache TTL: 5 minutes (300 seconds) for background refresh
+# Cache TTL: 2 minutes (120 seconds) for background refresh
 # Frontend polling is now just a fallback
-AVAILABILITY_CACHE_TTL = int(os.environ.get("AVAILABILITY_CACHE_TTL", "300"))  # 5 minutes default
-BACKGROUND_REFRESH_INTERVAL = int(os.environ.get("BACKGROUND_REFRESH_INTERVAL", "300"))  # 5 minutes
+AVAILABILITY_CACHE_TTL = int(os.environ.get("AVAILABILITY_CACHE_TTL", "120"))  # 2 minutes default
+BACKGROUND_REFRESH_INTERVAL = int(os.environ.get("BACKGROUND_REFRESH_INTERVAL", "120"))  # 2 minutes
 
 _availability_cache: dict = {}
 _background_task: Optional[asyncio.Task] = None
