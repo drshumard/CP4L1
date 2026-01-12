@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { toast } from 'sonner';
 import Signup from './pages/Signup';
@@ -17,6 +18,16 @@ import SupportPopup from './components/SupportPopup';
 import { Toaster } from './components/ui/sonner';
 import { trackSessionStart, trackApiError } from './utils/analytics';
 import './App.css';
+
+// Create React Query client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,
+      retry: 2,
+    },
+  },
+});
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 
