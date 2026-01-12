@@ -508,12 +508,24 @@ export function OnboardingBooking({
         notes: formData.notes.trim() || undefined,
       });
 
-      setBookingResult({
+      const bookingData = {
         isNewClient: result.is_new_client,
         clientRecordId: result.client_record_id,
         sessionId: result.session_id,
-      });
+      };
+      
+      setBookingResult(bookingData);
       setStep('success');
+      
+      // Call onBookingSuccess immediately to advance step (only once)
+      if (onBookingSuccess && !hasAdvancedStep) {
+        setHasAdvancedStep(true);
+        onBookingSuccess({
+          session_id: result.session_id,
+          client_record_id: result.client_record_id,
+          is_new_client: result.is_new_client,
+        });
+      }
 
     } catch (err) {
       // Check if it's a slot unavailable error
@@ -529,7 +541,7 @@ export function OnboardingBooking({
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedSlot, validateForm, isSubmitting, formData, timezone, bookSession, refetchAvailability]);
+  }, [selectedSlot, validateForm, isSubmitting, formData, timezone, bookSession, refetchAvailability, onBookingSuccess, hasAdvancedStep]);
 
   const handleDone = useCallback(() => {
     if (bookingResult && onBookingComplete) {
