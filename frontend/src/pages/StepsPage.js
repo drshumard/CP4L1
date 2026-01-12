@@ -1064,53 +1064,45 @@ const StepsPage = () => {
             <div className="lg:h-full w-full">
               <Card className="glass-dark border-0 shadow-xl lg:h-full flex flex-col w-full" data-testid="booking-card">
                 <CardContent className="p-3 sm:p-4 md:p-6 lg:flex-1 flex flex-col lg:overflow-hidden w-full">
-                  <h3 className="text-base sm:text-lg font-bold text-gray-800 mb-3 sm:mb-4 text-center">STEP 1: BOOK YOUR ONE-ON-ONE CONSULT</h3>
-                  
-                  <div className="bg-white rounded-lg p-2 sm:p-3 md:p-4 border-2 border-teal-600 lg:flex-1 lg:overflow-visible w-full" data-testid="booking-calendar">
-                    <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4">
-                      <Calendar className="text-teal-600 flex-shrink-0" size={24} />
-                      <p className="text-gray-700 font-medium text-sm sm:text-base md:text-lg">Select Your Appointment Time</p>
-                    </div>
-
-                    {/* NEW Custom Booking Component - v2 */}
-                    <OnboardingBooking 
-                      clientInfo={{
-                        firstName: userData?.first_name || '',
-                        lastName: userData?.last_name || '',
-                        email: userData?.email || '',
-                      }}
-                      onBookingComplete={async (sessionId) => {
-                        console.log('Booking completed via custom widget:', sessionId);
-                        setBookingProcessing(true);
-                        setShowBookingSuccess(true);
-                        
-                        // Advance user to Step 2
-                        try {
-                          const token = localStorage.getItem('access_token');
-                          if (token) {
-                            await axios.post(
-                              `${API}/user/complete-task`,
-                              { task_id: 'book_consultation' },
-                              { headers: { Authorization: `Bearer ${token}` } }
-                            );
-                            await axios.post(
-                              `${API}/user/advance-step`,
-                              {},
-                              { headers: { Authorization: `Bearer ${token}` } }
-                            );
-                          }
-                        } catch (error) {
-                          console.error('Error advancing step:', error);
+                  {/* Custom Booking Component - v2 (has its own container styling) */}
+                  <OnboardingBooking 
+                    clientInfo={{
+                      firstName: userData?.first_name || '',
+                      lastName: userData?.last_name || '',
+                      email: userData?.email || '',
+                    }}
+                    onBookingComplete={async (sessionId) => {
+                      console.log('Booking completed via custom widget:', sessionId);
+                      setBookingProcessing(true);
+                      setShowBookingSuccess(true);
+                      
+                      // Advance user to Step 2
+                      try {
+                        const token = localStorage.getItem('access_token');
+                        if (token) {
+                          await axios.post(
+                            `${API}/user/complete-task`,
+                            { task_id: 'book_consultation' },
+                            { headers: { Authorization: `Bearer ${token}` } }
+                          );
+                          await axios.post(
+                            `${API}/user/advance-step`,
+                            {},
+                            { headers: { Authorization: `Bearer ${token}` } }
+                          );
                         }
-                        
-                        setTimeout(async () => {
-                          setShowBookingSuccess(false);
-                          setBookingProcessing(false);
-                          await fetchData();
-                          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
-                        }, 3000);
-                      }}
-                    />
+                      } catch (error) {
+                        console.error('Error advancing step:', error);
+                      }
+                      
+                      setTimeout(async () => {
+                        setShowBookingSuccess(false);
+                        setBookingProcessing(false);
+                        await fetchData();
+                        toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+                      }, 3000);
+                    }}
+                  />
                     
                     {/* ROACH CHECKPOINT: Old PracticeBetterEmbed preserved for rollback if needed
                     <PracticeBetterEmbed 
