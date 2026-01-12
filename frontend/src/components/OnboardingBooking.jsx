@@ -541,13 +541,13 @@ export function OnboardingBooking({
         </div>
 
         <div className={styles.headerMain}>
-          <h1 className={styles.headerTitle}>
-            {step === 'select-date' && 'Book Your Onboarding Call'}
+          <h1 className={styles.headerTitle} style={{ textAlign: 'center' }}>
+            {step === 'select-date' && 'Step 1: Book Your One-On-One Consult'}
             {step === 'select-time' && formatDateFull(selectedDate)}
             {step === 'fill-form' && 'Your Details'}
           </h1>
           {step === 'select-date' && (
-            <p className={styles.headerSubtitle}>Select a date and time for your consultation</p>
+            <p className={styles.headerSubtitle} style={{ textAlign: 'center' }}>Select a date and time for your consultation</p>
           )}
         </div>
       </header>
