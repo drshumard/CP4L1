@@ -230,9 +230,10 @@ export function formatTimeRange(startTime, endTime) {
 /**
  * Group slots by date for calendar display
  * Deduplicates slots with the same start time (picks first available consultant)
+ * Sorts slots by time within each date
  */
 export function groupSlotsByDate(slots) {
-  return slots.reduce((acc, slot) => {
+  const grouped = slots.reduce((acc, slot) => {
     const date = slot.start_time.split('T')[0];
     if (!acc[date]) {
       acc[date] = [];
@@ -250,6 +251,13 @@ export function groupSlotsByDate(slots) {
     
     return acc;
   }, {});
+  
+  // Sort slots within each date by start time
+  Object.keys(grouped).forEach(date => {
+    grouped[date].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  });
+  
+  return grouped;
 }
 
 /**
