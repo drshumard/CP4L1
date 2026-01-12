@@ -340,26 +340,41 @@ export function OnboardingBooking({
 
   const bookSession = useBookSession();
 
-  // Derived data
+  // Configuration for availability window
+  const AVAILABILITY_DAYS = 14;
+
+  // Derived data - filter to only show dates within AVAILABILITY_DAYS
   const slotsByDate = useMemo(() => {
     if (!availability?.slots) return {};
-    return groupSlotsByDate(availability.slots);
-  }, [availability?.slots]);
+    return groupSlotsByDate(availability.slots, today, AVAILABILITY_DAYS);
+  }, [availability?.slots, today]);
 
   const slotsForSelectedDate = useMemo(() => {
     if (!selectedDate || !slotsByDate[selectedDate]) return [];
     return slotsByDate[selectedDate];
   }, [selectedDate, slotsByDate]);
 
+  // Filter dates_with_availability to only include dates within the window
+  const filteredDatesWithAvailability = useMemo(() => {
+    if (!availability?.dates_with_availability) return [];
+    const cutoffDate = new Date(today);
+    cutoffDate.setDate(cutoffDate.getDate() + AVAILABILITY_DAYS);
+    
+    return availability.dates_with_availability.filter(date => {
+      const d = new Date(date);
+      return d < cutoffDate;
+    });
+  }, [availability?.dates_with_availability, today]);
+
   const datesByMonth = useMemo(() => {
-    if (!availability?.dates_with_availability) return {};
-    return availability.dates_with_availability.reduce((acc, date) => {
+    if (!filteredDatesWithAvailability.length) return {};
+    return filteredDatesWithAvailability.reduce((acc, date) => {
       const monthYear = getMonthYear(date);
       if (!acc[monthYear]) acc[monthYear] = [];
       acc[monthYear].push(date);
       return acc;
     }, {});
-  }, [availability?.dates_with_availability]);
+  }, [filteredDatesWithAvailability]);
 
   // Check if selected slot is still valid
   useEffect(() => {
