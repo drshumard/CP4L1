@@ -341,9 +341,11 @@ export function OnboardingBooking({
   const bookSession = useBookSession();
 
   // Configuration for availability window
-  const AVAILABILITY_DAYS = 14;
+  // Set to null to show ALL available dates, or a number to limit (e.g., 14 for 2 weeks)
+  // See /app/rayguide.md for instructions on changing this
+  const AVAILABILITY_DAYS = null; // null = show all dates
 
-  // Derived data - filter to only show dates within AVAILABILITY_DAYS
+  // Derived data - filter to only show dates within AVAILABILITY_DAYS (if set)
   const slotsByDate = useMemo(() => {
     if (!availability?.slots) return {};
     return groupSlotsByDate(availability.slots, today, AVAILABILITY_DAYS);
@@ -354,9 +356,15 @@ export function OnboardingBooking({
     return slotsByDate[selectedDate];
   }, [selectedDate, slotsByDate]);
 
-  // Filter dates_with_availability to only include dates within the window
+  // Filter dates_with_availability to only include dates within the window (if set)
   const filteredDatesWithAvailability = useMemo(() => {
     if (!availability?.dates_with_availability) return [];
+    
+    // If no limit set, return all dates
+    if (!AVAILABILITY_DAYS) {
+      return availability.dates_with_availability;
+    }
+    
     const cutoffDate = new Date(today);
     cutoffDate.setDate(cutoffDate.getDate() + AVAILABILITY_DAYS);
     
