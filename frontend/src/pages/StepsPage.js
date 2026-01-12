@@ -1042,8 +1042,16 @@ const StepsPage = () => {
                       lastName: userData?.last_name || '',
                       email: userData?.email || '',
                     }}
-                    onBookingComplete={async (sessionId) => {
-                      console.log('Booking completed via custom widget:', sessionId);
+                    onBookingComplete={async (bookingResult) => {
+                      console.log('Booking completed via custom widget:', bookingResult);
+                      
+                      // Store the Practice Better client record ID for Step 3 activation
+                      if (bookingResult?.client_record_id) {
+                        setPbClientRecordId(bookingResult.client_record_id);
+                        // Also save to localStorage for persistence
+                        localStorage.setItem('pb_client_record_id', bookingResult.client_record_id);
+                      }
+                      
                       setBookingProcessing(true);
                       setShowBookingSuccess(true);
                       
