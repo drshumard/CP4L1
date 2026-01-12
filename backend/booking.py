@@ -126,8 +126,14 @@ class ErrorResponse(BaseModel):
 # Dependencies
 # ============================================================================
 
-AVAILABILITY_CACHE_TTL = 60  # seconds
+# Cache TTL: 5 minutes (300 seconds) for background refresh
+# Frontend polling is now just a fallback
+AVAILABILITY_CACHE_TTL = int(os.environ.get("AVAILABILITY_CACHE_TTL", "300"))  # 5 minutes default
+BACKGROUND_REFRESH_INTERVAL = int(os.environ.get("BACKGROUND_REFRESH_INTERVAL", "300"))  # 5 minutes
+
 _availability_cache: dict = {}
+_background_task: Optional[asyncio.Task] = None
+_background_task_running = False
 
 
 def get_correlation_id(
@@ -137,25 +143,100 @@ def get_correlation_id(
     return x_correlation_id or str(uuid.uuid4())[:8]
 
 
+async def refresh_availability_cache():
+    """Background task to refresh availability cache"""
+    global _availability_cache, _background_task_running
+    
+    _background_task_running = True
+    logger.info("Starting background availability cache refresh task")
+    
+    while _background_task_running:
+        try:
+            pb_service = get_practice_better_service()
+            today = date.today().isoformat()
+            
+            logger.info(f"[background] Refreshing availability cache for {today}")
+            
+            # Fetch fresh availability
+            slots, dates = await pb_service.get_availability(today, 60, correlation_id="bg-refresh")
+            
+            # Update cache
+            cache_key = f"{today}:60"  # Cache for 60 days of data
+            _availability_cache[cache_key] = {
+                "data": (slots, dates),
+                "expires_at": time.time() + AVAILABILITY_CACHE_TTL,
+                "refreshed_at": time.time()
+            }
+            
+            # Also cache common query patterns
+            for days in [14, 30]:
+                filtered_slots = [s for s in slots if (datetime.fromisoformat(s.start_time.isoformat()) - datetime.now(tz.utc)).days < days]
+                filtered_dates = [d for d in dates if (date.fromisoformat(d) - date.today()).days < days]
+                cache_key = f"{today}:{days}"
+                _availability_cache[cache_key] = {
+                    "data": (filtered_slots, filtered_dates),
+                    "expires_at": time.time() + AVAILABILITY_CACHE_TTL,
+                    "refreshed_at": time.time()
+                }
+            
+            logger.info(f"[background] Cache refreshed: {len(slots)} slots, {len(dates)} dates")
+            
+        except Exception as e:
+            logger.error(f"[background] Error refreshing cache: {e}")
+        
+        # Wait before next refresh
+        await asyncio.sleep(BACKGROUND_REFRESH_INTERVAL)
+    
+    logger.info("Background availability cache refresh task stopped")
+
+
+def start_background_refresh():
+    """Start the background refresh task"""
+    global _background_task
+    
+    if _background_task is None or _background_task.done():
+        _background_task = asyncio.create_task(refresh_availability_cache())
+        logger.info("Background cache refresh task started")
+
+
+def stop_background_refresh():
+    """Stop the background refresh task"""
+    global _background_task_running, _background_task
+    
+    _background_task_running = False
+    if _background_task:
+        _background_task.cancel()
+        _background_task = None
+    logger.info("Background cache refresh task stopped")
+
+
 async def get_cached_availability(
     start_date: str,
     days: int,
     pb_service: PracticeBetterService
 ) -> tuple:
-    """Get availability with caching"""
+    """Get availability with caching - returns cached data instantly if available"""
     cache_key = f"{start_date}:{days}"
     
+    # Check if we have cached data (even if slightly stale, return it for instant loading)
     if cache_key in _availability_cache:
         cached = _availability_cache[cache_key]
-        if time.time() < cached["expires_at"]:
-            return cached["data"]
+        # Return cached data - background task keeps it fresh
+        logger.debug(f"Returning cached availability (age: {time.time() - cached.get('refreshed_at', 0):.0f}s)")
+        return cached["data"]
     
+    # No cache - fetch fresh (this only happens on first request)
+    logger.info(f"Cache miss for {cache_key}, fetching fresh data")
     slots, dates = await pb_service.get_availability(start_date, days)
     
     _availability_cache[cache_key] = {
         "data": (slots, dates),
-        "expires_at": time.time() + AVAILABILITY_CACHE_TTL
+        "expires_at": time.time() + AVAILABILITY_CACHE_TTL,
+        "refreshed_at": time.time()
     }
+    
+    # Start background refresh if not running
+    start_background_refresh()
     
     return (slots, dates)
 
