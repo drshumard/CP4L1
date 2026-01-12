@@ -2184,8 +2184,12 @@ async def submit_support_request(request: SupportRequest):
     
     return {"message": "Support request submitted successfully"}
 
-# Include router
+# Include routers
 app.include_router(api_router)
+
+# Include booking router for the new custom calendar
+from booking import router as booking_router
+app.include_router(booking_router)
 
 app.add_middleware(
     CORSMiddleware,
