@@ -2205,9 +2205,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+@app.on_event("startup")
+async def startup_event():
+    """Pre-populate availability cache on startup for instant loading"""
+    try:
+        from booking import start_background_refresh
+        start_background_refresh()
+        logger.info("Started background availability cache refresh")
+    except Exception as e:
+        logger.warning(f"Could not start background cache refresh: {e}")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+    # Stop background cache refresh
+    try:
+        from booking import stop_background_refresh
+        stop_background_refresh()
+    except Exception as e:
+        logger.warning(f"Error stopping background cache refresh: {e}")
     # Shutdown Practice Better service
     try:
         from services.practice_better_v2 import shutdown_service
