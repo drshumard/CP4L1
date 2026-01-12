@@ -231,10 +231,28 @@ export function formatTimeRange(startTime, endTime) {
  * Group slots by date for calendar display
  * Deduplicates slots with the same start time (picks first available consultant)
  * Sorts slots by time within each date
+ * Filters to only include dates within maxDays from startDate
  */
-export function groupSlotsByDate(slots) {
+export function groupSlotsByDate(slots, startDate = null, maxDays = 14) {
+  // Calculate the cutoff date
+  let cutoffDate = null;
+  if (startDate && maxDays) {
+    const start = new Date(startDate);
+    cutoffDate = new Date(start);
+    cutoffDate.setDate(cutoffDate.getDate() + maxDays);
+  }
+  
   const grouped = slots.reduce((acc, slot) => {
     const date = slot.start_time.split('T')[0];
+    
+    // Filter out dates beyond the cutoff
+    if (cutoffDate) {
+      const slotDate = new Date(date);
+      if (slotDate >= cutoffDate) {
+        return acc; // Skip this slot
+      }
+    }
+    
     if (!acc[date]) {
       acc[date] = [];
     }
