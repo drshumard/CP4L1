@@ -165,7 +165,7 @@ function SuccessState({
     <div className={styles.successContainer}>
       <div className={styles.successContent}>
         <p className={styles.successLabel}>CONFIRMED</p>
-        <h1 className={styles.successTitle}>You're all set{name ? `, ${name}` : ''}</h1>
+        <h1 className={styles.successTitle}>You&apos;re all set{name ? `, ${name}` : ''}</h1>
         <div className={styles.successDivider} />
         {slot && (
           <div className={styles.successDetails}>
