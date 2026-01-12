@@ -553,29 +553,43 @@ export function OnboardingBooking({
   return (
     <div className={styles.container}>
       {/* Header */}
-      <header className={styles.header} style={{ paddingTop: step === 'select-date' ? '8px' : '16px', paddingBottom: '8px' }}>
-        <div className={styles.headerTop}>
-          {(step === 'select-time' || step === 'fill-form') && (
-            <button className={styles.backButton} onClick={handleBack} type="button">
+      <header className={styles.header} style={{ paddingTop: '12px', paddingBottom: step === 'fill-form' ? '8px' : '8px' }}>
+        {step === 'fill-form' ? (
+          /* Fill Form: Single row with Back, Title centered, Timezone */
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button className={styles.backButton} onClick={handleBack} type="button" style={{ margin: 0 }}>
               ← Back
             </button>
-          )}
-          {/* Only show timezone on time selection and form steps */}
-          {step !== 'select-date' && (
+            <h1 className={styles.headerTitle} style={{ textAlign: 'center', margin: 0, flex: 1 }}>
+              Your Details
+            </h1>
             <span className={styles.headerTimezone}>{timezone.replace(/_/g, ' ')}</span>
-          )}
-        </div>
+          </div>
+        ) : (
+          /* Other steps: Original layout */
+          <>
+            <div className={styles.headerTop}>
+              {step === 'select-time' && (
+                <button className={styles.backButton} onClick={handleBack} type="button">
+                  ← Back
+                </button>
+              )}
+              {step === 'select-time' && (
+                <span className={styles.headerTimezone}>{timezone.replace(/_/g, ' ')}</span>
+              )}
+            </div>
 
-        <div className={styles.headerMain}>
-          <h1 className={styles.headerTitle} style={{ textAlign: 'center', marginBottom: step === 'select-date' ? '4px' : '8px' }}>
-            {step === 'select-date' && 'Step 1: Book Your One-On-One Consult'}
-            {step === 'select-time' && formatDateFull(selectedDate)}
-            {step === 'fill-form' && 'Your Details'}
-          </h1>
-          {step === 'select-date' && (
-            <p className={styles.headerSubtitle} style={{ textAlign: 'center', marginBottom: '0' }}>Select a date and time for your consultation</p>
-          )}
-        </div>
+            <div className={styles.headerMain}>
+              <h1 className={styles.headerTitle} style={{ textAlign: 'center', marginBottom: step === 'select-date' ? '4px' : '8px' }}>
+                {step === 'select-date' && 'Step 1: Book Your One-On-One Consult'}
+                {step === 'select-time' && formatDateFull(selectedDate)}
+              </h1>
+              {step === 'select-date' && (
+                <p className={styles.headerSubtitle} style={{ textAlign: 'center', marginBottom: '0' }}>Select a date and time for your consultation</p>
+              )}
+            </div>
+          </>
+        )}
       </header>
 
       {step !== 'select-date' && <div className={styles.divider} />}
