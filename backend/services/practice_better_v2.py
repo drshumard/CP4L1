@@ -458,13 +458,13 @@ class PracticeBetterService:
     async def get_consultants(self, correlation_id: str = None) -> List[dict]:
         """
         Get list of practitioners/consultants from the team.
-        Uses /consultant/account/team endpoint to get actual practitioners, not patients.
+        Uses /company/administration/members endpoint to get actual practitioners.
         """
         cid = correlation_id or str(uuid.uuid4())[:8]
-        result = await self._request("GET", "/consultant/account/team", correlation_id=cid)
+        result = await self._request("GET", "/company/administration/members", correlation_id=cid)
         
         # Filter for active practitioners/owners only
-        team_members = result.get("items", [])
+        team_members = result.get("members", result.get("items", []))
         consultants = [
             member for member in team_members
             if member.get("status") == "active" and member.get("role") in ["owner", "practitioner"]
