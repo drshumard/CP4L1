@@ -68,19 +68,32 @@ refetchInterval: shouldPoll ? 5 * 60 * 1000 : false, // 5 minutes
 
 ## Backend - Availability Cache TTL
 
-**File:** `/app/backend/services/practice_better_v2.py`
+**File:** `/app/backend/booking.py`
 
-**Line ~395:** In `PracticeBetterService.__init__`
+The backend now has **background cache refresh** that pre-populates availability data on server startup. Users see cached data instantly - no "Fetching availability" wait.
 
-```python
-self._availability_cache = AvailabilityCache(ttl=config.availability_cache_ttl)
-```
-
-Default is 60 seconds. To change, set environment variable:
+**Environment variables:**
 
 ```bash
-PRACTICE_BETTER_CACHE_TTL=300  # 5 minutes
+# Cache TTL in seconds (default: 300 = 5 minutes)
+AVAILABILITY_CACHE_TTL=300
+
+# Background refresh interval in seconds (default: 300 = 5 minutes)  
+BACKGROUND_REFRESH_INTERVAL=300
 ```
+
+**API Rate Limit Calculation:**
+- Daily limit: 10,000 calls
+- Refresh every 5 min = 288 refreshes/day
+- 6 practitioners × 288 = 1,728 calls/day for caching
+- Leaves ~8,272 calls for actual bookings
+
+**How it works:**
+1. Server starts → Background task fetches availability immediately
+2. Data is cached for 5 minutes
+3. Background task refreshes cache every 5 minutes
+4. User requests get instant response from cache
+5. If cache miss (rare), fetches fresh and starts background task
 
 ---
 
