@@ -367,12 +367,14 @@ async def book_session(
         )
     
     try:
-        start_date = request.slot_start_time.split("T")[0]
-        cached_slots, _ = await get_cached_availability(start_date, 1, pb_service)
+        # Use the main 60-day cache (same as what the frontend fetches)
+        today = date.today().isoformat()
+        cached_slots, _ = await get_cached_availability(today, 60, pb_service)
         
+        # Check if slot exists in cache
         slot_exists = any(
             slot.consultant_id == request.consultant_id and
-            slot.start_time.isoformat() == request.slot_start_time
+            slot.start_time.isoformat().replace("+00:00", "Z") == request.slot_start_time
             for slot in cached_slots
         )
         
