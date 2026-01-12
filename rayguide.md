@@ -6,32 +6,30 @@ This document contains quick configuration changes for common requests.
 
 ## Booking Calendar - Limit Availability Date Range
 
+There are TWO places to configure the date range:
+
+### 1. Frontend Display Limit (visual filtering)
 **File:** `/app/frontend/src/components/OnboardingBooking.jsx`
 
-**Line ~345:** Look for `AVAILABILITY_DAYS`
+**Line ~346:** Look for `AVAILABILITY_DAYS`
 
 ```javascript
-// Configuration for availability window
-// Set to null to show ALL available dates, or a number to limit (e.g., 14 for 2 weeks)
-const AVAILABILITY_DAYS = null; // null = show all dates
+// Set to null to show ALL available dates, or a number to limit
+const AVAILABILITY_DAYS = null; // null = show all dates (current)
 ```
 
-### To limit to 14 days (2 weeks):
+To limit to 14 days: `const AVAILABILITY_DAYS = 14;`
+
+### 2. API Request Days (how much data to fetch)
+**File:** `/app/frontend/src/components/OnboardingBooking.jsx`
+
+**Line ~336:** Look for `useAvailability`
+
 ```javascript
-const AVAILABILITY_DAYS = 14;
+} = useAvailability(today, 60, {  // Currently fetching 60 days
 ```
 
-### To limit to 30 days (1 month):
-```javascript
-const AVAILABILITY_DAYS = 30;
-```
-
-### To show ALL available dates (current setting):
-```javascript
-const AVAILABILITY_DAYS = null;
-```
-
-**Note:** The Practice Better API returns all future availability regardless of the `days` parameter. This setting filters on the frontend to limit what users see.
+**Note:** Backend caches 60 days of data. If you set frontend `AVAILABILITY_DAYS = 14`, it filters the 60-day response to show only 14 days.
 
 ---
 
