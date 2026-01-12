@@ -1,0 +1,652 @@
+/**
+ * OnboardingBooking Component (v2)
+ *
+ * Improvements:
+ * - Double-submit prevention (disabled button)
+ * - Slot expiry detection with auto-refetch
+ * - Smart polling (pauses on form step)
+ * - No auto-redirect after success
+ * - Better error handling
+ */
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import {
+  useAvailability,
+  useBookSession,
+  detectTimezone,
+  groupSlotsByDate,
+  getTodayString,
+  isSlotUnavailableError,
+  isSlotValid,
+} from '../hooks/useBooking';
+import styles from './OnboardingBooking.module.css';
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+function calculateActivationId(recordId) {
+  try {
+    const bigInt = BigInt('0x' + recordId);
+    const activationBigInt = bigInt + BigInt(4);
+    return activationBigInt.toString(16).padStart(recordId.length, '0');
+  } catch {
+    // Fallback for browsers without BigInt support
+    return recordId;
+  }
+}
+
+function formatDateFull(dateString) {
+  const date = new Date(dateString + 'T12:00:00');
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function formatTime(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).toLowerCase();
+}
+
+function getMonthYear(dateString) {
+  const date = new Date(dateString + 'T12:00:00');
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function getDayOfWeek(dateString) {
+  const date = new Date(dateString + 'T12:00:00');
+  return date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+}
+
+function getDayNumber(dateString) {
+  const date = new Date(dateString + 'T12:00:00');
+  return date.getDate();
+}
+
+function isToday(dateString) {
+  return dateString === getTodayString();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// ============================================================================
+// Sub-components
+// ============================================================================
+
+function LoadingState() {
+  return (
+    <div className={styles.stateContainer}>
+      <div className={styles.loadingIndicator}>
+        <span className={styles.loadingDot} />
+        <span className={styles.loadingDot} />
+        <span className={styles.loadingDot} />
+      </div>
+      <p className={styles.stateText}>Finding available times</p>
+    </div>
+  );
+}
+
+function ErrorState({ onRetry, message }) {
+  return (
+    <div className={styles.stateContainer}>
+      <h2 className={styles.stateTitle}>Unable to load</h2>
+      <p className={styles.stateText}>{message || 'Please check your connection and try again.'}</p>
+      <button onClick={onRetry} className={styles.textButton}>
+        Try Again →
+      </button>
+    </div>
+  );
+}
+
+function NoAvailability() {
+  return (
+    <div className={styles.stateContainer}>
+      <h2 className={styles.stateTitle}>No availability</h2>
+      <p className={styles.stateText}>Please check back later or contact us directly.</p>
+    </div>
+  );
+}
+
+function SlotExpiredBanner({ onRefresh }) {
+  return (
+    <div className={styles.errorBanner}>
+      <span>This time slot is no longer available.</span>
+      <button onClick={onRefresh} className={styles.errorRefresh}>
+        Select another time →
+      </button>
+    </div>
+  );
+}
+
+function SuccessState({
+  slot,
+  name,
+  isNewClient,
+  clientRecordId,
+  portalBaseUrl,
+  onDone,
+}) {
+  const activationUrl = clientRecordId && isNewClient
+    ? `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`
+    : null;
+
+  return (
+    <div className={styles.successContainer}>
+      <div className={styles.successContent}>
+        <p className={styles.successLabel}>CONFIRMED</p>
+        <h1 className={styles.successTitle}>You're all set{name ? `, ${name}` : ''}</h1>
+        <div className={styles.successDivider} />
+        {slot && (
+          <div className={styles.successDetails}>
+            <p className={styles.successDate}>{formatDateFull(slot.start_time.split('T')[0])}</p>
+            <p className={styles.successTime}>{formatTime(slot.start_time)}</p>
+          </div>
+        )}
+        <p className={styles.successNote}>Check your email for confirmation details</p>
+
+        {activationUrl && (
+          <a
+            href={activationUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.activateButton}
+          >
+            Activate Your Account
+          </a>
+        )}
+
+        {onDone && (
+          <button onClick={onDone} className={styles.doneButton}>
+            Done
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DateCard({ date, isSelected, onClick }) {
+  const dayOfWeek = getDayOfWeek(date);
+  const dayNumber = getDayNumber(date);
+  const today = isToday(date);
+
+  return (
+    <button
+      className={`${styles.dateCard} ${isSelected ? styles.dateCardSelected : ''} ${today ? styles.dateCardToday : ''}`}
+      onClick={onClick}
+      type="button"
+    >
+      <span className={styles.dateDayOfWeek}>{dayOfWeek}</span>
+      <span className={styles.dateDayNumber}>{dayNumber}</span>
+      {today && <span className={styles.todayBadge}>Today</span>}
+    </button>
+  );
+}
+
+function TimeSlotButton({ slot, isSelected, onClick }) {
+  const timeLabel = formatTime(slot.start_time);
+
+  return (
+    <button
+      className={`${styles.timeSlot} ${isSelected ? styles.timeSlotSelected : ''}`}
+      onClick={onClick}
+      type="button"
+    >
+      {timeLabel}
+    </button>
+  );
+}
+
+function ClientForm({ formData, errors, onChange, selectedSlot }) {
+  return (
+    <div className={styles.formSection}>
+      {selectedSlot && (
+        <div className={styles.selectedSummary}>
+          <span className={styles.summaryLabel}>Selected Time</span>
+          <span className={styles.summaryValue}>
+            {formatDateFull(selectedSlot.start_time.split('T')[0])} at {formatTime(selectedSlot.start_time)}
+          </span>
+        </div>
+      )}
+
+      <div className={styles.formDivider} />
+
+      <div className={styles.formRow}>
+        <div className={styles.formGroup}>
+          <label htmlFor="firstName" className={styles.formLabel}>First Name</label>
+          <input
+            id="firstName"
+            type="text"
+            className={`${styles.formInput} ${errors.firstName ? styles.formInputError : ''}`}
+            value={formData.firstName}
+            onChange={(e) => onChange('firstName', e.target.value)}
+            autoComplete="given-name"
+          />
+          {errors.firstName && <span className={styles.formError}>{errors.firstName}</span>}
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="lastName" className={styles.formLabel}>Last Name</label>
+          <input
+            id="lastName"
+            type="text"
+            className={`${styles.formInput} ${errors.lastName ? styles.formInputError : ''}`}
+            value={formData.lastName}
+            onChange={(e) => onChange('lastName', e.target.value)}
+            autoComplete="family-name"
+          />
+          {errors.lastName && <span className={styles.formError}>{errors.lastName}</span>}
+        </div>
+      </div>
+
+      <div className={styles.formGroup}>
+        <label htmlFor="email" className={styles.formLabel}>Email</label>
+        <input
+          id="email"
+          type="email"
+          className={`${styles.formInput} ${errors.email ? styles.formInputError : ''}`}
+          value={formData.email}
+          onChange={(e) => onChange('email', e.target.value)}
+          autoComplete="email"
+        />
+        {errors.email && <span className={styles.formError}>{errors.email}</span>}
+      </div>
+
+      <div className={styles.formGroup}>
+        <label htmlFor="phone" className={styles.formLabel}>
+          Phone <span className={styles.formOptional}>(Optional)</span>
+        </label>
+        <input
+          id="phone"
+          type="tel"
+          className={styles.formInput}
+          value={formData.phone}
+          onChange={(e) => onChange('phone', e.target.value)}
+          autoComplete="tel"
+        />
+      </div>
+
+      <div className={styles.formGroup}>
+        <label htmlFor="notes" className={styles.formLabel}>
+          Notes <span className={styles.formOptional}>(Optional)</span>
+        </label>
+        <textarea
+          id="notes"
+          className={styles.formTextarea}
+          value={formData.notes}
+          onChange={(e) => onChange('notes', e.target.value)}
+          rows={3}
+          placeholder="What would you like to discuss?"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+export function OnboardingBooking({
+  clientInfo,
+  onBookingComplete,
+  onBack,
+  portalBaseUrl = 'https://drshumard.practicebetter.io',
+}) {
+  // State
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [step, setStep] = useState('select-date');
+  const [error, setError] = useState(null);
+  const [isSlotExpired, setIsSlotExpired] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bookingResult, setBookingResult] = useState(null);
+
+  const [formData, setFormData] = useState({
+    firstName: clientInfo?.firstName || '',
+    lastName: clientInfo?.lastName || '',
+    email: clientInfo?.email || '',
+    phone: clientInfo?.phone || '',
+    notes: '',
+  });
+  const [formErrors, setFormErrors] = useState({});
+
+  const timezone = useMemo(() => detectTimezone(), []);
+  const today = useMemo(() => getTodayString(), []);
+
+  // Smart polling: pause when on form step
+  const shouldPoll = step !== 'fill-form' && step !== 'confirming' && step !== 'success';
+
+  const {
+    data: availability,
+    isLoading: isLoadingAvailability,
+    error: availabilityError,
+    refetch: refetchAvailability,
+  } = useAvailability(today, 14, {
+    enabled: true,
+    refetchInterval: shouldPoll ? 60 * 1000 : false,
+  });
+
+  const bookSession = useBookSession();
+
+  // Derived data
+  const slotsByDate = useMemo(() => {
+    if (!availability?.slots) return {};
+    return groupSlotsByDate(availability.slots);
+  }, [availability?.slots]);
+
+  const slotsForSelectedDate = useMemo(() => {
+    if (!selectedDate || !slotsByDate[selectedDate]) return [];
+    return slotsByDate[selectedDate];
+  }, [selectedDate, slotsByDate]);
+
+  const datesByMonth = useMemo(() => {
+    if (!availability?.dates_with_availability) return {};
+    return availability.dates_with_availability.reduce((acc, date) => {
+      const monthYear = getMonthYear(date);
+      if (!acc[monthYear]) acc[monthYear] = [];
+      acc[monthYear].push(date);
+      return acc;
+    }, {});
+  }, [availability?.dates_with_availability]);
+
+  // Check if selected slot is still valid
+  useEffect(() => {
+    if (selectedSlot && !isSlotValid(selectedSlot.start_time)) {
+      setIsSlotExpired(true);
+    }
+  }, [selectedSlot]);
+
+  // Handlers
+  const handleDateSelect = useCallback((date) => {
+    setSelectedDate(date);
+    setSelectedSlot(null);
+    setStep('select-time');
+    setError(null);
+    setIsSlotExpired(false);
+  }, []);
+
+  const handleTimeSelect = useCallback((slot) => {
+    if (!isSlotValid(slot.start_time)) {
+      setError('This time slot has passed. Please select another.');
+      return;
+    }
+    setSelectedSlot(slot);
+    setStep('fill-form');
+    setError(null);
+    setIsSlotExpired(false);
+  }, []);
+
+  const handleFormChange = useCallback((field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  }, [formErrors]);
+
+  const validateForm = useCallback(() => {
+    const errors = {};
+
+    if (!formData.firstName.trim()) {
+      errors.firstName = 'First name is required';
+    }
+    if (!formData.lastName.trim()) {
+      errors.lastName = 'Last name is required';
+    }
+    if (!formData.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!isValidEmail(formData.email)) {
+      errors.email = 'Please enter a valid email';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  }, [formData]);
+
+  const handleBack = useCallback(() => {
+    if (step === 'select-time') {
+      setStep('select-date');
+      setSelectedSlot(null);
+      setSelectedDate(null);
+    } else if (step === 'fill-form') {
+      setStep('select-time');
+    } else if (onBack) {
+      onBack();
+    }
+  }, [step, onBack]);
+
+  const handleSlotExpiredRefresh = useCallback(() => {
+    setIsSlotExpired(false);
+    setSelectedSlot(null);
+    setStep('select-time');
+    refetchAvailability();
+  }, [refetchAvailability]);
+
+  const handleConfirmBooking = useCallback(async () => {
+    if (!selectedSlot) return;
+    if (!validateForm()) return;
+    if (isSubmitting) return; // Prevent double-submit
+
+    // Check if slot is still valid
+    if (!isSlotValid(selectedSlot.start_time)) {
+      setIsSlotExpired(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStep('confirming');
+    setError(null);
+
+    try {
+      const result = await bookSession.mutateAsync({
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim() || undefined,
+        timezone: timezone,
+        slot_start_time: selectedSlot.start_time,
+        consultant_id: selectedSlot.consultant_id,
+        notes: formData.notes.trim() || undefined,
+      });
+
+      setBookingResult({
+        isNewClient: result.is_new_client,
+        clientRecordId: result.client_record_id,
+        sessionId: result.session_id,
+      });
+      setStep('success');
+
+    } catch (err) {
+      // Check if it's a slot unavailable error
+      if (isSlotUnavailableError(err)) {
+        setIsSlotExpired(true);
+        setStep('fill-form');
+        refetchAvailability();
+      } else {
+        setError(err instanceof Error ? err.message : 'Something went wrong');
+        setStep('fill-form');
+        refetchAvailability();
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [selectedSlot, validateForm, isSubmitting, formData, timezone, bookSession, refetchAvailability]);
+
+  const handleDone = useCallback(() => {
+    if (bookingResult && onBookingComplete) {
+      onBookingComplete(bookingResult.sessionId);
+    }
+  }, [bookingResult, onBookingComplete]);
+
+  // Loading
+  if (isLoadingAvailability) {
+    return <div className={styles.container}><LoadingState /></div>;
+  }
+
+  // Error
+  if (availabilityError) {
+    return (
+      <div className={styles.container}>
+        <ErrorState
+          onRetry={() => refetchAvailability()}
+          message={availabilityError instanceof Error ? availabilityError.message : undefined}
+        />
+      </div>
+    );
+  }
+
+  // No availability
+  if (!availability?.dates_with_availability?.length) {
+    return <div className={styles.container}><NoAvailability /></div>;
+  }
+
+  // Success
+  if (step === 'success') {
+    return (
+      <div className={styles.container}>
+        <SuccessState
+          slot={selectedSlot}
+          name={formData.firstName}
+          isNewClient={bookingResult?.isNewClient || false}
+          clientRecordId={bookingResult?.clientRecordId || null}
+          portalBaseUrl={portalBaseUrl}
+          onDone={onBookingComplete ? handleDone : undefined}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.container}>
+      {/* Header */}
+      <header className={styles.header}>
+        <div className={styles.headerTop}>
+          {(step === 'select-time' || step === 'fill-form') && (
+            <button className={styles.backButton} onClick={handleBack} type="button">
+              ← Back
+            </button>
+          )}
+          <span className={styles.headerTimezone}>{timezone.replace(/_/g, ' ')}</span>
+        </div>
+
+        <div className={styles.headerMain}>
+          <h1 className={styles.headerTitle}>
+            {step === 'select-date' && 'Book Your Onboarding Call'}
+            {step === 'select-time' && formatDateFull(selectedDate)}
+            {step === 'fill-form' && 'Your Details'}
+          </h1>
+          {step === 'select-date' && (
+            <p className={styles.headerSubtitle}>Select a date and time for your consultation</p>
+          )}
+        </div>
+      </header>
+
+      <div className={styles.divider} />
+
+      {/* Slot Expired Banner */}
+      {isSlotExpired && (
+        <SlotExpiredBanner onRefresh={handleSlotExpiredRefresh} />
+      )}
+
+      {/* Error */}
+      {error && !isSlotExpired && (
+        <div className={styles.errorBanner}>
+          {error}
+          <button onClick={() => setError(null)} className={styles.errorDismiss} type="button">×</button>
+        </div>
+      )}
+
+      {/* Date Selection */}
+      {step === 'select-date' && (
+        <div className={styles.content}>
+          {Object.entries(datesByMonth).map(([monthYear, dates]) => (
+            <div key={monthYear} className={styles.monthGroup}>
+              <h2 className={styles.monthLabel}>{monthYear}</h2>
+              <div className={styles.dateGrid}>
+                {dates.map((date) => (
+                  <DateCard
+                    key={date}
+                    date={date}
+                    isSelected={selectedDate === date}
+                    onClick={() => handleDateSelect(date)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Time Selection */}
+      {step === 'select-time' && selectedDate && (
+        <div className={styles.content}>
+          <p className={styles.availabilityCount}>
+            {slotsForSelectedDate.length} available
+          </p>
+          <div className={styles.timeGrid}>
+            {slotsForSelectedDate.map((slot, index) => (
+              <TimeSlotButton
+                key={`${slot.start_time}-${index}`}
+                slot={slot}
+                isSelected={selectedSlot?.start_time === slot.start_time}
+                onClick={() => handleTimeSelect(slot)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Form */}
+      {step === 'fill-form' && (
+        <div className={styles.content}>
+          <ClientForm
+            formData={formData}
+            errors={formErrors}
+            onChange={handleFormChange}
+            selectedSlot={selectedSlot}
+          />
+        </div>
+      )}
+
+      {/* Footer */}
+      {step === 'fill-form' && (
+        <footer className={styles.footer}>
+          <div className={styles.divider} />
+          <button
+            className={styles.confirmButton}
+            onClick={handleConfirmBooking}
+            disabled={isSubmitting}
+            type="button"
+          >
+            {isSubmitting ? 'Processing...' : 'Confirm Booking →'}
+          </button>
+        </footer>
+      )}
+
+      {/* Confirming */}
+      {step === 'confirming' && (
+        <div className={styles.confirmingOverlay}>
+          <div className={styles.loadingIndicator}>
+            <span className={styles.loadingDot} />
+            <span className={styles.loadingDot} />
+            <span className={styles.loadingDot} />
+          </div>
+          <p className={styles.stateText}>Confirming your booking</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default OnboardingBooking;
