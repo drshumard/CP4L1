@@ -61,7 +61,8 @@
 .container {
   font-family: var(--font-body);
   background: var(--color-bg);
-  min-height: 560px;
+  height: 100%;
+  max-height: 100%;
   width: 100%;
   position: relative;
   color: var(--color-text);
