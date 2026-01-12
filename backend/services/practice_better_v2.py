@@ -483,7 +483,7 @@ class PracticeBetterService:
         days: int = 14,
         correlation_id: str = None
     ) -> Tuple[List[TimeSlot], List[str]]:
-        """Get availability for all consultants"""
+        """Get availability for all consultants using /public/availability endpoint"""
         cid = correlation_id or str(uuid.uuid4())[:8]
         
         cache_key = f"{start_date}:{days}"
@@ -498,25 +498,48 @@ class PracticeBetterService:
         
         for consultant in consultants:
             consultant_id = consultant.get("id")
-            consultant_name = f"{consultant.get('profile', {}).get('firstName', '')} {consultant.get('profile', {}).get('lastName', '')}".strip()
+            # Handle both profile structure and direct name fields
+            profile = consultant.get('profile', {})
+            if profile:
+                consultant_name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
+            else:
+                consultant_name = f"{consultant.get('firstName', '')} {consultant.get('lastName', '')}".strip()
             
             try:
+                # Use /public/availability endpoint with correct parameters
                 result = await self._request(
                     "GET",
-                    "/consultant/availability",
+                    "/public/availability",
                     correlation_id=cid,
                     params={
-                        "consultantId": consultant_id,
+                        "as_consultant": consultant_id,
+                        "day": start_date,
                         "serviceId": self.config.service_id,
-                        "startDate": start_date,
-                        "days": days,
-                        "duration": self.config.session_duration * 60,
+                        "type": self.config.session_type,
                     }
                 )
                 
-                for slot_data in result.get("items", []):
-                    start_time = datetime.fromisoformat(slot_data["startTime"].replace("Z", "+00:00"))
-                    end_time = datetime.fromisoformat(slot_data["endTime"].replace("Z", "+00:00"))
+                # Parse the availability response
+                slots_data = result if isinstance(result, list) else result.get("items", result.get("slots", []))
+                
+                for slot_data in slots_data:
+                    # Handle different response formats
+                    if isinstance(slot_data, str):
+                        # If slots are returned as ISO strings
+                        start_time = datetime.fromisoformat(slot_data.replace("Z", "+00:00"))
+                        end_time = start_time + timedelta(minutes=self.config.session_duration)
+                    else:
+                        start_str = slot_data.get("startTime") or slot_data.get("start") or slot_data.get("time")
+                        if start_str:
+                            start_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                        else:
+                            continue
+                        
+                        end_str = slot_data.get("endTime") or slot_data.get("end")
+                        if end_str:
+                            end_time = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                        else:
+                            end_time = start_time + timedelta(minutes=self.config.session_duration)
                     
                     slot = TimeSlot(
                         start_time=start_time,
