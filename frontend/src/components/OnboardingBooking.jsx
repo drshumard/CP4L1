@@ -333,7 +333,7 @@ export function OnboardingBooking({
     isLoading: isLoadingAvailability,
     error: availabilityError,
     refetch: refetchAvailability,
-  } = useAvailability(today, 14, {
+  } = useAvailability(today, 60, {  // Fetch 60 days of availability (backend caches this)
     enabled: true,
     refetchInterval: shouldPoll ? 60 * 1000 : false,
   });
