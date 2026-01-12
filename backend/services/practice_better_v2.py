@@ -457,25 +457,25 @@ class PracticeBetterService:
     
     async def get_consultants(self, correlation_id: str = None) -> List[dict]:
         """
-        Get list of practitioners/consultants.
-        
-        NOTE: The Practice Better API /consultant/records endpoint returns clients, not practitioners.
-        So we use the pre-configured practitioner_ids directly instead of fetching them from the API.
+        Get list of practitioners/consultants from the team.
+        Uses /consultant/account/team endpoint to get actual practitioners, not patients.
         """
         cid = correlation_id or str(uuid.uuid4())[:8]
+        result = await self._request("GET", "/consultant/account/team", correlation_id=cid)
         
-        # Use pre-configured practitioner IDs since the API doesn't have an endpoint 
-        # to list team members/practitioners
+        # Filter for active practitioners/owners only
+        team_members = result.get("items", [])
+        consultants = [
+            member for member in team_members
+            if member.get("status") == "active" and member.get("role") in ["owner", "practitioner"]
+        ]
+        
+        # If practitioner IDs are configured, filter to only those
         if self.config.practitioner_ids:
-            logger.info(f"[{cid}] Using {len(self.config.practitioner_ids)} pre-configured practitioner IDs")
-            return [
-                {"id": pid, "profile": {"firstName": "", "lastName": ""}}
-                for pid in self.config.practitioner_ids
-            ]
+            consultants = [c for c in consultants if c.get("id") in self.config.practitioner_ids]
         
-        # Fallback: If no practitioner IDs configured, log a warning
-        logger.warning(f"[{cid}] No practitioner IDs configured - availability will be empty")
-        return []
+        logger.info(f"[{cid}] Found {len(consultants)} active practitioners")
+        return consultants
     
     async def get_availability(
         self,
