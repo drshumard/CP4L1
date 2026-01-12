@@ -323,7 +323,8 @@ function ClientForm({ formData, errors, onChange, selectedSlot }) {
 
 export function OnboardingBooking({
   clientInfo,
-  onBookingComplete,
+  onBookingComplete,  // Called when user clicks redirect button (after 5 sec countdown)
+  onBookingSuccess,   // Called immediately when booking succeeds (to advance step)
   onBack,
   portalBaseUrl = 'https://drshumard.practicebetter.io',
 }) {
@@ -335,6 +336,7 @@ export function OnboardingBooking({
   const [isSlotExpired, setIsSlotExpired] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
+  const [hasAdvancedStep, setHasAdvancedStep] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: clientInfo?.firstName || '',
