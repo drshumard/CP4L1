@@ -1072,60 +1072,47 @@ const StepsPage = () => {
                       <p className="text-gray-700 font-medium text-sm sm:text-base md:text-lg">Select Your Appointment Time</p>
                     </div>
 
-                    {/* SUNFLOWER CHECKPOINT: SDK booking widget commented out - using direct iframe
-                    <style dangerouslySetInnerHTML={{__html: `
-                      @media (min-width: 1024px) {
-                        .better-inline-booking-widget {
-                          position: relative;
-                          width: 100% !important;
-                          max-width: 100% !important;
-                          height: calc(100% - 50px);
-                          overflow-x: hidden !important;
-                          overflow-y: auto;
+                    {/* NEW Custom Booking Component - v2 */}
+                    <OnboardingBooking 
+                      clientInfo={{
+                        firstName: userData?.first_name || '',
+                        lastName: userData?.last_name || '',
+                        email: userData?.email || '',
+                      }}
+                      onBookingComplete={async (sessionId) => {
+                        console.log('Booking completed via custom widget:', sessionId);
+                        setBookingProcessing(true);
+                        setShowBookingSuccess(true);
+                        
+                        // Advance user to Step 2
+                        try {
+                          const token = localStorage.getItem('access_token');
+                          if (token) {
+                            await axios.post(
+                              `${API}/user/complete-task`,
+                              { task_id: 'book_consultation' },
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                            await axios.post(
+                              `${API}/user/advance-step`,
+                              {},
+                              { headers: { Authorization: `Bearer ${token}` } }
+                            );
+                          }
+                        } catch (error) {
+                          console.error('Error advancing step:', error);
                         }
-                        .better-inline-booking-widget iframe {
-                          width: 100% !important;
-                          max-width: 100% !important;
-                          height: 100%;
-                        }
-                      }
-                      
-                      @media (max-width: 1023px) {
-                        .better-inline-booking-widget {
-                          width: 100% !important;
-                          max-width: 100% !important;
-                          height: 800px;
-                          overflow: visible !important;
-                        }
-                        .better-inline-booking-widget iframe {
-                          width: 100% !important;
-                          max-width: 100% !important;
-                          height: 800px;
-                          border: none !important;
-                          overflow: hidden !important;
-                          display: block;
-                        }
-                      }
-                      
-                      @media (max-width: 640px) {
-                        .better-inline-booking-widget {
-                          font-size: 14px;
-                        }
-                      }
-                    `}} />
-                    <div 
-                      className="better-inline-booking-widget" 
-                      data-url="https://drshumard.practicebetter.io" 
-                      data-booking-page="6931baa6ac26faba7eb5602b" 
-                      data-hash="601a127b2a9c2406dcc94437" 
-                      data-theme="14b8a6" 
-                      data-theme-accent="06b6d4" 
-                      style={{ width: '100%', maxWidth: '550px', height: '800px' }} 
-                      data-scrollbar-visible="false"
+                        
+                        setTimeout(async () => {
+                          setShowBookingSuccess(false);
+                          setBookingProcessing(false);
+                          await fetchData();
+                          toast.success('Welcome to Step 2!', { id: 'step2-welcome' });
+                        }, 3000);
+                      }}
                     />
-                    */}
                     
-                    {/* Direct iframe implementation - Increased height to avoid scroll */}
+                    {/* ROACH CHECKPOINT: Old PracticeBetterEmbed preserved for rollback if needed
                     <PracticeBetterEmbed 
                       type="booking"
                       minHeight={750}
@@ -1166,6 +1153,7 @@ const StepsPage = () => {
                         }
                       }}
                     />
+                    */}
                   </div>
                   
                   {/* Buttons inside booking card */}
