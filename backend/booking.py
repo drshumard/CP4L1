@@ -7,6 +7,7 @@ Improvements:
 - Proper health check status codes
 - Structured logging with correlation IDs
 - Future date validation
+- Background cache refresh for instant loading
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Header, Request
@@ -18,6 +19,7 @@ import logging
 import uuid
 import os
 import time
+import asyncio
 
 from services.practice_better_v2 import (
     PracticeBetterService,
