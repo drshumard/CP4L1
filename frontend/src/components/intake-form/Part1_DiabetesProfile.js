@@ -186,20 +186,20 @@ const Part1_DiabetesProfile = ({
             <h4 className="text-sm font-semibold text-gray-700 mb-3">Address</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2 md:col-span-2">
-                <Label>Street</Label>
-                <Input id="street" value={formData.street} onChange={(e) => handleInputChange('street', e.target.value)} placeholder="Street address" />
+                <Label>Street *</Label>
+                <Input id="street" value={formData.street} onChange={(e) => handleInputChange('street', e.target.value)} placeholder="Street address" required />
               </div>
               <div className="space-y-2">
                 <Label>Unit</Label>
                 <Input id="unit" value={formData.unit} onChange={(e) => handleInputChange('unit', e.target.value)} placeholder="Apt, Suite, etc." />
               </div>
               <div className="space-y-2">
-                <Label>Town/City</Label>
-                <Input id="town" value={formData.town} onChange={(e) => handleInputChange('town', e.target.value)} placeholder="City/Town" />
+                <Label>Town/City *</Label>
+                <Input id="town" value={formData.town} onChange={(e) => handleInputChange('town', e.target.value)} placeholder="City/Town" required />
               </div>
               <div className="space-y-2">
-                <Label>Country</Label>
-                <Select value={formData.country} onValueChange={(v) => handleInputChange('country', v)}>
+                <Label>Country *</Label>
+                <Select value={formData.country} onValueChange={(v) => handleInputChange('country', v)} required>
                   <SelectTrigger id="country"><SelectValue placeholder="Select country" /></SelectTrigger>
                   <SelectContent className="max-h-60">
                     {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -207,21 +207,21 @@ const Part1_DiabetesProfile = ({
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>State/Province</Label>
+                <Label>State/Province *</Label>
                 {formData.country === 'United States' ? (
-                  <Select value={formData.state} onValueChange={(v) => handleInputChange('state', v)}>
+                  <Select value={formData.state} onValueChange={(v) => handleInputChange('state', v)} required>
                     <SelectTrigger id="state"><SelectValue placeholder="Select state" /></SelectTrigger>
                     <SelectContent className="max-h-60">
                       {US_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 ) : (
-                  <Input id="state" value={formData.state} onChange={(e) => handleInputChange('state', e.target.value)} placeholder="State/Province/Region" />
+                  <Input id="state" value={formData.state} onChange={(e) => handleInputChange('state', e.target.value)} placeholder="State/Province/Region" required />
                 )}
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label>Postal Code</Label>
-                <Input id="postalCode" value={formData.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} placeholder="ZIP/Postal code" className="md:w-1/2" />
+                <Label>Postal Code *</Label>
+                <Input id="postalCode" value={formData.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} placeholder="ZIP/Postal code" className="md:w-1/2" required />
               </div>
             </div>
           </div>
