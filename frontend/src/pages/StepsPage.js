@@ -9,6 +9,7 @@ import { Lock, CheckCircle2, CheckCircle, Circle, Home, User as UserIcon, Phone,
 import ReactPlayer from 'react-player';
 import { getErrorMessage } from '../utils/errorHandler';
 import PracticeBetterEmbed from '../components/PracticeBetterEmbed';
+import OnboardingBooking from '../components/OnboardingBooking';
 import IntakeForm from '../components/IntakeForm';
 import { 
   trackStepViewed, 
