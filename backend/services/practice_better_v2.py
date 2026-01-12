@@ -585,8 +585,9 @@ class PracticeBetterService:
                 "lastName": profile.last_name,
                 "emailAddress": profile.email,
             },
-            "status": "active",
+            "isActive": True,
             "sendInvitation": self.config.send_invitation,
+            "documentsFolder": True,
         }
         
         if profile.phone:
@@ -596,8 +597,16 @@ class PracticeBetterService:
             windows_tz = convert_timezone_to_windows(profile.timezone)
             payload["profile"]["timeZone"] = windows_tz
         
+        # Add tags using tagActions structure
         if self.config.tag_ids:
-            payload["tagIds"] = self.config.tag_ids
+            payload["tagActions"] = {
+                "actions": [
+                    {
+                        "actionType": "add",
+                        "tagIds": self.config.tag_ids
+                    }
+                ]
+            }
         
         result = await self._request("POST", "/consultant/records", json=payload, correlation_id=cid)
         
