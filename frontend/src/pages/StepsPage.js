@@ -76,6 +76,7 @@ const StepsPage = () => {
   const [bookingProcessing, setBookingProcessing] = useState(false);
   const [manualConfirmLoading, setManualConfirmLoading] = useState(false);
   const [previousStep, setPreviousStep] = useState(null);
+  const [pbClientRecordId, setPbClientRecordId] = useState(null);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
   // Helper function to send step completion webhook
