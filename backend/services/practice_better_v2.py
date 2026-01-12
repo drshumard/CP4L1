@@ -456,16 +456,26 @@ class PracticeBetterService:
         raise Exception(f"Request failed after {self.config.max_retries} attempts")
     
     async def get_consultants(self, correlation_id: str = None) -> List[dict]:
-        """Get list of active consultants"""
+        """
+        Get list of practitioners/consultants.
+        
+        NOTE: The Practice Better API /consultant/records endpoint returns clients, not practitioners.
+        So we use the pre-configured practitioner_ids directly instead of fetching them from the API.
+        """
         cid = correlation_id or str(uuid.uuid4())[:8]
-        result = await self._request("GET", "/consultant/records", correlation_id=cid, params={"type": "consultant", "status": "active"})
         
-        consultants = result.get("items", [])
-        
+        # Use pre-configured practitioner IDs since the API doesn't have an endpoint 
+        # to list team members/practitioners
         if self.config.practitioner_ids:
-            consultants = [c for c in consultants if c.get("id") in self.config.practitioner_ids]
+            logger.info(f"[{cid}] Using {len(self.config.practitioner_ids)} pre-configured practitioner IDs")
+            return [
+                {"id": pid, "profile": {"firstName": "", "lastName": ""}}
+                for pid in self.config.practitioner_ids
+            ]
         
-        return consultants
+        # Fallback: If no practitioner IDs configured, log a warning
+        logger.warning(f"[{cid}] No practitioner IDs configured - availability will be empty")
+        return []
     
     async def get_availability(
         self,
