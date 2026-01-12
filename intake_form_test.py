@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://intake-system-2.preview.emergentagent.com/api"
+BACKEND_URL = "https://intake-wizard-3.preview.emergentagent.com/api"
 
 class IntakeFormTester:
     def __init__(self):

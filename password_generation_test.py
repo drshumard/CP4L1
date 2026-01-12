@@ -12,7 +12,7 @@ import re
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://intake-system-2.preview.emergentagent.com/api"
+BACKEND_URL = "https://intake-wizard-3.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 class PasswordGenerationTester:
