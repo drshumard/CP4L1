@@ -145,27 +145,29 @@ function AxiosInterceptor() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="App">
-        <AxiosInterceptor />
-        <Routes>
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/auto-login/:token" element={<AutoLogin />} />
-          <Route path="/booking-complete" element={<BookingThankYou />} />
-          <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
-          <Route path="/" element={<RefundedProtectedRoute><Dashboard /></RefundedProtectedRoute>} />
-          <Route path="/dashboard" element={<RefundedProtectedRoute><Dashboard /></RefundedProtectedRoute>} />
-          <Route path="/steps" element={<RefundedProtectedRoute><StepsPage /></RefundedProtectedRoute>} />
-          <Route path="/outcome" element={<RefundedProtectedRoute><OutcomePage /></RefundedProtectedRoute>} />
-          <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
-          <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
-        </Routes>
-        <SupportPopup />
-        <Toaster position="top-center" />
-      </div>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <div className="App">
+          <AxiosInterceptor />
+          <Routes>
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auto-login/:token" element={<AutoLogin />} />
+            <Route path="/booking-complete" element={<BookingThankYou />} />
+            <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
+            <Route path="/" element={<RefundedProtectedRoute><Dashboard /></RefundedProtectedRoute>} />
+            <Route path="/dashboard" element={<RefundedProtectedRoute><Dashboard /></RefundedProtectedRoute>} />
+            <Route path="/steps" element={<RefundedProtectedRoute><StepsPage /></RefundedProtectedRoute>} />
+            <Route path="/outcome" element={<RefundedProtectedRoute><OutcomePage /></RefundedProtectedRoute>} />
+            <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+            <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
+          </Routes>
+          <SupportPopup />
+          <Toaster position="top-center" />
+        </div>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
