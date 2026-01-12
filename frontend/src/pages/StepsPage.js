@@ -1284,10 +1284,6 @@ const StepsPage = () => {
             </CardContent>
           </Card>
         </>
-              Complete Onboarding
-            </Button>
-          </div>
-          </>
         )}
         </div>
       )}
