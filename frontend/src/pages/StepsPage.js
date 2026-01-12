@@ -987,23 +987,6 @@ const StepsPage = () => {
               {/* Action Steps Card - DESKTOP ONLY */}
               <Card className="hidden lg:block glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="action-steps-card">
                 <CardContent className="p-6 h-full flex flex-col">
-                  {/* Welcome Message */}
-                  <div className="mb-6">
-                    <h3 className="text-lg font-bold text-gray-800 mb-3">Welcome!</h3>
-                    <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                      You&apos;ve taken the critical first step toward reversing your diabetes concerns, but immediate action 
-                      is essential to prevent delays. Your first task is to complete <strong>Step 1: Booking Your Initial Consult</strong>.
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed mb-2">
-                      This 30-minute session is where we&apos;ll discuss your unique situation and create your mutual gameplan 
-                      to reach your health goals.
-                    </p>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      <strong>Please complete the following steps in the next 20 minutes</strong> to give our team the 
-                      information we need.
-                    </p>
-                  </div>
-
                   {/* Action Steps */}
                   <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
                     <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -1037,19 +1020,6 @@ const StepsPage = () => {
                           <p className="text-xs text-gray-700 leading-relaxed">
                             Write the date and time down in your personal calendar and highlight it as the top priority on 
                             your schedule. This call is the beginning of your path to wellness.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Step 3 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          3
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-1">Move Forward:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Once your session is booked and confirmed, move forward immediately to Step 2.
                           </p>
                         </div>
                       </div>
