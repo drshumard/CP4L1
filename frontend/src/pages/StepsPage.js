@@ -1192,8 +1192,6 @@ const StepsPage = () => {
                       }}
                     />
                     */}
-                </CardContent>
-              </Card>
             </div>
           </div>
           </>
