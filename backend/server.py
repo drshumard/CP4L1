@@ -1174,6 +1174,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         name=current_user["name"],
         first_name=current_user.get("first_name"),
         last_name=current_user.get("last_name"),
+        phone=current_user.get("phone"),
         current_step=current_user["current_step"],
         role=current_user.get("role", "user")  # Default to 'user' if role not present
     )
