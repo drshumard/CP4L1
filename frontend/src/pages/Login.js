@@ -60,9 +60,9 @@ const Login = () => {
 
     try {
       const response = await axios.post(`${API}/auth/login`, formData);
-      localStorage.setItem('access_token', response.data.access_token);
-      localStorage.setItem('refresh_token', response.data.refresh_token);
-      localStorage.setItem('user_email', formData.email);
+      safeSetItem('access_token', response.data.access_token);
+      safeSetItem('refresh_token', response.data.refresh_token);
+      safeSetItem('user_email', formData.email);
       
       // Track successful login
       trackLogin(response.data.user_id, formData.email, 'password');
