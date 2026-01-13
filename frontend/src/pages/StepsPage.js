@@ -905,7 +905,7 @@ const StepsPage = () => {
                 <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
                   <span className="flex items-center gap-2 text-sm">
                     <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">1</span>
-                    <span className="text-gray-700 font-medium">Complete Part 1</span>
+                    <span className="text-gray-700 font-medium">Fill in your details</span>
                   </span>
                   <span className="hidden sm:block text-teal-300">→</span>
                   <span className="flex items-center gap-2 text-sm">
