@@ -984,12 +984,12 @@ const StepsPage = () => {
           /* Step 1: Action Steps on Left, Booking Calendar on Right - Login page style */
           <div className="w-full max-w-7xl h-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 h-full w-full overflow-hidden rounded-xl shadow-2xl">
-            {/* Left Column: Action Steps - Same gradient as booking widget with black text */}
-            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-center overflow-hidden rounded-l-xl" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
+            {/* Left Column: Action Steps - Eggshell white */}
+            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-center overflow-hidden rounded-l-xl" style={{ background: '#F5F5F0' }}>
               
               <div className="relative z-10">
-                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800">Action Steps</h3>
-                <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8">Complete these steps to begin your journey</p>
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800 text-center">Action Steps</h3>
+                <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 text-center">Complete these steps to begin your journey</p>
                 
                 <div className="space-y-4 md:space-y-5">
                   {/* Step 1 */}
@@ -1020,7 +1020,9 @@ const StepsPage = () => {
                   </div>
                 </div>
                 
-                <p className="mt-6 md:mt-8 text-xs md:text-sm text-gray-500">Please complete your booking in the next 20 minutes</p>
+                <div className="mt-6 md:mt-8 py-3 px-4 rounded-lg text-center" style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)' }}>
+                  <p className="text-sm md:text-base text-white font-medium">Please complete your booking in the next 20 minutes</p>
+                </div>
               </div>
             </div>
 
