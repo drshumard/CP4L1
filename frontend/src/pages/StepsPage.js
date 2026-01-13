@@ -1078,6 +1078,7 @@ const StepsPage = () => {
                       firstName: userData?.first_name || '',
                       lastName: userData?.last_name || '',
                       email: userData?.email || '',
+                      phone: userData?.phone || '',
                     }}
                     onBookingComplete={async (bookingResult) => {
                       console.log('Booking completed via custom widget:', bookingResult);
