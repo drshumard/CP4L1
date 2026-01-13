@@ -111,6 +111,25 @@ const IntakeForm = ({ userData, onComplete, onPartChange, onStateChange }) => {
   // Store the last auto-filled name to detect when legal name changes
   const lastAutoFilledName = useRef('');
 
+  // Notify parent of state changes
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange({
+        currentPart,
+        isSaving,
+        isSubmitting,
+        lastSaved
+      });
+    }
+  }, [currentPart, isSaving, isSubmitting, lastSaved, onStateChange]);
+
+  // Notify parent when part changes
+  useEffect(() => {
+    if (onPartChange) {
+      onPartChange(currentPart);
+    }
+  }, [currentPart, onPartChange]);
+
   // Load saved form data on mount
   useEffect(() => {
     loadSavedData();
