@@ -1096,10 +1096,12 @@ const StepsPage = () => {
                       // so we do NOT show the legacy showBookingSuccess modal here
                       console.log('Booking success - advancing to Step 2:', bookingResult);
                       
-                      // Store the Practice Better client record ID
+                      // Store the Practice Better client record ID in both localStorage AND backend
                       if (bookingResult?.client_record_id) {
                         setPbClientRecordId(bookingResult.client_record_id);
                         localStorage.setItem('pb_client_record_id', bookingResult.client_record_id);
+                        // Save to backend for persistence across devices/sessions
+                        savePbClientRecordId(bookingResult.client_record_id);
                       }
                       
                       setBookingProcessing(true);
