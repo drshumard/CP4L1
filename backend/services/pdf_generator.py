@@ -159,35 +159,14 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     story.append(create_two_column_row('Gender', profile.get('gender'), 'Relationship Status', profile.get('relationshipStatus')))
     story.append(create_two_column_row('Weight', profile.get('weight'), 'Form Date', current_date))
     
-    # Address - each part on a separate line
-    story.append(Spacer(1, 4))
-    story.append(Paragraph('<b>Address:</b>', styles['Normal']))
+    # Address - each field as individual rows matching the document style
+    story.append(create_row('Street Address', profile.get('street')))
+    story.append(create_row('Unit/Apt', profile.get('unit')))
+    story.append(create_row('City/Town', profile.get('town')))
+    story.append(create_row('State', profile.get('state')))
+    story.append(create_row('Postal Code', profile.get('postalCode')))
+    story.append(create_row('Country', profile.get('country')))
     
-    address_lines = []
-    if profile.get('street'):
-        street_line = profile.get('street')
-        if profile.get('unit'):
-            street_line += f", {profile.get('unit')}"
-        address_lines.append(street_line)
-    if profile.get('town') or profile.get('state') or profile.get('postalCode'):
-        city_state_zip = []
-        if profile.get('town'):
-            city_state_zip.append(profile.get('town'))
-        if profile.get('state'):
-            city_state_zip.append(profile.get('state'))
-        if profile.get('postalCode'):
-            city_state_zip.append(profile.get('postalCode'))
-        address_lines.append(', '.join(city_state_zip))
-    if profile.get('country'):
-        address_lines.append(profile.get('country'))
-    
-    if address_lines:
-        for line in address_lines:
-            story.append(Paragraph(f'&nbsp;&nbsp;&nbsp;&nbsp;{line}', styles['Normal']))
-    else:
-        story.append(Paragraph('&nbsp;&nbsp;&nbsp;&nbsp;N/A', styles['Normal']))
-    
-    story.append(Spacer(1, 4))
     story.append(create_two_column_row('Occupation', profile.get('occupation'), 'Referred By', profile.get('referredBy')))
     
     story.append(Spacer(1, 8))
