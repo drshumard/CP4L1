@@ -1524,8 +1524,19 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
         user_agent=user_agent
     )
     
+    # Determine user-friendly message based on status
+    if submission_data.get("status") == "completed":
+        message = "Form submitted successfully! Your documents have been saved."
+    elif submission_data.get("status") == "completed_with_errors":
+        message = "Form submitted successfully! Some documents may still be processing."
+    else:
+        message = "Form submitted successfully! Your information has been saved."
+    
     return {
-        "message": "Form submitted successfully",
+        "message": message,
+        "submission_id": submission_id,
+        "status": submission_data.get("status"),
+        "pdf_status": submission_data.get("pdf_status"),
         "submitted_at": submission_data["submitted_at"],
         "pdf_uploaded_dropbox": dropbox_result.get("success") if dropbox_result else False,
         "pdf_uploaded_drive": drive_result.get("success") if drive_result else False,
