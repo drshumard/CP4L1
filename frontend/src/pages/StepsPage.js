@@ -908,11 +908,11 @@ const StepsPage = () => {
               </Card>
             </div>
 
-            {/* Persistent Action Steps Card with Navigation */}
-            <div className="sticky top-0 z-10 mb-2">
+            {/* Persistent Action Steps Card - Desktop only */}
+            <div className="hidden lg:block mb-4">
               <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 border border-teal-200 rounded-xl px-4 sm:px-6 py-3 shadow-sm">
-                {/* Action Steps Row */}
-                <div className="flex items-center justify-between gap-2 sm:gap-4">
+                {/* Action Steps Row - Centered */}
+                <div className="flex items-center justify-center gap-4 sm:gap-6">
                   {/* Previous Button */}
                   <button
                     onClick={() => intakeFormRef.current?.goToPreviousPart()}
@@ -924,7 +924,7 @@ const StepsPage = () => {
                     }`}
                   >
                     <ChevronLeft size={16} />
-                    <span className="hidden sm:inline">Previous</span>
+                    <span>Previous</span>
                   </button>
 
                   {/* Steps */}
@@ -941,7 +941,7 @@ const StepsPage = () => {
                       </span>
                       <span className={`font-medium ${intakeFormState.currentPart === 1 ? 'text-gray-800' : 'text-gray-500'}`}>Fill in your details</span>
                     </span>
-                    <span className="hidden sm:block text-teal-300">→</span>
+                    <span className="text-teal-300">→</span>
                     <span className={`flex items-center gap-2 text-sm ${intakeFormState.currentPart === 2 ? '' : 'opacity-50'}`}>
                       <span className={`w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center shadow-sm ${
                         intakeFormState.currentPart > 2 
@@ -954,7 +954,7 @@ const StepsPage = () => {
                       </span>
                       <span className={`font-medium ${intakeFormState.currentPart === 2 ? 'text-gray-800' : 'text-gray-500'}`}>Sign HIPAA Notice</span>
                     </span>
-                    <span className="hidden sm:block text-teal-300">→</span>
+                    <span className="text-teal-300">→</span>
                     <span className={`flex items-center gap-2 text-sm ${intakeFormState.currentPart === 3 ? '' : 'opacity-50'}`}>
                       <span className={`w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center shadow-sm ${
                         intakeFormState.currentPart === 3 
@@ -971,7 +971,7 @@ const StepsPage = () => {
                       onClick={() => intakeFormRef.current?.goToNextPart()}
                       className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-white/50 border border-gray-300 bg-white shadow-sm transition-all"
                     >
-                      <span className="hidden sm:inline">Next</span>
+                      <span>Next</span>
                       <ChevronRight size={16} />
                     </button>
                   ) : (
@@ -984,7 +984,7 @@ const StepsPage = () => {
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <>
-                          <span className="hidden sm:inline">Submit</span>
+                          <span>Submit</span>
                           <CheckCircle size={16} />
                         </>
                       )}
