@@ -979,117 +979,56 @@ const StepsPage = () => {
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2">
+        <div className="w-full h-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
         {currentStep === 1 ? (
-          /* Step 1: Action Steps on Left, Booking Calendar on Right */
-          <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full lg:items-start">
-            {/* Left Column: Action Steps */}
-            <div className="flex flex-col gap-4 lg:h-[567px]">
-              {/* Mobile-only Welcome Card for Step 1 */}
-              <div className="lg:hidden">
-                <Card className="glass-dark border-0 shadow-xl" data-testid="mobile-welcome-card-step1">
-                  <CardContent className="p-4">
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4">
-                      <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Welcome!
-                      </h3>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        Please complete the following steps in the next 20 minutes to give our team the information we need.
-                      </p>
+          /* Step 1: Action Steps on Left, Booking Calendar on Right - Login page style */
+          <div className="w-full max-w-7xl h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 h-full w-full overflow-hidden rounded-xl shadow-2xl">
+            {/* Left Column: Action Steps - Gradient background like login */}
+            <div className="relative bg-gradient-to-br from-teal-500 via-cyan-600 to-cyan-700 p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-center text-white overflow-hidden">
+              {/* Decorative blurs */}
+              <div className="absolute top-10 left-10 w-32 h-32 md:w-48 md:h-48 bg-white/10 rounded-full blur-2xl"></div>
+              <div className="absolute bottom-10 right-10 w-40 h-40 md:w-56 md:h-56 bg-cyan-400/20 rounded-full blur-2xl"></div>
+              
+              <div className="relative z-10">
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4">Action Steps</h3>
+                <p className="text-base md:text-lg text-cyan-100 mb-6 md:mb-8">Complete these steps to begin your journey</p>
+                
+                <div className="space-y-4 md:space-y-5">
+                  {/* Step 1 */}
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold">1</div>
+                    <div>
+                      <p className="font-semibold text-base md:text-lg">Book Your Session</p>
+                      <p className="text-cyan-100 text-sm md:text-base">Select the best date and time on the calendar</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Video Section - COMMENTED OUT
-              <Card className="hidden lg:block glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
-                <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
-                  <iframe
-                    key={videoAutoplay ? 'autoplay' : 'manual'}
-                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[1].videoId}?autoplay=${videoAutoplay}&loop=false&muted=false&preload=true&responsive=true`}
-                    loading="eager"
-                    style={{
-                      border: 0,
-                      position: 'absolute',
-                      top: 0,
-                      height: '100%',
-                      width: '100%'
-                    }}
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen="true"
-                  />
-                </div>
-              </Card>
-              */}
-
-              {/* Action Steps Card - DESKTOP ONLY - Matches booking widget design */}
-              <Card className="hidden lg:flex glass-dark border-0 shadow-xl h-[567px] flex-col" data-testid="action-steps-card">
-                <CardContent className="p-5 lg:p-6 flex-1 flex flex-col">
-                  {/* Header matching booking widget style */}
-                  <div className="text-center mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Action Steps</h3>
-                    <p className="text-sm text-gray-500">Complete these steps to begin your journey</p>
                   </div>
                   
-                  {/* Action Steps List */}
-                  <div className="flex-1 flex flex-col justify-center space-y-6">
-                    {/* Step 1 */}
-                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-bold flex items-center justify-center text-lg shadow-md">
-                        1
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800 mb-1">Book Your Session</p>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          Select the best date and time on the calendar to schedule your consultation.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-bold flex items-center justify-center text-lg shadow-md">
-                        2
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800 mb-1">Confirm Priority</p>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          Write the date and time in your personal calendar and highlight it as top priority.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
-                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-bold flex items-center justify-center text-lg shadow-md">
-                        3
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800 mb-1">Prepare for Your Call</p>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          This call is the beginning of your path to wellness. Be ready to discuss your health goals.
-                        </p>
-                      </div>
+                  {/* Step 2 */}
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold">2</div>
+                    <div>
+                      <p className="font-semibold text-base md:text-lg">Confirm Priority</p>
+                      <p className="text-cyan-100 text-sm md:text-base">Write the date in your calendar as top priority</p>
                     </div>
                   </div>
-
-                  {/* Footer note */}
-                  <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-                    <p className="text-xs text-gray-400">
-                      Please complete your booking in the next 20 minutes
-                    </p>
+                  
+                  {/* Step 3 */}
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold">3</div>
+                    <div>
+                      <p className="font-semibold text-base md:text-lg">Prepare for Your Call</p>
+                      <p className="text-cyan-100 text-sm md:text-base">Be ready to discuss your health goals</p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-
+                </div>
+                
+                <p className="mt-6 md:mt-8 text-xs md:text-sm text-cyan-200">Please complete your booking in the next 20 minutes</p>
+              </div>
             </div>
 
-            {/* Right Column: Booking Calendar - Standalone container with its own design */}
-            <div className="w-full" data-testid="booking-card">
+            {/* Right Column: Booking Calendar - White background */}
+            <div className="bg-white h-full overflow-y-auto" data-testid="booking-card">
                   <OnboardingBooking 
                     clientInfo={{
                       firstName: userData?.first_name || '',
