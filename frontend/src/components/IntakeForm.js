@@ -640,9 +640,8 @@ const IntakeForm = forwardRef(({ userData, onComplete, onPartChange, onStateChan
       </AnimatePresence>
     </div>
   );
-};
+});
 
-// Export navigation functions for parent component
 IntakeForm.displayName = 'IntakeForm';
 
 export default IntakeForm;
