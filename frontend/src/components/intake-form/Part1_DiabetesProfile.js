@@ -154,7 +154,7 @@ const Part1_DiabetesProfile = ({
               />
             </div>
             <div className="space-y-2">
-              <Label>Relationship Status</Label>
+              <Label>Relationship Status *</Label>
               <Select value={formData.relationshipStatus} onValueChange={(v) => handleInputChange('relationshipStatus', v)}>
                 <SelectTrigger id="relationshipStatus"><SelectValue placeholder="Select status" /></SelectTrigger>
                 <SelectContent>
@@ -172,7 +172,7 @@ const Part1_DiabetesProfile = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Weight *</Label>
+              <Label>Weight</Label>
               <Input id="weight" value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} placeholder="e.g., 180 lbs" />
             </div>
             <div className="space-y-2">
