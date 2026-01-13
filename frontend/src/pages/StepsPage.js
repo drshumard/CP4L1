@@ -1338,7 +1338,7 @@ const StepsPage = () => {
               </Button>
               
               <p className="text-gray-500 text-sm mt-4 italic">
-                Can&apos;t find the activation email? Check your spam folder.
+                You can also find the activation email in your inbox/spam
               </p>
             </div>
           </div>
