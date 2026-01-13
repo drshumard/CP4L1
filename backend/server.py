@@ -1609,10 +1609,13 @@ async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Reset user to step 1
+    # Reset user to step 1 and clear Practice Better client ID
     await db.users.update_one(
         {"id": user_id},
-        {"$set": {"current_step": 1}}
+        {
+            "$set": {"current_step": 1},
+            "$unset": {"pb_client_record_id": ""}  # Clear the PB client ID for fresh booking
+        }
     )
     
     # Delete all progress
@@ -1637,13 +1640,14 @@ async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin
         details={
             "reset_by": admin_user.get("email"),
             "intake_form_cleared": True,
+            "pb_client_record_id_cleared": True,
             "preserved_fields": list(preserved_data.keys())
         },
         status="success"
     )
     
     return {
-        "message": "User progress and intake form reset successfully",
+        "message": "User progress, intake form, and Practice Better client ID reset successfully",
         "preserved_fields": list(preserved_data.keys())
     }
 
