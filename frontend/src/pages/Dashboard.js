@@ -235,11 +235,11 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Trophy className="text-yellow-600" size={20} />
-                Completed Steps
+                Current Progress
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold text-gray-800">{completedSteps}</p>
+              <p className="text-3xl font-bold text-gray-800">Step {Math.min(progressData?.current_step, 3)}</p>
               <p className="text-sm text-gray-600 mt-1">Out of 3 total steps</p>
             </CardContent>
           </Card>
@@ -253,9 +253,9 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold text-gray-800">
-                {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3) 
+                {isComplete 
                   ? 'Your Consultation Call' 
-                  : `Step ${progressData?.current_step + 1}`}
+                  : `Step ${Math.min(progressData?.current_step + 1, 3)}`}
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 Coming up next
