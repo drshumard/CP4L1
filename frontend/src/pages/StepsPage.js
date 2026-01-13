@@ -981,10 +981,10 @@ const StepsPage = () => {
       ) : (
         <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
         {currentStep === 1 ? (
-          /* Step 1: Video + Action Steps on Left, Booking Calendar on Right */
+          /* Step 1: Action Steps on Left, Booking Calendar on Right */
           <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full lg:h-[calc(100vh-140px)] lg:overflow-hidden">
-            {/* Left Column: Video + Action Steps */}
+            {/* Left Column: Action Steps */}
             <div className="flex flex-col gap-4 lg:h-full lg:overflow-hidden">
               {/* Mobile-only Welcome Card for Step 1 */}
               <div className="lg:hidden">
@@ -1005,7 +1005,7 @@ const StepsPage = () => {
                 </Card>
               </div>
 
-              {/* Video Section - Bunny.net Official Embed - DESKTOP ONLY */}
+              {/* Video Section - COMMENTED OUT
               <Card className="hidden lg:block glass-dark border-0 shadow-xl overflow-hidden flex-shrink-0" data-testid="video-section">
                 <div style={{ position: 'relative', paddingTop: '56.25%', backgroundColor: '#000' }}>
                   <iframe
@@ -1022,102 +1022,66 @@ const StepsPage = () => {
                     allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
                     allowFullScreen="true"
                   />
-                  
-                  {/* Begin Your Journey Overlay */}
-                  <AnimatePresence>
-                    {showVideoOverlay && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="absolute inset-0 flex items-center justify-center z-10"
-                        style={{ 
-                          cursor: 'pointer',
-                          background: 'rgba(0, 0, 0, 0.7)',
-                          backdropFilter: 'blur(4px)'
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setShowVideoOverlay(false);
-                          setVideoAutoplay(true);
-                        }}
-                      >
-                        <motion.div
-                          initial={{ scale: 0.8, y: 20 }}
-                          animate={{ scale: 1, y: 0 }}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          transition={{ type: "spring", stiffness: 300 }}
-                          style={{
-                            background: 'linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%)',
-                            borderRadius: '1rem',
-                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.75rem',
-                            border: '2px solid rgba(255, 255, 255, 0.2)'
-                          }}
-                          className="text-white font-bold cursor-pointer px-6 py-4 sm:px-8 sm:py-5 md:px-12 md:py-6 text-base sm:text-xl md:text-2xl"
-                        >
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 1.5, repeat: Infinity }}
-                          >
-                            <svg className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </motion.div>
-                          <span className="whitespace-nowrap">Begin Your Journey</span>
-                        </motion.div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               </Card>
+              */}
 
-              {/* Action Steps Card - DESKTOP ONLY */}
-              <Card className="hidden lg:block glass-dark border-0 shadow-lg flex-1 overflow-auto" data-testid="action-steps-card">
-                <CardContent className="p-6 h-full flex flex-col justify-center">
-                  {/* Action Steps */}
-                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-5">
-                    <h4 className="text-base font-bold text-gray-800 mb-5 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Action Steps
-                    </h4>
-                    
-                    <div className="space-y-5">
-                      {/* Step 1 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          1
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-1">Book Your Session:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Take a moment right now to select the best date and time on the calendar available on this page.
-                          </p>
-                        </div>
+              {/* Action Steps Card - DESKTOP ONLY - Matches booking widget design */}
+              <Card className="hidden lg:flex glass-dark border-0 shadow-xl lg:h-full flex-col" data-testid="action-steps-card">
+                <CardContent className="p-5 lg:p-6 flex-1 flex flex-col">
+                  {/* Header matching booking widget style */}
+                  <div className="text-center mb-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">Action Steps</h3>
+                    <p className="text-sm text-gray-500">Complete these steps to begin your journey</p>
+                  </div>
+                  
+                  {/* Action Steps List */}
+                  <div className="flex-1 flex flex-col justify-center space-y-6">
+                    {/* Step 1 */}
+                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-bold flex items-center justify-center text-lg shadow-md">
+                        1
                       </div>
-
-                      {/* Step 2 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          2
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-1">Confirm Priority:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Write the date and time down in your personal calendar and highlight it as the top priority on 
-                            your schedule. This call is the beginning of your path to wellness.
-                          </p>
-                        </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 mb-1">Book Your Session</p>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          Select the best date and time on the calendar to schedule your consultation.
+                        </p>
                       </div>
                     </div>
+
+                    {/* Step 2 */}
+                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-bold flex items-center justify-center text-lg shadow-md">
+                        2
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 mb-1">Confirm Priority</p>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          Write the date and time in your personal calendar and highlight it as top priority.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex items-start gap-4 p-4 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl border border-teal-100">
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white font-bold flex items-center justify-center text-lg shadow-md">
+                        3
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 mb-1">Prepare for Your Call</p>
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          This call is the beginning of your path to wellness. Be ready to discuss your health goals.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer note */}
+                  <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+                    <p className="text-xs text-gray-400">
+                      Please complete your booking in the next 20 minutes
+                    </p>
                   </div>
                 </CardContent>
               </Card>
