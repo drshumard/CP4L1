@@ -1089,9 +1089,9 @@ const StepsPage = () => {
             </div>
 
             {/* Right Column: Booking Calendar */}
-            <div className="lg:h-full lg:overflow-hidden w-full">
-              <Card className="glass-dark border-0 shadow-xl lg:h-full flex flex-col w-full" data-testid="booking-card">
-                <CardContent className="p-3 sm:p-4 md:p-5 lg:flex-1 flex flex-col lg:overflow-hidden w-full">
+            <div className="lg:h-[567px] w-full">
+              <Card className="glass-dark border-0 shadow-xl h-full flex flex-col w-full" data-testid="booking-card">
+                <CardContent className="p-3 sm:p-4 md:p-5 flex-1 flex flex-col w-full">
                   {/* Custom Booking Component - v2 (has its own container styling) */}
                   <OnboardingBooking 
                     clientInfo={{
