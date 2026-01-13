@@ -910,14 +910,14 @@ const StepsPage = () => {
 
             {/* Persistent Action Steps Card - Desktop only */}
             <div className="hidden lg:block mb-4">
-              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 border border-teal-200 rounded-xl px-4 sm:px-6 py-3 shadow-sm">
-                {/* Action Steps Row - Centered */}
-                <div className="flex items-center justify-center gap-4 sm:gap-6">
-                  {/* Previous Button */}
+              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 border border-teal-200 rounded-xl px-6 py-4 shadow-sm">
+                {/* Action Steps Row - Previous left, Steps center, Next right */}
+                <div className="flex items-center justify-between">
+                  {/* Previous Button - Left */}
                   <button
                     onClick={() => intakeFormRef.current?.goToPreviousPart()}
                     disabled={intakeFormState.currentPart === 1}
-                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       intakeFormState.currentPart === 1
                         ? 'text-gray-400 cursor-not-allowed'
                         : 'text-gray-700 hover:bg-white/50 border border-gray-300 bg-white shadow-sm'
@@ -927,8 +927,8 @@ const StepsPage = () => {
                     <span>Previous</span>
                   </button>
 
-                  {/* Steps */}
-                  <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-6 gap-y-2">
+                  {/* Steps - Center */}
+                  <div className="flex items-center gap-x-4">
                     <span className={`flex items-center gap-2 text-sm ${intakeFormState.currentPart === 1 ? '' : 'opacity-50'}`}>
                       <span className={`w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center shadow-sm ${
                         intakeFormState.currentPart > 1 
@@ -965,11 +965,11 @@ const StepsPage = () => {
                     </span>
                   </div>
 
-                  {/* Next/Submit Button */}
+                  {/* Next/Submit Button - Right */}
                   {intakeFormState.currentPart < 3 ? (
                     <button
                       onClick={() => intakeFormRef.current?.goToNextPart()}
-                      className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-white/50 border border-gray-300 bg-white shadow-sm transition-all"
+                      className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-white/50 border border-gray-300 bg-white shadow-sm transition-all"
                     >
                       <span>Next</span>
                       <ChevronRight size={16} />
@@ -978,7 +978,7 @@ const StepsPage = () => {
                     <button
                       onClick={() => intakeFormRef.current?.handleSubmit()}
                       disabled={intakeFormState.isSubmitting}
-                      className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50"
+                      className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50"
                     >
                       {intakeFormState.isSubmitting ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
