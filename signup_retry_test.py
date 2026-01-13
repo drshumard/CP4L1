@@ -15,7 +15,7 @@ import subprocess
 import os
 
 # Configuration
-BACKEND_URL = "https://intake-wizard-3.preview.emergentagent.com/api"
+BACKEND_URL = "https://client-journey-6.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 class SignupRetryTester:
