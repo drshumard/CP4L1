@@ -327,7 +327,7 @@ const IntakeForm = ({ userData, onComplete }) => {
       { field: 'legalFirstName', id: 'legalFirstName' },
       { field: 'legalLastName', id: 'legalLastName' },
       { field: 'dateOfBirth', id: 'dateOfBirth' },
-      { field: 'weight', id: 'weight' },
+      { field: 'relationshipStatus', id: 'relationshipStatus' },
       { field: 'street', id: 'street' },
       { field: 'town', id: 'town' },
       { field: 'country', id: 'country' },
@@ -345,6 +345,14 @@ const IntakeForm = ({ userData, onComplete }) => {
       id: r.id,
       label: FIELD_LABELS[r.field] || r.field
     }));
+    
+    // Check medications - must have at least one entry with a name OR "None" selected
+    const hasValidMedication = formData.medications && formData.medications.some(med => med.name && med.name.trim() !== '');
+    const hasNoneMedication = formData.noMedications === true;
+    
+    if (!hasValidMedication && !hasNoneMedication) {
+      missing.push({ field: 'medications', id: 'medication-name-0', label: FIELD_LABELS.medications });
+    }
     
     if (missing.length > 0) {
       setMissingFields(missing);
