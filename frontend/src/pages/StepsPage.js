@@ -983,9 +983,9 @@ const StepsPage = () => {
         {currentStep === 1 ? (
           /* Step 1: Action Steps on Left, Booking Calendar on Right */
           <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full lg:h-[calc(100vh-140px)] lg:overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 pb-3 w-full lg:items-start">
             {/* Left Column: Action Steps */}
-            <div className="flex flex-col gap-4 lg:h-full lg:overflow-hidden">
+            <div className="flex flex-col gap-4 lg:h-[567px]">
               {/* Mobile-only Welcome Card for Step 1 */}
               <div className="lg:hidden">
                 <Card className="glass-dark border-0 shadow-xl" data-testid="mobile-welcome-card-step1">
