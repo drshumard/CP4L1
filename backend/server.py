@@ -1554,8 +1554,14 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
 async def get_analytics(admin_user: dict = Depends(get_admin_user)):
     total_users = await db.users.count_documents({})
     
-    # Count users by step
+    # Count users by step (including step 0 for refunded users)
     step_distribution = {}
+    
+    # Count refunded users (step 0)
+    refunded_count = await db.users.count_documents({"current_step": 0})
+    step_distribution["refunded"] = refunded_count
+    
+    # Count users in steps 1-7
     for step in range(1, 8):
         count = await db.users.count_documents({"current_step": step})
         step_distribution[f"step_{step}"] = count
