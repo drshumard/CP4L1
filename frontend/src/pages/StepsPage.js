@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, CheckCircle2, CheckCircle, Circle, Home, User as UserIcon, Phone, Calendar, LogOut, Loader2, Clock, RefreshCw } from 'lucide-react';
+import { Lock, CheckCircle2, CheckCircle, Circle, Home, User as UserIcon, Phone, Calendar, LogOut, Loader2, Clock, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import ReactPlayer from 'react-player';
 import { getErrorMessage } from '../utils/errorHandler';
 import PracticeBetterEmbed from '../components/PracticeBetterEmbed';
