@@ -75,6 +75,13 @@ const OutcomePage = () => {
       setUserData(userRes.data);
       setProgressData(progressRes.data);
       setAppointmentData(appointmentRes.data?.appointment);
+      
+      // Redirect users who haven't completed the program (not on Step 4) back to steps
+      if (progressRes.data.current_step < 4) {
+        toast.info('Please complete all steps first.');
+        navigate('/steps');
+        return;
+      }
     } catch (error) {
       if (error.response?.status === 401) {
         localStorage.clear();
