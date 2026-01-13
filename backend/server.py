@@ -2009,7 +2009,7 @@ async def send_password_reset_link(user_id: str, admin_user: dict = Depends(get_
         raise HTTPException(status_code=404, detail="User not found")
     
     # Generate reset token (24 hour validity)
-    reset_token = str(uuid4())
+    reset_token = str(uuid.uuid4())
     expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     
     # Store reset token
