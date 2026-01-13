@@ -395,6 +395,20 @@ const StepsPage = () => {
 
       setUserData(userRes.data);
       setProgressData(progressRes.data);
+      
+      // Load Practice Better client record ID from backend (fallback to localStorage)
+      // This ensures the ID persists across devices/sessions
+      if (progressRes.data.pb_client_record_id) {
+        setPbClientRecordId(progressRes.data.pb_client_record_id);
+        // Also sync to localStorage for immediate use
+        localStorage.setItem('pb_client_record_id', progressRes.data.pb_client_record_id);
+      } else {
+        // Fallback to localStorage for backwards compatibility
+        const storedId = localStorage.getItem('pb_client_record_id');
+        if (storedId) {
+          setPbClientRecordId(storedId);
+        }
+      }
 
       // If user has completed the program (step 4), redirect to outcome
       if (progressRes.data.current_step === 4) {
@@ -417,6 +431,24 @@ const StepsPage = () => {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Helper function to save PB client record ID to backend
+  const savePbClientRecordId = async (clientRecordId) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (token && clientRecordId) {
+        await axios.post(
+          `${API}/user/save-pb-client`,
+          { client_record_id: clientRecordId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        console.log('PB client record ID saved to database');
+      }
+    } catch (error) {
+      console.error('Failed to save PB client record ID:', error);
+      // Non-blocking - localStorage still has the value
     }
   };
 
