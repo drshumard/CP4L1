@@ -79,6 +79,15 @@ const StepsPage = () => {
   const [pbClientRecordId, setPbClientRecordId] = useState(null);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
+  // Intake form state tracking
+  const [intakeFormState, setIntakeFormState] = useState({
+    currentPart: 1,
+    isSaving: false,
+    isSubmitting: false,
+    lastSaved: null
+  });
+  const intakeFormRef = useRef(null);
+
   // Logout confirmation dialog state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
