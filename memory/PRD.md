@@ -14,6 +14,8 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 - [x] Admin authentication
 - [x] "Refunded" user status (step 0) - locks user to repurchase page
 - [x] User-friendly session expiration message
+- [x] **Logout confirmation dialog** - Prevents accidental logouts
+- [x] **Session expiration warning** - Shows modal 30s before expiry with countdown timer, option to renew or logout
 
 ### Step 1: Video + Booking
 - [x] Educational video display (with mobile-specific views)
@@ -24,7 +26,7 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
   - Server-side caching (2-min TTL) for instant UI loads
   - Calendar view showing dates with availability
   - Time slot selection with booking form
-  - Pre-populated user information
+  - **Pre-populated user information including phone number**
   - Auto-redirect to Step 2 after successful booking (5-sec countdown)
 - [x] Backend webhook from Practice Better for step advancement
 - [x] Frontend polling for seamless step transitions
