@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getErrorMessage } from '../utils/errorHandler';
 import { trackLogin, trackLoginFailed, trackPasswordResetRequested, trackPageView, trackButtonClicked } from '../utils/analytics';
+import { safeSetItem } from '../utils/safeStorage';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
