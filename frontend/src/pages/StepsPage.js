@@ -883,10 +883,10 @@ const StepsPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden" data-main-content>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden" data-main-content>
       {currentStep === 2 ? (
         /* Step 2: Custom Intake Form */
-        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 h-full overflow-y-auto">
+        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
           {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
             {/* Mobile-only Welcome Card for Step 2 */}
