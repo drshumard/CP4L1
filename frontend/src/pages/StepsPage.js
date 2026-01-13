@@ -1207,12 +1207,12 @@ const StepsPage = () => {
           </div>
         ) : (
           /* Step 3: Video on Left, Action Steps on Right (matching Step 1 layout) */
-          <div className="w-full h-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
-          <div className="w-full max-w-7xl flex flex-col gap-4">
+          <div className="w-full h-full flex items-start justify-center p-2 sm:p-3 lg:p-4 overflow-y-auto">
+          <div className="w-full max-w-[1400px] flex flex-col gap-4">
           {/* Main Two-Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 w-full overflow-hidden rounded-xl shadow-2xl" style={{ minHeight: '400px' }}>
-            {/* Left Column: Video - Desktop only */}
-            <div className="hidden lg:block relative overflow-hidden rounded-l-xl bg-black">
+          <div className="grid grid-cols-1 lg:grid-cols-2 w-full overflow-hidden rounded-xl shadow-2xl">
+            {/* Left Column: Video - Desktop only, 16:9 aspect ratio */}
+            <div className="hidden lg:block relative overflow-hidden rounded-l-xl bg-black aspect-video">
               <iframe
                 src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
                 loading="eager"
@@ -1224,7 +1224,7 @@ const StepsPage = () => {
               />
             </div>
 
-            {/* Right Column: Action Steps - White background like Step 1 */}
+            {/* Right Column: Action Steps - White background like Step 1, matches video height */}
             <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col bg-white lg:rounded-r-xl rounded-xl lg:rounded-l-none">
               
               {/* Title at top */}
