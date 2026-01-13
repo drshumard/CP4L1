@@ -981,22 +981,20 @@ const StepsPage = () => {
       ) : (
         <div className="w-full h-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
         {currentStep === 1 ? (
-          /* Step 1: Action Steps on Left, Booking Calendar on Right - Login page style */
+          /* Step 1: Action Steps on Left, Booking Calendar on Right */
           <div className="w-full max-w-7xl h-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 h-full w-full overflow-hidden rounded-xl shadow-2xl">
-            {/* Left Column: Action Steps - Same gradient as booking widget */}
-            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-start pt-8 md:pt-12 overflow-hidden rounded-l-xl" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
+            {/* Left Column: Action Steps - White background */}
+            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col justify-center overflow-hidden rounded-l-xl bg-white">
               
-              <div className="relative z-10 flex flex-col h-full">
-                <div>
-                  <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800 text-center">Action Steps</h3>
-                  <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 text-center">Complete these steps to begin your journey</p>
-                </div>
+              <div className="relative z-10">
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800 text-center">Action Steps</h3>
+                <p className="text-base md:text-lg text-gray-600 mb-6 md:mb-8 text-center">Complete these steps to begin your journey</p>
                 
-                <div className="space-y-4 md:space-y-5 flex-1">
+                <div className="space-y-4 md:space-y-5">
                   {/* Step 1 */}
                   <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-md" style={{ background: '#14b8a6' }}>1</div>
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-md" style={{ background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)' }}>1</div>
                     <div>
                       <p className="font-semibold text-base md:text-lg text-gray-800">Book Your Session</p>
                       <p className="text-gray-600 text-sm md:text-base">Select the best date and time on the calendar</p>
@@ -1005,7 +1003,7 @@ const StepsPage = () => {
                   
                   {/* Step 2 */}
                   <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-md" style={{ background: '#14b8a6' }}>2</div>
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-md" style={{ background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)' }}>2</div>
                     <div>
                       <p className="font-semibold text-base md:text-lg text-gray-800">Confirm Priority</p>
                       <p className="text-gray-600 text-sm md:text-base">Write the date in your calendar as top priority</p>
@@ -1014,7 +1012,7 @@ const StepsPage = () => {
                   
                   {/* Step 3 */}
                   <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-md" style={{ background: '#14b8a6' }}>3</div>
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full text-white flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-md" style={{ background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)' }}>3</div>
                     <div>
                       <p className="font-semibold text-base md:text-lg text-gray-800">Prepare for Your Call</p>
                       <p className="text-gray-600 text-sm md:text-base">Be ready to discuss your health goals</p>
@@ -1022,10 +1020,8 @@ const StepsPage = () => {
                   </div>
                 </div>
                 
-                <div className="mt-auto pt-8 md:pt-10">
-                  <div className="py-3 px-4 rounded-lg text-center" style={{ background: '#14b8a6' }}>
-                    <p className="text-sm md:text-base text-white font-medium">Please complete your booking in the next 20 minutes</p>
-                  </div>
+                <div className="mt-8 md:mt-10 py-3 px-4 rounded-lg text-center" style={{ background: 'linear-gradient(135deg, #818cf8 0%, #6366f1 100%)' }}>
+                  <p className="text-sm md:text-base text-white font-medium">Please complete your booking in the next 20 minutes</p>
                 </div>
               </div>
             </div>
