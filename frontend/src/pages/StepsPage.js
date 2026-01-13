@@ -899,9 +899,27 @@ const StepsPage = () => {
               </Card>
             </div>
 
-            {/* Top Row: Video + Action Steps Side by Side - Desktop Only */}
+            {/* Action Steps - Simple inline list, no nested containers */}
+            <div className="hidden lg:block mb-4">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600">
+                <span className="font-medium text-gray-800">Action Steps:</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+                  Complete Part 1 (Personal & Health Info)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+                  Sign HIPAA Notice (Part 2)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+                  Sign Telehealth Consent (Part 3)
+                </span>
+              </div>
+            </div>
+
+            {/* Video Section - COMMENTED OUT
             <div className="hidden lg:grid lg:grid-cols-2 gap-4 lg:gap-6 lg:items-stretch">
-              {/* Video Section - maintains 16:9 aspect ratio - DESKTOP ONLY */}
               <div className="aspect-video">
                 <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
                   <div className="relative w-full h-full">
@@ -916,78 +934,8 @@ const StepsPage = () => {
                   </div>
                 </Card>
               </div>
-
-              {/* Action Steps Card - matches video height on desktop */}
-              <div className="lg:aspect-video">
-                <Card className="glass-dark border-0 shadow-xl h-full" data-testid="instructions-card">
-                  <CardContent className="p-4 lg:p-6 h-full flex items-center justify-center">
-                    {/* Action Steps - Centered overlay that fills container */}
-                    <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 lg:p-6 w-full h-full flex flex-col justify-center">
-                      <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        Action Steps
-                      </h4>
-                      
-                      <div className="space-y-4">
-                        {/* Step 1 */}
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                            1
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Complete Part 1:</p>
-                            <p className="text-xs text-gray-700 leading-relaxed">
-                              Fill out your personal and health information
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Step 2 */}
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                            2
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Sign HIPAA Notice:</p>
-                            <p className="text-xs text-gray-700 leading-relaxed">
-                              Read and sign the privacy notice in Part 2
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Step 3 */}
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                            3
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Sign Telehealth Consent:</p>
-                            <p className="text-xs text-gray-700 leading-relaxed">
-                              Complete Part 3 with your consent signature
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Step 4 */}
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                            4
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-800 text-sm mb-1">Auto-Save Enabled:</p>
-                            <p className="text-xs text-gray-700 leading-relaxed">
-                              Your progress is automatically saved as you go
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </div>
+            */}
 
             {/* Form Section - No container, direct form */}
             <div data-testid="form-section">
