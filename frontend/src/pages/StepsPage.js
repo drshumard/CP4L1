@@ -1060,6 +1060,8 @@ const StepsPage = () => {
                     }}
                     onBookingSuccess={async (bookingResult) => {
                       // This is called immediately when booking succeeds (before redirect)
+                      // Note: The OnboardingBooking component shows its own SuccessState screen
+                      // so we do NOT show the legacy showBookingSuccess modal here
                       console.log('Booking success - advancing to Step 2:', bookingResult);
                       
                       // Store the Practice Better client record ID
@@ -1069,7 +1071,8 @@ const StepsPage = () => {
                       }
                       
                       setBookingProcessing(true);
-                      setShowBookingSuccess(true);
+                      // Removed: setShowBookingSuccess(true) - the OnboardingBooking component 
+                      // handles success UI with its own SuccessState and auto-redirect countdown
                       
                       // Advance user to Step 2
                       try {
