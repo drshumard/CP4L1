@@ -1206,165 +1206,144 @@ const StepsPage = () => {
           </div>
           </div>
         ) : (
-          /* Step 3: Video + Action Card Layout */
-          <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 mb-4 sm:mb-6 w-full lg:items-stretch">
-            {/* Video Section - maintains 16:9 aspect ratio */}
-            <div className="aspect-video">
-              <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
-                <div className="relative w-full h-full">
-                  <iframe
-                    src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
-                    loading="eager"
-                    className="absolute inset-0 w-full h-full"
-                    style={{ border: 0 }}
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                    allowFullScreen="true"
-                    data-testid="video-player"
-                  />
-                </div>
-              </Card>
+          /* Step 3: Video on Left, Action Steps on Right (matching Step 1 layout) */
+          <div className="w-full h-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
+          <div className="w-full max-w-7xl flex flex-col gap-4">
+          {/* Main Two-Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 w-full overflow-hidden rounded-xl shadow-2xl" style={{ minHeight: '400px' }}>
+            {/* Left Column: Video - Desktop only */}
+            <div className="hidden lg:block relative overflow-hidden rounded-l-xl bg-black">
+              <iframe
+                src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[3].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
+                loading="eager"
+                className="absolute inset-0 w-full h-full"
+                style={{ border: 0 }}
+                allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
+                allowFullScreen="true"
+                data-testid="video-player"
+              />
             </div>
 
-            {/* Action Card for Step 3 - matches video height on desktop, expands on mobile */}
-            <div className="lg:aspect-video">
-              <Card className="glass-dark border-0 shadow-xl h-full" data-testid="action-card">
-                <CardContent className="p-4 lg:p-6 h-full flex items-center justify-center">
-                  {/* Action Steps - Centered overlay that fills container */}
-                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-lg p-4 lg:p-6 w-full h-full flex flex-col justify-center">
-                    <h4 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      Action Steps
-                    </h4>
-
-                    <div className="space-y-4 flex-1">
-                      {/* Action Step 1 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          1
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-1">Confirm Your Calendar:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Pull up your email, find the official confirmation invite, and add the session details to your 
-                            personal calendar. Highlight this date as your absolute top priority.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Action Step 2 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          2
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-1">Bring Your Support Team:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Reversing complex health concerns is a decision best made together. Forward the invite to your 
-                            spouse or other trusted decision-maker and confirm they will be joining you on the call.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Action Step 3 */}
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-sm">
-                          3
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-800 text-sm mb-1">Activate Your Portal:</p>
-                          <p className="text-xs text-gray-700 leading-relaxed">
-                            Check your email for an invitation from Practice Better and click &quot;Activate My Account&quot; to 
-                            set up your secure patient portal.
-                          </p>
-                        </div>
-                      </div>
+            {/* Right Column: Action Steps - White background like Step 1 */}
+            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col bg-white lg:rounded-r-xl rounded-xl lg:rounded-l-none">
+              
+              {/* Title at top */}
+              <div className="mb-6">
+                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800 text-center">Action Steps</h3>
+                <p className="text-base md:text-lg text-gray-600 text-center">Complete these final steps</p>
+              </div>
+              
+              {/* Steps in middle */}
+              <div className="flex-1 flex flex-col justify-center">
+                <div className="space-y-4 md:space-y-5">
+                  {/* Step 1 */}
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>1</div>
+                    <div>
+                      <p className="font-semibold text-base md:text-lg text-gray-800">Confirm Your Calendar</p>
+                      <p className="text-gray-600 text-sm md:text-base">Find the confirmation email and add the session to your calendar as top priority.</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  
+                  {/* Step 2 */}
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>2</div>
+                    <div>
+                      <p className="font-semibold text-base md:text-lg text-gray-800">Bring Your Support Team</p>
+                      <p className="text-gray-600 text-sm md:text-base">Forward the invite to your spouse or trusted decision-maker to join the call.</p>
+                    </div>
+                  </div>
+                  
+                  {/* Step 3 */}
+                  <div className="flex items-start gap-3 md:gap-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>3</div>
+                    <div>
+                      <p className="font-semibold text-base md:text-lg text-gray-800">Activate Your Portal</p>
+                      <p className="text-gray-600 text-sm md:text-base">Check your email for an invitation from Practice Better and click "Activate My Account".</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Bottom banner */}
+              <div className="mt-6 py-3 px-4 rounded-lg text-center border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
+                <p className="text-sm md:text-base text-gray-600 font-medium">You're almost there! Complete the final step below.</p>
+              </div>
             </div>
           </div>
 
           {/* Onboarding Complete - Activation Card */}
-          <Card className="glass-dark border-0 shadow-xl overflow-hidden mb-6" data-testid="onboarding-complete-card">
-            <CardContent className="p-6 sm:p-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="w-10 h-10 text-white" />
-                </div>
-                <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
-                  Your Onboarding is Complete!
-                </h3>
-                <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                  Click below to activate your Practice Better Health Portal and access your personalized care dashboard.
-                </p>
-                
-                <Button
-                  onClick={async () => {
-                    trackButtonClicked('activate_practice_better_portal', 'steps_page');
-                    
-                    // Mark as complete
-                    try {
-                      const token = localStorage.getItem('access_token');
-                      if (token) {
-                        await axios.post(
-                          `${API}/user/complete-task`,
-                          { task_id: 'activate_portal' },
-                          { headers: { Authorization: `Bearer ${token}` } }
-                        );
-                        await axios.post(
-                          `${API}/user/advance-step`,
-                          {},
-                          { headers: { Authorization: `Bearer ${token}` } }
-                        );
-                      }
-                    } catch (error) {
-                      console.error('Error marking complete:', error);
-                    }
-                    
-                    // Get the client record ID and build activation URL
-                    const clientRecordId = pbClientRecordId || localStorage.getItem('pb_client_record_id');
-                    const portalBaseUrl = 'https://drshumard.practicebetter.io';
-                    
-                    if (clientRecordId) {
-                      // Calculate activation ID: RecordID + 4 (in hex)
-                      // Convert hex to BigInt, add 4, convert back to hex
-                      const calculateActivationId = (recordId) => {
-                        try {
-                          const bigInt = BigInt('0x' + recordId);
-                          const activationBigInt = bigInt + BigInt(4);
-                          return activationBigInt.toString(16).padStart(recordId.length, '0');
-                        } catch {
-                          // Fallback for browsers without BigInt support
-                          return recordId;
-                        }
-                      };
-                      const activationUrl = `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`;
-                      window.open(activationUrl, '_blank');
-                    } else {
-                      // Fallback to generic portal URL
-                      window.open('https://drshumard.practicebetter.io', '_blank');
-                    }
-                    
-                    // Refresh data to show completion state
-                    await fetchData();
-                  }}
-                  className="w-full max-w-sm bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg"
-                  data-testid="activate-portal-button"
-                >
-                  Activate Your Practice Better Portal
-                </Button>
-                
-                <p className="text-gray-500 text-sm mt-4 italic">
-                  Can&apos;t find the activation email? Check your spam folder.
-                </p>
+          <div className="bg-white rounded-xl shadow-2xl p-6 sm:p-8" data-testid="onboarding-complete-card">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-10 h-10 text-white" />
               </div>
-            </CardContent>
-          </Card>
-        </>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
+                Your Onboarding is Complete!
+              </h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Click below to activate your Practice Better Health Portal and access your personalized care dashboard.
+              </p>
+              
+              <Button
+                onClick={async () => {
+                  trackButtonClicked('activate_practice_better_portal', 'steps_page');
+                  
+                  // Mark as complete
+                  try {
+                    const token = localStorage.getItem('access_token');
+                    if (token) {
+                      await axios.post(
+                        `${API}/user/complete-task`,
+                        { task_id: 'activate_portal' },
+                        { headers: { Authorization: `Bearer ${token}` } }
+                      );
+                      await axios.post(
+                        `${API}/user/advance-step`,
+                        {},
+                        { headers: { Authorization: `Bearer ${token}` } }
+                      );
+                    }
+                  } catch (error) {
+                    console.error('Error marking complete:', error);
+                  }
+                  
+                  // Get the client record ID and build activation URL
+                  const clientRecordId = pbClientRecordId || localStorage.getItem('pb_client_record_id');
+                  const portalBaseUrl = 'https://drshumard.practicebetter.io';
+                  
+                  if (clientRecordId) {
+                    // Calculate activation ID: RecordID + 4 (in hex)
+                    const calculateActivationId = (recordId) => {
+                      try {
+                        const bigInt = BigInt('0x' + recordId);
+                        const activationBigInt = bigInt + BigInt(4);
+                        return activationBigInt.toString(16).padStart(recordId.length, '0');
+                      } catch {
+                        return recordId;
+                      }
+                    };
+                    const activationUrl = `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`;
+                    window.open(activationUrl, '_blank');
+                  } else {
+                    window.open('https://drshumard.practicebetter.io', '_blank');
+                  }
+                  
+                  await fetchData();
+                }}
+                className="w-full max-w-sm bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg"
+                data-testid="activate-portal-button"
+              >
+                Activate Your Practice Better Portal
+              </Button>
+              
+              <p className="text-gray-500 text-sm mt-4 italic">
+                Can&apos;t find the activation email? Check your spam folder.
+              </p>
+            </div>
+          </div>
+          </div>
+          </div>
         )}
         </div>
       )}
