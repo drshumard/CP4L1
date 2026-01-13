@@ -565,57 +565,6 @@ const IntakeForm = ({ userData, onComplete, onPartChange, onStateChange }) => {
         scrollToField={scrollToField}
       />
       
-      <div className="flex justify-end items-center gap-2 mb-4 text-sm text-gray-500">
-        {isSaving ? (
-          <><Loader2 className="w-4 h-4 animate-spin" /><span>Saving...</span></>
-        ) : lastSaved ? (
-          <><Check className="w-4 h-4 text-green-500" /><span>Last saved: {lastSaved.toLocaleTimeString()}</span></>
-        ) : null}
-      </div>
-      
-      {renderProgressIndicator()}
-      
-      {/* Top Navigation Buttons */}
-      <div className="mb-6 flex justify-center sm:justify-between items-center gap-4 px-4 sm:px-0">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={goToPreviousPart} 
-          disabled={currentPart === 1} 
-          className="flex items-center gap-2"
-        >
-          <ChevronLeft size={18} />
-          <span className="hidden sm:inline">Previous</span>
-        </Button>
-        
-        {currentPart < 3 ? (
-          <Button 
-            type="button" 
-            onClick={goToNextPart} 
-            className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white flex items-center gap-2"
-          >
-            <span className="hidden sm:inline">Next</span>
-            <ChevronRight size={18} />
-          </Button>
-        ) : (
-          <Button 
-            type="button" 
-            onClick={handleSubmit} 
-            disabled={isSubmitting} 
-            className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white flex items-center gap-2"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <span className="hidden sm:inline">Submit</span>
-                <Check size={18} />
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-      
       <AnimatePresence mode="wait">
         {currentPart === 1 && (
           <motion.div
