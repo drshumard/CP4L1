@@ -2308,23 +2308,15 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"Could not start background cache refresh: {e}")
     
-    # Initialize client cache and optionally sync
+    # Initialize client cache (SQLite database auto-creates on first access)
     try:
         from services.client_cache import get_client_cache
-        from services.client_sync import ClientSyncService
-        
         cache = get_client_cache()
         logger.info(f"Client cache initialized: {cache.db_path}")
         
-        # Check if cache needs initial sync (empty or stale)
-        if cache.needs_sync(max_age_minutes=60):
-            logger.info("Client cache needs sync, starting background sync...")
-            sync_service = ClientSyncService()
-            # Run incremental sync (faster than full sync)
-            synced = await asyncio.get_event_loop().run_in_executor(
-                None, sync_service.incremental_sync
-            )
-            logger.info(f"Client cache synced: {synced} clients")
+        # Note: Client sync requires Practice Better token and runs on-demand
+        # To force initial sync, use: python -c "from services.client_sync import ..."
+        # or call the /api/admin/sync-clients endpoint
     except Exception as e:
         logger.warning(f"Could not initialize client cache: {e}")
 
