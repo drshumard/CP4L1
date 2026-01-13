@@ -309,22 +309,42 @@ const Part1_DiabetesProfile = ({
       <Card className="border-0 shadow-sm hover-lift">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-teal-700 mb-4 border-b pb-2">Medications and Supplements *</h3>
-          <p className="text-sm text-gray-600 mb-4">Please list Current Medications and dosage.</p>
+          <p className="text-sm text-gray-600 mb-4">Please list Current Medications and dosage, or select "None" if not applicable.</p>
           
-          <div className="space-y-3">
+          {/* None checkbox */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={formData.noMedications || false}
+                onChange={(e) => {
+                  handleInputChange('noMedications', e.target.checked);
+                  // If "None" is checked, clear the medications list
+                  if (e.target.checked) {
+                    handleInputChange('medications', [{ name: '', dosage: '' }]);
+                  }
+                }}
+                className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-gray-700 font-medium">None - I am not currently taking any medications or supplements</span>
+            </label>
+          </div>
+          
+          {/* Medication inputs - disabled if "None" is checked */}
+          <div className={`space-y-3 ${formData.noMedications ? 'opacity-50 pointer-events-none' : ''}`}>
             {formData.medications.map((med, index) => (
               <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-gray-50 rounded-lg">
                 <div className="space-y-1">
                   <Label className="text-xs">Name</Label>
-                  <Input id={`medication-name-${index}`} value={med.name} onChange={(e) => updateMedication(index, 'name', e.target.value)} placeholder="Medication/Supplement name" />
+                  <Input id={`medication-name-${index}`} value={med.name} onChange={(e) => updateMedication(index, 'name', e.target.value)} placeholder="Medication/Supplement name" disabled={formData.noMedications} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Dosage</Label>
-                  <Input id={`medication-dosage-${index}`} value={med.dosage} onChange={(e) => updateMedication(index, 'dosage', e.target.value)} placeholder="e.g., 500mg daily" />
+                  <Input id={`medication-dosage-${index}`} value={med.dosage} onChange={(e) => updateMedication(index, 'dosage', e.target.value)} placeholder="e.g., 500mg daily" disabled={formData.noMedications} />
                 </div>
                 <div className="flex items-end">
                   {formData.medications.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeMedicationRow(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                    <Button type="button" variant="ghost" size="icon" onClick={() => removeMedicationRow(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50" disabled={formData.noMedications}>
                       <Trash2 size={18} />
                     </Button>
                   )}
@@ -332,7 +352,7 @@ const Part1_DiabetesProfile = ({
               </div>
             ))}
             
-            <Button type="button" variant="outline" onClick={addMedicationRow} className="w-full border-dashed border-2 border-teal-300 text-teal-600 hover:bg-teal-50">
+            <Button type="button" variant="outline" onClick={addMedicationRow} className="w-full border-dashed border-2 border-teal-300 text-teal-600 hover:bg-teal-50" disabled={formData.noMedications}>
               <Plus size={18} className="mr-2" /> Add Row
             </Button>
           </div>
