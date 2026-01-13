@@ -638,6 +638,23 @@ const IntakeForm = forwardRef(({ userData, onComplete, onPartChange, onStateChan
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Navigation Buttons at bottom */}
+      <div className="mt-8 mb-20 sm:mb-8 flex justify-center sm:justify-between items-center gap-4 px-4 sm:px-0">
+        <Button type="button" variant="outline" onClick={goToPreviousPart} disabled={currentPart === 1} className="flex items-center gap-2">
+          <ChevronLeft size={18} /> Previous
+        </Button>
+        
+        {currentPart < 3 ? (
+          <Button type="button" onClick={goToNextPart} className="bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white flex items-center gap-2">
+            Next <ChevronRight size={18} />
+          </Button>
+        ) : (
+          <Button type="button" onClick={handleSubmit} disabled={isSubmitting} className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white flex items-center gap-2 min-w-32">
+            {isSubmitting ? (<><Loader2 className="w-4 h-4 animate-spin" />Submitting...</>) : (<><Check size={18} />Submit</>)}
+          </Button>
+        )}
+      </div>
     </div>
   );
 });
