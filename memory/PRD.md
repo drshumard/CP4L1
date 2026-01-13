@@ -98,6 +98,7 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 2. **Fixed Practice Better client ID persistence** - now saved to database, survives browser refresh
 3. **Added user-friendly session expiration message** - users see "Your session has expired" instead of silent redirect
 4. **Created admin utility script** (`/app/reset_user_step.py`) for testing user journeys
+5. **Step 1 static layout** - Both "Action Steps" and "Booking Widget" cards now have a fixed height of 567px (non-responsive)
 
 ## Known Issues / Blockers
 - **Cloudflare Turnstile "Invalid domain"**: User-side configuration issue (BLOCKED)
@@ -131,4 +132,4 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 See `/app/memory/CODEBASE_REVIEW.md` for detailed analysis of potential failure points for 50+ non-tech-savvy users.
 
 ## Last Updated
-January 13, 2026 - Fixed modal popup issue, added client ID persistence, improved session expiration UX
+January 13, 2026 - Step 1 static layout with fixed 567px height cards
