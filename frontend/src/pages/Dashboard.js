@@ -147,12 +147,12 @@ const Dashboard = () => {
                   <h2 className="text-4xl font-bold text-gray-800">Welcome, {userData?.name}!</h2>
                 </div>
                 <p className="text-lg text-gray-600 mb-6">
-                  {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3)
+                  {isComplete
                     ? "You have completed your initial onboarding for your diabetes reversal."
                     : `You're on Step ${progressData?.current_step} of your wellness journey.`
                   }
                 </p>
-                {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3) ? (
+                {isComplete ? (
                   <Button 
                     onClick={() => {
                       trackButtonClicked('view_achievement', 'dashboard');
