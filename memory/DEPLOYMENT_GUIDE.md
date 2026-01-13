@@ -129,9 +129,12 @@ curl -s https://YOUR_DOMAIN/api/health | jq
 
 ### 3. Frontend Deployment
 ```bash
-# Install dependencies (none new in this release)
+# Install dependencies (IMPORTANT: includes @tanstack/react-query for custom booking)
 cd /app/frontend
 yarn install
+
+# Verify @tanstack/react-query is installed
+yarn list @tanstack/react-query
 
 # Build for production
 yarn build
@@ -139,6 +142,11 @@ yarn build
 # Restart frontend service
 sudo supervisorctl restart frontend
 ```
+
+**Note on Custom Booking Migration:**
+- Old: Practice Better iframe widget (`PracticeBetterEmbed.js`)
+- New: Custom booking calendar (`OnboardingBooking.jsx` + `useBooking.js`)
+- The old widget code is preserved in comments for rollback if needed
 
 ### 4. Post-Deployment Verification
 ```bash
