@@ -1,175 +1,173 @@
-<analysis>**original_problem_statement**: The user's primary goal is to replace a third-party Practice Better form in the user onboarding Step 2 with a comprehensive, custom-built, multi-part intake form.
+<analysis>**original_problem_statement**: The user's primary goal is to build a comprehensive multi-step onboarding portal for their wellness practice.
 
-**PRODUCT REQUIREMENTS:**
-
-1.  **Three-Part Structure:** Create a multi-part form for Intake Forms: Diabetes, HIPAA Consent, and Telehealth Consent.
-2.  **Functionality:**
-    *   Auto-save form progress.
-    *   Generate a single, professionally styled PDF upon submission containing all data, consent texts, and signatures.
-    *   Upload the PDF to a Google Drive folder.
-    *   Implement a validation modal that lists all missing fields with Fix buttons to navigate to errors.
-    *   Send a webhook to Zapier on form submission with the user's name, email, and the generated PDF file.
-    *   Auto-fill legal name fields from GHL data and cascade those names to the Print Name fields on consent forms.
-3.  **UI/UX:**
-    *   Refactor the large  component into smaller, manageable parts.
-    *   Update the Step 3 UI to show a CDN image, add links to email providers, and adjust button layout.
-    *   Update the Dashboard UI for the onboarding complete state.
-    *   Re-organize form sections for better flow (e.g., merge Contact Info into General Info).
-    *   Address various mobile UI issues (button collisions, text overflow).
-    *   Update the entire application's background and card styling to be less bright and follow Supabase-inspired design principles (e.g., off-white background with a grid, subtle section separators, improved shadows).
-    *   Improve form navigation by adding buttons at the top and fixing scroll behavior between parts.
-4.  **Infrastructure:**
-    *   Migrate the Google Drive integration from a Shared Drive to a personal drive using domain-wide delegation.
+Key requirements that emerged during this session include:
+- Fixing a series of critical bugs related to the user's step progression, including a double advancement issue and incorrect redirects from the dashboard.
+- Improving the reliability of the application, particularly around saving client data and handling browser-specific issues (like Safari's private mode).
+- Implementing several UI/UX refinements for Step 1, Step 2, and the intake form based on specific user feedback.
+- Clarifying the deployment process, especially concerning a client data cache ().
+- Adding a Refunded status to the admin dashboard's analytics.
 
 **User's preferred language**: English
 
 **what currently exists?**
-The application now features a fully custom, 3-part intake form that has replaced the old system. This form includes auto-saving, a validation modal, and auto-populating name fields. Upon submission, it generates a PDF, uploads it to a personal Google Drive folder using domain-wide delegation, and sends a webhook to Zapier. The UI has been significantly overhauled with a Supabase-inspired design, featuring a new color scheme, subtle grid patterns, and improved card layouts. Numerous user-requested UI/UX fixes for both desktop and mobile have been implemented, including major changes to the Step 3 and Dashboard pages.
+The application is a multi-step onboarding portal with user authentication, an admin dashboard, and a custom booking flow integrated with the Practice Better API.
+
+- **Frontend**: The UI for Steps 1, 2, and 3 has been significantly refined. Step 1 features a two-column layout with an Action Steps card and a booking widget. Step 2 presents a large intake form with redesigned, centered action steps. The user dashboard and outcome page have corrected logic to prevent users from seeing incorrect pages based on their progress.
+- **Backend**: The booking process is now more robust. It atomically advances the user's step and saves their Practice Better client ID directly to their MongoDB record, preventing state inconsistencies. The intake form submission now includes detailed status tracking. Admin functions for resetting users and viewing analytics have been improved.
+- **Reliability**: A  wrapper has been implemented to prevent app crashes in Safari's private mode. The admin user-reset function now correctly clears all relevant data for a fresh start.
+- **Bug Fixes**: Critical bugs causing incorrect step advancement (e.g., skipping Step 2) and showing incorrect pages to users have been resolved and verified.
 
 **Last working item**:
--   **Last item agent was working**: The user requested a final fix to make the styling of the generated PDF consistent. All sections and their responses should be in a uniform, table-based layout with consistent alignment. The agent completely rewrote  to implement this.
+-   **Last item agent was working**: Making the Step 1 layout static. The user requested that the two main cards (Action Steps on the left, Booking Widget on the right) have a fixed, matching height of approximately 567px, eliminating the current responsive behavior.
 -   **Status**: IN PROGRESS
 -   **Agent Testing Done**: N
--   **Which testing method agent to use?**: backend testing agent
+-   **Which testing method agent to use?**: screenshot tool. The agent needs to apply CSS changes, likely in  and , to enforce a fixed height on the two containers, and then use the screenshot tool on the  page to verify the static layout.
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1: Test the new PDF styling (P0)**
-    -   **Description**: The new  has been written but has not been tested. The backend process for submitting the form needs to be triggered to ensure the PDF generates without errors and has the new, consistent table layout.
+-   **Issue 1: Step 1 layout is responsive instead of static (P0)**
+    -   **Description**: The user wants the Action Steps card and the Booking Widget card on Step 1 to have a fixed, matching height (approx. 567px) instead of resizing with the content.
+    -   **Attempted fixes**: The agent identified the relevant files ( and ) but did not implement the CSS changes.
+    -   **Next debug checklist**:
+        1.  Edit  and/or .
+        2.  Apply a fixed  or  of  to the parent containers of both the Action Steps card and the  component.
+        3.  Ensure the layout uses  and  or similar to keep the cards aligned at the top, but forces their height.
+        4.  Take a screenshot to confirm both cards have the same, static height.
+    -   **Why fix this issue and what will be achieved with the fix?**: To fulfill a specific UI/UX design request from the user for a non-responsive, desktop-first layout on the main booking step.
     -   **Status**: IN PROGRESS
--   **Issue 2: Cloudflare Invalid domain error (P1)**
-    -   **Description**: A recurring issue where the Turnstile widget shows an Invalid domain error. This is a user-side configuration issue requiring the user to add the correct preview domain to their Cloudflare Turnstile settings.
-    -   **Status**: BLOCKED
--   **Issue 3: Multiple Toast Messages on Auto-Login (P2)**
-    -   **Description**: A recurring low-priority bug where the auto-login feature may display multiple toast notifications.
-    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: N
+    -   **Should Test frontend/backend/both after fix?**: Frontend
 
 **In progress Task List**:
--   **Task 1: Finalize and Verify PDF Styling (P0)**
-    -   **Where to resume**: The  file has been rewritten. The next step is to test the form submission flow. Use the backend testing agent to submit the intake form and verify that the process completes successfully. Check the backend logs for any errors from the  library and for the success message confirming the PDF upload.
-    -   **What will be achieved with this?**: This will ensure the final generated PDF is professionally styled, consistent, and meets the user's requirements for a uniform layout.
-    -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: Backend
-    -   **Blocked on something**: No.
+-   There are no other in-progress tasks besides the pending issue above.
 
 **Upcoming and Future Tasks**
-- **Future Tasks:**
-    - **P2: Progress Persistence**: Save and show video watch progress.
-    - **P2: Email Reminders**: Send automated nudges for incomplete steps.
-    - **P3: Completion Certificates**: Generate a shareable certificate upon program completion.
-    - **P3: SMS Notifications**: Send SMS reminders for consultations.
-    - **P2: Enhanced Analytics**: Track video completion rates and time spent on steps.
-    - **P3: Offline Support**: Cache content for better performance.
-    - **P3: Multi-language Support**: Add translations for the portal.
+- **Upcoming Tasks**:
+    - **P1: Add loading/disabled state to Activate Portal button**: To prevent users from double-clicking the button on Step 3, which could cause duplicate API calls.
+    - **P1: Add Try Again button for booking failures**: When a booking fails for a reason other than a slot expired error, the user currently sees an error message with no clear next action. A retry button should be added to the error state in .
+- **Future Tasks**:
+    - **P2:** Save and show video watch progress.
+    - **P2:** Send automated email nudges for incomplete steps.
+    - **P2:** Enhanced Analytics: Track video completion rates and time spent on steps.
+    - **P3:** Generate a shareable certificate upon program completion.
+    - **P3:** Send SMS reminders for consultations.
+    - **P3:** Cache content for better performance (Offline Support).
+    - **P3:** Add multi-language support.
 
 **Completed work in this session**
--   **UI/UX Overhaul (Supabase Inspired)**: Replaced the bright blue background with a warm off-white (), added a subtle grid pattern, and updated cards with cleaner shadows and accent lines for a more modern, polished look across the application.
--   ** Refactoring**: Successfully broke down the monolithic  into smaller, dedicated components (, , etc.) located in .
--   **Google Drive Migration**: Updated the Google Drive service to use domain-wide delegation, allowing uploads to a user's personal drive folder by impersonating a specified user email.
--   **Zapier Webhook Integration**: Implemented a function in  to send a  request to a Zapier webhook upon successful form submission, including the user's name, email, and the generated PDF file.
--   **Dashboard Completed State**: Modified  to display a custom completion message, hide the Active Step card, and update the Next Milestone text once a user finishes onboarding.
--   **Step 3 UI Enhancement**: Updated  to display a CDN image for the activation email, add buttons to popular email clients, and reorganize the layout by moving the Complete Onboarding button.
--   **Auto-fill Name Hierarchy**: Implemented logic to use  and  from the  endpoint to pre-fill the Legal First Name and Legal Last Name fields, and created a  hook to automatically update the Print Name fields in the consent forms whenever the legal names change.
--   **PDF Filename Correction**: Fixed the PDF naming convention in  to .
--   **Form Reorganization**: Merged the Contact Information section into the General Information section in .
--   **Navigation Fixes**:
-    -   Added Previous/Next navigation buttons to the top of the intake form, which appear as icons-only on mobile.
-    -   Fixed an issue where navigating between form parts did not scroll to the top of the new part.
-    -   Removed a confusing Go Back to Step 1 button from the Step 2 header.
--   **Mobile Responsiveness Fixes**:
-    -   Adjusted the layout of form navigation buttons to prevent them from colliding with the support widget on mobile.
-    -   Fixed a horizontal overflow issue with the Severity dropdown on mobile by adding custom text wrapping.
+- **Critical Bug Fixes**:
+    - **Double Step Advancement**: Fixed a bug where booking advanced the user from Step 1 to 3, skipping Step 2.
+    - **Dashboard Redirect**: Corrected logic in  to rely only on , fixing an issue where admin-moved users saw the wrong page.
+    - **Redundant Modal**: Removed a legacy booking success modal in .
+- **Reliability & UX Features**:
+    - **Atomic Booking**: The backend now atomically advances the user's step and saves their  to MongoDB during the booking process ().
+    - **Session Management**: Implemented a logout confirmation dialog and a session expiration warning with a renewal option ().
+    - **Admin Reset Enhancement**: The admin user reset function now also clears the  for a complete reset ().
+    - **Safari Crash Fix**: Created and implemented a  utility to prevent app crashes when  is unavailable.
+- **UI/UX Refinements**:
+    - **Step 1 Layout**: Redesigned into a two-column layout (Action Steps card, Booking Widget card) and limited booking availability to 15 days.
+    - **Step 2 Layout**: Removed the video and redesigned the action steps into a centered, styled banner.
+    - **Intake Form**: Updated validation to make 'Relationship Status' and 'Medications' required, added a None option for medications, and made 'Weight' optional.
+    - **Admin Dashboard**: Added a Refunded status to the step distribution analytics.
+- **Backend & Deployment**:
+    - **Activation URL Fix**: Corrected the Practice Better portal activation link formula.
+    - **PDF Formatting**: Updated  to format addresses on multiple lines.
+    - **Documentation**: Created  and  to document changes and potential issues.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1: Multiple Toast Messages on Auto-Login**
-    -   **Debug checklist**: Review . Investigate  guard logic and potential re-renders causing multiple toast triggers.
-    -   **Why to solve this issue and what will be achieved with this?**: Provides a cleaner user experience by removing redundant notifications.
+-   **Issue 1: Lint Warning in **
+    -   A non-blocking  warning related to reading URL params.
+    -   **Debug checklist**: Refactor  to use an initializer function.
+    -   **Why to solve this issue and what will be achieved with this?**: Code quality improvement.
     -   **Should Test frontend/backend/both after fix**: Frontend
-    -   **Is recurring issue?**: Y
+    -   **Is recurring issue?**: N
 
 **Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork**: Cloudflare Invalid domain error, Multiple Toast Messages on Auto-Login.
--   **Recurrence count**: 2+
--   **Status**: Cloudflare is BLOCKED, Toasts are NOT STARTED.
+-   **Issue recurrence in previous fork**: Cloudflare Invalid domain error.
+-   **Recurrence count**: 3+
+-   **Status**: BLOCKED (pending user-side configuration).
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Frontend**: React, Tailwind CSS, Axios, , .
--   **Backend**: FastAPI, MongoDB (motor), Pydantic,  (for webhooks).
--   **PDF Generation**: .
--   **3rd Party APIs**:
-    -   Google Drive API v3 (using a Service Account with **Domain-Wide Delegation** to a personal drive).
-    -   Zapier (via Webhook).
+-   **Atomic Backend Operations**: The booking process now combines multiple state changes (saving client ID, advancing user step) into a single, reliable backend transaction to prevent frontend race conditions.
+-   **Defensive Frontend**: A  wrapper was created to gracefully handle browser environments where  is unavailable (like Safari private browsing), preventing app crashes.
+-   **Stateful Backend Responses**: Endpoints like intake form submission return detailed status objects, allowing the frontend to provide richer feedback to the user (e.g., processing, completed with errors).
+-   **React Query**: The  library is used in  to manage data fetching, caching, and polling for the custom booking widget.
 
 **key DB schema**
--   **intake_forms**: 
--   **users**: Modified to ensure  and  are consistently stored and retrieved.
+-   ** collection (MongoDB)**:
+    -   : (string) Stores the client ID from Practice Better after a successful booking.
+-   ** collection (MongoDB)**:
+    -   : (string) e.g., 'processing', 'completed', 'completed_with_errors'.
+    -   : (string) e.g., 'pending', 'generated', 'uploaded_both', 'upload_failed'.
 
 **changes in tech stack**
--   No new packages were added, but  is now used for sending webhook data to Zapier.
+-   No new technologies were added, but the project now actively depends on  for the custom booking feature.
 
 **All files of reference**
--   : Rewritten to standardize PDF styling. **Needs testing.**
--   : Modified for Zapier webhook, Google Drive logic, and user profile data.
--   : Modified for domain-wide delegation.
--   : Updated with Google Drive impersonation email and folder ID.
--   : The main state manager for the form.
--   : The directory containing the newly refactored form parts.
--   : Contains the layout for Steps 1, 2, and 3.
--   : Contains the layout for the main user dashboard.
--   : Contains the new global styles (background, grid, card themes).
--   Multiple page components (, , etc.) were updated to use the new background style.
+-   : The primary file for all onboarding steps, heavily modified for UI, feature, and bug-fix work.
+-   : The custom booking widget.
+-   : The stylesheet for the booking widget, needs editing for the static height fix.
+-   : Logic was fixed here to prevent incorrect redirects.
+-   : New utility for handling localStorage errors.
+-   : Contains user endpoints, admin logic, and intake form submission logic.
+-   : Contains the booking endpoint with the new atomic step advancement logic.
+-   : New file with instructions for production deployment.
 
-**Areas that need refactoring**
--   ** is now over 1100 lines and contains complex conditional rendering for all three steps.** This makes it difficult to maintain. It should be considered for refactoring into smaller components, perhaps one for each step's unique layout, to improve readability and separation of concerns.
+**Areas that need refactoring**:
+-    is over 1700 lines and contains the logic for all onboarding steps. It is a major source of complexity and should be broken down into smaller, step-specific components to improve maintainability.
 
 **key api endpoints**
--   : Modified to trigger a Zapier webhook after successful PDF generation and upload.
--   : Modified to include  and  in the response, which is used for auto-filling the intake form.
+-   : Creates a booking, atomically saves the Practice Better client ID to the user's DB record, and advances the user from Step 1 to Step 2.
+-   : Fetches the user's current step and completed tasks. Now also returns .
+-   : Resets a user's progress to Step 1, deleting all progress and intake form data, and now also clears their .
 
 **Critical Info for New Agent**
--   **Test PDF Generation First**: The immediate task is to test the form submission process to verify that the newly rewritten  works correctly and produces a properly styled PDF without errors.
--   **Google Drive uses Domain-Wide Delegation**: The logic no longer uses  for a Shared Drive. It now impersonates the email specified in  to upload to a folder in that user's personal drive.
--   **UI is Supabase-Inspired**: The global stylesheet () and several page components have been updated to reflect a new design language. Be mindful of these new styles (, , etc.) when making UI changes.
--   ** Complexity**: This file is very large and handles the layout for multiple steps. Changes to this file should be made with caution, as it has a high potential for introducing layout bugs.
+-   **Immediate Priority**: The user's last request was to make the Step 1 layout static. You need to implement a fixed height (approx. 567px) for the two cards on that page.
+-   **Step Advancement**: All step advancement logic after a booking is now handled **exclusively by the backend** in . Do not re-introduce frontend calls to  in the booking success callback, as this will cause a double advancement bug.
+-   **SQLite Client Cache**: This was a point of confusion. The  is a **fallback mechanism only** used if creating a new client in Practice Better fails. The primary source of truth for client IDs for new users is the  field in the MongoDB  collection. The user has already handled the one-time population of this cache on their production server; you do not need to manage it.
 
 **documents and test reports created in this job**
--   None.
+-   
+-   
+-   
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **Request (LATEST/IN PROGRESS)**: Make the PDF styling consistent with a uniform table layout for all sections.
-2.  **Request (Completed)**: Apply Supabase design principles: use  background, add subtle grid patterns and section separators.
-3.  **Request (Completed)**: Change the background to dark cyan ( family).
-4.  **Request (Completed)**: Revert the background to a lighter, less bright color.
-5.  **Request (Completed)**: Auto-fill legal names from GHL data into the form, and then auto-fill the Print Name fields from the legal names.
-6.  **Request (Completed)**: Remove the back button from the Step 2 header; add Previous/Next buttons to the top of the intake form.
-7.  **Request (Completed)**: Fix mobile UI: severity dropdown text overflow and page not scrolling to the top when navigating between form parts.
-8.  **Request (Completed)**: Fix mobile UI: intake form buttons collide with the support icon.
-9.  **Request (Completed)**: Reorganize the intake form to merge the Contact Information section into General Information.
-10. **Question (Answered)**: Asked for instructions on what environment variables and files are needed for deployment.
+1.  **Request (In Progress)**: Make the two sections on Step 1 static with a fixed height (~567px).
+2.  **Request (Done)**: In the PDF, put the address sub-sections on different lines.
+3.  **Request (Done)**: On Step 1, remove the video and put the Action Steps card on the left and the booking widget on the right with a matching design and 15-day availability.
+4.  **Clarification (Done)**: Explained the SQLite client cache is a fallback and does not need continuous syncing for their workflow.
+5.  **Question (Answered)**: Asked if the SQLite cache sync is automatic on startup (it's not, and not needed for their flow).
+6.  **Request (Done)**: Add a Refunded category to the admin dashboard's step distribution chart.
+7.  **Question (Answered)**: Asked what users see when Practice Better throws an error.
+8.  **Request (Done)**: Implement backend auto-advance on booking and add status tracking to the intake form.
+9.  **Bug Report (Fixed)**: Reported being taken to Step 3 instead of Step 2 after booking.
+10. **Request (Done)**: Simplify the action steps on Step 2, center them, and add some design.
 
 **Project Health Check:**
--   **Broken**: None
--   **Mocked**: None
--   **Blocked**: Cloudflare Turnstile functionality remains blocked pending a user configuration change.
+-   **Broken**: None.
+-   **Mocked**: None.
+-   **Blocked**: Cloudflare Turnstile functionality remains blocked pending a user-side configuration change.
 
 **3rd Party Integrations**
--   **Google Drive**: Active; uses  with a **Service Account** and **Domain-Wide Delegation** to upload to a personal drive folder.
--   **Zapier**: Active; sends a webhook with user data and PDF file on form submission.
--   **Cloudflare Turnstile**: Integrated but **BLOCKED**.
--   **Resend API**: Used for transactional emails.
--   **Others**: Bunny.net, GoHighLevel, ipapi.co, PostHog.
+-   **Practice Better**: Used for fetching practitioner availability and booking appointments. The core of the booking flow.
+-   **Existing Integrations**: Dropbox, Google Drive, LeadConnector, Cloudflare Turnstile, PostHog, Zapier, Resend API, Bunny.net, GoHighLevel, ipapi.co.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES
+-   **Testing agent used after significant changes**: YES, a comprehensive test was run and passed ().
 -   **Troubleshoot agent used after agent stuck in loop**: NO
--   **Test files created**: None
--   **Known regressions**: None
+-   **Test files created**: []
+-   **Known regressions**: None in this session. Previously broken admin script was fixed.
 
 **Credentials to test flow:**
--   User:  / 
+-   **User**:  / 
+-   **Admin**:  / 
+-   **New Test Users**: Use  for testing new bookings.
 
 **What agent forgot to execute**
--   The agent initially missed the correct location of the Go Back to Step 1 button but corrected this after the user pointed it out. All subsequent tasks have been addressed.</analysis>
+-   The agent did not add a loading/disabled state to the Activate Portal button on Step 3 to prevent double-clicks.
+-   The agent did not add a Try Again button for non-409 booking failures in .
+-   The agent did not finish implementing the user's last request to make the Step 1 layout static.</analysis>

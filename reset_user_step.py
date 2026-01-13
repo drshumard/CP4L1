@@ -13,7 +13,7 @@ import sys
 import json
 
 # Configuration
-BACKEND_URL = "https://client-journey-6.preview.emergentagent.com/api"
+BACKEND_URL = "https://onboarding-hub-14.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 # Admin credentials

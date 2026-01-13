@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://client-journey-6.preview.emergentagent.com/api"
+BACKEND_URL = "https://onboarding-hub-14.preview.emergentagent.com/api"
 
 class RefundedStepTester:
     def __init__(self):
