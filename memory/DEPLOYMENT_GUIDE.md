@@ -3,6 +3,24 @@
 ## Overview
 This release includes critical bug fixes, UX improvements for 50+ users, and backend reliability enhancements.
 
+**⚠️ IMPORTANT:** This release replaces the Practice Better iframe widget with a custom booking calendar. New frontend dependency required.
+
+---
+
+## 📦 New Dependencies
+
+### Frontend (Required for Custom Booking)
+```bash
+# @tanstack/react-query - Used for booking data fetching, caching, and state management
+yarn add @tanstack/react-query@^5.90.16
+```
+
+The custom booking system requires:
+- `@tanstack/react-query` - Already added to package.json
+- `QueryClientProvider` wrapper in App.js - Already configured
+
+**Note:** If deploying to a fresh environment, run `yarn install` to install all dependencies including this one.
+
 ---
 
 ## 📋 Summary of Changes
