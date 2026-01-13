@@ -1439,6 +1439,7 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
         upload_success = dropbox_success or drive_success
         
         if upload_success:
+            submission_data["status"] = "completed"
             
             # Send webhook to Zapier with email, full name, and PDF file
             try:
@@ -1469,20 +1470,28 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
                     
                     if webhook_response.status_code == 200:
                         print(f"Zapier webhook sent successfully for {user_email}")
+                        submission_data["webhook_status"] = "sent"
                     else:
                         print(f"Zapier webhook failed: {webhook_response.status_code} - {webhook_response.text}")
+                        submission_data["webhook_status"] = "failed"
                         
             except Exception as webhook_error:
                 print(f"Error sending Zapier webhook: {str(webhook_error)}")
+                submission_data["webhook_status"] = "error"
                 # Continue even if webhook fails
         else:
+            submission_data["status"] = "completed_with_errors"
             print(f"Failed to upload PDF to both services")
             
     except Exception as e:
         print(f"Error generating/uploading PDF: {str(e)}")
-        # Continue with submission even if PDF fails
+        submission_data["status"] = "completed_pdf_failed"
+        submission_data["pdf_status"] = "failed"
+        submission_data["pdf_error"] = str(e)
+        # Continue with submission even if PDF fails - form data is already saved
     
-    # Update the intake form record
+    # Update the intake form record with final status
+    submission_data["completed_at"] = datetime.now(timezone.utc).isoformat()
     await db.intake_forms.update_one(
         {"user_id": user_id},
         {"$set": submission_data},
@@ -1490,10 +1499,8 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
     )
     
     # Also store in a separate submissions collection for admin review
-    submission_id = str(uuid.uuid4())
     await db.intake_form_submissions.insert_one({
-        **submission_data,
-        "submission_id": submission_id
+        **submission_data
     })
     
     # Log the submission
@@ -1502,6 +1509,9 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
         user_email=user_email,
         user_id=user_id,
         details={
+            "submission_id": submission_id,
+            "status": submission_data.get("status"),
+            "pdf_status": submission_data.get("pdf_status"),
             "has_hipaa_signature": bool(request.form_data.get("hipaaSignature")),
             "has_telehealth_signature": bool(request.form_data.get("telehealthSignature")),
             "profile_data_fields": list(request.form_data.get("profileData", {}).keys()) if request.form_data.get("profileData") else [],
