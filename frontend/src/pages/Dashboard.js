@@ -79,8 +79,10 @@ const Dashboard = () => {
     );
   }
 
-  const completionPercentage = (progressData?.current_step / 3) * 100;
-  const completedSteps = progressData?.progress?.filter(p => p.completed_at).length || 0;
+  const completionPercentage = Math.min((progressData?.current_step / 4) * 100, 100);
+  // Use current_step as the source of truth for completion status
+  // current_step === 4 means program is complete
+  const isComplete = progressData?.current_step >= 4;
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-grid-pattern" style={{ background: '#F4F3F2' }}>
