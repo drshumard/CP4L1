@@ -979,7 +979,7 @@ const StepsPage = () => {
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2">
         {currentStep === 1 ? (
           /* Step 1: Action Steps on Left, Booking Calendar on Right */
           <>
