@@ -899,22 +899,25 @@ const StepsPage = () => {
               </Card>
             </div>
 
-            {/* Action Steps - Simple inline list, no nested containers */}
-            <div className="hidden lg:block mb-4">
-              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-gray-600">
-                <span className="font-medium text-gray-800">Action Steps:</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-                  Complete Part 1 (Personal & Health Info)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">2</span>
-                  Sign HIPAA Notice (Part 2)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-                  Sign Telehealth Consent (Part 3)
-                </span>
+            {/* Action Steps - Centered with subtle design */}
+            <div className="mb-6">
+              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 border border-teal-200 rounded-xl px-6 py-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">1</span>
+                    <span className="text-gray-700 font-medium">Complete Part 1</span>
+                  </span>
+                  <span className="hidden sm:block text-teal-300">→</span>
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">2</span>
+                    <span className="text-gray-700 font-medium">Sign HIPAA Notice</span>
+                  </span>
+                  <span className="hidden sm:block text-teal-300">→</span>
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">3</span>
+                    <span className="text-gray-700 font-medium">Sign Telehealth Consent</span>
+                  </span>
+                </div>
               </div>
             </div>
 
