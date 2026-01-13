@@ -194,12 +194,12 @@ const Dashboard = () => {
                     </div>
                     <div className="pt-3 border-t border-cyan-200">
                       <p className="text-sm text-gray-600">
-                        {progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3)
+                        {isComplete
                           ? <span className="font-semibold text-green-600">✓ Onboarding Complete</span>
                           : <>Current Step: <span className="font-semibold text-gray-800">{progressData?.current_step}/3</span></>
                         }
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">Completed: <span className="font-semibold text-gray-800">{completedSteps} steps</span></p>
+                      <p className="text-sm text-gray-600 mt-1">Progress: <span className="font-semibold text-gray-800">Step {Math.min(progressData?.current_step, 3)} of 3</span></p>
                     </div>
                   </div>
                 </div>
@@ -213,10 +213,10 @@ const Dashboard = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className={`grid grid-cols-1 ${progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3) ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12 w-full overflow-hidden`}
+          className={`grid grid-cols-1 ${isComplete ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 sm:gap-6 mb-6 sm:mb-8 lg:mb-12 w-full overflow-hidden`}
         >
           {/* Active Step Card - Hide when complete */}
-          {!(progressData?.current_step >= 4 || (progressData?.current_step === 3 && completedSteps === 3)) && (
+          {!isComplete && (
             <Card className="glass-dark border-0 shadow-lg" data-testid="stat-card-1">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
