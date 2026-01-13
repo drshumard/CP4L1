@@ -424,21 +424,44 @@ async def book_session(
         
         logger.info(f"[{correlation_id}] Booking successful: {result.session_id}")
         
-        # Save client_record_id to user's database record for persistence
-        # This ensures the ID survives even if frontend save fails
+        # Save client_record_id AND auto-advance user to Step 2 as backend fallback
+        # This ensures progression even if frontend advancement call fails
         if result.client_record_id:
             try:
-                update_result = await db.users.update_one(
-                    {"email": request.email.lower()},
-                    {"$set": {"pb_client_record_id": result.client_record_id}}
-                )
-                if update_result.modified_count > 0:
+                # Find user and check their current step
+                user = await db.users.find_one({"email": request.email.lower()}, {"_id": 0})
+                
+                if user:
+                    update_fields = {"pb_client_record_id": result.client_record_id}
+                    
+                    # Auto-advance to Step 2 if user is on Step 1 (backend fallback)
+                    if user.get("current_step", 1) == 1:
+                        update_fields["current_step"] = 2
+                        logger.info(f"[{correlation_id}] Auto-advancing user from Step 1 to Step 2")
+                        
+                        # Also record the task completion
+                        from datetime import timezone
+                        await db.user_progress.update_one(
+                            {"user_id": user["id"], "step_number": 1},
+                            {
+                                "$set": {
+                                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                                },
+                                "$addToSet": {"tasks_completed": "book_consultation"}
+                            },
+                            upsert=True
+                        )
+                    
+                    await db.users.update_one(
+                        {"email": request.email.lower()},
+                        {"$set": update_fields}
+                    )
                     logger.info(f"[{correlation_id}] Saved pb_client_record_id to user record")
                 else:
-                    logger.warning(f"[{correlation_id}] User not found to save pb_client_record_id: {request.email}")
+                    logger.warning(f"[{correlation_id}] User not found: {request.email}")
             except Exception as e:
                 # Non-blocking - log but don't fail the booking
-                logger.error(f"[{correlation_id}] Failed to save pb_client_record_id to DB: {e}")
+                logger.error(f"[{correlation_id}] Failed to update user record: {e}")
         
         return BookSessionResponse(
             success=True,
