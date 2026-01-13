@@ -1409,14 +1409,20 @@ const StepsPage = () => {
                     
                     // Get the client record ID and build activation URL
                     const clientRecordId = pbClientRecordId || localStorage.getItem('pb_client_record_id');
-                    const portalBaseUrl = 'https://portal.practicebetter.io';
+                    const portalBaseUrl = 'https://drshumard.practicebetter.io';
                     
                     if (clientRecordId) {
-                      // Calculate activation ID (same logic as OnboardingBooking)
+                      // Calculate activation ID: RecordID + 4 (in hex)
+                      // Convert hex to BigInt, add 4, convert back to hex
                       const calculateActivationId = (recordId) => {
-                        const timestamp = parseInt(recordId.substring(0, 8), 16);
-                        const activationId = timestamp.toString(16).padStart(8, '0') + recordId.substring(8);
-                        return activationId;
+                        try {
+                          const bigInt = BigInt('0x' + recordId);
+                          const activationBigInt = bigInt + BigInt(4);
+                          return activationBigInt.toString(16).padStart(recordId.length, '0');
+                        } catch {
+                          // Fallback for browsers without BigInt support
+                          return recordId;
+                        }
                       };
                       const activationUrl = `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`;
                       window.open(activationUrl, '_blank');
