@@ -1133,7 +1133,7 @@ const StepsPage = () => {
                     */}
             </div>
           </div>
-          </>
+          </div>
         ) : (
           /* Step 3: Video + Action Card Layout */
           <>
