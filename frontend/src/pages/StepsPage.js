@@ -789,12 +789,8 @@ const StepsPage = () => {
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  trackButtonClicked('logout', 'steps_page');
-                  trackLogout(userData?.id);
-                  localStorage.removeItem('access_token');
-                  localStorage.removeItem('refresh_token');
-                  toast.success('Logged out successfully');
-                  navigate('/login');
+                  setShowLogoutConfirm(true);
+                  trackModalOpened('logout_confirmation');
                 }} 
                 className="flex items-center gap-2 p-3 sm:px-4 sm:py-2 bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700 text-white" 
                 data-testid="logout-button"
