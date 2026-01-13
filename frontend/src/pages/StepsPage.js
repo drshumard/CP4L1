@@ -1756,6 +1756,172 @@ const StepsPage = () => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+              onClick={() => {
+                setShowLogoutConfirm(false);
+                trackModalClosed('logout_confirmation');
+              }}
+            />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="max-w-md w-full"
+              >
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-red-500 to-red-600 p-6 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur rounded-full flex items-center justify-center"
+                      >
+                        <LogOut className="w-8 h-8 text-white" />
+                      </motion.div>
+                      <h2 className="text-2xl font-bold text-white">
+                        Confirm Logout
+                      </h2>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-6 text-center bg-gradient-to-b from-gray-50 to-white">
+                      <p className="text-gray-600 mb-6 text-lg">
+                        Are you sure you want to log out?
+                      </p>
+                      <p className="text-gray-500 text-sm mb-6">
+                        Your progress is saved. You can log back in anytime to continue.
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          onClick={() => {
+                            setShowLogoutConfirm(false);
+                            trackModalClosed('logout_confirmation');
+                          }}
+                          variant="outline"
+                          className="flex-1 border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 rounded-xl"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setShowLogoutConfirm(false);
+                            performLogout();
+                          }}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl"
+                        >
+                          Yes, Log Out
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Session Expiration Warning Modal */}
+      <AnimatePresence>
+        {showSessionWarning && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60]"
+            />
+            
+            {/* Modal */}
+            <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="max-w-md w-full"
+              >
+                <Card className="shadow-2xl border-0 overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-center">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                        className="w-16 h-16 mx-auto mb-4 bg-white/20 backdrop-blur rounded-full flex items-center justify-center"
+                      >
+                        <Clock className="w-8 h-8 text-white" />
+                      </motion.div>
+                      <h2 className="text-2xl font-bold text-white">
+                        Session Expiring Soon
+                      </h2>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-6 text-center bg-gradient-to-b from-gray-50 to-white">
+                      <div className="mb-4">
+                        <div className="text-5xl font-bold text-amber-600 mb-2">
+                          {sessionExpiryCountdown}
+                        </div>
+                        <p className="text-gray-500 text-sm">seconds remaining</p>
+                      </div>
+                      
+                      <p className="text-gray-600 mb-6">
+                        Your session will expire soon. Would you like to stay logged in?
+                      </p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <Button
+                          onClick={() => {
+                            setShowSessionWarning(false);
+                            trackModalClosed('session_expiry_warning');
+                            performLogout();
+                          }}
+                          variant="outline"
+                          className="flex-1 border-2 border-gray-300 hover:bg-gray-50 text-gray-700 font-semibold py-3 rounded-xl"
+                        >
+                          Log Out Now
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            const success = await refreshSession();
+                            if (success) {
+                              trackModalClosed('session_expiry_warning');
+                            }
+                          }}
+                          className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Stay Logged In
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
