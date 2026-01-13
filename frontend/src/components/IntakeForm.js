@@ -477,6 +477,15 @@ const IntakeForm = forwardRef(({ userData, onComplete, onPartChange, onStateChan
     }, 150);
   };
 
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    goToNextPart,
+    goToPreviousPart,
+    handleSubmit,
+    getCurrentPart: () => currentPart,
+    getIsSubmitting: () => isSubmitting
+  }));
+
   const handleSubmit = async () => {
     if (!validatePart3()) return;
     
