@@ -78,7 +78,6 @@ const OutcomePage = () => {
       
       // Redirect users who haven't completed the program (not on Step 4) back to steps
       if (progressRes.data.current_step < 4) {
-        toast.info('Please complete all steps first.');
         navigate('/steps');
         return;
       }
