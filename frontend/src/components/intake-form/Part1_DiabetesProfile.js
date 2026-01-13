@@ -312,8 +312,8 @@ const Part1_DiabetesProfile = ({
           <p className="text-sm text-gray-600 mb-4">Please list Current Medications and dosage, or select "None" if not applicable.</p>
           
           {/* None checkbox */}
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <label className="flex items-center gap-3 cursor-pointer">
+          <div className="mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.noMedications || false}
@@ -324,9 +324,9 @@ const Part1_DiabetesProfile = ({
                     handleInputChange('medications', [{ name: '', dosage: '' }]);
                   }
                 }}
-                className="w-5 h-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
               />
-              <span className="text-gray-700 font-medium">None - I am not currently taking any medications or supplements</span>
+              <span className="text-sm text-gray-600">None - I am not currently taking any medications or supplements</span>
             </label>
           </div>
           
