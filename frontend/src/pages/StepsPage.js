@@ -1224,50 +1224,50 @@ const StepsPage = () => {
               />
             </div>
 
-            {/* Right Column: Action Steps - White background like Step 1, matches video height */}
-            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col bg-white lg:rounded-r-xl rounded-xl lg:rounded-l-none">
+            {/* Right Column: Action Steps - White background, flush with video height */}
+            <div className="relative p-4 lg:p-6 flex flex-col bg-white lg:rounded-r-xl rounded-xl lg:rounded-l-none lg:aspect-video">
               
-              {/* Title at top */}
-              <div className="mb-6">
-                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800 text-center">Action Steps</h3>
-                <p className="text-base md:text-lg text-gray-600 text-center">Complete these final steps</p>
+              {/* Title at top - smaller */}
+              <div className="mb-3">
+                <h3 className="text-xl lg:text-2xl font-bold mb-1 text-gray-800 text-center">Action Steps</h3>
+                <p className="text-sm text-gray-600 text-center">Complete these final steps</p>
               </div>
               
               {/* Steps in middle */}
               <div className="flex-1 flex flex-col justify-center">
-                <div className="space-y-4 md:space-y-5">
+                <div className="space-y-3">
                   {/* Step 1 */}
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>1</div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>1</div>
                     <div>
-                      <p className="font-semibold text-base md:text-lg text-gray-800">Confirm Your Calendar</p>
-                      <p className="text-gray-600 text-sm md:text-base">Find the confirmation email and add the session to your calendar as top priority.</p>
+                      <p className="font-semibold text-sm text-gray-800">Confirm Your Calendar</p>
+                      <p className="text-gray-600 text-xs">Find the confirmation email and add the session to your calendar as top priority.</p>
                     </div>
                   </div>
                   
                   {/* Step 2 */}
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>2</div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>2</div>
                     <div>
-                      <p className="font-semibold text-base md:text-lg text-gray-800">Bring Your Support Team</p>
-                      <p className="text-gray-600 text-sm md:text-base">Forward the invite to your spouse or trusted decision-maker to join the call.</p>
+                      <p className="font-semibold text-sm text-gray-800">Bring Your Support Team</p>
+                      <p className="text-gray-600 text-xs">Forward the invite to your spouse or trusted decision-maker to join the call.</p>
                     </div>
                   </div>
                   
                   {/* Step 3 */}
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>3</div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>3</div>
                     <div>
-                      <p className="font-semibold text-base md:text-lg text-gray-800">Activate Your Portal</p>
-                      <p className="text-gray-600 text-sm md:text-base">Check your email for an invitation from Practice Better and click "Activate My Account".</p>
+                      <p className="font-semibold text-sm text-gray-800">Activate Your Portal</p>
+                      <p className="text-gray-600 text-xs">Check your email for an invitation from Practice Better and click "Activate My Account".</p>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* Bottom banner */}
-              <div className="mt-6 py-3 px-4 rounded-lg text-center border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
-                <p className="text-sm md:text-base text-gray-600 font-medium">You're almost there! Complete the final step below.</p>
+              {/* Bottom banner - smaller */}
+              <div className="mt-3 py-2 px-3 rounded-lg text-center border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
+                <p className="text-xs text-gray-600 font-medium">You're almost there! Complete the final step below.</p>
               </div>
             </div>
           </div>
