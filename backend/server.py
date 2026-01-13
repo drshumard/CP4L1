@@ -1338,21 +1338,35 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
         ip_address = ip_address.split(",")[0].strip()
     user_agent = req.headers.get("User-Agent", "")
     
-    # Prepare submission data
+    # Create submission ID for tracking
+    submission_id = str(uuid.uuid4())
+    
+    # Prepare submission data with status tracking
     submission_data = {
+        "submission_id": submission_id,
         "user_id": user_id,
         "user_email": user_email,
         "user_name": user_name,
         "form_data": request.form_data,
         "submitted_at": datetime.now(timezone.utc).isoformat(),
-        "status": "submitted",
+        "status": "processing",  # Initial status
+        "pdf_status": "pending",  # PDF generation status
         "ip_address": ip_address
     }
+    
+    # Save initial submission immediately (so we don't lose data if PDF fails)
+    await db.intake_forms.update_one(
+        {"user_id": user_id},
+        {"$set": submission_data},
+        upsert=True
+    )
     
     # Generate PDF
     pdf_result = None
     dropbox_result = None
     drive_result = None
+    pdf_errors = []
+    
     try:
         from services.pdf_generator import create_intake_form_pdf
         from services.dropbox_service import upload_pdf_to_dropbox
@@ -1370,36 +1384,59 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
             pdf_name = user_name
         
         # Create PDF
-        pdf_bytes = create_intake_form_pdf(request.form_data, user_name, user_email)
+        try:
+            pdf_bytes = create_intake_form_pdf(request.form_data, user_name, user_email)
+            submission_data["pdf_status"] = "generated"
+        except Exception as pdf_gen_error:
+            pdf_errors.append(f"PDF generation failed: {str(pdf_gen_error)}")
+            submission_data["pdf_status"] = "generation_failed"
+            submission_data["pdf_error"] = str(pdf_gen_error)
+            raise pdf_gen_error
         
         # Generate filename: Legal Name Diabetes Intake Form.pdf
         filename = f"{pdf_name} Diabetes Intake Form.pdf"
-        
-        # Upload to Dropbox
-        dropbox_result = upload_pdf_to_dropbox(pdf_bytes, filename)
-        
-        if dropbox_result.get("success"):
-            submission_data["pdf_dropbox_path"] = dropbox_result.get("dropbox_path")
-            submission_data["pdf_dropbox_link"] = dropbox_result.get("shared_link")
-            print(f"PDF uploaded to Dropbox: {filename}")
-        else:
-            print(f"Dropbox upload failed: {dropbox_result.get('error')}")
-        
-        # Upload to Google Drive
-        drive_result = upload_pdf_to_drive(pdf_bytes, filename)
-        
-        if drive_result.get("success"):
-            submission_data["pdf_drive_file_id"] = drive_result.get("file_id")
-            submission_data["pdf_drive_link"] = drive_result.get("web_view_link")
-            print(f"PDF uploaded to Google Drive: {filename}")
-        else:
-            print(f"Google Drive upload failed: {drive_result.get('error')}")
-        
-        # Set common filename
         submission_data["pdf_filename"] = filename
         
+        # Upload to Dropbox
+        try:
+            dropbox_result = upload_pdf_to_dropbox(pdf_bytes, filename)
+            if dropbox_result.get("success"):
+                submission_data["pdf_dropbox_path"] = dropbox_result.get("dropbox_path")
+                submission_data["pdf_dropbox_link"] = dropbox_result.get("shared_link")
+                print(f"PDF uploaded to Dropbox: {filename}")
+            else:
+                pdf_errors.append(f"Dropbox upload failed: {dropbox_result.get('error')}")
+        except Exception as dropbox_error:
+            pdf_errors.append(f"Dropbox upload error: {str(dropbox_error)}")
+        
+        # Upload to Google Drive
+        try:
+            drive_result = upload_pdf_to_drive(pdf_bytes, filename)
+            if drive_result.get("success"):
+                submission_data["pdf_drive_file_id"] = drive_result.get("file_id")
+                submission_data["pdf_drive_link"] = drive_result.get("web_view_link")
+                print(f"PDF uploaded to Google Drive: {filename}")
+            else:
+                pdf_errors.append(f"Google Drive upload failed: {drive_result.get('error')}")
+        except Exception as drive_error:
+            pdf_errors.append(f"Google Drive upload error: {str(drive_error)}")
+        
+        # Determine final PDF status
+        dropbox_success = dropbox_result and dropbox_result.get("success")
+        drive_success = drive_result and drive_result.get("success")
+        
+        if dropbox_success and drive_success:
+            submission_data["pdf_status"] = "uploaded_both"
+        elif dropbox_success:
+            submission_data["pdf_status"] = "uploaded_dropbox_only"
+        elif drive_success:
+            submission_data["pdf_status"] = "uploaded_drive_only"
+        else:
+            submission_data["pdf_status"] = "upload_failed"
+            submission_data["pdf_errors"] = pdf_errors
+        
         # Consider upload successful if at least one service worked
-        upload_success = dropbox_result.get("success") or drive_result.get("success")
+        upload_success = dropbox_success or drive_success
         
         if upload_success:
             
