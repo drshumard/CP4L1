@@ -368,7 +368,7 @@ export function OnboardingBooking({
   // Configuration for availability window
   // Set to null to show ALL available dates, or a number to limit (e.g., 14 for 2 weeks)
   // See /app/rayguide.md for instructions on changing this
-  const AVAILABILITY_DAYS = null; // null = show all dates
+  const AVAILABILITY_DAYS = 15; // Show only 15 days of availability
 
   // Derived data - filter to only show dates within AVAILABILITY_DAYS (if set)
   const slotsByDate = useMemo(() => {
