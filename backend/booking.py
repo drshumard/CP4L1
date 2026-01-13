@@ -424,6 +424,22 @@ async def book_session(
         
         logger.info(f"[{correlation_id}] Booking successful: {result.session_id}")
         
+        # Save client_record_id to user's database record for persistence
+        # This ensures the ID survives even if frontend save fails
+        if result.client_record_id:
+            try:
+                update_result = await db.users.update_one(
+                    {"email": request.email.lower()},
+                    {"$set": {"pb_client_record_id": result.client_record_id}}
+                )
+                if update_result.modified_count > 0:
+                    logger.info(f"[{correlation_id}] Saved pb_client_record_id to user record")
+                else:
+                    logger.warning(f"[{correlation_id}] User not found to save pb_client_record_id: {request.email}")
+            except Exception as e:
+                # Non-blocking - log but don't fail the booking
+                logger.error(f"[{correlation_id}] Failed to save pb_client_record_id to DB: {e}")
+        
         return BookSessionResponse(
             success=True,
             session_id=result.session_id,
