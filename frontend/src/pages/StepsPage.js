@@ -1219,7 +1219,8 @@ const StepsPage = () => {
                       // Removed: setShowBookingSuccess(true) - the OnboardingBooking component 
                       // handles success UI with its own SuccessState and auto-redirect countdown
                       
-                      // Advance user to Step 2
+                      // Note: Backend now auto-advances user to Step 2 during booking
+                      // We only need to mark the task complete here (backend handles step advancement)
                       try {
                         const token = localStorage.getItem('access_token');
                         if (token) {
@@ -1228,14 +1229,11 @@ const StepsPage = () => {
                             { task_id: 'book_consultation' },
                             { headers: { Authorization: `Bearer ${token}` } }
                           );
-                          await axios.post(
-                            `${API}/user/advance-step`,
-                            {},
-                            { headers: { Authorization: `Bearer ${token}` } }
-                          );
+                          // Removed: advance-step call - backend now handles this atomically during booking
+                          // This prevents double-advancement (Step 1 → 2 → 3)
                         }
                       } catch (error) {
-                        console.error('Error advancing step:', error);
+                        console.error('Error completing task:', error);
                       }
                     }}
                   />
