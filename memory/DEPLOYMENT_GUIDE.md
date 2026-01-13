@@ -245,6 +245,30 @@ All existing environment variables remain the same:
 - `REACT_APP_BACKEND_URL` - Frontend API URL
 - Practice Better API credentials (unchanged)
 
+### App.js QueryClient Configuration
+The custom booking requires QueryClientProvider in App.js. This is already configured:
+
+```javascript
+// App.js - Already configured
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60, // 1 minute
+      retry: 2,
+    },
+  },
+});
+
+// Wrap app with QueryClientProvider
+<QueryClientProvider client={queryClient}>
+  {/* ... app content ... */}
+</QueryClientProvider>
+```
+
+If deploying to a new environment, ensure App.js includes this configuration.
+
 ---
 
 ## 📝 Notes for Support Team
