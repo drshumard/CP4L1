@@ -908,52 +908,108 @@ const StepsPage = () => {
               </Card>
             </div>
 
-            {/* Action Steps - Centered with subtle design */}
-            <div className="mb-6">
-              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 border border-teal-200 rounded-xl px-6 py-4 shadow-sm">
-                <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">1</span>
-                    <span className="text-gray-700 font-medium">Fill in your details</span>
-                  </span>
-                  <span className="hidden sm:block text-teal-300">→</span>
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">2</span>
-                    <span className="text-gray-700 font-medium">Sign HIPAA Notice</span>
-                  </span>
-                  <span className="hidden sm:block text-teal-300">→</span>
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 text-white text-sm font-bold flex items-center justify-center shadow-md">3</span>
-                    <span className="text-gray-700 font-medium">Sign Telehealth Consent</span>
-                  </span>
+            {/* Persistent Action Steps Card with Navigation */}
+            <div className="sticky top-0 z-10 mb-2">
+              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 border border-teal-200 rounded-xl px-4 sm:px-6 py-3 shadow-sm">
+                {/* Action Steps Row */}
+                <div className="flex items-center justify-between gap-2 sm:gap-4">
+                  {/* Previous Button */}
+                  <button
+                    onClick={() => intakeFormRef.current?.goToPreviousPart()}
+                    disabled={intakeFormState.currentPart === 1}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                      intakeFormState.currentPart === 1
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-gray-700 hover:bg-white/50 border border-gray-300 bg-white shadow-sm'
+                    }`}
+                  >
+                    <ChevronLeft size={16} />
+                    <span className="hidden sm:inline">Previous</span>
+                  </button>
+
+                  {/* Steps */}
+                  <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-6 gap-y-2">
+                    <span className={`flex items-center gap-2 text-sm ${intakeFormState.currentPart === 1 ? '' : 'opacity-50'}`}>
+                      <span className={`w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center shadow-sm ${
+                        intakeFormState.currentPart > 1 
+                          ? 'bg-green-500 text-white' 
+                          : intakeFormState.currentPart === 1 
+                          ? 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {intakeFormState.currentPart > 1 ? <CheckCircle2 size={14} /> : '1'}
+                      </span>
+                      <span className={`font-medium ${intakeFormState.currentPart === 1 ? 'text-gray-800' : 'text-gray-500'}`}>Fill in your details</span>
+                    </span>
+                    <span className="hidden sm:block text-teal-300">→</span>
+                    <span className={`flex items-center gap-2 text-sm ${intakeFormState.currentPart === 2 ? '' : 'opacity-50'}`}>
+                      <span className={`w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center shadow-sm ${
+                        intakeFormState.currentPart > 2 
+                          ? 'bg-green-500 text-white' 
+                          : intakeFormState.currentPart === 2 
+                          ? 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>
+                        {intakeFormState.currentPart > 2 ? <CheckCircle2 size={14} /> : '2'}
+                      </span>
+                      <span className={`font-medium ${intakeFormState.currentPart === 2 ? 'text-gray-800' : 'text-gray-500'}`}>Sign HIPAA Notice</span>
+                    </span>
+                    <span className="hidden sm:block text-teal-300">→</span>
+                    <span className={`flex items-center gap-2 text-sm ${intakeFormState.currentPart === 3 ? '' : 'opacity-50'}`}>
+                      <span className={`w-7 h-7 rounded-full text-sm font-bold flex items-center justify-center shadow-sm ${
+                        intakeFormState.currentPart === 3 
+                          ? 'bg-gradient-to-br from-teal-500 to-cyan-600 text-white' 
+                          : 'bg-gray-200 text-gray-500'
+                      }`}>3</span>
+                      <span className={`font-medium ${intakeFormState.currentPart === 3 ? 'text-gray-800' : 'text-gray-500'}`}>Sign Telehealth Consent</span>
+                    </span>
+                  </div>
+
+                  {/* Next/Submit Button */}
+                  {intakeFormState.currentPart < 3 ? (
+                    <button
+                      onClick={() => intakeFormRef.current?.goToNextPart()}
+                      className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-white/50 border border-gray-300 bg-white shadow-sm transition-all"
+                    >
+                      <span className="hidden sm:inline">Next</span>
+                      <ChevronRight size={16} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => intakeFormRef.current?.handleSubmit()}
+                      disabled={intakeFormState.isSubmitting}
+                      className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-sm hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50"
+                    >
+                      {intakeFormState.isSubmitting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <span className="hidden sm:inline">Submit</span>
+                          <CheckCircle size={16} />
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Last Saved Status - Centered below */}
+                <div className="flex justify-center mt-2 text-xs text-gray-500">
+                  {intakeFormState.isSaving ? (
+                    <span className="flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Saving...</span>
+                  ) : intakeFormState.lastSaved ? (
+                    <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" /> Last saved: {intakeFormState.lastSaved.toLocaleTimeString()}</span>
+                  ) : null}
                 </div>
               </div>
             </div>
-
-            {/* Video Section - COMMENTED OUT
-            <div className="hidden lg:grid lg:grid-cols-2 gap-4 lg:gap-6 lg:items-stretch">
-              <div className="aspect-video">
-                <Card className="glass-dark border-0 shadow-xl overflow-hidden h-full" data-testid="video-section">
-                  <div className="relative w-full h-full">
-                    <iframe
-                      src={`https://iframe.mediadelivery.net/embed/538298/${STEP_DATA[2].videoId}?autoplay=false&loop=false&muted=false&preload=true&responsive=true`}
-                      loading="eager"
-                      className="absolute inset-0 w-full h-full"
-                      style={{ border: 0 }}
-                      allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture;"
-                      allowFullScreen="true"
-                    />
-                  </div>
-                </Card>
-              </div>
-            </div>
-            */}
 
             {/* Form Section - No container, direct form */}
             <div data-testid="form-section">
                 {/* Custom Intake Form */}
                 <IntakeForm 
+                  ref={intakeFormRef}
                   userData={userData}
+                  onStateChange={setIntakeFormState}
                   onComplete={async () => {
                     trackButtonClicked('intake_form_submitted', 'steps_page');
                     trackStepCompleted(2, STEP_DATA[2].title);
