@@ -190,6 +190,7 @@ class UserResponse(BaseModel):
     name: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+    phone: Optional[str] = None
     current_step: int
     role: str
 
