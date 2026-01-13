@@ -1027,7 +1027,7 @@ const StepsPage = () => {
               */}
 
               {/* Action Steps Card - DESKTOP ONLY - Matches booking widget design */}
-              <Card className="hidden lg:flex glass-dark border-0 shadow-xl lg:h-full flex-col" data-testid="action-steps-card">
+              <Card className="hidden lg:flex glass-dark border-0 shadow-xl h-[567px] flex-col" data-testid="action-steps-card">
                 <CardContent className="p-5 lg:p-6 flex-1 flex flex-col">
                   {/* Header matching booking widget style */}
                   <div className="text-center mb-6">
