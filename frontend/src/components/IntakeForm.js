@@ -37,7 +37,7 @@ const FIELD_LABELS = {
   telehealthSignature: 'Telehealth Signature'
 };
 
-const IntakeForm = ({ userData, onComplete, onPartChange, onStateChange }) => {
+const IntakeForm = forwardRef(({ userData, onComplete, onPartChange, onStateChange }, ref) => {
   const [currentPart, setCurrentPart] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
