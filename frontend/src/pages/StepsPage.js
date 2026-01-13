@@ -426,7 +426,12 @@ const StepsPage = () => {
     } catch (error) {
       if (error.response?.status === 401) {
         localStorage.clear();
-        navigate('/login');
+        // Show user-friendly message before redirecting
+        toast.info('Your session has expired. Please log in again to continue.', {
+          duration: 4000,
+        });
+        setTimeout(() => navigate('/login'), 1500);
+        return;
       }
       toast.error('Failed to load data');
     } finally {
