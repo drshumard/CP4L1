@@ -256,7 +256,10 @@ class TestBookingAPI:
     
     def test_booking_availability(self):
         """Test booking availability endpoint"""
-        response = requests.get(f"{BASE_URL}/api/booking/availability")
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        response = requests.get(f"{BASE_URL}/api/booking/availability?start_date={today}&days=30")
         
         assert response.status_code == 200, f"Booking availability failed: {response.text}"
         data = response.json()
