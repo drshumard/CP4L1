@@ -79,6 +79,115 @@ const StepsPage = () => {
   const [pbClientRecordId, setPbClientRecordId] = useState(null);
   // SUNFLOWER: iframeHeight state removed - now handled by PracticeBetterEmbed component
 
+  // Logout confirmation dialog state
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
+  // Session expiration warning state
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [sessionExpiryCountdown, setSessionExpiryCountdown] = useState(30);
+  const sessionWarningTimerRef = useRef(null);
+  const sessionCheckIntervalRef = useRef(null);
+
+  // Helper function to decode JWT and get expiry time
+  const getTokenExpiry = useCallback(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) return null;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000; // Convert to milliseconds
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // Refresh session by calling the refresh token endpoint
+  const refreshSession = useCallback(async () => {
+    try {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        throw new Error('No refresh token');
+      }
+      
+      const response = await axios.post(`${API}/auth/refresh?refresh_token=${encodeURIComponent(refreshToken)}`);
+      
+      if (response.data.access_token) {
+        localStorage.setItem('access_token', response.data.access_token);
+        localStorage.setItem('refresh_token', response.data.refresh_token);
+        setShowSessionWarning(false);
+        toast.success('Session renewed for another 24 hours');
+        return true;
+      }
+    } catch (error) {
+      console.error('Failed to refresh session:', error);
+      toast.error('Failed to renew session. Please log in again.');
+      return false;
+    }
+  }, []);
+
+  // Handle session expiration countdown and auto-logout
+  useEffect(() => {
+    if (showSessionWarning) {
+      sessionWarningTimerRef.current = setInterval(() => {
+        setSessionExpiryCountdown(prev => {
+          if (prev <= 1) {
+            // Time's up - log out
+            clearInterval(sessionWarningTimerRef.current);
+            performLogout();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => {
+        if (sessionWarningTimerRef.current) {
+          clearInterval(sessionWarningTimerRef.current);
+        }
+      };
+    }
+  }, [showSessionWarning]);
+
+  // Check session expiry periodically
+  useEffect(() => {
+    const checkSessionExpiry = () => {
+      const expiryTime = getTokenExpiry();
+      if (!expiryTime) return;
+      
+      const now = Date.now();
+      const timeUntilExpiry = expiryTime - now;
+      
+      // Show warning 30 seconds before expiry
+      if (timeUntilExpiry > 0 && timeUntilExpiry <= 30000 && !showSessionWarning) {
+        setSessionExpiryCountdown(Math.ceil(timeUntilExpiry / 1000));
+        setShowSessionWarning(true);
+        trackModalOpened('session_expiry_warning');
+      }
+    };
+    
+    // Check every 5 seconds
+    sessionCheckIntervalRef.current = setInterval(checkSessionExpiry, 5000);
+    
+    // Initial check
+    checkSessionExpiry();
+    
+    return () => {
+      if (sessionCheckIntervalRef.current) {
+        clearInterval(sessionCheckIntervalRef.current);
+      }
+    };
+  }, [getTokenExpiry, showSessionWarning]);
+
+  // Logout function
+  const performLogout = useCallback(() => {
+    trackButtonClicked('logout', 'steps_page');
+    trackLogout(userData?.id);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    toast.success('Logged out successfully');
+    navigate('/login');
+  }, [navigate, userData?.id]);
+
   // Helper function to send step completion webhook
   const sendStepCompletionWebhook = async (email, step) => {
     if (!email) {
