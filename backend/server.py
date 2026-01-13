@@ -1184,7 +1184,29 @@ async def get_user_progress(current_user: dict = Depends(get_current_user)):
         {"_id": 0}
     ).to_list(100)
     
-    return {"current_step": current_user["current_step"], "progress": progress}
+    return {
+        "current_step": current_user["current_step"], 
+        "progress": progress,
+        "pb_client_record_id": current_user.get("pb_client_record_id")
+    }
+
+
+class PBClientRecordRequest(BaseModel):
+    client_record_id: str
+
+
+@api_router.post("/user/save-pb-client")
+async def save_pb_client_record(request: PBClientRecordRequest, current_user: dict = Depends(get_current_user)):
+    """Save the Practice Better client record ID to the user's database record.
+    This persists the ID so it survives browser refreshes and device changes."""
+    
+    # Update user document with the PB client record ID
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"pb_client_record_id": request.client_record_id}}
+    )
+    
+    return {"message": "Practice Better client ID saved", "client_record_id": request.client_record_id}
 
 @api_router.post("/user/complete-task")
 async def complete_task(request: TaskCompleteRequest, current_user: dict = Depends(get_current_user)):
