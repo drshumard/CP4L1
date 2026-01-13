@@ -332,6 +332,7 @@ const AdminDashboard = () => {
 
   // Step distribution data for horizontal bar chart
   const stepDistribution = [
+    { label: 'Refunded', count: analytics?.step_distribution?.refunded || 0, color: 'bg-red-500' },
     { label: 'Step 1', count: analytics?.step_distribution?.step_1 || 0, color: 'bg-blue-500' },
     { label: 'Step 2', count: analytics?.step_distribution?.step_2 || 0, color: 'bg-purple-500' },
     { label: 'Step 3', count: analytics?.step_distribution?.step_3 || 0, color: 'bg-amber-500' },
