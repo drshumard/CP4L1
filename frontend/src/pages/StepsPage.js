@@ -844,8 +844,8 @@ const StepsPage = () => {
       </div>
 
       {/* Step Title Banner */}
-      <div className="glass-dark border-b border-gray-200 w-full overflow-hidden">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-4">
+      <div className="glass-dark border-b border-gray-200 w-full overflow-hidden flex-shrink-0">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-1">
           <div className="flex items-center justify-center gap-4">
             {/* Back Button - Only show for Step 3 (not Step 2 to avoid confusion with form navigation) */}
             {currentStep > 2 && (
@@ -874,10 +874,10 @@ const StepsPage = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden" data-main-content>
+      <div className="flex-1 overflow-hidden" data-main-content>
       {currentStep === 2 ? (
         /* Step 2: Custom Intake Form */
-        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 h-full overflow-y-auto">
           {/* Step 2 Layout - Video & Instructions top row, Form full width below */}
           <div className="flex flex-col gap-4 lg:gap-6 w-full">
             {/* Mobile-only Welcome Card for Step 2 */}
