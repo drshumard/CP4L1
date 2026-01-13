@@ -8,6 +8,7 @@ Improvements:
 - Structured logging with correlation IDs
 - Future date validation
 - Background cache refresh for instant loading
+- Auto-save client_record_id to user database on successful booking
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Header, Request
@@ -32,6 +33,13 @@ from services.practice_better_v2 import (
     get_idempotency_store,
     IdempotencyStore,
 )
+
+# Import database connection
+from motor.motor_asyncio import AsyncIOMotorClient
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+DB_NAME = os.environ.get("DB_NAME", "client_journey")
+mongo_client = AsyncIOMotorClient(MONGO_URL)
+db = mongo_client[DB_NAME]
 
 logger = logging.getLogger(__name__)
 
