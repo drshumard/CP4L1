@@ -80,6 +80,7 @@ const IntakeForm = ({ userData, onComplete }) => {
     priorMedicalHistory: '',
     // Medications
     medications: [{ name: '', dosage: '' }],
+    noMedications: false, // "None" checkbox for no medications
     // Symptoms
     symptoms: {},
     // Allergies
