@@ -707,23 +707,10 @@ export function OnboardingBooking({
             errors={formErrors}
             onChange={handleFormChange}
             selectedSlot={selectedSlot}
+            onConfirm={handleConfirmBooking}
+            isSubmitting={isSubmitting}
           />
         </div>
-      )}
-
-      {/* Footer */}
-      {step === 'fill-form' && (
-        <footer className={styles.footer}>
-          <div className={styles.divider} />
-          <button
-            className={styles.confirmButton}
-            onClick={handleConfirmBooking}
-            disabled={isSubmitting}
-            type="button"
-          >
-            {isSubmitting ? 'Processing...' : 'Confirm Booking →'}
-          </button>
-        </footer>
       )}
 
       {/* Confirming */}
