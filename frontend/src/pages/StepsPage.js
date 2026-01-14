@@ -1050,51 +1050,61 @@ const StepsPage = () => {
           <div className="w-full max-w-7xl lg:h-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 lg:h-full w-full lg:overflow-hidden rounded-xl shadow-2xl">
             {/* Left Column: Action Steps - White background */}
-            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col lg:overflow-hidden rounded-t-xl lg:rounded-t-none lg:rounded-l-xl bg-white">
+            {/* Mobile: Compact version with scroll indicator */}
+            {/* Desktop: Full version */}
+            <div className="relative p-3 sm:p-4 lg:p-6 xl:p-10 flex flex-col lg:overflow-hidden rounded-t-xl lg:rounded-t-none lg:rounded-l-xl bg-white">
               
-              {/* Title at top */}
-              <div className="mb-6">
-                <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4 text-gray-800 text-center">Action Steps</h3>
-                <p className="text-base md:text-lg text-gray-600 text-center">Complete these steps to begin your journey</p>
+              {/* Title - smaller on mobile */}
+              <div className="mb-3 lg:mb-6">
+                <h3 className="text-lg sm:text-xl lg:text-2xl xl:text-4xl font-bold mb-1 lg:mb-3 text-gray-800 text-center">Action Steps</h3>
+                <p className="text-xs sm:text-sm lg:text-base text-gray-600 text-center">Complete these steps to begin your journey</p>
               </div>
               
-              {/* Steps in middle */}
+              {/* Steps - compact on mobile */}
               <div className="flex-1 flex flex-col justify-center">
-                <div className="space-y-4 md:space-y-5">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-5">
                   {/* Step 1 */}
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>1</div>
+                  <div className="flex items-start gap-2 lg:gap-4">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-sm lg:text-lg xl:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>1</div>
                     <div>
-                      <p className="font-semibold text-base md:text-lg text-gray-800">Book Your Session</p>
-                      <p className="text-gray-600 text-sm md:text-base">Select the best date and time on the calendar</p>
+                      <p className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800">Book Your Session</p>
+                      <p className="text-gray-600 text-xs lg:text-sm xl:text-base">Select the best date and time on the calendar</p>
                     </div>
                   </div>
                   
                   {/* Step 2 */}
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>2</div>
+                  <div className="flex items-start gap-2 lg:gap-4">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-sm lg:text-lg xl:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>2</div>
                     <div>
-                      <p className="font-semibold text-base md:text-lg text-gray-800">Confirm Priority</p>
-                      <p className="text-gray-600 text-sm md:text-base">Write the date in your calendar as top priority</p>
+                      <p className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800">Confirm Priority</p>
+                      <p className="text-gray-600 text-xs lg:text-sm xl:text-base">Write the date in your calendar as top priority</p>
                     </div>
                   </div>
                   
                   {/* Step 3 */}
-                  <div className="flex items-start gap-3 md:gap-4">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-lg md:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>3</div>
+                  <div className="flex items-start gap-2 lg:gap-4">
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 lg:w-10 lg:h-10 xl:w-12 xl:h-12 rounded-full flex items-center justify-center flex-shrink-0 text-sm lg:text-lg xl:text-xl font-bold shadow-sm border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', color: '#4b5563' }}>3</div>
                     <div>
-                      <p className="font-semibold text-base md:text-lg text-gray-800">Prepare for Your Call</p>
-                      <p className="text-gray-600 text-sm md:text-base">Be ready to discuss your health goals</p>
+                      <p className="font-semibold text-sm lg:text-base xl:text-lg text-gray-800">Prepare for Your Call</p>
+                      <p className="text-gray-600 text-xs lg:text-sm xl:text-base">Be ready to discuss your health goals</p>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {/* Bottom text */}
-              <div className="mt-6">
-                <div className="py-3 px-4 rounded-lg text-center border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
-                  <p className="text-sm md:text-base text-gray-600 font-medium">Please complete your booking in the next 20 minutes</p>
+              {/* Bottom text - smaller on mobile */}
+              <div className="mt-3 lg:mt-6">
+                <div className="py-2 lg:py-3 px-3 lg:px-4 rounded-lg text-center border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
+                  <p className="text-xs lg:text-sm xl:text-base text-gray-600 font-medium">Please complete your booking in the next 20 minutes</p>
                 </div>
+              </div>
+              
+              {/* Scroll indicator - mobile only */}
+              <div className="lg:hidden flex flex-col items-center mt-3 animate-bounce">
+                <p className="text-xs text-gray-400 mb-1">Scroll to book</p>
+                <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                </svg>
               </div>
             </div>
 
