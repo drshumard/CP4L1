@@ -1044,13 +1044,13 @@ const StepsPage = () => {
           </div>
         </div>
       ) : (
-        <div className="w-full h-full flex items-center justify-center p-2 sm:p-3 lg:p-4">
+        <div className="w-full h-full flex items-start lg:items-center justify-center p-2 sm:p-3 lg:p-4 overflow-y-auto lg:overflow-hidden">
         {currentStep === 1 ? (
           /* Step 1: Action Steps on Left, Booking Calendar on Right */
-          <div className="w-full max-w-7xl h-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 h-full w-full overflow-hidden rounded-xl shadow-2xl">
+          <div className="w-full max-w-7xl lg:h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 lg:h-full w-full lg:overflow-hidden rounded-xl shadow-2xl">
             {/* Left Column: Action Steps - White background */}
-            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col overflow-hidden rounded-l-xl bg-white">
+            <div className="relative p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col lg:overflow-hidden rounded-t-xl lg:rounded-t-none lg:rounded-l-xl bg-white">
               
               {/* Title at top */}
               <div className="mb-6">
