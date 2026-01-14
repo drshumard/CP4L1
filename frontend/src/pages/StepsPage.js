@@ -1049,18 +1049,16 @@ const StepsPage = () => {
           /* Step 1: Action Steps on Left, Booking Calendar on Right */
           <div className="w-full max-w-7xl lg:h-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 lg:h-full w-full lg:overflow-hidden rounded-xl shadow-2xl">
-            {/* Left Column: Action Steps - White background */}
-            {/* Mobile: Compact version with scroll indicator */}
-            {/* Desktop: Full version */}
-            <div className="relative p-3 sm:p-4 lg:p-6 xl:p-10 flex flex-col lg:overflow-hidden rounded-t-xl lg:rounded-t-none lg:rounded-l-xl bg-white">
+            {/* Left Column: Action Steps - Desktop only */}
+            <div className="hidden lg:flex relative p-3 sm:p-4 lg:p-6 xl:p-10 flex-col lg:overflow-hidden lg:rounded-l-xl bg-white">
               
-              {/* Title - smaller on mobile */}
+              {/* Title */}
               <div className="mb-3 lg:mb-6">
                 <h3 className="text-lg sm:text-xl lg:text-2xl xl:text-4xl font-bold mb-1 lg:mb-3 text-gray-800 text-center">Action Steps</h3>
                 <p className="text-xs sm:text-sm lg:text-base text-gray-600 text-center">Complete these steps to begin your journey</p>
               </div>
               
-              {/* Steps - compact on mobile */}
+              {/* Steps */}
               <div className="flex-1 flex flex-col justify-center">
                 <div className="space-y-2 sm:space-y-3 lg:space-y-5">
                   {/* Step 1 */}
@@ -1092,19 +1090,11 @@ const StepsPage = () => {
                 </div>
               </div>
               
-              {/* Bottom text - smaller on mobile */}
+              {/* Bottom text */}
               <div className="mt-3 lg:mt-6">
                 <div className="py-2 lg:py-3 px-3 lg:px-4 rounded-lg text-center border border-gray-200" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
                   <p className="text-xs lg:text-sm xl:text-base text-gray-600 font-medium">Please complete your booking in the next 20 minutes</p>
                 </div>
-              </div>
-              
-              {/* Scroll indicator - mobile only */}
-              <div className="lg:hidden flex flex-col items-center mt-3 animate-bounce">
-                <p className="text-xs text-gray-400 mb-1">Scroll to book</p>
-                <svg className="w-5 h-5 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
               </div>
             </div>
 
