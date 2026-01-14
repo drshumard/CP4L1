@@ -231,7 +231,7 @@ function TimeSlotButton({ slot, isSelected, onClick }) {
   );
 }
 
-function ClientForm({ formData, errors, onChange, selectedSlot }) {
+function ClientForm({ formData, errors, onChange, selectedSlot, onConfirm, isSubmitting }) {
   return (
     <div className={styles.formSection}>
       {selectedSlot && (
@@ -313,6 +313,16 @@ function ClientForm({ formData, errors, onChange, selectedSlot }) {
           placeholder="What would you like to discuss?"
         />
       </div>
+
+      {/* Confirm Button - Part of the form flow */}
+      <button
+        className={styles.confirmButton}
+        onClick={onConfirm}
+        disabled={isSubmitting}
+        type="button"
+      >
+        {isSubmitting ? 'Processing...' : 'Confirm Booking →'}
+      </button>
     </div>
   );
 }
