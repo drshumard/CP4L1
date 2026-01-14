@@ -1099,7 +1099,7 @@ const StepsPage = () => {
             </div>
 
             {/* Right Column: Booking Calendar */}
-            <div className="h-full overflow-y-auto rounded-r-xl" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }} data-testid="booking-card">
+            <div className="lg:h-full lg:overflow-y-auto rounded-b-xl lg:rounded-b-none lg:rounded-r-xl" style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }} data-testid="booking-card">
                   <OnboardingBooking 
                     clientInfo={{
                       firstName: userData?.first_name || '',
