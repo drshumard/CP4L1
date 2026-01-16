@@ -678,7 +678,7 @@ const AdminDashboard = () => {
               </div>
 
               {/* Modal Content */}
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 {/* User Info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
@@ -713,8 +713,54 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
+                {/* Booking Info Section */}
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <Clock size={16} className="text-teal-600" />
+                      Booking Information
+                    </h4>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={openBookingModal}
+                    >
+                      {selectedUser.booking_info ? 'Edit Booking' : 'Set Booking'}
+                    </Button>
+                  </div>
+                  
+                  {selectedUser.booking_info ? (
+                    <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} className="text-teal-600" />
+                        <span className="text-sm font-medium text-gray-800">
+                          {formatDate(selectedUser.booking_info.booking_datetime)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <Clock size={12} />
+                        <span>Timezone: {selectedUser.booking_info.booking_timezone || 'Not specified'}</span>
+                      </div>
+                      {selectedUser.booking_info.update_notes && (
+                        <p className="text-xs text-gray-500 italic">Note: {selectedUser.booking_info.update_notes}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-amber-700">
+                        <AlertCircle size={14} />
+                        <span className="text-sm">No booking set</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        User timezone: {selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'Unknown'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 {/* Action Buttons */}
-                <div className="pt-4 space-y-3">
+                <div className="pt-4 space-y-3 border-t border-gray-100">
                   <h4 className="text-sm font-semibold text-gray-700 mb-2">Quick Actions</h4>
                   
                   {/* Move to Step */}
