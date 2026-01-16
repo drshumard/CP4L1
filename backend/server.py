@@ -1549,6 +1549,37 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
 @api_router.get("/admin/users")
 async def get_all_users(admin_user: dict = Depends(get_admin_user)):
     users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    
+    # Fetch appointments for all users
+    appointments = await db.appointments.find({}, {"_id": 0}).to_list(1000)
+    
+    # Create a map of user_id to appointment
+    user_appointments = {}
+    for appt in appointments:
+        user_id = appt.get("user_id")
+        if user_id:
+            # Store the most recent appointment for each user
+            if user_id not in user_appointments or appt.get("created_at", "") > user_appointments[user_id].get("created_at", ""):
+                user_appointments[user_id] = appt
+    
+    # Attach appointment info to each user
+    for user in users:
+        user_id = user.get("id")
+        if user_id and user_id in user_appointments:
+            appt = user_appointments[user_id]
+            # Merge appointment into booking_info if not already set
+            if not user.get("booking_info"):
+                user["booking_info"] = {
+                    "session_start": appt.get("session_date"),
+                    "booking_id": appt.get("booking_id"),
+                    "source": "webhook",
+                    "created_at": appt.get("created_at")
+                }
+            else:
+                # Add webhook data to existing booking_info
+                user["booking_info"]["webhook_booking_id"] = appt.get("booking_id")
+                user["booking_info"]["webhook_session_date"] = appt.get("session_date")
+    
     return {"users": users}
 
 @api_router.get("/admin/analytics")
