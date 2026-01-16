@@ -50,6 +50,13 @@ const AdminDashboard = () => {
     showPassword: false
   });
   const [actionLoading, setActionLoading] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [bookingFormData, setBookingFormData] = useState({
+    date: '',
+    time: '',
+    timezone: '',
+    notes: ''
+  });
 
   useEffect(() => {
     fetchData();
