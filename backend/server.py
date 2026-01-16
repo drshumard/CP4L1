@@ -1775,6 +1775,102 @@ async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict 
         "new_step": request.step
     }
 
+class UpdateBookingRequest(BaseModel):
+    booking_datetime: str  # ISO format datetime string
+    booking_timezone: Optional[str] = None  # Optional timezone override
+    notes: Optional[str] = None
+
+@api_router.post("/admin/user/{user_id}/update-booking")
+async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin_user: dict = Depends(get_admin_user)):
+    """Update or set a user's booking time - for when users call to reschedule"""
+    
+    # Check if user exists
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Parse and validate the datetime
+    try:
+        booking_dt = datetime.fromisoformat(request.booking_datetime.replace('Z', '+00:00'))
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid datetime format. Use ISO format (e.g., 2024-01-15T14:30:00)"
+        )
+    
+    # Get user's original timezone from signup
+    user_timezone = user.get("signup_location", {}).get("timezone") or user.get("location_info", {}).get("timezone") or "Unknown"
+    
+    # Build booking info
+    booking_info = {
+        "booking_datetime": request.booking_datetime,
+        "booking_datetime_utc": booking_dt.astimezone(timezone.utc).isoformat() if booking_dt.tzinfo else booking_dt.isoformat(),
+        "booking_timezone": request.booking_timezone or user_timezone,
+        "updated_by": admin_user.get("email"),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "update_notes": request.notes
+    }
+    
+    # Update user with booking info
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"booking_info": booking_info}}
+    )
+    
+    # Log the action
+    await log_activity(
+        event_type="ADMIN_BOOKING_UPDATE",
+        user_email=user.get("email"),
+        user_id=user_id,
+        details={
+            "updated_by": admin_user.get("email"),
+            "new_booking_datetime": request.booking_datetime,
+            "booking_timezone": request.booking_timezone or user_timezone,
+            "notes": request.notes
+        },
+        status="success"
+    )
+    
+    return {
+        "message": "Booking updated successfully",
+        "booking_info": booking_info,
+        "user_timezone": user_timezone
+    }
+
+@api_router.delete("/admin/user/{user_id}/booking")
+async def delete_user_booking(user_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Remove a user's booking info"""
+    
+    # Check if user exists
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Remove booking info
+    await db.users.update_one(
+        {"id": user_id},
+        {"$unset": {"booking_info": ""}}
+    )
+    
+    # Log the action
+    await log_activity(
+        event_type="ADMIN_BOOKING_DELETED",
+        user_email=user.get("email"),
+        user_id=user_id,
+        details={
+            "deleted_by": admin_user.get("email")
+        },
+        status="success"
+    )
+    
+    return {"message": "Booking removed successfully"}
+
 @api_router.post("/admin/promote-user")
 async def promote_user_to_admin(email: EmailStr, secret_key: str):
     """
