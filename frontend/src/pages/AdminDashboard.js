@@ -288,6 +288,94 @@ const AdminDashboard = () => {
     setShowResetPasswordModal(true);
   };
 
+  const openBookingModal = () => {
+    // Pre-fill with existing booking info if available
+    const existingBooking = selectedUser?.booking_info;
+    const userTimezone = selectedUser?.signup_location?.timezone || 
+                         selectedUser?.location_info?.timezone || '';
+    
+    if (existingBooking?.booking_datetime) {
+      const dt = new Date(existingBooking.booking_datetime);
+      setBookingFormData({
+        date: dt.toISOString().split('T')[0],
+        time: dt.toTimeString().slice(0, 5),
+        timezone: existingBooking.booking_timezone || userTimezone,
+        notes: existingBooking.update_notes || ''
+      });
+    } else {
+      setBookingFormData({
+        date: '',
+        time: '',
+        timezone: userTimezone,
+        notes: ''
+      });
+    }
+    setShowBookingModal(true);
+  };
+
+  const handleUpdateBooking = async () => {
+    if (!bookingFormData.date || !bookingFormData.time) {
+      toast.error('Please enter both date and time');
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const bookingDatetime = `${bookingFormData.date}T${bookingFormData.time}:00`;
+      
+      await axios.post(
+        `${API}/admin/user/${selectedUser.id}/update-booking`,
+        {
+          booking_datetime: bookingDatetime,
+          booking_timezone: bookingFormData.timezone,
+          notes: bookingFormData.notes
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success('Booking updated successfully');
+      setShowBookingModal(false);
+      await fetchData();
+      
+      // Update selected user with new data
+      const updatedUser = users.find(u => u.id === selectedUser.id);
+      if (updatedUser) {
+        setSelectedUser({...updatedUser, booking_info: {
+          booking_datetime: bookingDatetime,
+          booking_timezone: bookingFormData.timezone,
+          update_notes: bookingFormData.notes
+        }});
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to update booking');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!window.confirm('Are you sure you want to remove this booking?')) return;
+
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.delete(
+        `${API}/admin/user/${selectedUser.id}/booking`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      toast.success('Booking removed');
+      setShowBookingModal(false);
+      await fetchData();
+      setSelectedUser({...selectedUser, booking_info: null});
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to remove booking');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Sort by created_at descending (newest first) and filter
   const filteredUsers = users
     .filter(user =>
