@@ -1854,6 +1854,32 @@ async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin
         {"$set": {"booking_info": booking_info}}
     )
     
+    # Also update or create appointment in appointments collection
+    appointment_data = {
+        "session_date": request.booking_datetime,
+        "first_name": user.get("first_name", ""),
+        "last_name": user.get("last_name", ""),
+        "email": user.get("email"),
+        "mobile_phone": user.get("phone"),
+        "user_id": user_id,
+        "matched_by": "admin_manual",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": admin_user.get("email"),
+        "update_notes": request.notes
+    }
+    
+    # Check if user already has an appointment
+    existing_appt = await db.appointments.find_one({"user_id": user_id})
+    if existing_appt:
+        await db.appointments.update_one(
+            {"user_id": user_id},
+            {"$set": appointment_data}
+        )
+    else:
+        appointment_data["booking_id"] = f"admin_manual_{user_id}_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        appointment_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        await db.appointments.insert_one(appointment_data)
+    
     # Log the action
     await log_activity(
         event_type="ADMIN_BOOKING_UPDATE",
