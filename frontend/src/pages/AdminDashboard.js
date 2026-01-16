@@ -735,13 +735,16 @@ const AdminDashboard = () => {
                       <div className="flex items-center gap-2">
                         <Calendar size={14} className="text-teal-600" />
                         <span className="text-sm font-medium text-gray-800">
-                          {formatDate(selectedUser.booking_info.booking_datetime)}
+                          {formatDate(selectedUser.booking_info.session_start || selectedUser.booking_info.booking_datetime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-gray-600">
                         <Clock size={12} />
-                        <span>Timezone: {selectedUser.booking_info.booking_timezone || 'Not specified'}</span>
+                        <span>Timezone: {selectedUser.booking_info.timezone || selectedUser.booking_info.booking_timezone || 'Not specified'}</span>
                       </div>
+                      {selectedUser.booking_info.source && (
+                        <p className="text-xs text-gray-500">Source: {selectedUser.booking_info.source === 'online_booking' ? 'Online Booking' : 'Manual Entry'}</p>
+                      )}
                       {selectedUser.booking_info.update_notes && (
                         <p className="text-xs text-gray-500 italic">Note: {selectedUser.booking_info.update_notes}</p>
                       )}
