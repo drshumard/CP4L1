@@ -1044,6 +1044,122 @@ const AdminDashboard = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Booking Modal */}
+      <AnimatePresence>
+        {showBookingModal && selectedUser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowBookingModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-800">
+                    {selectedUser.booking_info ? 'Edit Booking' : 'Set Booking Time'}
+                  </h3>
+                  <button
+                    onClick={() => setShowBookingModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">For {selectedUser.name || selectedUser.email}</p>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* User's Original Timezone Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-blue-700">
+                    <Clock size={14} />
+                    <span className="text-sm font-medium">User's Timezone</span>
+                  </div>
+                  <p className="text-sm text-blue-800 mt-1">
+                    {selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'Unknown - please verify with user'}
+                  </p>
+                </div>
+
+                {/* Date Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Booking Date</label>
+                  <input
+                    type="date"
+                    value={bookingFormData.date}
+                    onChange={(e) => setBookingFormData({ ...bookingFormData, date: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* Time Input */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Booking Time</label>
+                  <input
+                    type="time"
+                    value={bookingFormData.time}
+                    onChange={(e) => setBookingFormData({ ...bookingFormData, time: e.target.value })}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* Timezone Override */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Timezone (for reference)</label>
+                  <input
+                    type="text"
+                    value={bookingFormData.timezone}
+                    onChange={(e) => setBookingFormData({ ...bookingFormData, timezone: e.target.value })}
+                    placeholder="e.g., America/New_York, Europe/London"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Notes (optional)</label>
+                  <textarea
+                    value={bookingFormData.notes}
+                    onChange={(e) => setBookingFormData({ ...bookingFormData, notes: e.target.value })}
+                    placeholder="e.g., Rescheduled via phone call"
+                    rows={2}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  {selectedUser.booking_info && (
+                    <Button
+                      variant="outline"
+                      onClick={handleDeleteBooking}
+                      disabled={actionLoading}
+                      className="flex-1 py-5 text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Remove Booking
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleUpdateBooking}
+                    disabled={actionLoading || !bookingFormData.date || !bookingFormData.time}
+                    className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white py-5"
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Booking'}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
