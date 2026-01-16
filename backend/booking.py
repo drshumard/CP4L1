@@ -432,7 +432,22 @@ async def book_session(
                 user = await db.users.find_one({"email": request.email.lower()}, {"_id": 0})
                 
                 if user:
-                    update_fields = {"pb_client_record_id": result.client_record_id}
+                    # Build booking info to store
+                    booking_info = {
+                        "session_id": result.session_id,
+                        "session_start": result.session_start.isoformat() if result.session_start else None,
+                        "session_end": result.session_end.isoformat() if result.session_end else None,
+                        "duration": result.duration,
+                        "consultant_id": request.consultant_id,
+                        "timezone": request.timezone,
+                        "booked_at": datetime.now(tz.utc).isoformat(),
+                        "source": "online_booking"
+                    }
+                    
+                    update_fields = {
+                        "pb_client_record_id": result.client_record_id,
+                        "booking_info": booking_info
+                    }
                     
                     # Auto-advance to Step 2 if user is on Step 1 (backend fallback)
                     if user.get("current_step", 1) == 1:
@@ -456,7 +471,7 @@ async def book_session(
                         {"email": request.email.lower()},
                         {"$set": update_fields}
                     )
-                    logger.info(f"[{correlation_id}] Saved pb_client_record_id to user record")
+                    logger.info(f"[{correlation_id}] Saved booking_info and pb_client_record_id to user record")
                 else:
                     logger.warning(f"[{correlation_id}] User not found: {request.email}")
             except Exception as e:
