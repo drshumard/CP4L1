@@ -294,14 +294,25 @@ const AdminDashboard = () => {
     const userTimezone = selectedUser?.signup_location?.timezone || 
                          selectedUser?.location_info?.timezone || '';
     
-    if (existingBooking?.booking_datetime) {
-      const dt = new Date(existingBooking.booking_datetime);
-      setBookingFormData({
-        date: dt.toISOString().split('T')[0],
-        time: dt.toTimeString().slice(0, 5),
-        timezone: existingBooking.booking_timezone || userTimezone,
-        notes: existingBooking.update_notes || ''
-      });
+    if (existingBooking) {
+      // Handle both session_start (from online booking) and booking_datetime (from manual entry)
+      const bookingDateStr = existingBooking.session_start || existingBooking.booking_datetime;
+      if (bookingDateStr) {
+        const dt = new Date(bookingDateStr);
+        setBookingFormData({
+          date: dt.toISOString().split('T')[0],
+          time: dt.toTimeString().slice(0, 5),
+          timezone: existingBooking.timezone || existingBooking.booking_timezone || userTimezone,
+          notes: existingBooking.update_notes || ''
+        });
+      } else {
+        setBookingFormData({
+          date: '',
+          time: '',
+          timezone: userTimezone,
+          notes: ''
+        });
+      }
     } else {
       setBookingFormData({
         date: '',
