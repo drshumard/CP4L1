@@ -768,7 +768,10 @@ async def cancel_appointment_webhook(data: AppointmentCancellationData, webhook_
 async def get_user_appointment(current_user: dict = Depends(get_current_user)):
     """Get appointment details for the current user"""
     
-    # First try to find appointment by user_id
+    # Get user data to check for booking_info and secondary_email
+    user_data = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
+    
+    # First try to find appointment by user_id in appointments collection
     appointment = await db.appointments.find_one(
         {"user_id": current_user["id"]},
         {"_id": 0}
@@ -790,8 +793,6 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
     
     # If still not found, check if user has secondary_email and search by that
     if not appointment:
-        # Get fresh user data to check for secondary_email
-        user_data = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
         secondary_email = user_data.get("secondary_email") if user_data else None
         
         if secondary_email:
@@ -806,6 +807,56 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
                     {"email": secondary_email},
                     {"$set": {"user_id": current_user["id"]}}
                 )
+    
+    # If no appointment found in appointments collection, check booking_info on user
+    if not appointment and user_data and user_data.get("booking_info"):
+        booking_info = user_data["booking_info"]
+        # Convert booking_info to appointment format for consistency
+        appointment = {
+            "session_date": booking_info.get("session_start") or booking_info.get("booking_datetime"),
+            "first_name": user_data.get("first_name", ""),
+            "last_name": user_data.get("last_name", ""),
+            "email": user_data.get("email"),
+            "mobile_phone": user_data.get("phone"),
+            "user_id": current_user["id"],
+            "source": booking_info.get("source", "booking_info"),
+            "timezone": booking_info.get("timezone") or booking_info.get("booking_timezone")
+        }
+    
+    # If we have both appointment from collection AND booking_info, prefer the most recent one
+    if appointment and user_data and user_data.get("booking_info"):
+        booking_info = user_data["booking_info"]
+        booking_date_str = booking_info.get("session_start") or booking_info.get("booking_datetime")
+        appt_date_str = appointment.get("session_date")
+        
+        if booking_date_str and appt_date_str:
+            try:
+                booking_date = datetime.fromisoformat(booking_date_str.replace('Z', '+00:00'))
+                appt_date = datetime.fromisoformat(appt_date_str.replace('Z', '+00:00'))
+                
+                # If booking_info has a more recent date, use that instead
+                # This handles cases where admin updated the booking
+                if booking_info.get("updated_at"):
+                    updated_at = datetime.fromisoformat(booking_info["updated_at"].replace('Z', '+00:00'))
+                    appt_created = appointment.get("created_at")
+                    if appt_created:
+                        appt_created_dt = datetime.fromisoformat(appt_created.replace('Z', '+00:00'))
+                        if updated_at > appt_created_dt:
+                            # Admin update is more recent, use booking_info
+                            appointment = {
+                                "session_date": booking_date_str,
+                                "first_name": user_data.get("first_name", ""),
+                                "last_name": user_data.get("last_name", ""),
+                                "email": user_data.get("email"),
+                                "mobile_phone": user_data.get("phone"),
+                                "user_id": current_user["id"],
+                                "source": booking_info.get("source", "booking_info"),
+                                "timezone": booking_info.get("timezone") or booking_info.get("booking_timezone"),
+                                "updated_by": booking_info.get("updated_by"),
+                                "update_notes": booking_info.get("update_notes")
+                            }
+            except (ValueError, TypeError):
+                pass  # Keep the appointment from collection if date parsing fails
     
     if not appointment:
         return {"appointment": None}
