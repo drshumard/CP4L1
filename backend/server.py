@@ -1806,12 +1806,15 @@ async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin
     
     # Build booking info
     booking_info = {
+        "session_start": request.booking_datetime,
         "booking_datetime": request.booking_datetime,
         "booking_datetime_utc": booking_dt.astimezone(timezone.utc).isoformat() if booking_dt.tzinfo else booking_dt.isoformat(),
+        "timezone": request.booking_timezone or user_timezone,
         "booking_timezone": request.booking_timezone or user_timezone,
         "updated_by": admin_user.get("email"),
         "updated_at": datetime.now(timezone.utc).isoformat(),
-        "update_notes": request.notes
+        "update_notes": request.notes,
+        "source": "admin_manual"
     }
     
     # Update user with booking info
