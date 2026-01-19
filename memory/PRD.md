@@ -93,6 +93,14 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 - `users` collection with `current_step` field (0=Refunded, 1-3=Active steps)
 - `users.pb_client_record_id` - Practice Better client ID (for portal activation)
 
+## Recent Fixes (January 19, 2026)
+1. **Critical Bug Fix: Users stuck on Step 1 after booking**
+   - **Root Cause**: Inconsistent MongoDB collection naming (`db.progress` vs `db.user_progress`) in the appointment webhook caused step advancement to silently fail
+   - **Fix 1**: Corrected `/api/webhook/appointment` to use `db.user_progress` collection
+   - **Fix 2**: Added self-healing login flow - users on Step 1 with existing bookings are automatically advanced to Step 2 upon login
+   - **Logged as**: `STEP_AUTO_CORRECTED` event in activity logs
+2. **Removed obsolete `db.progress` references** - unified on `db.user_progress` throughout codebase
+
 ## Recent Fixes (January 13, 2026)
 1. **Removed duplicate modal popup** after booking - only shows custom widget success screen now
 2. **Fixed Practice Better client ID persistence** - now saved to database, survives browser refresh
