@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 
 # Configuration
-BACKEND_URL = "https://onboarding-hub-14.preview.emergentagent.com/api"
+BACKEND_URL = "https://intake-flow-6.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 def create_admin_and_get_token():
