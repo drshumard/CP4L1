@@ -1026,6 +1026,58 @@ async def login(request: LoginRequest, req: Request):
     )
     refresh_token = create_refresh_token(data={"sub": user["id"]})
     
+    # SELF-HEALING: Check if user is stuck on Step 1 but has a booking
+    # This fixes users who booked but weren't advanced due to webhook issues
+    if user.get("current_step", 1) == 1:
+        # Check if they have an appointment or booking_info
+        has_booking = False
+        
+        # Check appointments collection
+        appointment = await db.appointments.find_one({
+            "$or": [
+                {"user_id": user["id"]},
+                {"email": email_lower}
+            ]
+        })
+        if appointment:
+            has_booking = True
+        
+        # Check booking_info on user record
+        if not has_booking and user.get("booking_info"):
+            booking_info = user.get("booking_info")
+            # Only count if it has a valid session time
+            if booking_info.get("session_start") or booking_info.get("booking_datetime"):
+                has_booking = True
+        
+        if has_booking:
+            # Auto-advance to step 2
+            await db.users.update_one(
+                {"id": user["id"]},
+                {"$set": {"current_step": 2}}
+            )
+            await db.user_progress.update_one(
+                {"user_id": user["id"], "step_number": 1},
+                {
+                    "$set": {"completed_at": datetime.now(timezone.utc).isoformat()},
+                    "$addToSet": {"tasks_completed": "book_consultation"}
+                },
+                upsert=True
+            )
+            await log_activity(
+                event_type="STEP_AUTO_CORRECTED",
+                user_email=user["email"],
+                user_id=user["id"],
+                details={
+                    "from_step": 1,
+                    "to_step": 2,
+                    "reason": "user_has_booking_but_stuck_on_step_1",
+                    "trigger": "login_self_healing"
+                },
+                status="success",
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+    
     # Log successful login
     await log_activity(
         event_type="LOGIN_SUCCESS",
