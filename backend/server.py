@@ -913,10 +913,8 @@ async def signup(request: SignupRequest):
             {"id": user["id"]},
             {"$set": {"current_step": 1}}
         )
-        await db.progress.update_one(
-            {"user_id": user["id"]},
-            {"$set": {"current_step": 1}}
-        )
+        # Note: user_progress tracks step completion, not current_step
+        # The current_step is only on the users collection
         
         # Send notification email to admin
         try:
@@ -1819,11 +1817,8 @@ async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict 
         {"$set": {"current_step": request.step}}
     )
     
-    # Also update progress collection
-    await db.progress.update_one(
-        {"user_id": user_id},
-        {"$set": {"current_step": request.step}}
-    )
+    # Note: user_progress tracks step completion records, not current_step
+    # The current_step is only stored on the users collection
     
     # Log the activity
     step_name = "Refunded" if request.step == 0 else f"Step {request.step}"
