@@ -638,27 +638,19 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
     # AUTO-ADVANCE USER TO STEP 2 if user found and they're on step 1
     step_advanced = False
     if user and user.get("current_step", 1) == 1:
-        # Mark booking task as complete
-        progress = await db.progress.find_one({"user_id": user["id"]}, {"_id": 0})
-        if progress:
-            step_progress = next(
-                (p for p in progress.get("progress", []) if p["step_number"] == 1),
-                None
-            )
-            if step_progress and "book_consultation" not in step_progress.get("tasks_completed", []):
-                step_progress["tasks_completed"].append("book_consultation")
-                await db.progress.update_one(
-                    {"user_id": user["id"]},
-                    {"$set": {"progress": progress["progress"]}}
-                )
+        # Mark booking task as complete in user_progress collection
+        await db.user_progress.update_one(
+            {"user_id": user["id"], "step_number": 1},
+            {
+                "$set": {"completed_at": datetime.now(timezone.utc).isoformat()},
+                "$addToSet": {"tasks_completed": "book_consultation"}
+            },
+            upsert=True
+        )
         
-        # Advance to step 2
+        # Advance to step 2 in users collection
         await db.users.update_one(
             {"id": user["id"]},
-            {"$set": {"current_step": 2}}
-        )
-        await db.progress.update_one(
-            {"user_id": user["id"]},
             {"$set": {"current_step": 2}}
         )
         step_advanced = True
