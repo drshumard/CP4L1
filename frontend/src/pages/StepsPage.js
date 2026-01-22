@@ -197,30 +197,8 @@ const StepsPage = () => {
     navigate('/login');
   }, [navigate, userData?.id]);
 
-  // Helper function to send step completion webhook
-  const sendStepCompletionWebhook = async (email, step) => {
-    if (!email) {
-      console.warn('No email provided for webhook, skipping');
-      return;
-    }
-    
-    try {
-      const response = await fetch(STEP_COMPLETION_WEBHOOK, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: email,
-          step: step
-        })
-      });
-      console.log(`Step ${step} completion webhook sent for ${email}, status: ${response.status}`);
-    } catch (error) {
-      // CORS error is expected but request still goes through
-      console.log(`Step ${step} completion webhook sent for ${email} (CORS expected)`);
-    }
-  };
+  // NOTE: LeadConnector webhooks are now sent from the backend (server.py and booking.py)
+  // This ensures webhooks are only sent once when steps actually change
 
   // Helper to get user email - always use userData from database
   const getUserEmail = () => {
