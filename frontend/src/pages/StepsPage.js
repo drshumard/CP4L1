@@ -677,12 +677,6 @@ const StepsPage = () => {
     try {
       const token = localStorage.getItem('access_token');
       
-      // Send Step 1 completion webhook to LeadConnector
-      const userEmail = getUserEmail();
-      if (userEmail) {
-        sendStepCompletionWebhook(userEmail, 1);
-      }
-      
       // Mark task as complete
       await axios.post(
         `${API}/user/complete-task`,
@@ -690,7 +684,7 @@ const StepsPage = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // Advance to next step
+      // Backend advance-step now handles LeadConnector webhook
       await axios.post(
         `${API}/user/advance-step`,
         {},
