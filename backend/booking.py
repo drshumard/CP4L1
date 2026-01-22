@@ -466,6 +466,33 @@ async def book_session(
                             },
                             upsert=True
                         )
+                        
+                        # Send LeadConnector webhook for Step 1 completion
+                        try:
+                            import httpx
+                            # Format booking date and time
+                            booking_date = None
+                            booking_time = None
+                            if result.session_start:
+                                booking_date = result.session_start.strftime("%Y-%m-%d")
+                                booking_time = result.session_start.strftime("%H:%M:%S")
+                            
+                            webhook_payload = {
+                                "email": request.email,
+                                "step": 1,
+                                "booking_date": booking_date,
+                                "booking_time": booking_time
+                            }
+                            
+                            async with httpx.AsyncClient() as http_client:
+                                await http_client.post(
+                                    "https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/64b3e792-3c1e-4887-b8e3-efa79c58a704",
+                                    json=webhook_payload,
+                                    timeout=10.0
+                                )
+                            logger.info(f"[{correlation_id}] Step 1 LeadConnector webhook sent for {request.email}")
+                        except Exception as webhook_err:
+                            logger.warning(f"[{correlation_id}] Failed to send Step 1 webhook: {webhook_err}")
                     
                     await db.users.update_one(
                         {"email": request.email.lower()},
