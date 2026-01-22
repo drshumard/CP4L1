@@ -55,8 +55,8 @@ const STEP_DATA = {
   }
 };
 
-// Webhook URL for step completion notifications
-const STEP_COMPLETION_WEBHOOK = 'https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/64b3e792-3c1e-4887-b8e3-efa79c58a704';
+// NOTE: LeadConnector webhook URL moved to backend (server.py and booking.py)
+// Webhooks are now sent server-side to ensure they fire exactly once per step completion
 
 const StepsPage = () => {
   const navigate = useNavigate();
