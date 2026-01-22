@@ -1141,6 +1141,12 @@ const StepsPage = () => {
                       // Removed: setShowBookingSuccess(true) - the OnboardingBooking component 
                       // handles success UI with its own SuccessState and auto-redirect countdown
                       
+                      // Send Step 1 completion webhook to LeadConnector
+                      const userEmail = getUserEmail();
+                      if (userEmail) {
+                        sendStepCompletionWebhook(userEmail, 1);
+                      }
+                      
                       // Note: Backend now auto-advances user to Step 2 during booking
                       // We only need to mark the task complete here (backend handles step advancement)
                       try {
