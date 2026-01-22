@@ -687,6 +687,12 @@ const StepsPage = () => {
     try {
       const token = localStorage.getItem('access_token');
       
+      // Send Step 1 completion webhook to LeadConnector
+      const userEmail = getUserEmail();
+      if (userEmail) {
+        sendStepCompletionWebhook(userEmail, 1);
+      }
+      
       // Mark task as complete
       await axios.post(
         `${API}/user/complete-task`,
