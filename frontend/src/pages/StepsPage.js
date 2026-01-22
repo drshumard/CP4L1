@@ -1025,13 +1025,7 @@ const StepsPage = () => {
                         { headers: { Authorization: `Bearer ${token}` } }
                       );
                       
-                      // Send webhook for Step 2 completion
-                      const userEmail = getUserEmail();
-                      if (userEmail) {
-                        sendStepCompletionWebhook(userEmail, 2);
-                      } else {
-                        console.warn('No user email found for Step 2 webhook');
-                      }
+                      // Backend advance-step now handles LeadConnector webhook
                       
                       toast.success('Form submitted! Moving to Step 3...');
                       setCompletedTasks(new Set());
