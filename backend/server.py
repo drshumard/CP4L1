@@ -1337,11 +1337,13 @@ async def complete_task(request: TaskCompleteRequest, current_user: dict = Depen
 async def advance_step(current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     current_step = current_user["current_step"]
+    user_email = current_user["email"]
     
     # Mark current step as completed
+    completion_time = datetime.now(timezone.utc)
     await db.user_progress.update_one(
         {"user_id": user_id, "step_number": current_step},
-        {"$set": {"completed_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {"completed_at": completion_time.isoformat()}},
         upsert=True
     )
     
@@ -1354,6 +1356,44 @@ async def advance_step(current_user: dict = Depends(get_current_user)):
         {"id": user_id},
         {"$set": {"current_step": next_step}}
     )
+    
+    # Send LeadConnector webhook for Step 1 or Step 2 completion
+    if current_step in [1, 2]:
+        try:
+            import httpx
+            
+            webhook_payload = {
+                "email": user_email,
+                "step": current_step,
+                "submission_date": completion_time.strftime("%Y-%m-%d"),
+                "submission_time": completion_time.strftime("%H:%M:%S")
+            }
+            
+            # For Step 1, try to get booking info
+            if current_step == 1:
+                user_data = await db.users.find_one({"id": user_id}, {"_id": 0, "booking_info": 1})
+                if user_data and user_data.get("booking_info"):
+                    booking_info = user_data["booking_info"]
+                    session_start = booking_info.get("session_start")
+                    if session_start:
+                        try:
+                            # Parse the ISO datetime string
+                            from dateutil import parser
+                            dt = parser.parse(session_start)
+                            webhook_payload["booking_date"] = dt.strftime("%Y-%m-%d")
+                            webhook_payload["booking_time"] = dt.strftime("%H:%M:%S")
+                        except:
+                            pass
+            
+            async with httpx.AsyncClient() as http_client:
+                await http_client.post(
+                    "https://services.leadconnectorhq.com/hooks/ygLPhGfHB5mDOoTJ86um/webhook-trigger/64b3e792-3c1e-4887-b8e3-efa79c58a704",
+                    json=webhook_payload,
+                    timeout=10.0
+                )
+            logging.info(f"Step {current_step} LeadConnector webhook sent for {user_email}")
+        except Exception as e:
+            logging.warning(f"Failed to send Step {current_step} webhook for {user_email}: {e}")
     
     return {"message": "Advanced to next step", "current_step": next_step}
 
