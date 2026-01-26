@@ -226,6 +226,24 @@ const Part1_DiabetesProfile = ({
             </div>
           </div>
 
+          {/* Current Diagnosis */}
+          <div className="mt-4 pt-4 border-t">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">Current Diagnosis *</h4>
+            <div className="space-y-2">
+              <Label>What is your current Diagnosis?</Label>
+              <Select value={formData.currentDiagnosis} onValueChange={(v) => handleInputChange('currentDiagnosis', v)} required>
+                <SelectTrigger id="currentDiagnosis"><SelectValue placeholder="Select your diagnosis" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Type 2 Diabetes no medication">Type 2 Diabetes no medication</SelectItem>
+                  <SelectItem value="Type 2 Diabetes with medication">Type 2 Diabetes with medication</SelectItem>
+                  <SelectItem value="Pre-Diabetic with medication">Pre-Diabetic with medication</SelectItem>
+                  <SelectItem value="Pre-Diabetic no medication">Pre-Diabetic no medication</SelectItem>
+                  <SelectItem value="Non-Diabetic">Non-Diabetic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Occupation & Referred By (moved from Contact Information) */}
           <div className="mt-4 pt-4 border-t">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
