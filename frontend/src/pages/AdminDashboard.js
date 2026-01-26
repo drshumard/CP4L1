@@ -12,9 +12,9 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { 
-  Home, Users, TrendingUp, BarChart3, RefreshCw, Trash2, Activity,
+  Home, Users, BarChart3, RefreshCw, Trash2, Activity,
   Search, Mail, Phone, Calendar, X, Eye, EyeOff,
   Send, Key, Edit2, Clock, CheckCircle2, AlertCircle
 } from 'lucide-react';
