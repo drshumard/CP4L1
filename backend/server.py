@@ -1716,28 +1716,264 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
     return {"users": users}
 
 @api_router.get("/admin/analytics")
-async def get_analytics(admin_user: dict = Depends(get_admin_user)):
-    total_users = await db.users.count_documents({})
+async def get_analytics(
+    admin_user: dict = Depends(get_admin_user),
+    start_date: str = None,
+    end_date: str = None
+):
+    """
+    Get comprehensive analytics with optional date filtering.
+    Date format: YYYY-MM-DD
+    """
+    # Build date filter query
+    date_filter = {}
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            date_filter["$gte"] = start_dt.isoformat()
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+            date_filter["$lte"] = end_dt.isoformat()
+        except ValueError:
+            pass
+    
+    # Build user query with date filter
+    user_query = {}
+    if date_filter:
+        user_query["created_at"] = date_filter
+    
+    total_users = await db.users.count_documents(user_query)
     
     # Count users by step (including step 0 for refunded users)
     step_distribution = {}
     
     # Count refunded users (step 0)
-    refunded_count = await db.users.count_documents({"current_step": 0})
+    refunded_query = {**user_query, "current_step": 0}
+    refunded_count = await db.users.count_documents(refunded_query)
     step_distribution["refunded"] = refunded_count
     
     # Count users in steps 1-7
     for step in range(1, 8):
-        count = await db.users.count_documents({"current_step": step})
+        step_query = {**user_query, "current_step": step}
+        count = await db.users.count_documents(step_query)
         step_distribution[f"step_{step}"] = count
     
     # Count completed steps
     completed_steps = await db.user_progress.count_documents({"completed_at": {"$ne": None}})
     
+    # Calculate step transition times
+    step_transition_times = await calculate_step_transition_times(user_query)
+    
+    # Get completion funnel data
+    funnel_data = await get_completion_funnel(user_query)
+    
+    # Get daily signup trends (last 30 days)
+    signup_trends = await get_signup_trends()
+    
+    # Get average completion rates
+    completion_stats = await get_completion_stats(user_query)
+    
     return {
         "total_users": total_users,
         "step_distribution": step_distribution,
-        "completed_steps": completed_steps
+        "completed_steps": completed_steps,
+        "step_transition_times": step_transition_times,
+        "funnel_data": funnel_data,
+        "signup_trends": signup_trends,
+        "completion_stats": completion_stats,
+        "filters_applied": {
+            "start_date": start_date,
+            "end_date": end_date
+        }
+    }
+
+
+async def calculate_step_transition_times(user_query: dict = None):
+    """Calculate average time between steps"""
+    pipeline = []
+    
+    # Match users who have progress records
+    if user_query:
+        # Get user IDs matching the query
+        matching_users = await db.users.find(user_query, {"id": 1, "_id": 0}).to_list(10000)
+        user_ids = [u["id"] for u in matching_users]
+        pipeline.append({"$match": {"user_id": {"$in": user_ids}}})
+    
+    # Get all progress records grouped by user
+    progress_records = await db.user_progress.find({}).to_list(10000)
+    
+    # Group by user
+    user_progress = {}
+    for record in progress_records:
+        user_id = record.get("user_id")
+        if user_id not in user_progress:
+            user_progress[user_id] = {}
+        step_num = record.get("step_number")
+        completed_at = record.get("completed_at")
+        if step_num and completed_at:
+            user_progress[user_id][step_num] = completed_at
+    
+    # Calculate transition times
+    transitions = {
+        "step_1_to_2": [],  # Booking to Intake Form
+        "step_2_to_3": [],  # Intake Form to Completion
+        "step_3_to_4": [],  # Completion to Portal Activated
+        "total_completion": []  # Step 1 to final completion
+    }
+    
+    for user_id, steps in user_progress.items():
+        try:
+            from dateutil import parser
+            
+            # Step 1 to 2
+            if 1 in steps and 2 in steps:
+                t1 = parser.parse(steps[1])
+                t2 = parser.parse(steps[2])
+                diff_hours = (t2 - t1).total_seconds() / 3600
+                if diff_hours > 0:
+                    transitions["step_1_to_2"].append(diff_hours)
+            
+            # Step 2 to 3
+            if 2 in steps and 3 in steps:
+                t2 = parser.parse(steps[2])
+                t3 = parser.parse(steps[3])
+                diff_hours = (t3 - t2).total_seconds() / 3600
+                if diff_hours > 0:
+                    transitions["step_2_to_3"].append(diff_hours)
+            
+            # Step 3 to 4
+            if 3 in steps and 4 in steps:
+                t3 = parser.parse(steps[3])
+                t4 = parser.parse(steps[4])
+                diff_hours = (t4 - t3).total_seconds() / 3600
+                if diff_hours > 0:
+                    transitions["step_3_to_4"].append(diff_hours)
+            
+            # Total completion time (step 1 to step 4 or 3)
+            if 1 in steps:
+                t1 = parser.parse(steps[1])
+                final_step = 4 if 4 in steps else (3 if 3 in steps else None)
+                if final_step:
+                    tf = parser.parse(steps[final_step])
+                    diff_hours = (tf - t1).total_seconds() / 3600
+                    if diff_hours > 0:
+                        transitions["total_completion"].append(diff_hours)
+        except Exception:
+            continue
+    
+    # Calculate averages and format
+    def format_time(hours_list):
+        if not hours_list:
+            return {"avg_hours": None, "min_hours": None, "max_hours": None, "count": 0}
+        avg = sum(hours_list) / len(hours_list)
+        return {
+            "avg_hours": round(avg, 1),
+            "avg_formatted": format_duration(avg),
+            "min_hours": round(min(hours_list), 1),
+            "max_hours": round(max(hours_list), 1),
+            "count": len(hours_list)
+        }
+    
+    def format_duration(hours):
+        if hours < 1:
+            return f"{int(hours * 60)} min"
+        elif hours < 24:
+            return f"{round(hours, 1)} hrs"
+        else:
+            days = hours / 24
+            return f"{round(days, 1)} days"
+    
+    return {
+        "booking_to_intake": format_time(transitions["step_1_to_2"]),
+        "intake_to_completion": format_time(transitions["step_2_to_3"]),
+        "completion_to_activated": format_time(transitions["step_3_to_4"]),
+        "total_journey": format_time(transitions["total_completion"])
+    }
+
+
+async def get_completion_funnel(user_query: dict = None):
+    """Get funnel showing drop-off at each stage"""
+    query = user_query or {}
+    
+    total = await db.users.count_documents(query)
+    
+    # Users who reached or passed each step
+    reached_step_2 = await db.users.count_documents({**query, "current_step": {"$gte": 2}})
+    reached_step_3 = await db.users.count_documents({**query, "current_step": {"$gte": 3}})
+    reached_step_4 = await db.users.count_documents({**query, "current_step": {"$gte": 4}})
+    
+    return {
+        "started": {"count": total, "percentage": 100},
+        "completed_booking": {
+            "count": reached_step_2,
+            "percentage": round((reached_step_2 / total) * 100, 1) if total > 0 else 0,
+            "drop_off": total - reached_step_2
+        },
+        "completed_intake": {
+            "count": reached_step_3,
+            "percentage": round((reached_step_3 / total) * 100, 1) if total > 0 else 0,
+            "drop_off": reached_step_2 - reached_step_3
+        },
+        "activated_portal": {
+            "count": reached_step_4,
+            "percentage": round((reached_step_4 / total) * 100, 1) if total > 0 else 0,
+            "drop_off": reached_step_3 - reached_step_4
+        }
+    }
+
+
+async def get_signup_trends():
+    """Get daily signup counts for the last 30 days"""
+    from datetime import timedelta
+    
+    today = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+    thirty_days_ago = today - timedelta(days=30)
+    
+    # Get all users created in last 30 days
+    users = await db.users.find(
+        {"created_at": {"$gte": thirty_days_ago.isoformat()}},
+        {"created_at": 1, "_id": 0}
+    ).to_list(10000)
+    
+    # Count by date
+    daily_counts = {}
+    for i in range(31):
+        date = (thirty_days_ago + timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_counts[date] = 0
+    
+    for user in users:
+        try:
+            from dateutil import parser
+            created = parser.parse(user["created_at"])
+            date_str = created.strftime("%Y-%m-%d")
+            if date_str in daily_counts:
+                daily_counts[date_str] += 1
+        except:
+            continue
+    
+    return [{"date": k, "count": v} for k, v in sorted(daily_counts.items())]
+
+
+async def get_completion_stats(user_query: dict = None):
+    """Get overall completion statistics"""
+    query = user_query or {}
+    
+    total = await db.users.count_documents(query)
+    completed = await db.users.count_documents({**query, "current_step": {"$gte": 4}})
+    in_progress = await db.users.count_documents({**query, "current_step": {"$in": [1, 2, 3]}})
+    refunded = await db.users.count_documents({**query, "current_step": 0})
+    
+    return {
+        "total_users": total,
+        "completed": completed,
+        "completion_rate": round((completed / total) * 100, 1) if total > 0 else 0,
+        "in_progress": in_progress,
+        "in_progress_rate": round((in_progress / total) * 100, 1) if total > 0 else 0,
+        "refunded": refunded,
+        "refund_rate": round((refunded / total) * 100, 1) if total > 0 else 0
     }
 
 @api_router.get("/admin/activity-logs")
