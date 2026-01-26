@@ -429,17 +429,6 @@ const AdminDashboard = () => {
     });
   };
 
-  // Step distribution data for horizontal bar chart
-  const stepDistribution = [
-    { label: 'Refunded', count: analytics?.step_distribution?.refunded || 0, color: 'bg-red-500' },
-    { label: 'Step 1', count: analytics?.step_distribution?.step_1 || 0, color: 'bg-blue-500' },
-    { label: 'Step 2', count: analytics?.step_distribution?.step_2 || 0, color: 'bg-purple-500' },
-    { label: 'Step 3', count: analytics?.step_distribution?.step_3 || 0, color: 'bg-amber-500' },
-    { label: 'Complete', count: analytics?.step_distribution?.step_4 || 0, color: 'bg-green-500' },
-  ];
-
-  const maxStepCount = Math.max(...stepDistribution.map(s => s.count), 1);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
@@ -466,6 +455,14 @@ const AdminDashboard = () => {
               <div className="flex items-center gap-3 md:hidden">
                 <Button 
                   variant="outline" 
+                  onClick={() => navigate('/admin/analytics')} 
+                  className="flex items-center gap-2"
+                  size="sm"
+                >
+                  <BarChart3 size={16} />
+                </Button>
+                <Button 
+                  variant="outline" 
                   onClick={() => navigate('/admin/logs')} 
                   className="flex items-center gap-2"
                   size="sm"
@@ -477,8 +474,16 @@ const AdminDashboard = () => {
                 </Button>
               </div>
             </div>
-            <h1 className="text-xl font-bold text-gray-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">Admin Dashboard</h1>
+            <h1 className="text-xl font-bold text-gray-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">User Management</h1>
             <div className="hidden md:flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => navigate('/admin/analytics')} 
+                className="flex items-center gap-2"
+              >
+                <BarChart3 size={16} />
+                <span>Analytics</span>
+              </Button>
               <Button 
                 variant="outline" 
                 onClick={() => navigate('/admin/logs')} 
@@ -497,7 +502,6 @@ const AdminDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Analytics Section with Date Filter */}
         <Card className="bg-white border border-gray-200 shadow-sm mb-6">
           <CardHeader className="border-b border-gray-100 pb-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
