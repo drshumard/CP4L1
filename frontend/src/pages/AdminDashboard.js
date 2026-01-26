@@ -595,6 +595,21 @@ const AdminDashboard = () => {
                     Clear
                   </Button>
                 )}
+                {/* Auto-refresh toggle */}
+                <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-300">
+                  <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={autoRefresh}
+                      onChange={(e) => setAutoRefresh(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="flex items-center gap-1">
+                      Auto-refresh
+                      {autoRefresh && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>}
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
             {analytics?.filters_applied?.start_date && (
