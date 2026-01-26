@@ -1770,8 +1770,8 @@ async def get_analytics(
     # Get completion funnel data
     funnel_data = await get_completion_funnel(user_query)
     
-    # Get daily signup trends (last 30 days)
-    signup_trends = await get_signup_trends()
+    # Get daily signup trends (filtered by date range)
+    signup_trends = await get_signup_trends(start_date, end_date)
     
     # Get average completion rates
     completion_stats = await get_completion_stats(user_query)
