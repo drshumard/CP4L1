@@ -85,8 +85,6 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
-    setTimeout(() => fetchAnalytics(), 100);
-  };
 
   const handleStepChange = (newStep) => {
     setPendingStep(newStep);
