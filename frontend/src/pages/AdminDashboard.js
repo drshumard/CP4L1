@@ -35,7 +35,6 @@ const API = `${BACKEND_URL}/api`;
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -57,34 +56,17 @@ const AdminDashboard = () => {
     timezone: '',
     notes: ''
   });
-  // Analytics date filter state
-  const [analyticsStartDate, setAnalyticsStartDate] = useState('');
-  const [analyticsEndDate, setAnalyticsEndDate] = useState('');
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Auto-refresh analytics every 30 seconds for realtime data
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      fetchAnalytics();
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [autoRefresh, analyticsStartDate, analyticsEndDate]);
-
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const [usersRes, analyticsRes] = await Promise.all([
-        axios.get(`${API}/admin/users`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
+      const usersRes = await axios.get(`${API}/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
         axios.get(`${API}/admin/analytics`, {
           headers: { Authorization: `Bearer ${token}` },
           params: {
