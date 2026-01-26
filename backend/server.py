@@ -1800,23 +1800,28 @@ async def get_analytics(
 
 
 async def calculate_step_transition_times(user_query: dict = None):
-    """Calculate average time between steps"""
-    pipeline = []
+    """Calculate average time between steps for users matching the query"""
+    from dateutil import parser as date_parser
     
-    # Match users who have progress records
+    # Get user IDs matching the query
+    user_ids = None
     if user_query:
-        # Get user IDs matching the query
         matching_users = await db.users.find(user_query, {"id": 1, "_id": 0}).to_list(10000)
         user_ids = [u["id"] for u in matching_users]
-        pipeline.append({"$match": {"user_id": {"$in": user_ids}}})
     
-    # Get all progress records grouped by user
-    progress_records = await db.user_progress.find({}).to_list(10000)
+    # Get progress records (filtered by user IDs if query provided)
+    progress_query = {}
+    if user_ids is not None:
+        progress_query["user_id"] = {"$in": user_ids}
+    
+    progress_records = await db.user_progress.find(progress_query).to_list(10000)
     
     # Group by user
     user_progress = {}
     for record in progress_records:
         user_id = record.get("user_id")
+        if user_ids is not None and user_id not in user_ids:
+            continue
         if user_id not in user_progress:
             user_progress[user_id] = {}
         step_num = record.get("step_number")
@@ -1834,20 +1839,18 @@ async def calculate_step_transition_times(user_query: dict = None):
     
     for user_id, steps in user_progress.items():
         try:
-            from dateutil import parser
-            
             # Step 1 to 2
             if 1 in steps and 2 in steps:
-                t1 = parser.parse(steps[1])
-                t2 = parser.parse(steps[2])
+                t1 = date_parser.parse(steps[1])
+                t2 = date_parser.parse(steps[2])
                 diff_hours = (t2 - t1).total_seconds() / 3600
                 if diff_hours > 0:
                     transitions["step_1_to_2"].append(diff_hours)
             
             # Step 2 to 3
             if 2 in steps and 3 in steps:
-                t2 = parser.parse(steps[2])
-                t3 = parser.parse(steps[3])
+                t2 = date_parser.parse(steps[2])
+                t3 = date_parser.parse(steps[3])
                 diff_hours = (t3 - t2).total_seconds() / 3600
                 if diff_hours > 0:
                     transitions["step_2_to_3"].append(diff_hours)
