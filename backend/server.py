@@ -1933,29 +1933,40 @@ async def get_completion_funnel(user_query: dict = None):
     }
 
 
-async def get_signup_trends():
-    """Get daily signup counts for the last 30 days"""
+async def get_signup_trends(start_date: str = None, end_date: str = None):
+    """Get daily signup counts for the specified date range or last 30 days"""
     from datetime import timedelta
+    from dateutil import parser as date_parser
     
-    today = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
-    thirty_days_ago = today - timedelta(days=30)
+    # Determine date range
+    if start_date and end_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        except:
+            # Fallback to last 30 days
+            end_dt = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+            start_dt = end_dt - timedelta(days=30)
+    else:
+        end_dt = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+        start_dt = end_dt - timedelta(days=30)
     
-    # Get all users created in last 30 days
+    # Get all users created in the date range
     users = await db.users.find(
-        {"created_at": {"$gte": thirty_days_ago.isoformat()}},
+        {"created_at": {"$gte": start_dt.isoformat(), "$lte": end_dt.isoformat()}},
         {"created_at": 1, "_id": 0}
     ).to_list(10000)
     
     # Count by date
     daily_counts = {}
-    for i in range(31):
-        date = (thirty_days_ago + timedelta(days=i)).strftime("%Y-%m-%d")
+    num_days = (end_dt - start_dt).days + 1
+    for i in range(num_days):
+        date = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
         daily_counts[date] = 0
     
     for user in users:
         try:
-            from dateutil import parser
-            created = parser.parse(user["created_at"])
+            created = date_parser.parse(user["created_at"])
             date_str = created.strftime("%Y-%m-%d")
             if date_str in daily_counts:
                 daily_counts[date_str] += 1
