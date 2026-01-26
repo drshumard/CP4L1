@@ -1976,6 +1976,108 @@ async def get_completion_stats(user_query: dict = None):
         "refund_rate": round((refunded / total) * 100, 1) if total > 0 else 0
     }
 
+
+async def get_realtime_stats():
+    """Get realtime statistics - today, this week, recent activity"""
+    from datetime import timedelta
+    
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start = today_start - timedelta(days=today_start.weekday())  # Monday
+    
+    # Today's stats
+    today_signups = await db.users.count_documents({
+        "created_at": {"$gte": today_start.isoformat()}
+    })
+    
+    today_logins = await db.activity_logs.count_documents({
+        "event_type": "LOGIN_SUCCESS",
+        "timestamp": {"$gte": today_start.isoformat()}
+    })
+    
+    today_bookings = await db.activity_logs.count_documents({
+        "event_type": "APPOINTMENT_BOOKED",
+        "timestamp": {"$gte": today_start.isoformat()}
+    })
+    
+    today_form_submissions = await db.activity_logs.count_documents({
+        "event_type": "INTAKE_FORM_SUBMITTED",
+        "timestamp": {"$gte": today_start.isoformat()}
+    })
+    
+    # This week's stats
+    week_signups = await db.users.count_documents({
+        "created_at": {"$gte": week_start.isoformat()}
+    })
+    
+    week_completions = await db.activity_logs.count_documents({
+        "event_type": {"$in": ["STEP_ADVANCED", "PORTAL_ACTIVATED"]},
+        "timestamp": {"$gte": week_start.isoformat()}
+    })
+    
+    # Recent activity (last 10 events)
+    recent_activities = await db.activity_logs.find(
+        {"event_type": {"$in": ["LOGIN_SUCCESS", "SIGNUP_SUCCESS", "APPOINTMENT_BOOKED", "INTAKE_FORM_SUBMITTED", "PORTAL_ACTIVATED"]}},
+        {"_id": 0, "event_type": 1, "user_email": 1, "timestamp": 1}
+    ).sort("timestamp", -1).limit(10).to_list(10)
+    
+    # Format recent activities
+    formatted_activities = []
+    for activity in recent_activities:
+        formatted_activities.append({
+            "event": activity.get("event_type", "").replace("_", " ").title(),
+            "email": activity.get("user_email", "Unknown"),
+            "time": activity.get("timestamp", "")
+        })
+    
+    return {
+        "today": {
+            "signups": today_signups,
+            "logins": today_logins,
+            "bookings": today_bookings,
+            "form_submissions": today_form_submissions
+        },
+        "this_week": {
+            "signups": week_signups,
+            "completions": week_completions
+        },
+        "recent_activity": formatted_activities,
+        "last_updated": now.isoformat()
+    }
+
+
+async def get_hourly_activity():
+    """Get activity breakdown by hour for the last 24 hours"""
+    from datetime import timedelta
+    
+    now = datetime.now(timezone.utc)
+    yesterday = now - timedelta(hours=24)
+    
+    # Get all activity logs from last 24 hours
+    logs = await db.activity_logs.find(
+        {"timestamp": {"$gte": yesterday.isoformat()}},
+        {"_id": 0, "timestamp": 1, "event_type": 1}
+    ).to_list(10000)
+    
+    # Initialize hourly buckets
+    hourly_data = {}
+    for i in range(24):
+        hour = (now - timedelta(hours=23-i)).strftime("%H:00")
+        hourly_data[hour] = 0
+    
+    # Count events per hour
+    for log in logs:
+        try:
+            from dateutil import parser
+            ts = parser.parse(log["timestamp"])
+            hour_key = ts.strftime("%H:00")
+            if hour_key in hourly_data:
+                hourly_data[hour_key] += 1
+        except:
+            continue
+    
+    return [{"hour": k, "count": v} for k, v in hourly_data.items()]
+
 @api_router.get("/admin/activity-logs")
 async def get_activity_logs(
     admin_user: dict = Depends(get_admin_user),
