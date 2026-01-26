@@ -61,10 +61,22 @@ const AdminDashboard = () => {
   const [analyticsStartDate, setAnalyticsStartDate] = useState('');
   const [analyticsEndDate, setAnalyticsEndDate] = useState('');
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Auto-refresh analytics every 30 seconds for realtime data
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      fetchAnalytics();
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, analyticsStartDate, analyticsEndDate]);
 
   const fetchData = async () => {
     try {
