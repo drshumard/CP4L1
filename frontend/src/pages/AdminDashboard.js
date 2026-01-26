@@ -57,6 +57,10 @@ const AdminDashboard = () => {
     timezone: '',
     notes: ''
   });
+  // Analytics date filter state
+  const [analyticsStartDate, setAnalyticsStartDate] = useState('');
+  const [analyticsEndDate, setAnalyticsEndDate] = useState('');
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -70,7 +74,11 @@ const AdminDashboard = () => {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API}/admin/analytics`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          params: {
+            start_date: analyticsStartDate || undefined,
+            end_date: analyticsEndDate || undefined
+          }
         })
       ]);
 
@@ -91,6 +99,32 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const analyticsRes = await axios.get(`${API}/admin/analytics`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          start_date: analyticsStartDate || undefined,
+          end_date: analyticsEndDate || undefined
+        }
+      });
+      setAnalytics(analyticsRes.data);
+    } catch (error) {
+      toast.error('Failed to load analytics', { id: 'analytics-error' });
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const clearDateFilter = () => {
+    setAnalyticsStartDate('');
+    setAnalyticsEndDate('');
+    // Refetch with no filters
+    setTimeout(() => fetchAnalytics(), 100);
   };
 
   const handleStepChange = (newStep) => {
