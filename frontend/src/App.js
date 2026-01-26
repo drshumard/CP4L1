@@ -162,6 +162,7 @@ function App() {
             <Route path="/steps" element={<RefundedProtectedRoute><StepsPage /></RefundedProtectedRoute>} />
             <Route path="/outcome" element={<RefundedProtectedRoute><OutcomePage /></RefundedProtectedRoute>} />
             <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
+            <Route path="/admin/analytics" element={<PrivateRoute><AdminAnalytics /></PrivateRoute>} />
             <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
           </Routes>
           <SupportPopup />
