@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import StepsPage from './pages/StepsPage';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminAnalytics from './pages/AdminAnalytics';
 import ActivityLogs from './pages/ActivityLogs';
 import ResetPassword from './pages/ResetPassword';
 import OutcomePage from './pages/OutcomePage';
