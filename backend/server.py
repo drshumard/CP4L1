@@ -1776,6 +1776,12 @@ async def get_analytics(
     # Get average completion rates
     completion_stats = await get_completion_stats(user_query)
     
+    # Get realtime stats (always fresh, not filtered by date)
+    realtime_stats = await get_realtime_stats()
+    
+    # Get hourly activity for last 24 hours
+    hourly_activity = await get_hourly_activity()
+    
     return {
         "total_users": total_users,
         "step_distribution": step_distribution,
@@ -1784,6 +1790,8 @@ async def get_analytics(
         "funnel_data": funnel_data,
         "signup_trends": signup_trends,
         "completion_stats": completion_stats,
+        "realtime_stats": realtime_stats,
+        "hourly_activity": hourly_activity,
         "filters_applied": {
             "start_date": start_date,
             "end_date": end_date
