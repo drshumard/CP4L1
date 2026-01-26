@@ -66,6 +66,8 @@ const IntakeForm = forwardRef(({ userData, onComplete, onPartChange, onStateChan
     gender: '',
     weight: '',
     currentDate: new Date(),
+    // Current Diagnosis
+    currentDiagnosis: '',
     // Contact Information
     occupation: '',
     referredBy: '',
