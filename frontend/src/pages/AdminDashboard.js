@@ -67,17 +67,8 @@ const AdminDashboard = () => {
       const usersRes = await axios.get(`${API}/admin/users`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-        axios.get(`${API}/admin/analytics`, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: {
-            start_date: analyticsStartDate || undefined,
-            end_date: analyticsEndDate || undefined
-          }
-        })
-      ]);
 
       setUsers(usersRes.data.users);
-      setAnalytics(analyticsRes.data);
       
       trackAdminPanelViewed(localStorage.getItem('user_id'));
     } catch (error) {
@@ -94,30 +85,6 @@ const AdminDashboard = () => {
       setLoading(false);
     }
   };
-
-  const fetchAnalytics = async () => {
-    setAnalyticsLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      const analyticsRes = await axios.get(`${API}/admin/analytics`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          start_date: analyticsStartDate || undefined,
-          end_date: analyticsEndDate || undefined
-        }
-      });
-      setAnalytics(analyticsRes.data);
-    } catch (error) {
-      toast.error('Failed to load analytics', { id: 'analytics-error' });
-    } finally {
-      setAnalyticsLoading(false);
-    }
-  };
-
-  const clearDateFilter = () => {
-    setAnalyticsStartDate('');
-    setAnalyticsEndDate('');
-    // Refetch with no filters
     setTimeout(() => fetchAnalytics(), 100);
   };
 
