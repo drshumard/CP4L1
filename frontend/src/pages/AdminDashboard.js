@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, Users, BarChart3, RefreshCw, Trash2, Activity,
   Search, Mail, Phone, Calendar, X, Eye, EyeOff,
