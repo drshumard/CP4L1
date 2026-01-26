@@ -167,6 +167,9 @@ def create_intake_form_pdf(form_data: dict, user_name: str, user_email: str) -> 
     story.append(create_row('Postal Code', profile.get('postalCode')))
     story.append(create_row('Country', profile.get('country')))
     
+    # Current Diagnosis
+    story.append(create_row('Current Diagnosis', profile.get('currentDiagnosis')))
+    
     story.append(create_two_column_row('Occupation', profile.get('occupation'), 'Referred By', profile.get('referredBy')))
     
     story.append(Spacer(1, 8))
