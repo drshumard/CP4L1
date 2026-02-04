@@ -2109,6 +2109,110 @@ async def get_hourly_activity():
     
     return [{"hour": k, "count": v} for k, v in hourly_data.items()]
 
+
+async def get_completion_trends(start_date: str = None, end_date: str = None, user_query: dict = None):
+    """Get daily step completion counts over time for line graph"""
+    from datetime import timedelta
+    from dateutil import parser as date_parser
+    
+    # Determine date range
+    if start_date and end_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        except:
+            end_dt = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+            start_dt = end_dt - timedelta(days=30)
+    else:
+        end_dt = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
+        start_dt = end_dt - timedelta(days=30)
+    
+    # Get user IDs to filter (exclude staff/admin)
+    user_ids = None
+    if user_query:
+        matching_users = await db.users.find(user_query, {"id": 1, "_id": 0}).to_list(10000)
+        user_ids = [u["id"] for u in matching_users]
+    
+    # Get all progress records in date range
+    progress_query = {
+        "completed_at": {
+            "$gte": start_dt.isoformat(),
+            "$lte": end_dt.isoformat()
+        }
+    }
+    if user_ids is not None:
+        progress_query["user_id"] = {"$in": user_ids}
+    
+    progress_records = await db.user_progress.find(progress_query).to_list(10000)
+    
+    # Initialize daily buckets for each step
+    num_days = (end_dt - start_dt).days + 1
+    daily_data = {}
+    for i in range(num_days):
+        date = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_data[date] = {"step_1": 0, "step_2": 0, "step_3": 0}
+    
+    # Count completions by date and step
+    for record in progress_records:
+        try:
+            completed_at = record.get("completed_at")
+            step_num = record.get("step_number")
+            if completed_at and step_num in [1, 2, 3]:
+                dt = date_parser.parse(completed_at)
+                date_str = dt.strftime("%Y-%m-%d")
+                if date_str in daily_data:
+                    daily_data[date_str][f"step_{step_num}"] += 1
+        except:
+            continue
+    
+    return [{"date": k, **v} for k, v in sorted(daily_data.items())]
+
+
+# Staff role promotion endpoint
+class PromoteUserRequest(BaseModel):
+    role: str  # 'staff' or 'user'
+
+@api_router.post("/admin/user/{user_id}/promote")
+async def promote_user(
+    user_id: str,
+    request: PromoteUserRequest,
+    admin_user: dict = Depends(get_admin_user)
+):
+    """Promote or demote a user to/from staff role. Only admins can do this."""
+    if request.role not in ["staff", "user"]:
+        raise HTTPException(status_code=400, detail="Role must be 'staff' or 'user'")
+    
+    # Find the user
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Can't change admin roles
+    if user.get("role") == "admin":
+        raise HTTPException(status_code=403, detail="Cannot change admin roles")
+    
+    # Update the role
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"role": request.role}}
+    )
+    
+    # Log the activity
+    await log_activity(
+        event_type="USER_ROLE_CHANGED",
+        user_email=user.get("email"),
+        user_id=user_id,
+        details={
+            "old_role": user.get("role", "user"),
+            "new_role": request.role,
+            "changed_by": admin_user.get("email")
+        },
+        status="success"
+    )
+    
+    return {"message": f"User role changed to {request.role}", "role": request.role}
+
+
 @api_router.get("/admin/activity-logs")
 async def get_activity_logs(
     admin_user: dict = Depends(get_admin_user),
