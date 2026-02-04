@@ -1357,6 +1357,15 @@ async def advance_step(current_user: dict = Depends(get_current_user)):
         {"$set": {"current_step": next_step}}
     )
     
+    # If we just moved to step 4 (completed), also record step 4 completion
+    # This is needed for "Total Journey" analytics
+    if next_step == 4:
+        await db.user_progress.update_one(
+            {"user_id": user_id, "step_number": 4},
+            {"$set": {"completed_at": completion_time.isoformat()}},
+            upsert=True
+        )
+    
     # Send LeadConnector webhook for Step 1 or Step 2 completion
     if current_step in [1, 2]:
         try:
