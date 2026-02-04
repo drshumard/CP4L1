@@ -230,7 +230,9 @@ const AdminAnalytics = () => {
               </div>
               <div className="bg-teal-50 rounded-lg p-4 text-center border-2 border-teal-200">
                 <div className="text-2xl font-bold text-teal-600">{analytics?.day1_ready || 0}</div>
-                <div className="text-sm text-teal-600 font-medium">Day 1 Ready</div>
+                <div className="text-sm text-teal-600 font-medium">
+                  Day 1 Ready ({analytics?.total_users > 0 ? Math.round((analytics?.day1_ready || 0) / analytics.total_users * 100) : 0}%)
+                </div>
               </div>
               <div className="bg-green-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-green-600">{analytics?.completion_stats?.completed || 0}</div>
