@@ -223,10 +223,14 @@ const AdminAnalytics = () => {
           </CardHeader>
           <CardContent className="p-6">
             {/* Summary Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
               <div className="bg-gray-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-gray-800">{analytics?.total_users || 0}</div>
                 <div className="text-sm text-gray-500">Total Users</div>
+              </div>
+              <div className="bg-teal-50 rounded-lg p-4 text-center border-2 border-teal-200">
+                <div className="text-2xl font-bold text-teal-600">{analytics?.day1_ready || 0}</div>
+                <div className="text-sm text-teal-600 font-medium">Day 1 Ready</div>
               </div>
               <div className="bg-green-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-green-600">{analytics?.completion_stats?.completed || 0}</div>
