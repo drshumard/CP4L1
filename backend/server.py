@@ -1724,6 +1724,7 @@ async def get_analytics(
     """
     Get comprehensive analytics with optional date filtering.
     Date format: YYYY-MM-DD
+    Excludes staff users from all analytics.
     """
     # Build date filter query
     date_filter = {}
@@ -1740,8 +1741,8 @@ async def get_analytics(
         except ValueError:
             pass
     
-    # Build user query with date filter
-    user_query = {}
+    # Build user query with date filter - EXCLUDE staff and admin from analytics
+    user_query = {"role": {"$nin": ["staff", "admin"]}}
     if date_filter:
         user_query["created_at"] = date_filter
     
@@ -1760,6 +1761,9 @@ async def get_analytics(
         step_query = {**user_query, "current_step": step}
         count = await db.users.count_documents(step_query)
         step_distribution[f"step_{step}"] = count
+    
+    # Day 1 Ready: Users who have completed step 1 AND step 2 (currently on step 3+)
+    day1_ready_count = await db.users.count_documents({**user_query, "current_step": {"$gte": 3}})
     
     # Count completed steps
     completed_steps = await db.user_progress.count_documents({"completed_at": {"$ne": None}})
