@@ -426,43 +426,121 @@ const AdminAnalytics = () => {
               </div>
             </div>
 
-            {/* Signup Trends Chart */}
+            {/* Completion Rate Trends - Line Graph */}
             <div className="mt-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                 <TrendingUp size={16} />
-                Signup Trends (Last 30 Days)
+                Step Completion Trends
               </h3>
               <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-end gap-1 h-32">
-                  {analytics?.signup_trends?.map((day, index) => {
-                    const maxCount = Math.max(...(analytics?.signup_trends?.map(d => d.count) || [1]), 1);
-                    const height = day.count > 0 ? Math.max((day.count / maxCount) * 100, 8) : 4;
-                    const isToday = index === (analytics?.signup_trends?.length || 0) - 1;
-                    
-                    return (
-                      <div 
-                        key={day.date} 
-                        className="flex-1 flex flex-col items-center group relative"
-                      >
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${height}%` }}
-                          transition={{ duration: 0.5, delay: index * 0.02 }}
-                          className={`w-full rounded-t ${isToday ? 'bg-teal-500' : day.count > 0 ? 'bg-teal-400' : 'bg-gray-200'}`}
+                {/* Legend */}
+                <div className="flex items-center gap-4 mb-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-blue-500 rounded"></div>
+                    <span className="text-gray-600">Step 1 (Booking)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-purple-500 rounded"></div>
+                    <span className="text-gray-600">Step 2 (Intake)</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-0.5 bg-green-500 rounded"></div>
+                    <span className="text-gray-600">Step 3 (Complete)</span>
+                  </div>
+                </div>
+                {/* Line Graph */}
+                <div className="relative h-40">
+                  {analytics?.completion_trends?.length > 0 ? (
+                    <svg className="w-full h-full" preserveAspectRatio="none">
+                      {/* Grid lines */}
+                      {[0, 25, 50, 75, 100].map((percent) => (
+                        <line 
+                          key={percent}
+                          x1="0" 
+                          y1={`${100 - percent}%`} 
+                          x2="100%" 
+                          y2={`${100 - percent}%`} 
+                          stroke="#e5e7eb" 
+                          strokeWidth="1"
                         />
-                        {/* Tooltip */}
-                        <div className="absolute bottom-full mb-2 hidden group-hover:block z-10">
-                          <div className="bg-gray-800 text-white text-xs rounded px-2 py-1 whitespace-nowrap">
-                            {day.date}: {day.count} signups
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      ))}
+                      {/* Step 1 Line (Blue) */}
+                      <polyline
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={analytics.completion_trends.map((d, i) => {
+                          const maxVal = Math.max(
+                            ...analytics.completion_trends.map(t => Math.max(t.step_1 || 0, t.step_2 || 0, t.step_3 || 0)),
+                            1
+                          );
+                          const x = (i / (analytics.completion_trends.length - 1)) * 100;
+                          const y = 100 - ((d.step_1 || 0) / maxVal) * 100;
+                          return `${x}%,${y}%`;
+                        }).join(' ')}
+                      />
+                      {/* Step 2 Line (Purple) */}
+                      <polyline
+                        fill="none"
+                        stroke="#8b5cf6"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={analytics.completion_trends.map((d, i) => {
+                          const maxVal = Math.max(
+                            ...analytics.completion_trends.map(t => Math.max(t.step_1 || 0, t.step_2 || 0, t.step_3 || 0)),
+                            1
+                          );
+                          const x = (i / (analytics.completion_trends.length - 1)) * 100;
+                          const y = 100 - ((d.step_2 || 0) / maxVal) * 100;
+                          return `${x}%,${y}%`;
+                        }).join(' ')}
+                      />
+                      {/* Step 3 Line (Green) */}
+                      <polyline
+                        fill="none"
+                        stroke="#22c55e"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={analytics.completion_trends.map((d, i) => {
+                          const maxVal = Math.max(
+                            ...analytics.completion_trends.map(t => Math.max(t.step_1 || 0, t.step_2 || 0, t.step_3 || 0)),
+                            1
+                          );
+                          const x = (i / (analytics.completion_trends.length - 1)) * 100;
+                          const y = 100 - ((d.step_3 || 0) / maxVal) * 100;
+                          return `${x}%,${y}%`;
+                        }).join(' ')}
+                      />
+                      {/* Data points with tooltips */}
+                      {analytics.completion_trends.map((d, i) => {
+                        const maxVal = Math.max(
+                          ...analytics.completion_trends.map(t => Math.max(t.step_1 || 0, t.step_2 || 0, t.step_3 || 0)),
+                          1
+                        );
+                        const x = (i / (analytics.completion_trends.length - 1)) * 100;
+                        return (
+                          <g key={i} className="group">
+                            <circle cx={`${x}%`} cy={`${100 - ((d.step_1 || 0) / maxVal) * 100}%`} r="3" fill="#3b82f6" className="opacity-0 group-hover:opacity-100" />
+                            <circle cx={`${x}%`} cy={`${100 - ((d.step_2 || 0) / maxVal) * 100}%`} r="3" fill="#8b5cf6" className="opacity-0 group-hover:opacity-100" />
+                            <circle cx={`${x}%`} cy={`${100 - ((d.step_3 || 0) / maxVal) * 100}%`} r="3" fill="#22c55e" className="opacity-0 group-hover:opacity-100" />
+                            <title>{d.date}: S1:{d.step_1}, S2:{d.step_2}, S3:{d.step_3}</title>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                      No completion data available for this period
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between mt-2 text-xs text-gray-500">
-                  <span>{analytics?.signup_trends?.[0]?.date || ''}</span>
-                  <span>Today</span>
+                  <span>{analytics?.completion_trends?.[0]?.date || ''}</span>
+                  <span>{analytics?.completion_trends?.[analytics?.completion_trends?.length - 1]?.date || ''}</span>
                 </div>
               </div>
             </div>
