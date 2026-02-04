@@ -1786,8 +1786,12 @@ async def get_analytics(
     # Get hourly activity for last 24 hours
     hourly_activity = await get_hourly_activity()
     
+    # Get completion rate trends (daily completions over time)
+    completion_trends = await get_completion_trends(start_date, end_date, user_query)
+    
     return {
         "total_users": total_users,
+        "day1_ready": day1_ready_count,
         "step_distribution": step_distribution,
         "completed_steps": completed_steps,
         "step_transition_times": step_transition_times,
@@ -1796,6 +1800,7 @@ async def get_analytics(
         "completion_stats": completion_stats,
         "realtime_stats": realtime_stats,
         "hourly_activity": hourly_activity,
+        "completion_trends": completion_trends,
         "filters_applied": {
             "start_date": start_date,
             "end_date": end_date
