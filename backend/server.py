@@ -1862,7 +1862,7 @@ async def calculate_step_transition_times(user_query: dict = None):
                 t1 = date_parser.parse(steps[1])
                 t2 = date_parser.parse(steps[2])
                 diff_hours = (t2 - t1).total_seconds() / 3600
-                if diff_hours > 0:
+                if diff_hours >= 0:
                     transitions["step_1_to_2"].append(diff_hours)
             
             # Step 2 to 3
@@ -1870,25 +1870,25 @@ async def calculate_step_transition_times(user_query: dict = None):
                 t2 = date_parser.parse(steps[2])
                 t3 = date_parser.parse(steps[3])
                 diff_hours = (t3 - t2).total_seconds() / 3600
-                if diff_hours > 0:
+                if diff_hours >= 0:
                     transitions["step_2_to_3"].append(diff_hours)
             
             # Step 3 to 4
             if 3 in steps and 4 in steps:
-                t3 = parser.parse(steps[3])
-                t4 = parser.parse(steps[4])
+                t3 = date_parser.parse(steps[3])
+                t4 = date_parser.parse(steps[4])
                 diff_hours = (t4 - t3).total_seconds() / 3600
-                if diff_hours > 0:
+                if diff_hours >= 0:
                     transitions["step_3_to_4"].append(diff_hours)
             
             # Total completion time (step 1 to step 4 or 3)
             if 1 in steps:
-                t1 = parser.parse(steps[1])
+                t1 = date_parser.parse(steps[1])
                 final_step = 4 if 4 in steps else (3 if 3 in steps else None)
                 if final_step:
-                    tf = parser.parse(steps[final_step])
+                    tf = date_parser.parse(steps[final_step])
                     diff_hours = (tf - t1).total_seconds() / 3600
-                    if diff_hours > 0:
+                    if diff_hours >= 0:
                         transitions["total_completion"].append(diff_hours)
         except Exception:
             continue
