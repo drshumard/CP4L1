@@ -97,21 +97,43 @@ const Dashboard = () => {
                 className="h-6 w-auto sm:h-7 md:h-8 object-contain flex-shrink-0"
               />
             </div>
-            <div className="flex items-center gap-4">
-              {userData?.role === 'admin' && (
-                <Button variant="outline" onClick={() => {
-                  trackButtonClicked('admin_panel', 'dashboard');
-                  navigate('/admin');
-                }} data-testid="admin-button">
-                  Admin Panel
-                </Button>
+            <div className="flex items-center gap-2 sm:gap-3">
+              {(userData?.role === 'admin' || userData?.role === 'staff') && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                    onClick={() => {
+                      trackButtonClicked('admin_panel', 'dashboard');
+                      navigate('/admin');
+                    }} 
+                    data-testid="admin-button"
+                  >
+                    <User size={14} className="mr-1.5 hidden sm:inline" />
+                    Users
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="text-xs sm:text-sm"
+                    onClick={() => {
+                      trackButtonClicked('analytics', 'dashboard');
+                      navigate('/admin/analytics');
+                    }} 
+                    data-testid="analytics-button"
+                  >
+                    <TrendingUp size={14} className="mr-1.5 hidden sm:inline" />
+                    Analytics
+                  </Button>
+                </>
               )}
-              <Button variant="outline" className="flex items-center gap-2" onClick={() => {
+              <Button variant="outline" size="sm" className="flex items-center gap-1.5 text-xs sm:text-sm" onClick={() => {
                 trackButtonClicked('logout', 'dashboard');
                 handleLogout();
               }} data-testid="logout-button">
-                <LogOut size={16} />
-                Logout
+                <LogOut size={14} />
+                <span className="hidden sm:inline">Logout</span>
               </Button>
             </div>
           </div>
