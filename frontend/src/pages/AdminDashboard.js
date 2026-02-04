@@ -642,7 +642,34 @@ const AdminDashboard = () => {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-gray-800">{selectedUser.name}</h3>
-                      <p className="text-sm text-gray-500">{selectedUser.role === 'admin' ? 'Administrator' : 'User'}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {selectedUser.role === 'admin' ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
+                            Administrator
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                              selectedUser.role === 'staff' 
+                                ? 'bg-teal-100 text-teal-700' 
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {selectedUser.role === 'staff' ? 'Staff' : 'User'}
+                            </span>
+                            <button
+                              onClick={() => handlePromoteUser(selectedUser.role === 'staff' ? 'user' : 'staff')}
+                              disabled={actionLoading}
+                              className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                                selectedUser.role === 'staff'
+                                  ? 'border-gray-300 text-gray-500 hover:bg-gray-100'
+                                  : 'border-teal-300 text-teal-600 hover:bg-teal-50'
+                              }`}
+                            >
+                              {selectedUser.role === 'staff' ? 'Demote' : 'Make Staff'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <button
