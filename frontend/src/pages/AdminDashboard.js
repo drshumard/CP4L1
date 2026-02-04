@@ -380,6 +380,34 @@ const AdminDashboard = () => {
     }
   };
 
+  const handlePromoteUser = async (newRole) => {
+    if (!selectedUser || selectedUser.role === 'admin') return;
+    
+    const confirmMessage = newRole === 'staff' 
+      ? 'Promote this user to Staff? They will have access to admin panel and be excluded from analytics.'
+      : 'Demote this user to regular User?';
+    
+    if (!window.confirm(confirmMessage)) return;
+    
+    setActionLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(
+        `${API}/admin/user/${selectedUser.id}/promote`,
+        { role: newRole },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      toast.success(`User ${newRole === 'staff' ? 'promoted to Staff' : 'demoted to User'}`);
+      setSelectedUser({ ...selectedUser, role: newRole });
+      await fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Failed to change role');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Sort by created_at descending (newest first) and filter
   const filteredUsers = users
     .filter(user =>
