@@ -2115,55 +2115,75 @@ async def get_completion_trends(start_date: str = None, end_date: str = None, us
     from datetime import timedelta
     from dateutil import parser as date_parser
     
-    # Determine date range
-    if start_date and end_date:
-        try:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-        except:
-            end_dt = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
-            start_dt = end_dt - timedelta(days=30)
-    else:
-        end_dt = datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)
-        start_dt = end_dt - timedelta(days=30)
-    
     # Get user IDs to filter (exclude staff/admin)
     user_ids = None
     if user_query:
         matching_users = await db.users.find(user_query, {"id": 1, "_id": 0}).to_list(10000)
         user_ids = [u["id"] for u in matching_users]
     
-    # Get all progress records in date range
-    progress_query = {
-        "completed_at": {
-            "$gte": start_dt.isoformat(),
-            "$lte": end_dt.isoformat()
-        }
-    }
+    # Build progress query - filter by user_ids if provided
+    progress_query = {"completed_at": {"$ne": None}, "step_number": {"$in": [1, 2, 3]}}
     if user_ids is not None:
         progress_query["user_id"] = {"$in": user_ids}
     
+    # Get all progress records (we'll filter by date after)
     progress_records = await db.user_progress.find(progress_query).to_list(10000)
+    
+    if not progress_records:
+        return []
+    
+    # Parse all dates and find the range
+    parsed_records = []
+    for record in progress_records:
+        try:
+            completed_at = record.get("completed_at")
+            step_num = record.get("step_number")
+            if completed_at and step_num:
+                dt = date_parser.parse(completed_at)
+                parsed_records.append({"date": dt, "step": step_num})
+        except:
+            continue
+    
+    if not parsed_records:
+        return []
+    
+    # Determine date range
+    if start_date and end_date:
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        except:
+            # Use data range
+            all_dates = [r["date"] for r in parsed_records]
+            start_dt = min(all_dates).replace(hour=0, minute=0, second=0)
+            end_dt = max(all_dates).replace(hour=23, minute=59, second=59)
+    else:
+        # No filter - use the actual data range
+        all_dates = [r["date"] for r in parsed_records]
+        start_dt = min(all_dates).replace(hour=0, minute=0, second=0)
+        end_dt = max(all_dates).replace(hour=23, minute=59, second=59)
     
     # Initialize daily buckets for each step
     num_days = (end_dt - start_dt).days + 1
+    # Limit to max 90 days to avoid huge arrays
+    if num_days > 90:
+        start_dt = end_dt - timedelta(days=90)
+        num_days = 91
+    
     daily_data = {}
     for i in range(num_days):
         date = (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
         daily_data[date] = {"step_1": 0, "step_2": 0, "step_3": 0}
     
     # Count completions by date and step
-    for record in progress_records:
-        try:
-            completed_at = record.get("completed_at")
-            step_num = record.get("step_number")
-            if completed_at and step_num in [1, 2, 3]:
-                dt = date_parser.parse(completed_at)
-                date_str = dt.strftime("%Y-%m-%d")
-                if date_str in daily_data:
-                    daily_data[date_str][f"step_{step_num}"] += 1
-        except:
-            continue
+    for record in parsed_records:
+        dt = record["date"]
+        step_num = record["step"]
+        # Check if within our display range
+        if start_dt <= dt <= end_dt:
+            date_str = dt.strftime("%Y-%m-%d")
+            if date_str in daily_data:
+                daily_data[date_str][f"step_{step_num}"] += 1
     
     return [{"date": k, **v} for k, v in sorted(daily_data.items())]
 
