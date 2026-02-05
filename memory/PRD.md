@@ -138,7 +138,6 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 - P1: Grant Staff Access to Admin Pages (pending user confirmation)
 - P1: Add loading/disabled state to "Activate Portal" button
 - P1: Add "Try Again" button for non-409 booking failures
-- P2: Debug Analytics date filter UI
 - P2: Save and show video watch progress
 - P2: Send automated email nudges for incomplete steps
 - P2: Refactor StepsPage.js into smaller components
