@@ -1824,7 +1824,112 @@ async def get_analytics(
     }
 
 
-async def calculate_step_transition_times(user_query: dict = None):
+@api_router.get("/admin/analytics/debug")
+async def debug_analytics_filter(
+    admin_user: dict = Depends(get_admin_user),
+    start_date: str = None,
+    end_date: str = None
+):
+    """
+    Debug endpoint to see exactly how date filtering works.
+    Shows the UTC boundaries being used and lists users near those boundaries.
+    """
+    import pytz
+    pacific = pytz.timezone('America/Los_Angeles')
+    
+    debug_info = {
+        "input": {
+            "start_date": start_date,
+            "end_date": end_date
+        },
+        "converted_boundaries": {},
+        "users_near_boundaries": [],
+        "all_users_in_range": [],
+        "users_just_outside_range": []
+    }
+    
+    # Calculate UTC boundaries
+    start_dt_utc = None
+    end_dt_utc = None
+    
+    if start_date:
+        start_dt_pacific = pacific.localize(datetime.strptime(start_date, "%Y-%m-%d"))
+        start_dt_utc = start_dt_pacific.astimezone(pytz.UTC)
+        debug_info["converted_boundaries"]["start_pacific"] = start_dt_pacific.isoformat()
+        debug_info["converted_boundaries"]["start_utc"] = start_dt_utc.isoformat()
+    
+    if end_date:
+        end_dt_pacific = pacific.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59))
+        end_dt_utc = end_dt_pacific.astimezone(pytz.UTC)
+        debug_info["converted_boundaries"]["end_pacific"] = end_dt_pacific.isoformat()
+        debug_info["converted_boundaries"]["end_utc"] = end_dt_utc.isoformat()
+    
+    # Get all users (excluding staff/admin) with their created_at
+    all_users = await db.users.find(
+        {"role": {"$nin": ["staff", "admin"]}},
+        {"_id": 0, "email": 1, "created_at": 1, "current_step": 1}
+    ).to_list(10000)
+    
+    # Categorize users
+    for user in all_users:
+        created_at_str = user.get("created_at")
+        if not created_at_str:
+            continue
+            
+        try:
+            # Parse the stored datetime
+            from dateutil import parser as date_parser
+            created_dt = date_parser.parse(created_at_str)
+            
+            # Make timezone aware if not already
+            if created_dt.tzinfo is None:
+                created_dt = pytz.UTC.localize(created_dt)
+            
+            # Convert to Pacific for display
+            created_pacific = created_dt.astimezone(pacific)
+            
+            user_info = {
+                "email": user.get("email"),
+                "created_at_utc": created_dt.isoformat(),
+                "created_at_pacific": created_pacific.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                "current_step": user.get("current_step")
+            }
+            
+            # Check if in range
+            in_range = True
+            if start_dt_utc and created_dt < start_dt_utc:
+                in_range = False
+            if end_dt_utc and created_dt > end_dt_utc:
+                in_range = False
+            
+            if in_range:
+                debug_info["all_users_in_range"].append(user_info)
+            else:
+                # Check if just outside range (within 24 hours of boundary)
+                from datetime import timedelta
+                near_boundary = False
+                if start_dt_utc and start_dt_utc - timedelta(hours=24) <= created_dt < start_dt_utc:
+                    near_boundary = True
+                    user_info["boundary_note"] = "Just BEFORE start boundary"
+                if end_dt_utc and end_dt_utc < created_dt <= end_dt_utc + timedelta(hours=24):
+                    near_boundary = True
+                    user_info["boundary_note"] = "Just AFTER end boundary"
+                
+                if near_boundary:
+                    debug_info["users_just_outside_range"].append(user_info)
+        except Exception as e:
+            debug_info["users_near_boundaries"].append({
+                "email": user.get("email"),
+                "error": str(e),
+                "raw_created_at": created_at_str
+            })
+    
+    debug_info["summary"] = {
+        "total_in_range": len(debug_info["all_users_in_range"]),
+        "total_just_outside": len(debug_info["users_just_outside_range"])
+    }
+    
+    return debug_info
     """Calculate average time between steps for users matching the query"""
     from dateutil import parser as date_parser
     
