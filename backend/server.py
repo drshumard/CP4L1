@@ -1732,21 +1732,28 @@ async def get_analytics(
 ):
     """
     Get comprehensive analytics with optional date filtering.
-    Date format: YYYY-MM-DD
+    Date format: YYYY-MM-DD (interpreted as Pacific timezone)
     Excludes staff users from all analytics.
     """
-    # Build date filter query
+    import pytz
+    pacific = pytz.timezone('America/Los_Angeles')
+    
+    # Build date filter query - dates are in Pacific timezone
     date_filter = {}
     if start_date:
         try:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            date_filter["$gte"] = start_dt.isoformat()
+            # Parse as Pacific timezone, convert to UTC for querying
+            start_dt_pacific = pacific.localize(datetime.strptime(start_date, "%Y-%m-%d"))
+            start_dt_utc = start_dt_pacific.astimezone(pytz.UTC)
+            date_filter["$gte"] = start_dt_utc.isoformat()
         except ValueError:
             pass
     if end_date:
         try:
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
-            date_filter["$lte"] = end_dt.isoformat()
+            # Parse as Pacific timezone end of day, convert to UTC
+            end_dt_pacific = pacific.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59))
+            end_dt_utc = end_dt_pacific.astimezone(pytz.UTC)
+            date_filter["$lte"] = end_dt_utc.isoformat()
         except ValueError:
             pass
     
