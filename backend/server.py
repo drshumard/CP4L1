@@ -2096,7 +2096,7 @@ async def get_realtime_stats():
             "completions": week_completions
         },
         "recent_activity": formatted_activities,
-        "last_updated": now.isoformat()
+        "last_updated": now_pacific.isoformat()
     }
 
 
