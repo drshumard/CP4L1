@@ -453,7 +453,7 @@ const AdminAnalytics = () => {
                         <span className="text-sm text-gray-500">{activity.email}</span>
                       </div>
                       <span className="text-xs text-gray-400">
-                        {activity.time ? new Date(activity.time).toLocaleString() : ''}
+                        {activity.time ? new Date(activity.time).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
                       </span>
                     </div>
                   ))
