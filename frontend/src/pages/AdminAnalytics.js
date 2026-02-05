@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
@@ -20,30 +20,25 @@ const AdminAnalytics = () => {
   const [analyticsEndDate, setAnalyticsEndDate] = useState('');
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-
+  
+  // Use refs to track current filter values for auto-refresh
+  const startDateRef = useRef(analyticsStartDate);
+  const endDateRef = useRef(analyticsEndDate);
+  
+  // Keep refs in sync with state
   useEffect(() => {
-    fetchAnalytics();
-  }, []);
+    startDateRef.current = analyticsStartDate;
+    endDateRef.current = analyticsEndDate;
+  }, [analyticsStartDate, analyticsEndDate]);
 
-  // Auto-refresh analytics every 30 seconds for realtime data
-  useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      fetchAnalytics();
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(interval);
-  }, [autoRefresh, analyticsStartDate, analyticsEndDate]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async (startDate, endDate) => {
     try {
       const token = localStorage.getItem('access_token');
       const analyticsRes = await axios.get(`${API}/admin/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
-          start_date: analyticsStartDate || undefined,
-          end_date: analyticsEndDate || undefined
+          start_date: startDate || undefined,
+          end_date: endDate || undefined
         }
       });
       setAnalytics(analyticsRes.data);
@@ -61,20 +56,35 @@ const AdminAnalytics = () => {
       setLoading(false);
       setAnalyticsLoading(false);
     }
-  };
+  }, [navigate]);
+
+  // Initial load
+  useEffect(() => {
+    fetchAnalytics('', '');
+  }, [fetchAnalytics]);
+
+  // Auto-refresh analytics every 30 seconds for realtime data
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      // Use refs to get current filter values
+      fetchAnalytics(startDateRef.current, endDateRef.current);
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchAnalytics]);
 
   const handleApplyFilter = () => {
     setAnalyticsLoading(true);
-    fetchAnalytics();
+    fetchAnalytics(analyticsStartDate, analyticsEndDate);
   };
 
   const clearDateFilter = () => {
     setAnalyticsStartDate('');
     setAnalyticsEndDate('');
-    setTimeout(() => {
-      setAnalyticsLoading(true);
-      fetchAnalytics();
-    }, 100);
+    setAnalyticsLoading(true);
+    fetchAnalytics('', '');
   };
 
   // Step distribution data for horizontal bar chart
