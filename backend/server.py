@@ -2025,41 +2025,48 @@ async def get_completion_stats(user_query: dict = None):
 
 
 async def get_realtime_stats():
-    """Get realtime statistics - today, this week, recent activity"""
+    """Get realtime statistics - today, this week, recent activity (Pacific timezone)"""
     from datetime import timedelta
+    import pytz
     
-    now = datetime.now(timezone.utc)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = today_start - timedelta(days=today_start.weekday())  # Monday
+    pacific = pytz.timezone('America/Los_Angeles')
+    now_pacific = datetime.now(pacific)
+    today_start_pacific = now_pacific.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start_utc = today_start_pacific.astimezone(pytz.UTC)
     
-    # Today's stats
+    # Week start (Monday in Pacific)
+    days_since_monday = today_start_pacific.weekday()
+    week_start_pacific = today_start_pacific - timedelta(days=days_since_monday)
+    week_start_utc = week_start_pacific.astimezone(pytz.UTC)
+    
+    # Today's stats (Pacific timezone day)
     today_signups = await db.users.count_documents({
-        "created_at": {"$gte": today_start.isoformat()}
+        "created_at": {"$gte": today_start_utc.isoformat()}
     })
     
     today_logins = await db.activity_logs.count_documents({
         "event_type": "LOGIN_SUCCESS",
-        "timestamp": {"$gte": today_start.isoformat()}
+        "timestamp": {"$gte": today_start_utc.isoformat()}
     })
     
     today_bookings = await db.activity_logs.count_documents({
         "event_type": "APPOINTMENT_BOOKED",
-        "timestamp": {"$gte": today_start.isoformat()}
+        "timestamp": {"$gte": today_start_utc.isoformat()}
     })
     
     today_form_submissions = await db.activity_logs.count_documents({
         "event_type": "INTAKE_FORM_SUBMITTED",
-        "timestamp": {"$gte": today_start.isoformat()}
+        "timestamp": {"$gte": today_start_utc.isoformat()}
     })
     
-    # This week's stats
+    # This week's stats (Pacific timezone week)
     week_signups = await db.users.count_documents({
-        "created_at": {"$gte": week_start.isoformat()}
+        "created_at": {"$gte": week_start_utc.isoformat()}
     })
     
     week_completions = await db.activity_logs.count_documents({
         "event_type": {"$in": ["STEP_ADVANCED", "PORTAL_ACTIVATED"]},
-        "timestamp": {"$gte": week_start.isoformat()}
+        "timestamp": {"$gte": week_start_utc.isoformat()}
     })
     
     # Recent activity (last 10 events)
