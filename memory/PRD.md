@@ -111,11 +111,31 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 ## Known Issues / Blockers
 - **Cloudflare Turnstile "Invalid domain"**: User-side configuration issue (BLOCKED)
 
+## Recent Updates (February 5, 2026)
+
+### Bug Fix: Analytics 500 Error
+- **Root Cause**: `NameError: name 'now' is not defined` in `get_realtime_stats()` function
+- **Fix**: Changed `now.isoformat()` to `now_pacific.isoformat()` on line 2099 of `server.py`
+- **Status**: RESOLVED - Analytics page fully functional
+
+### Features Completed in Previous Session
+- **Admin Analytics Page** (`/admin/analytics`) with:
+  - Date range filtering
+  - "Day 1 Ready" metric (users completing first 2 steps)
+  - Staff role exclusion from analytics
+  - Fixed "Average Time Between Steps" and "Completion Funnel" metrics
+- **Timezone Standardization**: All admin timestamps use Pacific Time (America/Los_Angeles)
+- **Intake Form Update**: Added "Current Diagnosis" question
+- **UI/UX Fixes**: User details modal restored, staff promotion button added
+- **Webhook Centralization**: LeadConnector webhooks moved to backend
+
 ## Backlog (Future Tasks)
-- P1: Verify Step 3 "Activate Portal" button works end-to-end
+- P1: Grant Staff Access to Admin Pages (pending user confirmation)
+- P1: Add loading/disabled state to "Activate Portal" button
+- P1: Add "Try Again" button for non-409 booking failures
+- P2: Debug Analytics date filter UI
 - P2: Save and show video watch progress
 - P2: Send automated email nudges for incomplete steps
-- P2: Enhanced Analytics (video completion, time on steps)
 - P2: Refactor StepsPage.js into smaller components
 - P3: Shareable certificate upon completion
 - P3: SMS reminders for consultations
