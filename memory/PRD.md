@@ -118,6 +118,11 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 - **Fix**: Changed `now.isoformat()` to `now_pacific.isoformat()` on line 2099 of `server.py`
 - **Status**: RESOLVED - Analytics page fully functional
 
+### Bug Fix: Analytics Date Filter Not Persisting
+- **Root Cause**: Stale closure in auto-refresh `setInterval` callback - filter values were not being passed correctly
+- **Fix**: Refactored `AdminAnalytics.js` to use `useCallback` and `useRef` to maintain current filter values during auto-refresh
+- **Status**: RESOLVED - Date filters now persist correctly through auto-refresh cycles
+
 ### Features Completed in Previous Session
 - **Admin Analytics Page** (`/admin/analytics`) with:
   - Date range filtering
