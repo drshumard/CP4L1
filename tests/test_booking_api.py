@@ -13,7 +13,7 @@ import os
 from datetime import datetime, timedelta
 
 # Get backend URL from environment
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://intake-flow-6.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://onboard-portal-7.preview.emergentagent.com')
 
 
 class TestBookingHealth:
