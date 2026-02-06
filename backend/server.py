@@ -1932,6 +1932,9 @@ async def debug_analytics_filter(
     }
     
     return debug_info
+
+
+async def calculate_step_transition_times(user_query: dict = None):
     """Calculate average time between steps for users matching the query"""
     from dateutil import parser as date_parser
     
