@@ -1828,11 +1828,13 @@ async def get_analytics(
 async def debug_analytics_filter(
     admin_user: dict = Depends(get_admin_user),
     start_date: str = None,
-    end_date: str = None
+    end_date: str = None,
+    show_all: bool = False
 ):
     """
     Debug endpoint to see exactly how date filtering works.
     Shows the UTC boundaries being used and lists users near those boundaries.
+    Add ?show_all=true to see ALL users regardless of date filter.
     """
     import pytz
     pacific = pytz.timezone('America/Los_Angeles')
