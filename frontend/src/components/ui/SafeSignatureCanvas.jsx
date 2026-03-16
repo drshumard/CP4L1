@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useRef } from 'react';
+import React, { forwardRef, useEffect } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 
 /**
@@ -7,9 +7,6 @@ import SignatureCanvas from 'react-signature-canvas';
  * error that occurs in Facebook/Instagram in-app browsers on iOS.
  */
 const SafeSignatureCanvas = forwardRef(({ onEnd, ...props }, ref) => {
-  const internalRef = useRef(null);
-  const signatureRef = ref || internalRef;
-
   useEffect(() => {
     // Add global error handler for signature_pad errors
     const handleError = (event) => {
@@ -38,7 +35,7 @@ const SafeSignatureCanvas = forwardRef(({ onEnd, ...props }, ref) => {
 
   return (
     <SignatureCanvas
-      ref={signatureRef}
+      ref={ref}
       onEnd={handleEnd}
       {...props}
     />
