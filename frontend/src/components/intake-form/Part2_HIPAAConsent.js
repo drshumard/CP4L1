@@ -99,7 +99,7 @@ const Part2_HIPAAConsent = ({
             <Label className="text-lg font-semibold">Your Signature *</Label>
             <p className="text-sm text-gray-600 mb-3">Please sign using your mouse or finger below</p>
             <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
-              <SignatureCanvas
+              <SafeSignatureCanvas
                 ref={hipaaSignatureRef}
                 canvasProps={{ className: 'w-full h-48 bg-white', style: { width: '100%', height: '200px' } }}
                 backgroundColor="white"
