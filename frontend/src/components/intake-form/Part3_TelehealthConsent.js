@@ -4,7 +4,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
 import { Button } from '../ui/button';
-import SignatureCanvas from 'react-signature-canvas';
+import SafeSignatureCanvas from '../ui/SafeSignatureCanvas';
 
 const Part3_TelehealthConsent = ({
   telehealthPrintName,
