@@ -86,7 +86,14 @@ const AutomationsPage = () => {
     setFormData({
       name: '',
       trigger: 'new_booking',
-      actions: [{ id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true }],
+      actions: [{ 
+        id: crypto.randomUUID(), 
+        name: '', 
+        url: '', 
+        method: 'POST', 
+        includeData: true,
+        headers: [{ key: '', value: '' }]
+      }],
       enabled: true
     });
   };
@@ -94,7 +101,14 @@ const AutomationsPage = () => {
   const addAction = () => {
     setFormData({
       ...formData,
-      actions: [...formData.actions, { id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true }]
+      actions: [...formData.actions, { 
+        id: crypto.randomUUID(), 
+        name: '', 
+        url: '', 
+        method: 'POST', 
+        includeData: true,
+        headers: [{ key: '', value: '' }]
+      }]
     });
   };
 
@@ -113,6 +127,44 @@ const AutomationsPage = () => {
     const newActions = [...formData.actions];
     newActions[index] = { ...newActions[index], [field]: value };
     setFormData({ ...formData, actions: newActions });
+  };
+
+  const addHeader = (actionIndex) => {
+    const newActions = [...formData.actions];
+    newActions[actionIndex].headers = [...(newActions[actionIndex].headers || []), { key: '', value: '' }];
+    setFormData({ ...formData, actions: newActions });
+  };
+
+  const removeHeader = (actionIndex, headerIndex) => {
+    const newActions = [...formData.actions];
+    newActions[actionIndex].headers = newActions[actionIndex].headers.filter((_, i) => i !== headerIndex);
+    setFormData({ ...formData, actions: newActions });
+  };
+
+  const updateHeader = (actionIndex, headerIndex, field, value) => {
+    const newActions = [...formData.actions];
+    newActions[actionIndex].headers[headerIndex] = { 
+      ...newActions[actionIndex].headers[headerIndex], 
+      [field]: value 
+    };
+    setFormData({ ...formData, actions: newActions });
+  };
+
+  const headersArrayToObject = (headers) => {
+    if (!headers || headers.length === 0) return null;
+    const obj = {};
+    headers.forEach(h => {
+      if (h.key && h.key.trim()) {
+        obj[h.key.trim()] = h.value || '';
+      }
+    });
+    return Object.keys(obj).length > 0 ? obj : null;
+  };
+
+  const headersObjectToArray = (headersObj) => {
+    if (!headersObj || typeof headersObj !== 'object') return [{ key: '', value: '' }];
+    const arr = Object.entries(headersObj).map(([key, value]) => ({ key, value: value || '' }));
+    return arr.length > 0 ? arr : [{ key: '', value: '' }];
   };
 
   const handleCreate = async () => {
