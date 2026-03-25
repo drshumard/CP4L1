@@ -8,9 +8,9 @@ import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLeft, Plus, Trash2, Edit2, Play, 
+  ArrowLeft, Plus, Trash2, Edit2, Play, RotateCcw,
   Zap, Calendar, CalendarX, ExternalLink, Clock, 
-  CheckCircle, XCircle, ChevronDown, ChevronUp
+  CheckCircle, XCircle, ChevronDown, ChevronUp, Key
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -24,14 +24,22 @@ const AutomationsPage = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingAutomation, setEditingAutomation] = useState(null);
   const [testingId, setTestingId] = useState(null);
+  const [retryingLogId, setRetryingLogId] = useState(null);
   const [expandedLogId, setExpandedLogId] = useState(null);
   const [activeTab, setActiveTab] = useState('automations');
   
-  // Form state - now supports multiple actions
+  // Form state - now supports multiple actions with headers
   const [formData, setFormData] = useState({
     name: '',
     trigger: 'new_booking',
-    actions: [{ id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true }],
+    actions: [{ 
+      id: crypto.randomUUID(), 
+      name: '', 
+      url: '', 
+      method: 'POST', 
+      includeData: true,
+      headers: [{ key: '', value: '' }]
+    }],
     enabled: true
   });
 
