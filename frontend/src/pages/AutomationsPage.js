@@ -317,11 +317,39 @@ const AutomationsPage = () => {
         name: a.name || '',
         url: a.url || '',
         method: a.method || 'POST',
-        includeData: a.include_data !== false
+        includeData: a.include_data !== false,
+        headers: headersObjectToArray(a.headers)
       })),
       enabled: automation.enabled
     });
     setEditingAutomation(automation);
+  };
+
+  const handleRetryLog = async (log) => {
+    if (!log.trigger_data || !log.action_url) {
+      toast.error('Cannot retry: missing data');
+      return;
+    }
+    
+    setRetryingLogId(log.id);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await axios.post(`${API}/admin/automation-logs/${log.id}/retry`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        toast.success(`Retry successful! Status: ${response.data.status_code}`);
+      } else {
+        toast.error(`Retry failed: ${response.data.error || `Status ${response.data.status_code}`}`);
+      }
+      
+      fetchLogs();
+    } catch (error) {
+      toast.error('Retry failed: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setRetryingLogId(null);
+    }
   };
 
   const getTriggerIcon = (trigger) => {
