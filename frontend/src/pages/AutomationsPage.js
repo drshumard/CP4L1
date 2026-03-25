@@ -190,6 +190,7 @@ const AutomationsPage = () => {
           type: 'webhook',
           url: a.url,
           method: a.method,
+          headers: headersArrayToObject(a.headers),
           include_data: a.includeData
         })),
         enabled: formData.enabled
@@ -229,6 +230,7 @@ const AutomationsPage = () => {
           type: 'webhook',
           url: a.url,
           method: a.method,
+          headers: headersArrayToObject(a.headers),
           include_data: a.includeData
         })),
         enabled: formData.enabled
