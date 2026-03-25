@@ -236,43 +236,60 @@ const AdminAnalytics = () => {
                 <BarChart3 className="text-teal-600" size={20} />
                 Analytics Overview
               </CardTitle>
-              {/* Date Filter */}
+              {/* Date Filter Dropdown */}
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-500">From:</label>
-                  <input
-                    type="date"
-                    value={analyticsStartDate}
-                    onChange={(e) => setAnalyticsStartDate(e.target.value)}
-                    className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-500">To:</label>
-                  <input
-                    type="date"
-                    value={analyticsEndDate}
-                    onChange={(e) => setAnalyticsEndDate(e.target.value)}
-                    className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-                  />
-                </div>
-                <Button 
-                  size="sm" 
-                  onClick={handleApplyFilter}
-                  disabled={analyticsLoading}
-                  className="bg-teal-600 hover:bg-teal-700"
-                >
-                  {analyticsLoading ? <RefreshCw size={14} className="animate-spin" /> : 'Apply'}
-                </Button>
-                {(analyticsStartDate || analyticsEndDate) && (
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={clearDateFilter}
+                <div className="relative" ref={datePickerRef}>
+                  <button
+                    onClick={() => setShowDatePicker(!showDatePicker)}
+                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-colors text-sm font-medium"
+                    data-testid="date-filter-button"
                   >
-                    Clear
-                  </Button>
+                    <Calendar size={16} className="text-gray-500" />
+                    <span>{getDisplayLabel()}</span>
+                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {showDatePicker && (
+                    <div className="absolute right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+                      <div className="flex">
+                        {/* Preset Options */}
+                        <div className="w-40 border-r border-gray-100 py-2">
+                          {DATE_PRESETS.map((preset) => (
+                            <button
+                              key={preset.label}
+                              onClick={() => handlePresetSelect(preset)}
+                              className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 transition-colors ${
+                                selectedPreset === preset.label ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        {/* Calendar */}
+                        <div className="p-3">
+                          <DatePicker
+                            selected={startDate}
+                            onChange={handleCustomDateChange}
+                            startDate={startDate}
+                            endDate={endDate}
+                            selectsRange
+                            inline
+                            monthsShown={2}
+                            maxDate={new Date()}
+                            calendarClassName="!border-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {analyticsLoading && (
+                  <RefreshCw size={16} className="animate-spin text-teal-600" />
                 )}
+                
                 {/* Auto-refresh toggle */}
                 <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-300">
                   <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer">
