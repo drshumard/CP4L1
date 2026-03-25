@@ -1903,7 +1903,7 @@ async def get_automations(admin_user: dict = Depends(get_admin_user)):
 
 @api_router.post("/admin/automations")
 async def create_automation(automation: AutomationCreate, admin_user: dict = Depends(get_admin_user)):
-    """Create a new automation"""
+    """Create a new automation with multiple actions"""
     
     # Validate trigger
     valid_triggers = ["new_booking", "cancelled_booking"]
@@ -1913,11 +1913,18 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
             detail=f"Invalid trigger. Must be one of: {valid_triggers}"
         )
     
+    # Validate actions
+    if not automation.actions or len(automation.actions) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one action is required"
+        )
+    
     automation_data = {
         "id": str(uuid.uuid4()),
         "name": automation.name,
         "trigger": automation.trigger,
-        "action": automation.action.model_dump(),
+        "actions": [action.model_dump() for action in automation.actions],
         "enabled": automation.enabled,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": admin_user.get("email"),
@@ -1930,7 +1937,12 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
         event_type="AUTOMATION_CREATED",
         user_email=admin_user.get("email"),
         user_id=admin_user.get("id"),
-        details={"automation_id": automation_data["id"], "name": automation.name, "trigger": automation.trigger},
+        details={
+            "automation_id": automation_data["id"], 
+            "name": automation.name, 
+            "trigger": automation.trigger,
+            "actions_count": len(automation.actions)
+        },
         status="success"
     )
     
