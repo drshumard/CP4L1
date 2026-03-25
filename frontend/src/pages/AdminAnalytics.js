@@ -241,75 +241,90 @@ const AdminAnalytics = () => {
                 <div className="relative" ref={datePickerRef}>
                   <button
                     onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:border-gray-400 transition-colors text-sm font-medium"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:border-teal-400 hover:bg-teal-50/50 transition-all text-sm"
                     data-testid="date-filter-button"
                   >
-                    <Calendar size={16} className="text-gray-500" />
-                    <span>{getDisplayLabel()}</span>
-                    <ChevronDown size={16} className={`text-gray-500 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
+                    <Calendar size={14} className="text-teal-600" />
+                    <span className="font-medium text-gray-700">{getDisplayLabel()}</span>
+                    <ChevronDown size={14} className={`text-gray-400 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
                   </button>
                   
                   {showDatePicker && (
-                    <div className="absolute right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
-                      <div className="flex">
-                        {/* Preset Options */}
-                        <div className="w-40 border-r border-gray-100 py-2">
-                          {DATE_PRESETS.map((preset) => (
-                            <button
-                              key={preset.label}
-                              onClick={() => handlePresetSelect(preset)}
-                              className={`w-full text-left px-4 py-2 text-sm hover:bg-teal-50 transition-colors ${
-                                selectedPreset === preset.label ? 'bg-teal-50 text-teal-700 font-medium' : 'text-gray-700'
-                              }`}
-                            >
-                              {preset.label}
-                            </button>
-                          ))}
-                        </div>
+                    <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden min-w-[200px]">
+                      {/* Preset Options - Compact List */}
+                      <div className="py-1">
+                        {DATE_PRESETS.filter(p => p.label !== 'Custom').map((preset) => (
+                          <button
+                            key={preset.label}
+                            onClick={() => handlePresetSelect(preset)}
+                            className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 transition-colors flex items-center justify-between ${
+                              selectedPreset === preset.label ? 'bg-teal-50 text-teal-700' : 'text-gray-600'
+                            }`}
+                          >
+                            <span>{preset.label}</span>
+                            {selectedPreset === preset.label && (
+                              <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      
+                      {/* Custom Date Range Separator */}
+                      <div className="border-t border-gray-100">
+                        <button
+                          onClick={() => setSelectedPreset('Custom')}
+                          className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 transition-colors flex items-center justify-between ${
+                            selectedPreset === 'Custom' ? 'bg-teal-50 text-teal-700' : 'text-gray-600'
+                          }`}
+                        >
+                          <span>Custom Range</span>
+                          <ChevronDown size={12} className={`transition-transform ${selectedPreset === 'Custom' ? 'rotate-180' : ''}`} />
+                        </button>
                         
-                        {/* Calendar */}
-                        <div className="p-3">
-                          <DatePicker
-                            selected={startDate}
-                            onChange={handleCustomDateChange}
-                            startDate={startDate}
-                            endDate={endDate}
-                            selectsRange
-                            inline
-                            monthsShown={2}
-                            maxDate={new Date()}
-                            calendarClassName="!border-0"
-                          />
-                        </div>
+                        {/* Inline Calendar - Only shown when Custom selected */}
+                        {selectedPreset === 'Custom' && (
+                          <div className="p-2 border-t border-gray-100">
+                            <DatePicker
+                              selected={startDate}
+                              onChange={handleCustomDateChange}
+                              startDate={startDate}
+                              endDate={endDate}
+                              selectsRange
+                              inline
+                              monthsShown={1}
+                              maxDate={new Date()}
+                              calendarClassName="!border-0 !shadow-none compact-calendar"
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
                 
                 {analyticsLoading && (
-                  <RefreshCw size={16} className="animate-spin text-teal-600" />
+                  <RefreshCw size={14} className="animate-spin text-teal-600" />
                 )}
                 
                 {/* Auto-refresh toggle */}
-                <div className="flex items-center gap-2 ml-2 pl-2 border-l border-gray-300">
-                  <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={autoRefresh}
-                      onChange={(e) => setAutoRefresh(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    <span className="flex items-center gap-1">
-                      Auto-refresh
-                      {autoRefresh && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>}
-                    </span>
-                  </label>
-                </div>
+                <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer ml-2 pl-2 border-l border-gray-200">
+                  <input
+                    type="checkbox"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="rounded border-gray-300 w-3.5 h-3.5"
+                  />
+                  <span className="flex items-center gap-1">
+                    Live
+                    {autoRefresh && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>}
+                  </span>
+                </label>
               </div>
             </div>
             {analytics?.filters_applied?.start_date && (
-              <p className="text-xs text-gray-500 mt-2">
-                Showing data from {analytics.filters_applied.start_date} to {analytics.filters_applied.end_date || 'now'}
+              <p className="text-xs text-teal-600 mt-2 flex items-center gap-1">
+                <Calendar size={12} />
+                {analytics.filters_applied.start_date} to {analytics.filters_applied.end_date || 'now'}
               </p>
             )}
           </CardHeader>
