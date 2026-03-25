@@ -558,7 +558,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
 
 # Automation Execution Helper
 async def execute_automations(trigger: str, data: dict):
-    """Execute all enabled automations for a given trigger"""
+    """Execute all enabled automations for a given trigger - supports multiple actions per automation"""
     import httpx
     
     # Find all enabled automations for this trigger
@@ -572,69 +572,99 @@ async def execute_automations(trigger: str, data: dict):
     for automation in automations:
         automation_id = automation.get("id")
         automation_name = automation.get("name", "Unnamed")
-        action = automation.get("action", {})
         
-        try:
-            url = action.get("url")
-            method = action.get("method", "POST").upper()
-            headers = action.get("headers") or {"Content-Type": "application/json"}
-            include_data = action.get("include_data", True)
+        # Support both old 'action' (single) and new 'actions' (multiple) format
+        actions = automation.get("actions", [])
+        if not actions and automation.get("action"):
+            # Backwards compatibility: convert single action to list
+            actions = [automation.get("action")]
+        
+        for action in actions:
+            action_id = action.get("id", str(uuid.uuid4()))
+            action_name = action.get("name") or action.get("url", "Unnamed Action")[:50]
             
-            if not url:
-                raise ValueError("No URL specified in automation action")
-            
-            async with httpx.AsyncClient() as client:
-                if method == "POST":
-                    if include_data:
-                        response = await client.post(url, json=data, headers=headers, timeout=30.0)
+            try:
+                url = action.get("url")
+                method = action.get("method", "POST").upper()
+                headers = action.get("headers") or {"Content-Type": "application/json"}
+                include_data = action.get("include_data", True)
+                
+                if not url:
+                    raise ValueError("No URL specified in automation action")
+                
+                request_start = datetime.now(timezone.utc)
+                
+                async with httpx.AsyncClient() as client:
+                    if method == "POST":
+                        if include_data:
+                            response = await client.post(url, json=data, headers=headers, timeout=30.0)
+                        else:
+                            response = await client.post(url, headers=headers, timeout=30.0)
+                    elif method == "GET":
+                        response = await client.get(url, headers=headers, timeout=30.0)
                     else:
-                        response = await client.post(url, headers=headers, timeout=30.0)
-                elif method == "GET":
-                    response = await client.get(url, headers=headers, timeout=30.0)
-                else:
-                    raise ValueError(f"Unsupported HTTP method: {method}")
-                
-                success = 200 <= response.status_code < 300
-                
-                # Log execution
+                        raise ValueError(f"Unsupported HTTP method: {method}")
+                    
+                    request_end = datetime.now(timezone.utc)
+                    duration_ms = int((request_end - request_start).total_seconds() * 1000)
+                    success = 200 <= response.status_code < 300
+                    
+                    # Log execution with detailed job info
+                    await db.automation_logs.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "automation_id": automation_id,
+                        "automation_name": automation_name,
+                        "action_id": action_id,
+                        "action_name": action_name,
+                        "action_url": url,
+                        "action_method": method,
+                        "trigger": trigger,
+                        "trigger_data": data,
+                        "request_headers": {k: v for k, v in headers.items() if k.lower() != 'authorization'},  # Don't log auth headers
+                        "response_status": response.status_code,
+                        "response_headers": dict(response.headers),
+                        "response_body": response.text[:2000] if response.text else None,  # Increased limit
+                        "duration_ms": duration_ms,
+                        "success": success,
+                        "executed_at": datetime.now(timezone.utc).isoformat()
+                    })
+                    
+                    results.append({
+                        "automation_id": automation_id,
+                        "automation_name": automation_name,
+                        "action_id": action_id,
+                        "action_name": action_name,
+                        "success": success,
+                        "status_code": response.status_code,
+                        "duration_ms": duration_ms
+                    })
+                    
+            except Exception as e:
+                # Log failure with detailed error info
                 await db.automation_logs.insert_one({
                     "id": str(uuid.uuid4()),
                     "automation_id": automation_id,
                     "automation_name": automation_name,
+                    "action_id": action_id,
+                    "action_name": action_name,
+                    "action_url": action.get("url"),
+                    "action_method": action.get("method", "POST"),
                     "trigger": trigger,
                     "trigger_data": data,
-                    "response_status": response.status_code,
-                    "response_body": response.text[:1000] if response.text else None,  # Limit response size
-                    "success": success,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "success": False,
                     "executed_at": datetime.now(timezone.utc).isoformat()
                 })
                 
                 results.append({
                     "automation_id": automation_id,
-                    "name": automation_name,
-                    "success": success,
-                    "status_code": response.status_code
+                    "automation_name": automation_name,
+                    "action_id": action_id,
+                    "action_name": action_name,
+                    "success": False,
+                    "error": str(e)
                 })
-                
-        except Exception as e:
-            # Log failure
-            await db.automation_logs.insert_one({
-                "id": str(uuid.uuid4()),
-                "automation_id": automation_id,
-                "automation_name": automation_name,
-                "trigger": trigger,
-                "trigger_data": data,
-                "error": str(e),
-                "success": False,
-                "executed_at": datetime.now(timezone.utc).isoformat()
-            })
-            
-            results.append({
-                "automation_id": automation_id,
-                "name": automation_name,
-                "success": False,
-                "error": str(e)
-            })
     
     return results
 
