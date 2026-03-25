@@ -234,6 +234,8 @@ class AppointmentResponse(BaseModel):
 
 # Automation Models
 class AutomationAction(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: Optional[str] = None  # Optional name for this action
     type: str = "webhook"  # Currently only webhook supported
     url: str
     method: str = "POST"  # POST, GET, etc.
@@ -243,13 +245,13 @@ class AutomationAction(BaseModel):
 class AutomationCreate(BaseModel):
     name: str
     trigger: str  # "new_booking" or "cancelled_booking"
-    action: AutomationAction
+    actions: List[AutomationAction]  # Multiple actions supported
     enabled: bool = True
 
 class AutomationUpdate(BaseModel):
     name: Optional[str] = None
     trigger: Optional[str] = None
-    action: Optional[AutomationAction] = None
+    actions: Optional[List[AutomationAction]] = None
     enabled: Optional[bool] = None
 
 # Helper Functions
