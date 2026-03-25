@@ -228,6 +228,15 @@ const ActivityLogs = () => {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={() => navigate('/admin/automations')}
+              className="flex items-center gap-2"
+              data-testid="automations-btn"
+            >
+              <Zap size={18} />
+              Automations
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => fetchLogs(pagination.page)}
               disabled={loading}
               className="flex items-center gap-2"
