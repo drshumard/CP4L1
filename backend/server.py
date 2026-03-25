@@ -872,6 +872,22 @@ async def cancel_appointment_webhook(data: AppointmentCancellationData, webhook_
         status="success"
     )
     
+    # Execute automations for cancelled_booking trigger
+    automation_data = {
+        "trigger": "cancelled_booking",
+        "booking_id": data.booking_id,
+        "session_date": appointment.get("session_date"),
+        "first_name": appointment.get("first_name"),
+        "last_name": appointment.get("last_name"),
+        "email": appointment.get("email"),
+        "mobile_phone": appointment.get("mobile_phone"),
+        "user_id": appointment.get("user_id"),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Run automations in background (don't wait for them)
+    asyncio.create_task(execute_automations("cancelled_booking", automation_data))
+    
     return {
         "message": "Appointment cancelled successfully",
         "booking_id": data.booking_id,
