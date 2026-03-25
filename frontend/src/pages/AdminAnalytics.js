@@ -1,16 +1,30 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { 
-  Home, Users, TrendingUp, BarChart3, RefreshCw, Activity, Clock
+  Home, Users, TrendingUp, BarChart3, RefreshCw, Activity, Clock, Calendar, ChevronDown
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Date range presets
+const DATE_PRESETS = [
+  { label: 'Today', getValue: () => { const today = new Date(); return { start: today, end: today }; } },
+  { label: 'Yesterday', getValue: () => { const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); return { start: yesterday, end: yesterday }; } },
+  { label: 'Last 7 Days', getValue: () => { const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 6); return { start, end }; } },
+  { label: 'Last 30 Days', getValue: () => { const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 29); return { start, end }; } },
+  { label: 'This Month', getValue: () => { const now = new Date(); const start = new Date(now.getFullYear(), now.getMonth(), 1); return { start, end: now }; } },
+  { label: 'Last Month', getValue: () => { const now = new Date(); const start = new Date(now.getFullYear(), now.getMonth() - 1, 1); const end = new Date(now.getFullYear(), now.getMonth(), 0); return { start, end }; } },
+  { label: 'All Time', getValue: () => ({ start: null, end: null }) },
+  { label: 'Custom', getValue: () => null }
+];
 
 const AdminAnalytics = () => {
   const navigate = useNavigate();
