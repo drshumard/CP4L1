@@ -165,6 +165,7 @@ function App() {
             <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
             <Route path="/admin/analytics" element={<PrivateRoute><AdminAnalytics /></PrivateRoute>} />
             <Route path="/admin/logs" element={<PrivateRoute><ActivityLogs /></PrivateRoute>} />
+            <Route path="/admin/automations" element={<PrivateRoute><AutomationsPage /></PrivateRoute>} />
           </Routes>
           <SupportPopup />
           <Toaster position="top-center" />
