@@ -147,6 +147,33 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 - P3: Multi-language support
 - P3: Add font size toggle for 50+ accessibility
 
+## Recent Updates (March 2026)
+
+### Automation Builder Feature
+- **New Feature**: Added automation system to forward booking webhook data to external services
+- **Location**: `/admin/automations` page (accessible from Activity Logs)
+- **Triggers Supported**:
+  - `new_booking` - When appointment webhook received at `/api/webhook/appointment`
+  - `cancelled_booking` - When cancellation webhook received at `/api/webhook/appointment/cancel`
+- **Capabilities**:
+  - Create, edit, delete automations
+  - Enable/disable automations
+  - Test automations with sample data
+  - View execution logs with request/response details
+- **Backend Endpoints**:
+  - `GET /api/admin/automations` - List all automations
+  - `POST /api/admin/automations` - Create automation
+  - `PUT /api/admin/automations/{id}` - Update automation
+  - `DELETE /api/admin/automations/{id}` - Delete automation
+  - `POST /api/admin/automations/{id}/test` - Test automation
+  - `GET /api/admin/automation-logs` - View execution history
+- **Database Collections**: `automations`, `automation_logs`
+
+### SafeSignatureCanvas Component
+- **Fix**: Created wrapper component for signature canvas that suppresses iOS in-app browser errors
+- **Location**: `/app/frontend/src/components/ui/SafeSignatureCanvas.jsx`
+- **Issue Addressed**: PostHog error "undefined is not an object (evaluating 'this._data[this._data.length-1].push')" on Facebook/Instagram iOS browsers
+
 ## Test Credentials
 - User: `raymond@fireside360.co.uk` / `akosua1001`
 - Admin: `testadmin@test.com` / `test123`
