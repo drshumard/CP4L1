@@ -2036,7 +2036,7 @@ async def get_automation_logs(
 
 @api_router.post("/admin/automations/{automation_id}/test")
 async def test_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
-    """Test an automation with sample data"""
+    """Test an automation with sample data - tests all actions"""
     
     automation = await db.automations.find_one({"id": automation_id}, {"_id": 0})
     if not automation:
@@ -2074,40 +2074,114 @@ async def test_automation(automation_id: str, admin_user: dict = Depends(get_adm
             "_test": True
         }
     
-    # Execute the automation
-    import httpx
-    action = automation.get("action", {})
+    # Get actions - support both old 'action' and new 'actions' format
+    actions = automation.get("actions", [])
+    if not actions and automation.get("action"):
+        actions = [automation.get("action")]
     
-    try:
-        url = action.get("url")
-        method = action.get("method", "POST").upper()
-        headers = action.get("headers") or {"Content-Type": "application/json"}
-        include_data = action.get("include_data", True)
-        
-        async with httpx.AsyncClient() as client:
-            if method == "POST":
-                if include_data:
-                    response = await client.post(url, json=test_data, headers=headers, timeout=30.0)
-                else:
-                    response = await client.post(url, headers=headers, timeout=30.0)
-            elif method == "GET":
-                response = await client.get(url, headers=headers, timeout=30.0)
-            else:
-                raise ValueError(f"Unsupported method: {method}")
-            
-            return {
-                "success": 200 <= response.status_code < 300,
-                "status_code": response.status_code,
-                "response_body": response.text[:1000] if response.text else None,
-                "test_data_sent": test_data
-            }
-            
-    except Exception as e:
+    if not actions:
         return {
             "success": False,
-            "error": str(e),
+            "error": "No actions configured",
             "test_data_sent": test_data
         }
+    
+    # Execute all actions and collect results
+    import httpx
+    results = []
+    all_success = True
+    
+    for action in actions:
+        action_id = action.get("id", "unknown")
+        action_name = action.get("name") or action.get("url", "")[:50]
+        
+        try:
+            url = action.get("url")
+            method = action.get("method", "POST").upper()
+            headers = action.get("headers") or {"Content-Type": "application/json"}
+            include_data = action.get("include_data", True)
+            
+            request_start = datetime.now(timezone.utc)
+            
+            async with httpx.AsyncClient() as client:
+                if method == "POST":
+                    if include_data:
+                        response = await client.post(url, json=test_data, headers=headers, timeout=30.0)
+                    else:
+                        response = await client.post(url, headers=headers, timeout=30.0)
+                elif method == "GET":
+                    response = await client.get(url, headers=headers, timeout=30.0)
+                else:
+                    raise ValueError(f"Unsupported method: {method}")
+                
+                request_end = datetime.now(timezone.utc)
+                duration_ms = int((request_end - request_start).total_seconds() * 1000)
+                success = 200 <= response.status_code < 300
+                
+                if not success:
+                    all_success = False
+                
+                # Log the test execution
+                await db.automation_logs.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "automation_id": automation_id,
+                    "automation_name": automation.get("name"),
+                    "action_id": action_id,
+                    "action_name": action_name,
+                    "action_url": url,
+                    "action_method": method,
+                    "trigger": trigger,
+                    "trigger_data": test_data,
+                    "response_status": response.status_code,
+                    "response_body": response.text[:2000] if response.text else None,
+                    "duration_ms": duration_ms,
+                    "success": success,
+                    "executed_at": datetime.now(timezone.utc).isoformat()
+                })
+                
+                results.append({
+                    "action_id": action_id,
+                    "action_name": action_name,
+                    "url": url,
+                    "success": success,
+                    "status_code": response.status_code,
+                    "duration_ms": duration_ms,
+                    "response_body": response.text[:500] if response.text else None
+                })
+                
+        except Exception as e:
+            all_success = False
+            
+            # Log the failure
+            await db.automation_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "automation_id": automation_id,
+                "automation_name": automation.get("name"),
+                "action_id": action_id,
+                "action_name": action_name,
+                "action_url": action.get("url"),
+                "trigger": trigger,
+                "trigger_data": test_data,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "success": False,
+                "executed_at": datetime.now(timezone.utc).isoformat()
+            })
+            
+            results.append({
+                "action_id": action_id,
+                "action_name": action_name,
+                "url": action.get("url"),
+                "success": False,
+                "error": str(e)
+            })
+    
+    return {
+        "success": all_success,
+        "actions_tested": len(results),
+        "results": results,
+        "test_data_sent": test_data
+    }
 
 @api_router.get("/admin/analytics")
 async def get_analytics(
