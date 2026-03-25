@@ -101,9 +101,10 @@ const AdminAnalytics = () => {
     }
   }, [navigate]);
 
-  // Initial load
+  // Initial load with Last 7 Days
   useEffect(() => {
-    fetchAnalytics(null, null);
+    const { start, end } = getDefaultDates();
+    fetchAnalytics(start, end);
   }, [fetchAnalytics]);
 
   // Auto-refresh analytics every 30 seconds for realtime data
