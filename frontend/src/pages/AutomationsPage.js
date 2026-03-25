@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ArrowLeft, Plus, Trash2, Edit2, Play, Check, X, 
+  ArrowLeft, Plus, Trash2, Edit2, Play, 
   Zap, Calendar, CalendarX, ExternalLink, Clock, 
   CheckCircle, XCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
@@ -25,15 +25,13 @@ const AutomationsPage = () => {
   const [editingAutomation, setEditingAutomation] = useState(null);
   const [testingId, setTestingId] = useState(null);
   const [expandedLogId, setExpandedLogId] = useState(null);
-  const [activeTab, setActiveTab] = useState('automations'); // 'automations' or 'logs'
+  const [activeTab, setActiveTab] = useState('automations');
   
-  // Form state
+  // Form state - now supports multiple actions
   const [formData, setFormData] = useState({
     name: '',
     trigger: 'new_booking',
-    url: '',
-    method: 'POST',
-    includeData: true,
+    actions: [{ id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true }],
     enabled: true
   });
 
@@ -80,16 +78,44 @@ const AutomationsPage = () => {
     setFormData({
       name: '',
       trigger: 'new_booking',
-      url: '',
-      method: 'POST',
-      includeData: true,
+      actions: [{ id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true }],
       enabled: true
     });
   };
 
+  const addAction = () => {
+    setFormData({
+      ...formData,
+      actions: [...formData.actions, { id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true }]
+    });
+  };
+
+  const removeAction = (index) => {
+    if (formData.actions.length <= 1) {
+      toast.error('At least one action is required');
+      return;
+    }
+    setFormData({
+      ...formData,
+      actions: formData.actions.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateAction = (index, field, value) => {
+    const newActions = [...formData.actions];
+    newActions[index] = { ...newActions[index], [field]: value };
+    setFormData({ ...formData, actions: newActions });
+  };
+
   const handleCreate = async () => {
-    if (!formData.name || !formData.url) {
-      toast.error('Name and URL are required');
+    if (!formData.name) {
+      toast.error('Name is required');
+      return;
+    }
+    
+    const validActions = formData.actions.filter(a => a.url);
+    if (validActions.length === 0) {
+      toast.error('At least one action with a URL is required');
       return;
     }
 
@@ -98,12 +124,14 @@ const AutomationsPage = () => {
       await axios.post(`${API}/admin/automations`, {
         name: formData.name,
         trigger: formData.trigger,
-        action: {
+        actions: validActions.map(a => ({
+          id: a.id,
+          name: a.name || null,
           type: 'webhook',
-          url: formData.url,
-          method: formData.method,
-          include_data: formData.includeData
-        },
+          url: a.url,
+          method: a.method,
+          include_data: a.includeData
+        })),
         enabled: formData.enabled
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -119,8 +147,14 @@ const AutomationsPage = () => {
   };
 
   const handleUpdate = async () => {
-    if (!formData.name || !formData.url) {
-      toast.error('Name and URL are required');
+    if (!formData.name) {
+      toast.error('Name is required');
+      return;
+    }
+    
+    const validActions = formData.actions.filter(a => a.url);
+    if (validActions.length === 0) {
+      toast.error('At least one action with a URL is required');
       return;
     }
 
@@ -129,12 +163,14 @@ const AutomationsPage = () => {
       await axios.put(`${API}/admin/automations/${editingAutomation.id}`, {
         name: formData.name,
         trigger: formData.trigger,
-        action: {
+        actions: validActions.map(a => ({
+          id: a.id,
+          name: a.name || null,
           type: 'webhook',
-          url: formData.url,
-          method: formData.method,
-          include_data: formData.includeData
-        },
+          url: a.url,
+          method: a.method,
+          include_data: a.includeData
+        })),
         enabled: formData.enabled
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -191,10 +227,13 @@ const AutomationsPage = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      if (response.data.success) {
-        toast.success(`Test successful! Status: ${response.data.status_code}`);
+      const { success, actions_tested, results } = response.data;
+      
+      if (success) {
+        toast.success(`All ${actions_tested} action(s) succeeded!`);
       } else {
-        toast.error(`Test failed: ${response.data.error || `Status ${response.data.status_code}`}`);
+        const failed = results.filter(r => !r.success).length;
+        toast.error(`${failed} of ${actions_tested} action(s) failed`);
       }
       
       fetchLogs();
@@ -206,12 +245,18 @@ const AutomationsPage = () => {
   };
 
   const openEditModal = (automation) => {
+    // Convert from backend format to form format
+    const actions = automation.actions || (automation.action ? [automation.action] : []);
     setFormData({
       name: automation.name,
       trigger: automation.trigger,
-      url: automation.action?.url || '',
-      method: automation.action?.method || 'POST',
-      includeData: automation.action?.include_data !== false,
+      actions: actions.map(a => ({
+        id: a.id || crypto.randomUUID(),
+        name: a.name || '',
+        url: a.url || '',
+        method: a.method || 'POST',
+        includeData: a.include_data !== false
+      })),
       enabled: automation.enabled
     });
     setEditingAutomation(automation);
@@ -237,6 +282,11 @@ const AutomationsPage = () => {
       default:
         return trigger;
     }
+  };
+
+  const getActionsCount = (automation) => {
+    const actions = automation.actions || (automation.action ? [automation.action] : []);
+    return actions.length;
   };
 
   const formatDate = (dateString) => {
@@ -309,7 +359,7 @@ const AutomationsPage = () => {
           </Button>
           <Button
             variant={activeTab === 'logs' ? 'default' : 'outline'}
-            onClick={() => setActiveTab('logs')}
+            onClick={() => { setActiveTab('logs'); fetchLogs(); }}
             className={activeTab === 'logs' ? 'bg-teal-600 hover:bg-teal-700' : ''}
           >
             Execution Logs ({logs.length})
@@ -327,7 +377,7 @@ const AutomationsPage = () => {
                     <h3 className="font-medium text-blue-900">How Automations Work</h3>
                     <p className="text-sm text-blue-700 mt-1">
                       When a booking webhook is received, all enabled automations matching the trigger will execute. 
-                      The webhook data (booking details, user info) will be sent to your configured URL.
+                      Each automation can have <strong>multiple actions</strong> - all will be executed in parallel.
                     </p>
                   </div>
                 </div>
@@ -380,7 +430,7 @@ const AutomationsPage = () => {
                                 <span className="text-gray-300">→</span>
                                 <span className="flex items-center gap-1">
                                   <ExternalLink className="w-3 h-3" />
-                                  {automation.action?.method || 'POST'} {automation.action?.url?.substring(0, 50)}...
+                                  {getActionsCount(automation)} webhook{getActionsCount(automation) !== 1 ? 's' : ''}
                                 </span>
                               </div>
                             </div>
@@ -462,16 +512,25 @@ const AutomationsPage = () => {
                           <XCircle className="w-5 h-5 text-red-500" />
                         )}
                         <div>
-                          <p className="font-medium text-gray-900">{log.automation_name}</p>
+                          <p className="font-medium text-gray-900">
+                            {log.automation_name}
+                            {log.action_name && <span className="text-gray-500 font-normal"> → {log.action_name}</span>}
+                          </p>
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             {getTriggerIcon(log.trigger)}
                             <span>{getTriggerLabel(log.trigger)}</span>
                             <span>•</span>
                             <span>{formatDate(log.executed_at)}</span>
+                            {log.duration_ms && (
+                              <>
+                                <span>•</span>
+                                <span>{log.duration_ms}ms</span>
+                              </>
+                            )}
                             {log.trigger_data?._test && (
                               <>
                                 <span>•</span>
-                                <span className="text-orange-600">Test</span>
+                                <span className="text-orange-600 font-medium">Test</span>
                               </>
                             )}
                           </div>
@@ -502,10 +561,19 @@ const AutomationsPage = () => {
                           className="overflow-hidden"
                         >
                           <div className="mt-4 pt-4 border-t border-gray-100 space-y-3">
+                            {log.action_url && (
+                              <div>
+                                <Label className="text-xs text-gray-500">Webhook URL</Label>
+                                <p className="text-sm font-mono bg-gray-50 p-2 rounded mt-1 break-all">
+                                  {log.action_method || 'POST'} {log.action_url}
+                                </p>
+                              </div>
+                            )}
                             {log.error && (
                               <div>
                                 <Label className="text-xs text-red-600">Error</Label>
                                 <pre className="mt-1 p-2 bg-red-50 rounded text-xs text-red-800 overflow-auto">
+                                  {log.error_type && <span className="font-bold">{log.error_type}: </span>}
                                   {log.error}
                                 </pre>
                               </div>
@@ -518,7 +586,7 @@ const AutomationsPage = () => {
                             </div>
                             {log.response_body && (
                               <div>
-                                <Label className="text-xs text-gray-500">Response</Label>
+                                <Label className="text-xs text-gray-500">Response Body</Label>
                                 <pre className="mt-1 p-2 bg-gray-50 rounded text-xs overflow-auto max-h-40">
                                   {log.response_body}
                                 </pre>
@@ -550,7 +618,7 @@ const AutomationsPage = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b border-gray-200">
@@ -558,18 +626,18 @@ const AutomationsPage = () => {
                   {editingAutomation ? 'Edit Automation' : 'Create Automation'}
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Configure when and where to send booking data
+                  Configure triggers and multiple webhook actions
                 </p>
               </div>
               
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-5">
                 <div>
-                  <Label htmlFor="name">Name *</Label>
+                  <Label htmlFor="name">Automation Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., Send to CRM"
+                    placeholder="e.g., Sync to CRM"
                     className="mt-1"
                     data-testid="automation-name-input"
                   />
@@ -617,69 +685,108 @@ const AutomationsPage = () => {
                   </div>
                 </div>
                 
+                {/* Actions Section */}
                 <div>
-                  <Label htmlFor="url">Webhook URL *</Label>
-                  <Input
-                    id="url"
-                    value={formData.url}
-                    onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                    placeholder="https://your-service.com/webhook"
-                    className="mt-1"
-                    data-testid="automation-url-input"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    The URL where booking data will be sent
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="method">HTTP Method</Label>
-                    <select
-                      id="method"
-                      value={formData.method}
-                      onChange={(e) => setFormData({ ...formData, method: e.target.value })}
-                      className="mt-1 w-full p-2 border border-gray-300 rounded-md"
-                      data-testid="automation-method-select"
+                  <div className="flex items-center justify-between mb-2">
+                    <Label>Webhook Actions *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addAction}
+                      className="flex items-center gap-1"
                     >
-                      <option value="POST">POST</option>
-                      <option value="GET">GET</option>
-                    </select>
+                      <Plus className="w-3 h-3" />
+                      Add Action
+                    </Button>
                   </div>
-                  <div>
-                    <Label>Include Data</Label>
-                    <div className="mt-2">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={formData.includeData}
-                          onChange={(e) => setFormData({ ...formData, includeData: e.target.checked })}
-                          className="rounded border-gray-300"
-                        />
-                        <span className="text-sm">Send booking data in request</span>
-                      </label>
-                    </div>
+                  
+                  <div className="space-y-3">
+                    {formData.actions.map((action, index) => (
+                      <div key={action.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-gray-700">Action {index + 1}</span>
+                          {formData.actions.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeAction(index)}
+                              className="text-red-500 hover:text-red-700 h-6 w-6 p-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="text-xs">Label (optional)</Label>
+                            <Input
+                              value={action.name}
+                              onChange={(e) => updateAction(index, 'name', e.target.value)}
+                              placeholder="e.g., Send to Slack"
+                              className="mt-1"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label className="text-xs">Webhook URL *</Label>
+                            <Input
+                              value={action.url}
+                              onChange={(e) => updateAction(index, 'url', e.target.value)}
+                              placeholder="https://your-service.com/webhook"
+                              className="mt-1"
+                            />
+                          </div>
+                          
+                          <div className="flex gap-3">
+                            <div className="w-32">
+                              <Label className="text-xs">Method</Label>
+                              <select
+                                value={action.method}
+                                onChange={(e) => updateAction(index, 'method', e.target.value)}
+                                className="mt-1 w-full p-2 border border-gray-300 rounded-md text-sm"
+                              >
+                                <option value="POST">POST</option>
+                                <option value="GET">GET</option>
+                              </select>
+                            </div>
+                            <div className="flex-1">
+                              <Label className="text-xs">Include Data</Label>
+                              <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={action.includeData}
+                                  onChange={(e) => updateAction(index, 'includeData', e.target.checked)}
+                                  className="rounded border-gray-300"
+                                />
+                                <span className="text-sm">Send booking data</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 
                 <div>
                   <Label>Status</Label>
-                  <div className="mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.enabled}
-                        onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm">Enabled (automation will run when triggered)</span>
-                    </label>
-                  </div>
+                  <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.enabled}
+                      onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm">Enabled (automation will run when triggered)</span>
+                  </label>
                 </div>
                 
                 {/* Data Preview */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <Label className="text-xs text-gray-500">Sample Data That Will Be Sent</Label>
+                  <Label className="text-xs text-gray-500">Sample Payload That Will Be Sent</Label>
                   <pre className="mt-2 text-xs overflow-auto max-h-32">
 {formData.trigger === 'new_booking' ? `{
   "trigger": "new_booking",
