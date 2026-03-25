@@ -232,6 +232,26 @@ class AppointmentResponse(BaseModel):
     mobile_phone: Optional[str] = None
     created_at: str
 
+# Automation Models
+class AutomationAction(BaseModel):
+    type: str = "webhook"  # Currently only webhook supported
+    url: str
+    method: str = "POST"  # POST, GET, etc.
+    headers: Optional[dict] = None
+    include_data: bool = True  # Whether to send the trigger data in the request
+
+class AutomationCreate(BaseModel):
+    name: str
+    trigger: str  # "new_booking" or "cancelled_booking"
+    action: AutomationAction
+    enabled: bool = True
+
+class AutomationUpdate(BaseModel):
+    name: Optional[str] = None
+    trigger: Optional[str] = None
+    action: Optional[AutomationAction] = None
+    enabled: Optional[bool] = None
+
 # Helper Functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
