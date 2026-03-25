@@ -626,7 +626,24 @@ const AutomationsPage = () => {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        {/* Retry button for failed logs */}
+                        {!log.success && log.action_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => { e.stopPropagation(); handleRetryLog(log); }}
+                            disabled={retryingLogId === log.id}
+                            className="flex items-center gap-1 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                          >
+                            {retryingLogId === log.id ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current" />
+                            ) : (
+                              <RotateCcw className="w-3 h-3" />
+                            )}
+                            Retry
+                          </Button>
+                        )}
                         {log.response_status && (
                           <span className={`text-sm px-2 py-0.5 rounded ${
                             log.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
