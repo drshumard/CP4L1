@@ -1862,6 +1862,203 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
     
     return {"users": users}
 
+# Automation CRUD Endpoints
+@api_router.get("/admin/automations")
+async def get_automations(admin_user: dict = Depends(get_admin_user)):
+    """Get all automations"""
+    automations = await db.automations.find({}, {"_id": 0}).to_list(100)
+    return {"automations": automations}
+
+@api_router.post("/admin/automations")
+async def create_automation(automation: AutomationCreate, admin_user: dict = Depends(get_admin_user)):
+    """Create a new automation"""
+    
+    # Validate trigger
+    valid_triggers = ["new_booking", "cancelled_booking"]
+    if automation.trigger not in valid_triggers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid trigger. Must be one of: {valid_triggers}"
+        )
+    
+    automation_data = {
+        "id": str(uuid.uuid4()),
+        "name": automation.name,
+        "trigger": automation.trigger,
+        "action": automation.action.model_dump(),
+        "enabled": automation.enabled,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": admin_user.get("email"),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.automations.insert_one(automation_data)
+    
+    await log_activity(
+        event_type="AUTOMATION_CREATED",
+        user_email=admin_user.get("email"),
+        user_id=admin_user.get("id"),
+        details={"automation_id": automation_data["id"], "name": automation.name, "trigger": automation.trigger},
+        status="success"
+    )
+    
+    return {"message": "Automation created", "automation": {k: v for k, v in automation_data.items() if k != "_id"}}
+
+@api_router.get("/admin/automations/{automation_id}")
+async def get_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Get a specific automation"""
+    automation = await db.automations.find_one({"id": automation_id}, {"_id": 0})
+    if not automation:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    return {"automation": automation}
+
+@api_router.put("/admin/automations/{automation_id}")
+async def update_automation(automation_id: str, automation: AutomationUpdate, admin_user: dict = Depends(get_admin_user)):
+    """Update an automation"""
+    
+    existing = await db.automations.find_one({"id": automation_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    
+    update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    
+    if automation.name is not None:
+        update_data["name"] = automation.name
+    if automation.trigger is not None:
+        valid_triggers = ["new_booking", "cancelled_booking"]
+        if automation.trigger not in valid_triggers:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid trigger. Must be one of: {valid_triggers}"
+            )
+        update_data["trigger"] = automation.trigger
+    if automation.action is not None:
+        update_data["action"] = automation.action.model_dump()
+    if automation.enabled is not None:
+        update_data["enabled"] = automation.enabled
+    
+    await db.automations.update_one({"id": automation_id}, {"$set": update_data})
+    
+    await log_activity(
+        event_type="AUTOMATION_UPDATED",
+        user_email=admin_user.get("email"),
+        user_id=admin_user.get("id"),
+        details={"automation_id": automation_id, "updates": list(update_data.keys())},
+        status="success"
+    )
+    
+    updated = await db.automations.find_one({"id": automation_id}, {"_id": 0})
+    return {"message": "Automation updated", "automation": updated}
+
+@api_router.delete("/admin/automations/{automation_id}")
+async def delete_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Delete an automation"""
+    
+    existing = await db.automations.find_one({"id": automation_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    
+    await db.automations.delete_one({"id": automation_id})
+    
+    await log_activity(
+        event_type="AUTOMATION_DELETED",
+        user_email=admin_user.get("email"),
+        user_id=admin_user.get("id"),
+        details={"automation_id": automation_id, "name": existing.get("name")},
+        status="success"
+    )
+    
+    return {"message": "Automation deleted"}
+
+@api_router.get("/admin/automation-logs")
+async def get_automation_logs(
+    admin_user: dict = Depends(get_admin_user),
+    automation_id: str = None,
+    limit: int = 50
+):
+    """Get automation execution logs"""
+    query = {}
+    if automation_id:
+        query["automation_id"] = automation_id
+    
+    logs = await db.automation_logs.find(query, {"_id": 0}).sort("executed_at", -1).to_list(limit)
+    return {"logs": logs}
+
+@api_router.post("/admin/automations/{automation_id}/test")
+async def test_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Test an automation with sample data"""
+    
+    automation = await db.automations.find_one({"id": automation_id}, {"_id": 0})
+    if not automation:
+        raise HTTPException(status_code=404, detail="Automation not found")
+    
+    # Create test data based on trigger type
+    trigger = automation.get("trigger")
+    if trigger == "new_booking":
+        test_data = {
+            "trigger": "new_booking",
+            "booking_id": "test-booking-123",
+            "session_date": datetime.now(timezone.utc).isoformat(),
+            "first_name": "Test",
+            "last_name": "User",
+            "email": "test@example.com",
+            "mobile_phone": "+1234567890",
+            "user_found": True,
+            "user_id": "test-user-id",
+            "matched_by": "email",
+            "step_advanced": False,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "_test": True
+        }
+    else:  # cancelled_booking
+        test_data = {
+            "trigger": "cancelled_booking",
+            "booking_id": "test-booking-123",
+            "session_date": datetime.now(timezone.utc).isoformat(),
+            "first_name": "Test",
+            "last_name": "User",
+            "email": "test@example.com",
+            "mobile_phone": "+1234567890",
+            "user_id": "test-user-id",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "_test": True
+        }
+    
+    # Execute the automation
+    import httpx
+    action = automation.get("action", {})
+    
+    try:
+        url = action.get("url")
+        method = action.get("method", "POST").upper()
+        headers = action.get("headers") or {"Content-Type": "application/json"}
+        include_data = action.get("include_data", True)
+        
+        async with httpx.AsyncClient() as client:
+            if method == "POST":
+                if include_data:
+                    response = await client.post(url, json=test_data, headers=headers, timeout=30.0)
+                else:
+                    response = await client.post(url, headers=headers, timeout=30.0)
+            elif method == "GET":
+                response = await client.get(url, headers=headers, timeout=30.0)
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+            
+            return {
+                "success": 200 <= response.status_code < 300,
+                "status_code": response.status_code,
+                "response_body": response.text[:1000] if response.text else None,
+                "test_data_sent": test_data
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "test_data_sent": test_data
+        }
+
 @api_router.get("/admin/analytics")
 async def get_analytics(
     admin_user: dict = Depends(get_admin_user),
