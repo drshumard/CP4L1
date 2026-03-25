@@ -30,29 +30,48 @@ const AdminAnalytics = () => {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [analyticsStartDate, setAnalyticsStartDate] = useState('');
-  const [analyticsEndDate, setAnalyticsEndDate] = useState('');
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const [selectedPreset, setSelectedPreset] = useState('All Time');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const datePickerRef = useRef(null);
   
   // Use refs to track current filter values for auto-refresh
-  const startDateRef = useRef(analyticsStartDate);
-  const endDateRef = useRef(analyticsEndDate);
+  const startDateRef = useRef(startDate);
+  const endDateRef = useRef(endDate);
   
   // Keep refs in sync with state
   useEffect(() => {
-    startDateRef.current = analyticsStartDate;
-    endDateRef.current = analyticsEndDate;
-  }, [analyticsStartDate, analyticsEndDate]);
+    startDateRef.current = startDate;
+    endDateRef.current = endDate;
+  }, [startDate, endDate]);
 
-  const fetchAnalytics = useCallback(async (startDate, endDate) => {
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
+        setShowDatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const formatDateForAPI = (date) => {
+    if (!date) return '';
+    return date.toISOString().split('T')[0];
+  };
+
+  const fetchAnalytics = useCallback(async (start, end) => {
     try {
       const token = localStorage.getItem('access_token');
       const analyticsRes = await axios.get(`${API}/admin/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
-          start_date: startDate || undefined,
-          end_date: endDate || undefined
+          start_date: start ? formatDateForAPI(start) : undefined,
+          end_date: end ? formatDateForAPI(end) : undefined
         }
       });
       setAnalytics(analyticsRes.data);
@@ -74,7 +93,7 @@ const AdminAnalytics = () => {
 
   // Initial load
   useEffect(() => {
-    fetchAnalytics('', '');
+    fetchAnalytics(null, null);
   }, [fetchAnalytics]);
 
   // Auto-refresh analytics every 30 seconds for realtime data
@@ -89,16 +108,48 @@ const AdminAnalytics = () => {
     return () => clearInterval(interval);
   }, [autoRefresh, fetchAnalytics]);
 
-  const handleApplyFilter = () => {
-    setAnalyticsLoading(true);
-    fetchAnalytics(analyticsStartDate, analyticsEndDate);
+  const handlePresetSelect = (preset) => {
+    setSelectedPreset(preset.label);
+    if (preset.label === 'Custom') {
+      // Keep date picker open for custom selection
+      return;
+    }
+    
+    const range = preset.getValue();
+    if (range) {
+      setStartDate(range.start);
+      setEndDate(range.end);
+      setAnalyticsLoading(true);
+      fetchAnalytics(range.start, range.end);
+    }
+    setShowDatePicker(false);
   };
 
-  const clearDateFilter = () => {
-    setAnalyticsStartDate('');
-    setAnalyticsEndDate('');
-    setAnalyticsLoading(true);
-    fetchAnalytics('', '');
+  const handleCustomDateChange = (dates) => {
+    const [start, end] = dates;
+    setStartDate(start);
+    setEndDate(end);
+    setSelectedPreset('Custom');
+    
+    if (start && end) {
+      setAnalyticsLoading(true);
+      fetchAnalytics(start, end);
+      setShowDatePicker(false);
+    }
+  };
+
+  const getDisplayLabel = () => {
+    if (selectedPreset === 'All Time') return 'All Time';
+    if (selectedPreset === 'Custom' && startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    }
+    if (startDate && endDate && startDate.toDateString() === endDate.toDateString()) {
+      return startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    if (startDate && endDate) {
+      return `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+    }
+    return selectedPreset;
   };
 
   // Step distribution data for horizontal bar chart
