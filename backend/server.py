@@ -2034,6 +2034,101 @@ async def get_automation_logs(
     logs = await db.automation_logs.find(query, {"_id": 0}).sort("executed_at", -1).to_list(limit)
     return {"logs": logs}
 
+@api_router.post("/admin/automation-logs/{log_id}/retry")
+async def retry_automation_log(log_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Retry a failed automation log - resends the same data to the same URL"""
+    import httpx
+    
+    # Find the log
+    log = await db.automation_logs.find_one({"id": log_id}, {"_id": 0})
+    if not log:
+        raise HTTPException(status_code=404, detail="Log not found")
+    
+    # Get the data we need to retry
+    url = log.get("action_url")
+    method = log.get("action_method", "POST").upper()
+    trigger_data = log.get("trigger_data", {})
+    original_headers = log.get("request_headers", {})
+    
+    if not url:
+        raise HTTPException(status_code=400, detail="No URL found in log to retry")
+    
+    # Mark this as a retry in the data
+    trigger_data["_retry"] = True
+    trigger_data["_retry_of_log_id"] = log_id
+    
+    # Prepare headers - merge original with Content-Type
+    headers = {"Content-Type": "application/json"}
+    if original_headers:
+        headers.update(original_headers)
+    
+    try:
+        request_start = datetime.now(timezone.utc)
+        
+        async with httpx.AsyncClient() as client:
+            if method == "POST":
+                response = await client.post(url, json=trigger_data, headers=headers, timeout=30.0)
+            elif method == "GET":
+                response = await client.get(url, headers=headers, timeout=30.0)
+            else:
+                raise ValueError(f"Unsupported method: {method}")
+            
+            request_end = datetime.now(timezone.utc)
+            duration_ms = int((request_end - request_start).total_seconds() * 1000)
+            success = 200 <= response.status_code < 300
+            
+            # Log the retry
+            await db.automation_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "automation_id": log.get("automation_id"),
+                "automation_name": log.get("automation_name"),
+                "action_id": log.get("action_id"),
+                "action_name": log.get("action_name"),
+                "action_url": url,
+                "action_method": method,
+                "trigger": log.get("trigger"),
+                "trigger_data": trigger_data,
+                "request_headers": {k: v for k, v in headers.items() if k.lower() != 'authorization'},
+                "response_status": response.status_code,
+                "response_body": response.text[:2000] if response.text else None,
+                "duration_ms": duration_ms,
+                "success": success,
+                "is_retry": True,
+                "retry_of_log_id": log_id,
+                "executed_at": datetime.now(timezone.utc).isoformat()
+            })
+            
+            return {
+                "success": success,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+                "response_body": response.text[:500] if response.text else None
+            }
+            
+    except Exception as e:
+        # Log the failure
+        await db.automation_logs.insert_one({
+            "id": str(uuid.uuid4()),
+            "automation_id": log.get("automation_id"),
+            "automation_name": log.get("automation_name"),
+            "action_id": log.get("action_id"),
+            "action_name": log.get("action_name"),
+            "action_url": url,
+            "trigger": log.get("trigger"),
+            "trigger_data": trigger_data,
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "success": False,
+            "is_retry": True,
+            "retry_of_log_id": log_id,
+            "executed_at": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 @api_router.post("/admin/automations/{automation_id}/test")
 async def test_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
     """Test an automation with sample data - tests all actions"""
