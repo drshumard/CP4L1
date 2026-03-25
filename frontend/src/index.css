@@ -122,37 +122,80 @@ code {
 /* React DatePicker Custom Styles */
 .react-datepicker {
     font-family: inherit !important;
-    border: 1px solid #e5e7eb !important;
-    border-radius: 0.75rem !important;
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+    border: none !important;
+    border-radius: 0.5rem !important;
+    box-shadow: none !important;
+    font-size: 0.8rem !important;
 }
 
 .react-datepicker__header {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%) !important;
-    border-bottom: none !important;
-    border-top-left-radius: 0.75rem !important;
-    border-top-right-radius: 0.75rem !important;
-    padding-top: 12px !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important;
+    padding: 8px 0 !important;
 }
 
 .react-datepicker__current-month,
 .react-datepicker__day-name {
-    color: white !important;
+    color: #334155 !important;
+    font-size: 0.75rem !important;
+}
+
+.react-datepicker__current-month {
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+}
+
+.react-datepicker__day-name {
+    width: 1.8rem !important;
+    line-height: 1.8rem !important;
+    margin: 0.1rem !important;
+}
+
+.react-datepicker__day {
+    width: 1.8rem !important;
+    line-height: 1.8rem !important;
+    margin: 0.1rem !important;
+    border-radius: 0.25rem !important;
+    font-size: 0.75rem !important;
 }
 
 .react-datepicker__day--selected,
-.react-datepicker__day--keyboard-selected {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%) !important;
-    border-radius: 0.5rem !important;
+.react-datepicker__day--keyboard-selected,
+.react-datepicker__day--in-selecting-range,
+.react-datepicker__day--in-range {
+    background: #14b8a6 !important;
+    color: white !important;
+    border-radius: 0.25rem !important;
+}
+
+.react-datepicker__day--range-start,
+.react-datepicker__day--range-end {
+    background: #0d9488 !important;
 }
 
 .react-datepicker__day:hover {
     background-color: #ccfbf1 !important;
-    border-radius: 0.5rem !important;
+    border-radius: 0.25rem !important;
+}
+
+.react-datepicker__navigation {
+    top: 8px !important;
 }
 
 .react-datepicker__navigation-icon::before {
-    border-color: white !important;
+    border-color: #64748b !important;
+    border-width: 2px 2px 0 0 !important;
+    width: 6px !important;
+    height: 6px !important;
+}
+
+.react-datepicker__navigation:hover *::before {
+    border-color: #14b8a6 !important;
+}
+
+.react-datepicker__month {
+    margin: 0.3rem !important;
 }
 
 .react-datepicker__month-dropdown,
@@ -164,11 +207,20 @@ code {
 
 .react-datepicker__month-option--selected,
 .react-datepicker__year-option--selected {
-    background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%) !important;
+    background: #14b8a6 !important;
 }
 
 .react-datepicker__triangle {
     display: none !important;
+}
+
+/* Compact calendar for analytics */
+.compact-calendar {
+    font-size: 0.75rem !important;
+}
+
+.compact-calendar .react-datepicker__month-container {
+    width: 220px !important;
 }
 
 /* Custom scrollbar for HIPAA text */
