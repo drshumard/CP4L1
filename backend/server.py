@@ -798,6 +798,25 @@ async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str 
         status="success"
     )
     
+    # Execute automations for new_booking trigger
+    automation_data = {
+        "trigger": "new_booking",
+        "booking_id": data.booking_id,
+        "session_date": data.session_date,
+        "first_name": data.first_name,
+        "last_name": data.last_name,
+        "email": data.email,
+        "mobile_phone": data.mobile_phone,
+        "user_found": user is not None,
+        "user_id": user["id"] if user else None,
+        "matched_by": matched_by,
+        "step_advanced": step_advanced,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Run automations in background (don't wait for them)
+    asyncio.create_task(execute_automations("new_booking", automation_data))
+    
     return {
         "message": f"Appointment {action} successfully",
         "booking_id": data.booking_id,
