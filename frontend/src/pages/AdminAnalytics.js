@@ -30,9 +30,19 @@ const AdminAnalytics = () => {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [selectedPreset, setSelectedPreset] = useState('All Time');
+  
+  // Default to Last 7 Days
+  const getDefaultDates = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    return { start, end };
+  };
+  
+  const defaultDates = getDefaultDates();
+  const [startDate, setStartDate] = useState(defaultDates.start);
+  const [endDate, setEndDate] = useState(defaultDates.end);
+  const [selectedPreset, setSelectedPreset] = useState('Last 7 Days');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
