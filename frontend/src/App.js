@@ -10,6 +10,7 @@ import StepsPage from './pages/StepsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAnalytics from './pages/AdminAnalytics';
 import ActivityLogs from './pages/ActivityLogs';
+import AutomationsPage from './pages/AutomationsPage';
 import ResetPassword from './pages/ResetPassword';
 import OutcomePage from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
