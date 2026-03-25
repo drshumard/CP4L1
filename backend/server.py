@@ -1976,12 +1976,18 @@ async def update_automation(automation_id: str, automation: AutomationUpdate, ad
                 detail=f"Invalid trigger. Must be one of: {valid_triggers}"
             )
         update_data["trigger"] = automation.trigger
-    if automation.action is not None:
-        update_data["action"] = automation.action.model_dump()
+    if automation.actions is not None:
+        update_data["actions"] = [action.model_dump() for action in automation.actions]
+        # Remove old single 'action' field if present
+        update_data["action"] = None
     if automation.enabled is not None:
         update_data["enabled"] = automation.enabled
     
     await db.automations.update_one({"id": automation_id}, {"$set": update_data})
+    
+    # Remove the null 'action' field
+    if "action" in update_data:
+        await db.automations.update_one({"id": automation_id}, {"$unset": {"action": ""}})
     
     await log_activity(
         event_type="AUTOMATION_UPDATED",
