@@ -553,6 +553,89 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         "signup_url": signup_url
     }
 
+
+# Automation Execution Helper
+async def execute_automations(trigger: str, data: dict):
+    """Execute all enabled automations for a given trigger"""
+    import httpx
+    
+    # Find all enabled automations for this trigger
+    automations = await db.automations.find({
+        "trigger": trigger,
+        "enabled": True
+    }).to_list(100)
+    
+    results = []
+    
+    for automation in automations:
+        automation_id = automation.get("id")
+        automation_name = automation.get("name", "Unnamed")
+        action = automation.get("action", {})
+        
+        try:
+            url = action.get("url")
+            method = action.get("method", "POST").upper()
+            headers = action.get("headers") or {"Content-Type": "application/json"}
+            include_data = action.get("include_data", True)
+            
+            if not url:
+                raise ValueError("No URL specified in automation action")
+            
+            async with httpx.AsyncClient() as client:
+                if method == "POST":
+                    if include_data:
+                        response = await client.post(url, json=data, headers=headers, timeout=30.0)
+                    else:
+                        response = await client.post(url, headers=headers, timeout=30.0)
+                elif method == "GET":
+                    response = await client.get(url, headers=headers, timeout=30.0)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
+                
+                success = 200 <= response.status_code < 300
+                
+                # Log execution
+                await db.automation_logs.insert_one({
+                    "id": str(uuid.uuid4()),
+                    "automation_id": automation_id,
+                    "automation_name": automation_name,
+                    "trigger": trigger,
+                    "trigger_data": data,
+                    "response_status": response.status_code,
+                    "response_body": response.text[:1000] if response.text else None,  # Limit response size
+                    "success": success,
+                    "executed_at": datetime.now(timezone.utc).isoformat()
+                })
+                
+                results.append({
+                    "automation_id": automation_id,
+                    "name": automation_name,
+                    "success": success,
+                    "status_code": response.status_code
+                })
+                
+        except Exception as e:
+            # Log failure
+            await db.automation_logs.insert_one({
+                "id": str(uuid.uuid4()),
+                "automation_id": automation_id,
+                "automation_name": automation_name,
+                "trigger": trigger,
+                "trigger_data": data,
+                "error": str(e),
+                "success": False,
+                "executed_at": datetime.now(timezone.utc).isoformat()
+            })
+            
+            results.append({
+                "automation_id": automation_id,
+                "name": automation_name,
+                "success": False,
+                "error": str(e)
+            })
+    
+    return results
+
 @api_router.post("/webhook/appointment")
 async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str = None):
     """Receive appointment booking webhook from GHL - Protected by webhook secret"""
