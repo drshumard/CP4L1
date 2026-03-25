@@ -872,6 +872,57 @@ const AutomationsPage = () => {
                               </label>
                             </div>
                           </div>
+                          
+                          {/* Headers Section */}
+                          <div className="border-t border-gray-200 pt-3 mt-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <Label className="text-xs flex items-center gap-1">
+                                <Key className="w-3 h-3" />
+                                Headers (optional)
+                              </Label>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => addHeader(index)}
+                                className="h-6 text-xs text-teal-600 hover:text-teal-700"
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Add Header
+                              </Button>
+                            </div>
+                            <div className="space-y-2">
+                              {(action.headers || []).map((header, hIndex) => (
+                                <div key={hIndex} className="flex gap-2 items-center">
+                                  <Input
+                                    value={header.key}
+                                    onChange={(e) => updateHeader(index, hIndex, 'key', e.target.value)}
+                                    placeholder="Header name (e.g., X-API-Key)"
+                                    className="flex-1 text-xs h-8"
+                                  />
+                                  <Input
+                                    value={header.value}
+                                    onChange={(e) => updateHeader(index, hIndex, 'value', e.target.value)}
+                                    placeholder="Value"
+                                    className="flex-1 text-xs h-8"
+                                    type={header.key?.toLowerCase().includes('key') || header.key?.toLowerCase().includes('secret') ? 'password' : 'text'}
+                                  />
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeHeader(index, hIndex)}
+                                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-500"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                              {(!action.headers || action.headers.length === 0) && (
+                                <p className="text-xs text-gray-400 italic">No custom headers. Content-Type: application/json is sent by default.</p>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
