@@ -1954,9 +1954,21 @@ async def lookup_user_by_email(
             detail="User not found"
         )
     
-    # Get user progress
+    # Get user progress - query all step documents for this user
     user_id = user.get("id")
-    progress = await db.user_progress.find_one({"user_id": user_id}, {"_id": 0})
+    progress_docs = await db.user_progress.find(
+        {"user_id": user_id}, {"_id": 0}
+    ).to_list(100)
+    
+    # Build completed steps from actual step documents
+    completed_steps = {}
+    for doc in progress_docs:
+        step_num = doc.get("step_number")
+        if step_num is not None and doc.get("completed_at"):
+            completed_steps[str(step_num)] = {
+                "completed_at": doc.get("completed_at"),
+                "tasks_completed": doc.get("tasks_completed", [])
+            }
     
     # Get appointment info if exists
     appointment = await db.appointments.find_one({"user_id": user_id}, {"_id": 0})
@@ -1976,8 +1988,7 @@ async def lookup_user_by_email(
         "user": {
             "id": user_id,
             "email": user.get("email"),
-            "first_name": user.get("first_name"),
-            "last_name": user.get("last_name"),
+            "name": user.get("name"),
             "mobile_phone": user.get("mobile_phone"),
             "current_step": current_step,
             "current_step_name": step_names.get(current_step, "unknown"),
@@ -1985,9 +1996,8 @@ async def lookup_user_by_email(
             "created_at": user.get("created_at")
         },
         "progress": {
-            "completed_steps": progress.get("completed_steps", {}) if progress else {},
-            "intake_form_completed": progress.get("intake_form_completed", False) if progress else False,
-            "video_completed": progress.get("video_completed", False) if progress else False
+            "completed_steps": completed_steps,
+            "steps_completed_count": len(completed_steps)
         },
         "booking": {
             "has_booking": appointment is not None,
