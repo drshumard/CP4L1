@@ -1921,9 +1921,6 @@ async def lookup_user_by_email(
     )
     expected_key = os.environ.get("LOOKUP_API_KEY", "lookup-api-key-change-in-production")
     
-    # Debug logging
-    logger.info(f"Lookup request - email: {email}, received key: {x_api_key}, expected: {expected_key}")
-    
     if not x_api_key or x_api_key != expected_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
