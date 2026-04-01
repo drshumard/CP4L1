@@ -1898,7 +1898,7 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
 @api_router.get("/user/lookup")
 async def lookup_user_by_email(
     email: str,
-    x_api_key: str = Header(None, alias="X-API-Key")
+    request: Request
 ):
     """
     Lookup a user's current step and progress by email.
@@ -1914,6 +1914,7 @@ async def lookup_user_by_email(
     Returns: user info including current_step, completed_steps, booking info
     """
     # Verify API key from header
+    x_api_key = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
     expected_key = os.environ.get("LOOKUP_API_KEY", "lookup-api-key-change-in-production")
     if not x_api_key or x_api_key != expected_key:
         raise HTTPException(
