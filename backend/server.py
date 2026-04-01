@@ -1898,20 +1898,20 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
 @api_router.get("/user/lookup")
 async def lookup_user_by_email(
     email: str,
-    webhook_secret: str = None
+    api_key: str = None
 ):
     """
     Lookup a user's current step and progress by email.
-    Requires webhook_secret for authentication.
+    Requires api_key for authentication (separate from webhook_secret).
     
     Returns: user info including current_step, completed_steps, booking info
     """
-    # Verify webhook secret
-    expected_secret = os.environ.get("WEBHOOK_SECRET", "your-webhook-secret-key-change-in-production")
-    if webhook_secret != expected_secret:
+    # Verify API key (separate from webhook_secret for security)
+    expected_key = os.environ.get("LOOKUP_API_KEY", "lookup-api-key-change-in-production")
+    if api_key != expected_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing webhook_secret"
+            detail="Invalid or missing api_key"
         )
     
     # Find user by email (case-insensitive)
