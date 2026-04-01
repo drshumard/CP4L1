@@ -1894,6 +1894,81 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
     
     return {"users": users}
 
+# Public API endpoint to lookup user step by email
+@api_router.get("/user/lookup")
+async def lookup_user_by_email(
+    email: str,
+    webhook_secret: str = None
+):
+    """
+    Lookup a user's current step and progress by email.
+    Requires webhook_secret for authentication.
+    
+    Returns: user info including current_step, completed_steps, booking info
+    """
+    # Verify webhook secret
+    expected_secret = os.environ.get("WEBHOOK_SECRET", "your-webhook-secret-key-change-in-production")
+    if webhook_secret != expected_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing webhook_secret"
+        )
+    
+    # Find user by email (case-insensitive)
+    user = await db.users.find_one(
+        {"email": {"$regex": f"^{email}$", "$options": "i"}},
+        {"_id": 0, "password": 0}  # Exclude sensitive fields
+    )
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Get user progress
+    user_id = user.get("id")
+    progress = await db.user_progress.find_one({"user_id": user_id}, {"_id": 0})
+    
+    # Get appointment info if exists
+    appointment = await db.appointments.find_one({"user_id": user_id}, {"_id": 0})
+    
+    # Build response
+    current_step = user.get("current_step", 1)
+    step_names = {
+        0: "refunded",
+        1: "booking",
+        2: "intake_form", 
+        3: "video_education",
+        4: "completed"
+    }
+    
+    return {
+        "found": True,
+        "user": {
+            "id": user_id,
+            "email": user.get("email"),
+            "first_name": user.get("first_name"),
+            "last_name": user.get("last_name"),
+            "mobile_phone": user.get("mobile_phone"),
+            "current_step": current_step,
+            "current_step_name": step_names.get(current_step, "unknown"),
+            "role": user.get("role", "user"),
+            "created_at": user.get("created_at")
+        },
+        "progress": {
+            "completed_steps": progress.get("completed_steps", {}) if progress else {},
+            "intake_form_completed": progress.get("intake_form_completed", False) if progress else False,
+            "video_completed": progress.get("video_completed", False) if progress else False
+        },
+        "booking": {
+            "has_booking": appointment is not None,
+            "booking_id": appointment.get("booking_id") if appointment else None,
+            "session_date": appointment.get("session_date") if appointment else None,
+            "status": appointment.get("status", "active") if appointment else None
+        } if appointment else {"has_booking": False}
+    }
+
 # Automation CRUD Endpoints
 @api_router.get("/admin/automations")
 async def get_automations(admin_user: dict = Depends(get_admin_user)):
