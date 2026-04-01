@@ -1913,9 +1913,17 @@ async def lookup_user_by_email(
     
     Returns: user info including current_step, completed_steps, booking info
     """
-    # Verify API key from header
-    x_api_key = request.headers.get("X-API-Key") or request.headers.get("x-api-key")
+    # Verify API key from header (check multiple possible formats)
+    x_api_key = (
+        request.headers.get("X-API-Key") or 
+        request.headers.get("x-api-key") or
+        request.headers.get("X-Api-Key")
+    )
     expected_key = os.environ.get("LOOKUP_API_KEY", "lookup-api-key-change-in-production")
+    
+    # Debug logging
+    logger.info(f"Lookup request - email: {email}, received key: {x_api_key}, expected: {expected_key}")
+    
     if not x_api_key or x_api_key != expected_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
