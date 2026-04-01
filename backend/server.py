@@ -1895,12 +1895,9 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
     return {"users": users}
 
 # Public API endpoint to lookup user step by email
-class UserLookupRequest(BaseModel):
-    email: str
-
-@api_router.post("/user/lookup")
+@api_router.get("/user/lookup")
 async def lookup_user_by_email(
-    request: UserLookupRequest,
+    email: str,
     x_api_key: str = Header(None, alias="X-API-Key")
 ):
     """
@@ -1909,8 +1906,10 @@ async def lookup_user_by_email(
     Headers:
         X-API-Key: Your lookup API key
     
-    Body:
-        {"email": "user@example.com"}
+    Query Params:
+        email: User's email address
+    
+    Example: GET /api/user/lookup?email=user@example.com
     
     Returns: user info including current_step, completed_steps, booking info
     """
@@ -1921,8 +1920,6 @@ async def lookup_user_by_email(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing X-API-Key header"
         )
-    
-    email = request.email
     
     # Find user by email (case-insensitive)
     user = await db.users.find_one(
