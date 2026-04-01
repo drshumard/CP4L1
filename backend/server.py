@@ -1895,24 +1895,34 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
     return {"users": users}
 
 # Public API endpoint to lookup user step by email
-@api_router.get("/user/lookup")
+class UserLookupRequest(BaseModel):
+    email: str
+
+@api_router.post("/user/lookup")
 async def lookup_user_by_email(
-    email: str,
-    api_key: str = None
+    request: UserLookupRequest,
+    x_api_key: str = Header(None, alias="X-API-Key")
 ):
     """
     Lookup a user's current step and progress by email.
-    Requires api_key for authentication (separate from webhook_secret).
+    
+    Headers:
+        X-API-Key: Your lookup API key
+    
+    Body:
+        {"email": "user@example.com"}
     
     Returns: user info including current_step, completed_steps, booking info
     """
-    # Verify API key (separate from webhook_secret for security)
+    # Verify API key from header
     expected_key = os.environ.get("LOOKUP_API_KEY", "lookup-api-key-change-in-production")
-    if api_key != expected_key:
+    if not x_api_key or x_api_key != expected_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing api_key"
+            detail="Invalid or missing X-API-Key header"
         )
+    
+    email = request.email
     
     # Find user by email (case-insensitive)
     user = await db.users.find_one(
