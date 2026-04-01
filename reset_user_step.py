@@ -13,7 +13,7 @@ import sys
 import json
 
 # Configuration
-BACKEND_URL = "https://onboard-portal-7.preview.emergentagent.com/api"
+BACKEND_URL = "https://staff-access-12.preview.emergentagent.com/api"
 WEBHOOK_SECRET = "your-webhook-secret-key-change-in-production"
 
 # Admin credentials

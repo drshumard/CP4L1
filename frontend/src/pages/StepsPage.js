@@ -94,6 +94,7 @@ const StepsPage = () => {
   // Session expiration warning state
   const [showSessionWarning, setShowSessionWarning] = useState(false);
   const [sessionExpiryCountdown, setSessionExpiryCountdown] = useState(30);
+  const [isActivating, setIsActivating] = useState(false);
   const sessionWarningTimerRef = useRef(null);
   const sessionCheckIntervalRef = useRef(null);
 
@@ -1264,6 +1265,9 @@ const StepsPage = () => {
               
               <Button
                 onClick={async () => {
+                  if (isActivating) return;
+                  setIsActivating(true);
+                  try {
                   trackButtonClicked('activate_practice_better_portal', 'steps_page');
                   
                   // Mark as complete
@@ -1307,11 +1311,15 @@ const StepsPage = () => {
                   }
                   
                   await fetchData();
+                  } finally {
+                    setIsActivating(false);
+                  }
                 }}
-                className="w-full max-w-sm bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg"
+                disabled={isActivating}
+                className="w-full max-w-sm bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg disabled:opacity-60 disabled:cursor-not-allowed"
                 data-testid="activate-portal-button"
               >
-                Activate Your Practice Better Portal
+                {isActivating ? 'Activating...' : 'Activate Your Practice Better Portal'}
               </Button>
               
               <p className="text-gray-500 text-sm mt-4 italic">

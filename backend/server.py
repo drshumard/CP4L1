@@ -1927,13 +1927,24 @@ async def lookup_user_by_email(
             detail="Invalid or missing X-API-Key header"
         )
     
-    # URL decode the email to handle + and other special characters
+    # Parse email from raw query string to preserve literal + signs
+    # (FastAPI's default query param parsing converts + to space)
     from urllib.parse import unquote
-    email = unquote(email)
+    import re as re_module
+    raw_query = str(request.url.query)
+    email_raw = None
+    for param in raw_query.split('&'):
+        key_value = param.split('=', 1)
+        if len(key_value) == 2 and key_value[0] == 'email':
+            email_raw = unquote(key_value[1])  # decodes %XX but preserves +
+            break
+    if email_raw:
+        email = email_raw
     
-    # Find user by email (case-insensitive)
+    # Escape email for regex (+ is a regex quantifier) and do case-insensitive match
+    email_escaped = re_module.escape(email)
     user = await db.users.find_one(
-        {"email": {"$regex": f"^{email}$", "$options": "i"}},
+        {"email": {"$regex": f"^{email_escaped}$", "$options": "i"}},
         {"_id": 0, "password": 0}  # Exclude sensitive fields
     )
     

@@ -655,7 +655,12 @@ export function OnboardingBooking({
       {error && !isSlotExpired && (
         <div className={styles.errorBanner}>
           {error}
-          <button onClick={() => setError(null)} className={styles.errorDismiss} type="button">×</button>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+            <button onClick={handleConfirmBooking} className={styles.errorRefresh} type="button" data-testid="booking-retry-button">
+              Try Again
+            </button>
+            <button onClick={() => setError(null)} className={styles.errorDismiss} type="button">×</button>
+          </div>
         </div>
       )}
 
