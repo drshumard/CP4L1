@@ -1927,6 +1927,10 @@ async def lookup_user_by_email(
             detail="Invalid or missing X-API-Key header"
         )
     
+    # URL decode the email to handle + and other special characters
+    from urllib.parse import unquote
+    email = unquote(email)
+    
     # Find user by email (case-insensitive)
     user = await db.users.find_one(
         {"email": {"$regex": f"^{email}$", "$options": "i"}},
