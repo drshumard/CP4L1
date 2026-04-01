@@ -205,7 +205,7 @@ const OutcomePage = () => {
             transition={{ delay: 0.6 }}
             className="text-xl text-gray-700 max-w-2xl mx-auto mb-8"
           >
-            You've successfully completed your wellness journey onboarding! Your consultation is booked and your health profile is complete. You're all set to begin your personalized wellness program.
+            You've successfully completed your diabetes reversal journey onboarding! Your consultation is booked and your health profile is complete. You're all set to begin your consultation.
           </motion.p>
 
           <motion.div
