@@ -136,8 +136,8 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 
 ## Backlog (Future Tasks)
 - P1: Grant Staff Access to Admin Pages (pending user confirmation)
-- P1: Add loading/disabled state to "Activate Portal" button
-- P1: Add "Try Again" button for non-409 booking failures
+- ~~P1: Add loading/disabled state to "Activate Portal" button~~ ✅ Done
+- ~~P1: Add "Try Again" button for non-409 booking failures~~ ✅ Done
 - P2: Save and show video watch progress
 - P2: Send automated email nudges for incomplete steps
 - P2: Refactor StepsPage.js into smaller components
@@ -190,5 +190,23 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 ## Codebase Review
 See `/app/memory/CODEBASE_REVIEW.md` for detailed analysis of potential failure points for 50+ non-tech-savvy users.
 
+## Recent Updates (April 1, 2026)
+
+### Bug Fix: User Lookup + Sign in Email
+- **Root Causes**: Two bugs in `GET /api/user/lookup`:
+  1. FastAPI query param parsing converts `+` to space — fixed by parsing raw query string from `request.url.query`
+  2. `+` is a regex quantifier in MongoDB `$regex` — fixed with `re.escape()`
+- **Status**: RESOLVED — Both raw `+` and `%2B`-encoded emails now work correctly
+
+### Enhancement: Activate Portal Button Loading State
+- Added `isActivating` state to Step 3 "Activate Portal" button
+- Button shows "Activating..." and becomes disabled during API calls to prevent double-clicks
+- **Status**: IMPLEMENTED
+
+### Enhancement: Booking Error "Try Again" Button
+- Added "Try Again" button to booking error banner in `OnboardingBooking.jsx`
+- Button retries the booking action for non-409 errors (slot unavailable errors already have their own refresh UI)
+- **Status**: IMPLEMENTED
+
 ## Last Updated
-March 25, 2026 - Added Automation Builder feature for forwarding booking webhooks to external services
+April 1, 2026 - Fixed user lookup + sign handling, added Activate Portal loading state, added booking error Try Again button
