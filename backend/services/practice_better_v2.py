@@ -13,7 +13,7 @@ Improvements over v1:
 
 import httpx
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Tuple
+from typing import Any, Optional, Dict, List, Tuple
 import asyncio
 from pydantic import BaseModel, EmailStr
 import os
@@ -22,6 +22,7 @@ import logging
 import random
 import uuid
 from dataclasses import dataclass, field
+from services.client_cache import get_client_cache
 
 logger = logging.getLogger(__name__)
 
@@ -203,8 +204,10 @@ class PracticeBetterConfig(BaseModel):
     portal_base_url: str = "https://portal.practicebetter.io"
     availability_cache_ttl: int = 60
     max_retries: int = 2
+    max_auth_retries: int = 1
     retry_base_delay: float = 2.0
     retry_max_delay: float = 15.0
+    retry_429_base_delay: float = 10.0
     
     @classmethod
     def from_env(cls) -> "PracticeBetterConfig":
@@ -255,7 +258,7 @@ class TimeSlot(BaseModel):
     """Available time slot with consultant info"""
     start_time: datetime
     end_time: datetime
-    duration: int
+    duration: int  # minutes
     consultant_id: str
     consultant_name: str
 
@@ -279,7 +282,7 @@ class BookingResult(BaseModel):
     consultant_name: str
     session_start: datetime
     session_end: datetime
-    duration: int
+    duration: int  # seconds (from PB API response)
     is_new_client: bool = False
 
 
@@ -311,7 +314,7 @@ class SlotUnavailableError(BookingError):
 @dataclass
 class CacheEntry:
     """Single cache entry with expiration"""
-    data: any
+    data: Any
     expires_at: float
     
     def is_expired(self) -> bool:
@@ -326,7 +329,7 @@ class AvailabilityCache:
         self._cache: Dict[str, CacheEntry] = {}
         self._lock = asyncio.Lock()
     
-    async def get(self, key: str) -> Optional[any]:
+    async def get(self, key: str) -> Optional[Any]:
         async with self._lock:
             entry = self._cache.get(key)
             if entry and not entry.is_expired():
@@ -335,7 +338,7 @@ class AvailabilityCache:
                 del self._cache[key]
             return None
     
-    async def set(self, key: str, data: any) -> None:
+    async def set(self, key: str, data: Any) -> None:
         async with self._lock:
             self._cache[key] = CacheEntry(
                 data=data,
@@ -415,7 +418,8 @@ class PracticeBetterService:
         correlation_id: str = None,
         **kwargs
     ) -> dict:
-        """Make authenticated request with retries and 429 backoff"""
+        """Make authenticated request with retries.
+        Auth failures (401/403) get a separate retry budget and don't consume transient retries."""
         cid = correlation_id or str(uuid.uuid4())[:8]
         client = await self._get_client()
         token = await self.token_manager.get_token(client)
@@ -425,6 +429,7 @@ class PracticeBetterService:
         headers["X-Correlation-ID"] = cid
         
         url = f"{self.config.base_url}{path}"
+        auth_retries_left = self.config.max_auth_retries
         
         for attempt in range(self.config.max_retries):
             try:
@@ -432,22 +437,35 @@ class PracticeBetterService:
                 response.raise_for_status()
                 return response.json()
             except httpx.HTTPStatusError as e:
-                if e.response.status_code in (401, 403):
+                status = e.response.status_code
+                
+                # Auth failures: separate budget, don't consume transient retries
+                if status in (401, 403) and auth_retries_left > 0:
+                    auth_retries_left -= 1
+                    logger.info(f"[{cid}] Auth {status}, refreshing token (auth retries left: {auth_retries_left})")
                     self.token_manager._token = None
                     token = await self.token_manager.get_token(client)
                     headers["Authorization"] = f"Bearer {token}"
+                    attempt -= 1  # don't consume a transient retry
                     continue
-                if e.response.status_code == 429:
-                    retry_after = e.response.headers.get("Retry-After")
-                    if retry_after:
-                        delay = min(float(retry_after), 30.0)
-                    else:
-                        delay = min(10.0 * (2 ** attempt) + random.uniform(0, 2), 30.0)
-                    logger.warning(f"[{cid}] Rate limited (429), waiting {delay:.1f}s (attempt {attempt + 1}/{self.config.max_retries})")
+                
+                # 429: use configurable base delay
+                if status == 429:
                     if attempt == self.config.max_retries - 1:
                         raise
+                    retry_after = e.response.headers.get("Retry-After")
+                    if retry_after:
+                        delay = min(float(retry_after), self.config.retry_max_delay * 2)
+                    else:
+                        delay = min(
+                            self.config.retry_429_base_delay * (2 ** attempt) + random.uniform(0, 2),
+                            self.config.retry_max_delay * 2
+                        )
+                    logger.warning(f"[{cid}] Rate limited (429), waiting {delay:.1f}s (attempt {attempt + 1}/{self.config.max_retries})")
                     await asyncio.sleep(delay)
                     continue
+                
+                # Other HTTP errors: standard backoff
                 if attempt == self.config.max_retries - 1:
                     raise
                 delay = min(
@@ -455,7 +473,7 @@ class PracticeBetterService:
                     self.config.retry_max_delay
                 )
                 await asyncio.sleep(delay)
-            except Exception as e:
+            except Exception:
                 if attempt == self.config.max_retries - 1:
                     raise
                 delay = min(
@@ -498,7 +516,9 @@ class PracticeBetterService:
         """Get availability for all consultants using /consultant/availability/slots endpoint"""
         cid = correlation_id or str(uuid.uuid4())[:8]
         
-        cache_key = f"{start_date}:{days}"
+        # Include practitioner filter in cache key so different sets don't collide
+        prac_hash = hash(tuple(sorted(self.config.practitioner_ids))) if self.config.practitioner_ids else "all"
+        cache_key = f"{start_date}:{days}:{prac_hash}"
         cached = await self._availability_cache.get(cache_key)
         if cached:
             return cached
@@ -508,58 +528,62 @@ class PracticeBetterService:
         all_slots: List[TimeSlot] = []
         dates_set = set()
         
-        for consultant in consultants:
+        # Fetch all consultants concurrently with a semaphore to respect rate limits
+        sem = asyncio.Semaphore(3)
+        
+        async def fetch_consultant_slots(consultant: dict) -> List[TimeSlot]:
             consultant_id = consultant.get("id")
-            # Handle both profile structure and direct name fields
             profile = consultant.get('profile', {})
             if profile:
                 consultant_name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
             else:
                 consultant_name = f"{consultant.get('firstName', '')} {consultant.get('lastName', '')}".strip()
             
-            try:
-                # Use /consultant/availability/slots endpoint with correct params
-                result = await self._request(
-                    "GET",
-                    "/consultant/availability/slots",
-                    correlation_id=cid,
-                    params={
-                        "as_consultant": consultant_id,
-                        "day": start_date,
-                        "serviceId": self.config.service_id,
-                        "type": self.config.session_type,
-                    }
-                )
-                
-                # Response is a list of slots directly
-                slots_data = result if isinstance(result, list) else result.get("items", result.get("slots", []))
-                
-                for slot_data in slots_data:
-                    # Parse startDate and endDate from response
-                    start_str = slot_data.get("startDate") or slot_data.get("startTime") or slot_data.get("start")
-                    if start_str:
-                        start_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
-                    else:
-                        continue
-                    
-                    end_str = slot_data.get("endDate") or slot_data.get("endTime") or slot_data.get("end")
-                    if end_str:
-                        end_time = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
-                    else:
-                        end_time = start_time + timedelta(minutes=self.config.session_duration)
-                    
-                    slot = TimeSlot(
-                        start_time=start_time,
-                        end_time=end_time,
-                        duration=self.config.session_duration,
-                        consultant_id=consultant_id,
-                        consultant_name=consultant_name
+            slots = []
+            async with sem:
+                try:
+                    result = await self._request(
+                        "GET",
+                        "/consultant/availability/slots",
+                        correlation_id=cid,
+                        params={
+                            "as_consultant": consultant_id,
+                            "day": start_date,
+                            "serviceId": self.config.service_id,
+                            "type": self.config.session_type,
+                        }
                     )
-                    all_slots.append(slot)
-                    dates_set.add(start_time.strftime("%Y-%m-%d"))
                     
-            except Exception as e:
-                logger.warning(f"[{cid}] Failed to get availability for consultant {consultant_id}: {e}")
+                    slots_data = result if isinstance(result, list) else result.get("items", result.get("slots", []))
+                    
+                    for slot_data in slots_data:
+                        start_str = slot_data.get("startDate") or slot_data.get("startTime") or slot_data.get("start")
+                        if not start_str:
+                            continue
+                        start_time = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+                        
+                        end_str = slot_data.get("endDate") or slot_data.get("endTime") or slot_data.get("end")
+                        if end_str:
+                            end_time = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+                        else:
+                            end_time = start_time + timedelta(minutes=self.config.session_duration)
+                        
+                        slots.append(TimeSlot(
+                            start_time=start_time,
+                            end_time=end_time,
+                            duration=self.config.session_duration,  # minutes
+                            consultant_id=consultant_id,
+                            consultant_name=consultant_name
+                        ))
+                except Exception as e:
+                    logger.warning(f"[{cid}] Failed to get availability for consultant {consultant_id}: {e}")
+            return slots
+        
+        results = await asyncio.gather(*[fetch_consultant_slots(c) for c in consultants])
+        for slots in results:
+            for slot in slots:
+                all_slots.append(slot)
+                dates_set.add(slot.start_time.strftime("%Y-%m-%d"))
         
         all_slots.sort(key=lambda s: s.start_time)
         dates_list = sorted(list(dates_set))
@@ -569,13 +593,13 @@ class PracticeBetterService:
         
         return result_data
     
-    def validate_slot_from_cache(
+    def slot_in_cache(
         self,
         cached_slots: List[TimeSlot],
         consultant_id: str,
         slot_start_time: str
     ) -> bool:
-        """Check if a slot exists in cached availability"""
+        """Check if a slot exists in cached availability (advisory only — cache may be stale)"""
         for slot in cached_slots:
             if (slot.consultant_id == consultant_id and 
                 slot.start_time.isoformat() == slot_start_time):
@@ -632,26 +656,20 @@ class PracticeBetterService:
         correlation_id: str = None
     ) -> Optional[str]:
         """Search Practice Better for an existing client record by email.
-        Returns the record ID if found, None otherwise."""
+        Returns the record ID if found, None otherwise.
+        Uses _request for consistent retry/logging behaviour."""
         cid = correlation_id or str(uuid.uuid4())[:8]
         try:
-            client = await self._get_client()
-            token = await self.token_manager.get_token(client)
-            
-            response = await client.get(
-                f"{self.config.base_url}/consultant/records",
-                headers={
-                    "Authorization": f"Bearer {token}",
-                    "X-Correlation-ID": cid
-                },
+            data = await self._request(
+                "GET",
+                "/consultant/records",
+                correlation_id=cid,
                 params={
                     "type": "client",
                     "status": "active",
                     "limit": 20
                 }
             )
-            response.raise_for_status()
-            data = response.json()
             
             normalized = email.lower().strip()
             for item in data.get("items", []):
@@ -660,8 +678,6 @@ class PracticeBetterService:
                 if item_email == normalized:
                     record_id = item.get("id")
                     logger.info(f"[{cid}] Found existing client via API search: {email} -> {record_id}")
-                    # Save to local cache for future lookups
-                    from services.client_cache import get_client_cache
                     cache = get_client_cache()
                     cache.upsert_client(item)
                     return record_id
@@ -680,7 +696,6 @@ class PracticeBetterService:
         cid = correlation_id or str(uuid.uuid4())[:8]
         
         # Check local cache first
-        from services.client_cache import get_client_cache
         cache = get_client_cache()
         cached_client = cache.get_client_by_email(profile.email)
         if cached_client:
@@ -785,7 +800,7 @@ class PracticeBetterService:
         
         try:
             if cached_availability:
-                if not self.validate_slot_from_cache(
+                if not self.slot_in_cache(
                     cached_availability,
                     request.consultant_id,
                     request.slot_start_time
@@ -824,13 +839,18 @@ class PracticeBetterService:
             
             logger.info(f"[{cid}] Booking complete: session={session_id}, client={client_record_id}, new={is_new_client}")
             
+            consultant = session.get("consultant", {})
+            consultant_name = f"{consultant.get('firstName', '')} {consultant.get('lastName', '')}".strip()
+            if not consultant_name:
+                consultant_name = consultant.get("emailAddress", "")
+            
             return BookingResult(
                 session_id=session_id,
                 client_record_id=client_record_id,
-                consultant_name=session.get("consultant", {}).get("emailAddress", ""),
+                consultant_name=consultant_name,
                 session_start=datetime.fromisoformat(session["sessionDate"].replace("Z", "+00:00")),
                 session_end=datetime.fromisoformat(session["endDate"].replace("Z", "+00:00")),
-                duration=session["duration"],
+                duration=session["duration"],  # seconds (from PB API)
                 is_new_client=is_new_client
             )
         
@@ -856,12 +876,36 @@ class PracticeBetterService:
 # Idempotency Store
 # ============================================================================
 
+IDEMPOTENCY_PENDING = "pending"
+IDEMPOTENCY_COMPLETE = "complete"
+
+
+@dataclass
+class IdempotencyEntry:
+    """Idempotency entry with explicit status"""
+    status: str  # "pending" or "complete"
+    session_id: Optional[str]
+    expires_at: float
+    
+    def is_expired(self) -> bool:
+        return time.time() > self.expires_at
+
+
 class IdempotencyStore:
-    """In-memory store for booking idempotency"""
+    """In-memory store for booking idempotency.
+    
+    Lifecycle:
+    1. check_and_set -> stores PENDING entry (sentinel)
+    2. On success: complete() -> upgrades to COMPLETE with session_id
+    3. On failure: remove() -> deletes the entry so user can retry
+    
+    If process crashes between 1 and 2/3, the PENDING entry expires after TTL.
+    Retries hitting a PENDING entry are told to wait rather than re-submitting.
+    """
     
     def __init__(self, ttl: int = 300):
         self.ttl = ttl
-        self._store: Dict[str, CacheEntry] = {}
+        self._store: Dict[str, IdempotencyEntry] = {}
         self._lock = asyncio.Lock()
     
     def _make_key(self, email: str, consultant_id: str, slot_start_time: str) -> str:
@@ -873,15 +917,25 @@ class IdempotencyStore:
         consultant_id: str,
         slot_start_time: str
     ) -> Tuple[bool, Optional[str]]:
+        """Returns (is_duplicate, session_id_or_none).
+        
+        If COMPLETE: returns (True, session_id) — booking already done.
+        If PENDING: returns (True, None) — booking in progress, tell user to wait.
+        If absent/expired: sets PENDING and returns (False, None) — proceed with booking.
+        """
         key = self._make_key(email, consultant_id, slot_start_time)
         
         async with self._lock:
             entry = self._store.get(key)
             
             if entry and not entry.is_expired():
-                return (True, entry.data)
+                return (True, entry.session_id)
             
-            self._store[key] = CacheEntry(data=None, expires_at=time.time() + self.ttl)
+            self._store[key] = IdempotencyEntry(
+                status=IDEMPOTENCY_PENDING,
+                session_id=None,
+                expires_at=time.time() + self.ttl
+            )
             return (False, None)
     
     async def complete(
@@ -891,10 +945,15 @@ class IdempotencyStore:
         slot_start_time: str,
         session_id: str
     ) -> None:
+        """Mark booking as complete with session ID."""
         key = self._make_key(email, consultant_id, slot_start_time)
         
         async with self._lock:
-            self._store[key] = CacheEntry(data=session_id, expires_at=time.time() + self.ttl)
+            self._store[key] = IdempotencyEntry(
+                status=IDEMPOTENCY_COMPLETE,
+                session_id=session_id,
+                expires_at=time.time() + self.ttl
+            )
     
     async def remove(
         self,
@@ -902,6 +961,7 @@ class IdempotencyStore:
         consultant_id: str,
         slot_start_time: str
     ) -> None:
+        """Remove entry on failure so user can retry."""
         key = self._make_key(email, consultant_id, slot_start_time)
         
         async with self._lock:
@@ -914,10 +974,12 @@ class IdempotencyStore:
 
 _service_instance: Optional[PracticeBetterService] = None
 _idempotency_store: Optional[IdempotencyStore] = None
+_init_lock = asyncio.Lock()
 
 
 def get_practice_better_service() -> PracticeBetterService:
-    """Get or create the global service instance"""
+    """Get or create the global service instance.
+    Note: for threaded ASGI servers, call init_service() at startup instead."""
     global _service_instance
     
     if _service_instance is None:
@@ -928,13 +990,23 @@ def get_practice_better_service() -> PracticeBetterService:
 
 
 def get_idempotency_store() -> IdempotencyStore:
-    """Get or create the global idempotency store"""
+    """Get or create the global idempotency store."""
     global _idempotency_store
     
     if _idempotency_store is None:
         _idempotency_store = IdempotencyStore()
     
     return _idempotency_store
+
+
+async def init_service() -> PracticeBetterService:
+    """Thread-safe async initialization. Call from lifespan/startup event."""
+    global _service_instance
+    async with _init_lock:
+        if _service_instance is None:
+            config = PracticeBetterConfig.from_env()
+            _service_instance = PracticeBetterService(config)
+    return _service_instance
 
 
 async def shutdown_service() -> None:

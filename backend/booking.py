@@ -489,7 +489,6 @@ async def book_session(
                         
                         # Send LeadConnector webhook for Step 1 completion
                         try:
-                            import httpx
                             # Format booking date and time
                             booking_date = None
                             booking_time = None
@@ -553,6 +552,10 @@ async def book_session(
             status_code=400,
             detail=e.message
         )
+    
+    except HTTPException:
+        # Re-raise HTTPExceptions (e.g., slot not found) without wrapping
+        raise
     
     except httpx.HTTPStatusError as e:
         await idempotency_store.remove(request.email, request.consultant_id, request.slot_start_time)
