@@ -51,16 +51,12 @@ class ClientSyncService:
         async with httpx.AsyncClient(timeout=30.0) as client:
             token = await self.token_getter(client)
             
-            params = {
-                "type": "client",
-                "status": "active",
-                "limit": limit
-            }
+            params = {"limit": limit}
             
             if after_id:
-                params["afterId"] = after_id
+                params["after_id"] = after_id
             if before_id:
-                params["beforeId"] = before_id
+                params["before_id"] = before_id
             
             response = await client.get(
                 f"{self.base_url}/consultant/records",
@@ -95,12 +91,14 @@ class ClientSyncService:
             try:
                 total_synced = 0
                 last_id = None
+                seen_ids: set = set()
                 max_pages = 100  # Safety: 100 × 100 = 10,000 clients max
                 
                 for page in range(max_pages):
+                    # PB returns records in descending order; use before_id for next page
                     data = await self.fetch_clients_page(
                         limit=100,
-                        after_id=last_id
+                        before_id=last_id
                     )
                     
                     items = data.get("items", [])
@@ -108,14 +106,18 @@ class ClientSyncService:
                     if not items:
                         break
                     
+                    # Check for duplicate IDs to detect infinite loop
+                    first_id = items[0].get("id")
+                    if first_id in seen_ids:
+                        logger.warning(f"Pagination looping detected at page {page}, breaking")
+                        break
+                    for item in items:
+                        seen_ids.add(item.get("id"))
+                    
                     synced = self.cache.upsert_clients_batch(items)
                     total_synced += synced
                     
-                    new_last_id = items[-1].get("id")
-                    if new_last_id == last_id:
-                        logger.warning(f"Pagination stuck at afterId={last_id}, breaking")
-                        break
-                    last_id = new_last_id
+                    last_id = items[-1].get("id")
                     
                     if progress_callback:
                         progress_callback(total_synced, None)

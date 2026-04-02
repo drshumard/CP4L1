@@ -21,6 +21,8 @@ import uuid
 import os
 import time
 import asyncio
+import jwt
+import re as re_module
 
 from services.practice_better_v2 import (
     PracticeBetterService,
@@ -448,7 +450,6 @@ async def book_session(
         
         # Pre-flight: check MongoDB for existing PB client record ID
         # This avoids hitting PB's create endpoint for clients that already exist
-        import re as re_module
         email_escaped = re_module.escape(request.email)
         existing_user = await db.users.find_one(
             {"email": {"$regex": f"^{email_escaped}$", "$options": "i"}},
@@ -476,7 +477,7 @@ async def book_session(
             cached_availability=cached_slots,
             correlation_id=correlation_id
         )
-        except BookingError as be:
+        except BookingError:
             # If we used a stored PB ID and it failed, clear the stale record
             if existing_pb_id:
                 logger.info(f"[{correlation_id}] Clearing stale pb_client_record_id for {request.email}")
@@ -732,6 +733,215 @@ async def sync_clients(
     except Exception as e:
         logger.error(f"[{correlation_id}] Client sync failed: {e}")
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
+
+
+@router.get("/pb-clients/fetch")
+async def fetch_pb_clients_to_mongo(
+    request: Request,
+    pb_service: PracticeBetterService = Depends(get_practice_better_service),
+    correlation_id: str = Depends(get_correlation_id)
+):
+    """
+    Fetch all client records from Practice Better and sync pb_client_record_id
+    into MongoDB users collection (matching by email).
+    
+    Protected endpoint - requires Authorization Bearer token (admin only).
+    Returns list of all PB clients fetched and which ones matched local users.
+    """
+    # Auth: reuse the JWT admin check from server.py
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing auth token")
+
+    token = auth_header.replace("Bearer ", "")
+    try:
+        secret_key = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if not user or user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin only")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    all_pb_clients = []
+    last_id = None
+    max_pages = 30
+    seen_ids: set = set()
+
+    for page in range(max_pages):
+        try:
+            params = {"limit": 100}
+            if last_id:
+                params["before_id"] = last_id
+
+            data = await pb_service._request(
+                "GET",
+                "/consultant/records",
+                correlation_id=correlation_id,
+                params=params
+            )
+
+            items = data.get("items", [])
+            if not items:
+                break
+
+            # Detect infinite loop
+            first_id = items[0].get("id")
+            if first_id in seen_ids:
+                logger.warning(f"[{correlation_id}] PB fetch pagination loop detected at page {page}")
+                break
+            for item in items:
+                seen_ids.add(item.get("id"))
+
+            all_pb_clients.extend(items)
+            last_id = items[-1].get("id")
+
+            if len(items) < 100:
+                break
+
+            await asyncio.sleep(0.3)  # Be gentle with PB rate limits
+        except Exception as e:
+            logger.error(f"[{correlation_id}] Error fetching PB clients page {page}: {e}")
+            break
+
+    # Now match PB clients to local MongoDB users by email and store pb_client_record_id
+    matched = []
+    unmatched = []
+    updated = []
+
+    for pb_client in all_pb_clients:
+        profile = pb_client.get("profile", {})
+        pb_email = (profile.get("emailAddress") or "").lower().strip()
+        pb_record_id = pb_client.get("id")
+        pb_name = f"{profile.get('firstName', '')} {profile.get('lastName', '')}".strip()
+
+        if not pb_email:
+            continue
+
+        email_escaped = re_module.escape(pb_email)
+        local_user = await db.users.find_one(
+            {"email": {"$regex": f"^{email_escaped}$", "$options": "i"}},
+            {"_id": 0, "email": 1, "name": 1, "pb_client_record_id": 1, "id": 1}
+        )
+
+        entry = {
+            "pb_record_id": pb_record_id,
+            "pb_email": pb_email,
+            "pb_name": pb_name,
+            "pb_status": pb_client.get("status", "unknown"),
+        }
+
+        if local_user:
+            entry["local_email"] = local_user.get("email")
+            entry["local_name"] = local_user.get("name")
+            entry["had_pb_id"] = local_user.get("pb_client_record_id")
+
+            # Update MongoDB with PB record ID if missing or different
+            if local_user.get("pb_client_record_id") != pb_record_id:
+                await db.users.update_one(
+                    {"id": local_user["id"]},
+                    {"$set": {"pb_client_record_id": pb_record_id}}
+                )
+                entry["action"] = "updated"
+                updated.append(entry)
+            else:
+                entry["action"] = "already_synced"
+
+            matched.append(entry)
+        else:
+            entry["action"] = "no_local_user"
+            unmatched.append(entry)
+
+    # Also upsert into local SQLite cache
+    from services.client_cache import get_client_cache
+    cache = get_client_cache()
+    cache.upsert_clients_batch(all_pb_clients)
+
+    return {
+        "status": "success",
+        "total_pb_clients_fetched": len(all_pb_clients),
+        "pages_fetched": min(len(all_pb_clients) // 100 + 1, max_pages),
+        "matched_to_local_users": len(matched),
+        "updated_in_mongo": len(updated),
+        "unmatched_pb_clients": len(unmatched),
+        "matched_details": matched,
+        "updated_details": updated,
+        "unmatched_details": unmatched,
+    }
+
+
+@router.get("/pb-clients/lookup")
+async def lookup_pb_client(
+    email: str,
+    request: Request,
+    pb_service: PracticeBetterService = Depends(get_practice_better_service),
+    correlation_id: str = Depends(get_correlation_id)
+):
+    """
+    Look up a specific client by email in Practice Better.
+    Returns the PB record if found, and optionally syncs to MongoDB.
+    
+    Protected - requires admin Bearer token.
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing auth token")
+
+    token = auth_header.replace("Bearer ", "")
+    try:
+        secret_key = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = await db.users.find_one({"id": user_id}, {"_id": 0})
+        if not user or user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Admin only")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Search PB for this email using the fixed pagination
+    pb_record_id = await pb_service.search_client_by_email(email, correlation_id=correlation_id)
+
+    if not pb_record_id:
+        return {
+            "found": False,
+            "email": email,
+            "message": "Client not found in Practice Better"
+        }
+
+    # Check local user
+    email_escaped = re_module.escape(email.lower().strip())
+    local_user = await db.users.find_one(
+        {"email": {"$regex": f"^{email_escaped}$", "$options": "i"}},
+        {"_id": 0, "email": 1, "name": 1, "pb_client_record_id": 1, "id": 1}
+    )
+
+    result = {
+        "found": True,
+        "email": email,
+        "pb_record_id": pb_record_id,
+    }
+
+    if local_user:
+        old_id = local_user.get("pb_client_record_id")
+        if old_id != pb_record_id:
+            await db.users.update_one(
+                {"id": local_user["id"]},
+                {"$set": {"pb_client_record_id": pb_record_id}}
+            )
+            result["mongo_action"] = "updated"
+            result["old_pb_id"] = old_id
+        else:
+            result["mongo_action"] = "already_synced"
+        result["local_user"] = local_user.get("email")
+    else:
+        result["mongo_action"] = "no_local_user"
+
+    return result
 
 
 @router.get("/cache-status")

@@ -664,16 +664,15 @@ class PracticeBetterService:
         normalized = email.lower().strip()
         last_id = None
         pages_checked = 0
-        max_pages = 10  # Safety limit: 10 pages × 100 = 1000 clients max
+        max_pages = 20  # Safety limit: 20 pages × 100 = 2000 clients max
+        seen_ids: set = set()  # Track seen IDs to detect infinite loops
         
         try:
             while pages_checked < max_pages:
-                params = {
-                    "type": "client",
-                    "limit": 100
-                }
+                params = {"limit": 100}
                 if last_id:
-                    params["afterId"] = last_id
+                    # PB returns records in descending order; use before_id for next page
+                    params["before_id"] = last_id
                 
                 data = await self._request(
                     "GET",
@@ -687,19 +686,32 @@ class PracticeBetterService:
                     break
                 
                 for item in items:
+                    item_id = item.get("id")
+                    if item_id in seen_ids:
+                        logger.warning(f"[{cid}] Duplicate ID detected in pagination, stopping: {item_id}")
+                        return None
+                    seen_ids.add(item_id)
+                    
                     profile = item.get("profile", {})
                     item_email = (profile.get("emailAddress") or "").lower().strip()
                     if item_email == normalized:
-                        record_id = item.get("id")
-                        logger.info(f"[{cid}] Found existing client via API search: {email} -> {record_id} (page {pages_checked + 1})")
+                        logger.info(f"[{cid}] Found existing client via API search: {email} -> {item_id} (page {pages_checked + 1})")
                         cache = get_client_cache()
                         cache.upsert_client(item)
-                        return record_id
+                        return item_id
                 
-                last_id = items[-1].get("id")
+                new_last_id = items[-1].get("id")
+                if new_last_id == last_id:
+                    logger.warning(f"[{cid}] Pagination stuck at before_id={last_id}, stopping")
+                    break
+                last_id = new_last_id
                 pages_checked += 1
+                
+                # If fewer than limit, we've reached the end
+                if len(items) < 100:
+                    break
             
-            logger.info(f"[{cid}] Client not found in PB after {pages_checked} pages: {email}")
+            logger.info(f"[{cid}] Client not found in PB after {pages_checked} pages ({len(seen_ids)} records): {email}")
             return None
         except Exception as e:
             logger.warning(f"[{cid}] Client search by email failed: {e}")
