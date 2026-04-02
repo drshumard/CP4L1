@@ -430,8 +430,9 @@ class PracticeBetterService:
         
         url = f"{self.config.base_url}{path}"
         auth_retries_left = self.config.max_auth_retries
+        attempt = 0
         
-        for attempt in range(self.config.max_retries):
+        while attempt < self.config.max_retries:
             try:
                 response = await client.request(method, url, headers=headers, **kwargs)
                 response.raise_for_status()
@@ -446,12 +447,11 @@ class PracticeBetterService:
                     self.token_manager._token = None
                     token = await self.token_manager.get_token(client)
                     headers["Authorization"] = f"Bearer {token}"
-                    attempt -= 1  # don't consume a transient retry
-                    continue
+                    continue  # retry without incrementing attempt
                 
                 # 429: use configurable base delay
                 if status == 429:
-                    if attempt == self.config.max_retries - 1:
+                    if attempt >= self.config.max_retries - 1:
                         raise
                     retry_after = e.response.headers.get("Retry-After")
                     if retry_after:
@@ -463,10 +463,11 @@ class PracticeBetterService:
                         )
                     logger.warning(f"[{cid}] Rate limited (429), waiting {delay:.1f}s (attempt {attempt + 1}/{self.config.max_retries})")
                     await asyncio.sleep(delay)
+                    attempt += 1
                     continue
                 
                 # Other HTTP errors: standard backoff
-                if attempt == self.config.max_retries - 1:
+                if attempt >= self.config.max_retries - 1:
                     raise
                 delay = min(
                     self.config.retry_base_delay * (2 ** attempt) + random.uniform(0, 1),
@@ -474,13 +475,14 @@ class PracticeBetterService:
                 )
                 await asyncio.sleep(delay)
             except Exception:
-                if attempt == self.config.max_retries - 1:
+                if attempt >= self.config.max_retries - 1:
                     raise
                 delay = min(
                     self.config.retry_base_delay * (2 ** attempt) + random.uniform(0, 1),
                     self.config.retry_max_delay
                 )
                 await asyncio.sleep(delay)
+            attempt += 1
         
         raise Exception(f"Request failed after {self.config.max_retries} attempts")
     
