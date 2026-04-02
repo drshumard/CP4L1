@@ -1016,3 +1016,31 @@ async def cache_status(
         "needs_sync": cache.needs_sync(max_age_minutes=60),
         "availability_cache_entries": len(_availability_cache)
     }
+
+
+@router.get("/cache-lookup")
+async def cache_lookup(
+    email: str,
+    correlation_id: str = Depends(get_correlation_id)
+):
+    """
+    Check if a specific email exists in the local SQLite cache.
+    No auth required — only returns whether the record exists and the ID (no PII).
+    """
+    from services.client_cache import get_client_cache
+    cache = get_client_cache()
+    client = cache.get_client_by_email(email)
+
+    if client:
+        return {
+            "found": True,
+            "email": email,
+            "record_id": client.get("record_id"),
+            "status": client.get("status"),
+            "synced_at": client.get("synced_at"),
+        }
+    return {
+        "found": False,
+        "email": email,
+        "message": "Not in local cache. Will be searched in PB on next booking attempt."
+    }
