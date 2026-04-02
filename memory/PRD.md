@@ -192,6 +192,22 @@ See `/app/memory/CODEBASE_REVIEW.md` for detailed analysis of potential failure 
 
 ## Recent Updates (April 2, 2026)
 
+### Refactoring: Practice Better Service v2 (Code Review)
+All 12 items from code review addressed:
+1. Auth retries separated from transient retries (`max_auth_retries=1` separate budget)
+2. 429 backoff uses config (`retry_429_base_delay`) instead of hardcoded escalation
+3. `search_client_by_email` uses `_request` for consistent retry/logging (was raw HTTP)
+4. `asyncio.gather` + `Semaphore(3)` for concurrent availability fetching (~1.3s vs ~6s)
+5. Idempotency store uses status enum (pending/complete) instead of None sentinel
+6. Cache key includes practitioner ID hash
+7. `consultant_name` reads actual name (was pulling email)
+8. `CacheEntry.data` typed as `Any` (was lowercase `any`)
+9. `validate_slot_from_cache` renamed to `slot_in_cache` (advisory, not validation)
+10. Duration units documented (TimeSlot=minutes, BookingResult=seconds)
+11. Inline imports moved to module level (`get_client_cache`)
+12. Thread-safe singleton with `asyncio.Lock` for init
+- **Status**: COMPLETE
+
 ### Bug Fix: Practice Better 429 Rate Limiting
 - **Root Cause**: Aggressive retry strategy (3 retries × short delays × multiple user clicks) exhausted PB rate limits
 - **Fixes applied**:
