@@ -352,7 +352,7 @@ async def book_session(
     """
     logger.info(f"[{correlation_id}] Booking request: {request.email} for {request.slot_start_time}")
     
-    # Per-email cooldown to prevent rapid-fire requests
+    # Per-email cooldown to prevent rapid-fire requests to Practice Better
     email_lower = request.email.lower()
     now = time.time()
     last_attempt = _booking_cooldowns.get(email_lower, 0)
@@ -363,7 +363,6 @@ async def book_session(
             status_code=429,
             detail=f"Please wait {int(remaining)} seconds before trying again."
         )
-    _booking_cooldowns[email_lower] = now
     
     is_duplicate, existing_session = await idempotency_store.check_and_set(
         request.email,
@@ -425,6 +424,9 @@ async def book_session(
             consultant_id=actual_consultant_id,  # Use the actual consultant with this slot
             notes=request.notes
         )
+        
+        # Set cooldown now — we're about to hit Practice Better's API
+        _booking_cooldowns[email_lower] = time.time()
         
         result = await pb_service.complete_booking(
             booking_request,
