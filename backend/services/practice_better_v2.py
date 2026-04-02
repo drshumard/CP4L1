@@ -202,9 +202,9 @@ class PracticeBetterConfig(BaseModel):
     send_invitation: bool = True
     portal_base_url: str = "https://portal.practicebetter.io"
     availability_cache_ttl: int = 60
-    max_retries: int = 3
-    retry_base_delay: float = 1.0
-    retry_max_delay: float = 10.0
+    max_retries: int = 2
+    retry_base_delay: float = 2.0
+    retry_max_delay: float = 15.0
     
     @classmethod
     def from_env(cls) -> "PracticeBetterConfig":
@@ -415,7 +415,7 @@ class PracticeBetterService:
         correlation_id: str = None,
         **kwargs
     ) -> dict:
-        """Make authenticated request with retries"""
+        """Make authenticated request with retries and 429 backoff"""
         cid = correlation_id or str(uuid.uuid4())[:8]
         client = await self._get_client()
         token = await self.token_manager.get_token(client)
@@ -436,6 +436,17 @@ class PracticeBetterService:
                     self.token_manager._token = None
                     token = await self.token_manager.get_token(client)
                     headers["Authorization"] = f"Bearer {token}"
+                    continue
+                if e.response.status_code == 429:
+                    retry_after = e.response.headers.get("Retry-After")
+                    if retry_after:
+                        delay = min(float(retry_after), 30.0)
+                    else:
+                        delay = min(10.0 * (2 ** attempt) + random.uniform(0, 2), 30.0)
+                    logger.warning(f"[{cid}] Rate limited (429), waiting {delay:.1f}s (attempt {attempt + 1}/{self.config.max_retries})")
+                    if attempt == self.config.max_retries - 1:
+                        raise
+                    await asyncio.sleep(delay)
                     continue
                 if attempt == self.config.max_retries - 1:
                     raise
@@ -615,6 +626,51 @@ class PracticeBetterService:
         
         return client_id
     
+    async def search_client_by_email(
+        self,
+        email: str,
+        correlation_id: str = None
+    ) -> Optional[str]:
+        """Search Practice Better for an existing client record by email.
+        Returns the record ID if found, None otherwise."""
+        cid = correlation_id or str(uuid.uuid4())[:8]
+        try:
+            client = await self._get_client()
+            token = await self.token_manager.get_token(client)
+            
+            response = await client.get(
+                f"{self.config.base_url}/consultant/records",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "X-Correlation-ID": cid
+                },
+                params={
+                    "type": "client",
+                    "status": "active",
+                    "limit": 20
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            normalized = email.lower().strip()
+            for item in data.get("items", []):
+                profile = item.get("profile", {})
+                item_email = (profile.get("emailAddress") or "").lower().strip()
+                if item_email == normalized:
+                    record_id = item.get("id")
+                    logger.info(f"[{cid}] Found existing client via API search: {email} -> {record_id}")
+                    # Save to local cache for future lookups
+                    from services.client_cache import get_client_cache
+                    cache = get_client_cache()
+                    cache.upsert_client(item)
+                    return record_id
+            
+            return None
+        except Exception as e:
+            logger.warning(f"[{cid}] Client search by email failed: {e}")
+            return None
+
     async def get_or_create_client(
         self,
         profile: ClientProfile,
@@ -623,34 +679,50 @@ class PracticeBetterService:
         """Create new client or get existing if creation fails"""
         cid = correlation_id or str(uuid.uuid4())[:8]
         
+        # Check local cache first
+        from services.client_cache import get_client_cache
+        cache = get_client_cache()
+        cached_client = cache.get_client_by_email(profile.email)
+        if cached_client:
+            record_id = cached_client["record_id"]
+            logger.info(f"[{cid}] Found client in local cache: {profile.email} -> {record_id}")
+            return (record_id, False)
+        
         try:
             client_record_id = await self.create_client_record(profile, correlation_id=cid)
             logger.info(f"[{cid}] Created new client: {profile.email}")
+            # Save to local cache
+            cache.upsert_client({
+                "id": client_record_id,
+                "profile": {
+                    "emailAddress": profile.email,
+                    "firstName": profile.first_name,
+                    "lastName": profile.last_name,
+                    "mobilePhone": profile.phone
+                },
+                "status": "active"
+            })
             return (client_record_id, True)
             
         except httpx.HTTPStatusError as e:
-            logger.warning(f"[{cid}] Client creation failed: {e}")
+            logger.warning(f"[{cid}] Client creation failed ({e.response.status_code}): {e}")
             
-            from services.client_cache import get_client_cache
-            cache = get_client_cache()
-            cached_client = cache.get_client_by_email(profile.email)
+            # On 429 or any failure, search PB API for the client (may have been created)
+            found_id = await self.search_client_by_email(profile.email, correlation_id=cid)
+            if found_id:
+                return (found_id, False)
             
-            if cached_client:
-                record_id = cached_client["record_id"]
-                logger.info(f"[{cid}] Found client in cache: {profile.email} -> {record_id}")
-                return (record_id, False)
-            
-            logger.info(f"[{cid}] Not in cache, retrying creation: {profile.email}")
-            try:
-                client_record_id = await self.create_client_record(profile, correlation_id=cid)
-                logger.info(f"[{cid}] Created client on retry: {profile.email}")
-                return (client_record_id, True)
-            except Exception as retry_error:
-                logger.error(f"[{cid}] Retry also failed: {retry_error}")
+            # If not found via API search and it was a 429, the client likely wasn't created
+            if e.response.status_code == 429:
                 raise BookingError(
-                    "We couldn't complete your booking. Please try again in a moment.",
-                    internal_message=f"Client creation failed twice for {profile.email}: {retry_error}"
+                    "The booking service is temporarily busy. Please wait a moment and try again.",
+                    internal_message=f"Rate limited creating client for {profile.email}"
                 )
+            
+            raise BookingError(
+                "We couldn't complete your booking. Please try again in a moment.",
+                internal_message=f"Client creation failed for {profile.email}: {e}"
+            )
         
         except Exception as e:
             logger.error(f"[{cid}] Unexpected error creating client: {e}")

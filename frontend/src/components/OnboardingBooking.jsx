@@ -231,7 +231,7 @@ function TimeSlotButton({ slot, isSelected, onClick }) {
   );
 }
 
-function ClientForm({ formData, errors, onChange, selectedSlot, onConfirm, isSubmitting }) {
+function ClientForm({ formData, errors, onChange, selectedSlot, onConfirm, isSubmitting, retryCooldown = 0 }) {
   return (
     <div className={styles.formSection}>
       {selectedSlot && (
@@ -318,10 +318,10 @@ function ClientForm({ formData, errors, onChange, selectedSlot, onConfirm, isSub
       <button
         className={styles.confirmButton}
         onClick={onConfirm}
-        disabled={isSubmitting}
+        disabled={isSubmitting || retryCooldown > 0}
         type="button"
       >
-        {isSubmitting ? 'Processing...' : 'Confirm Booking →'}
+        {isSubmitting ? 'Processing...' : retryCooldown > 0 ? `Please wait (${retryCooldown}s)` : 'Confirm Booking →'}
       </button>
     </div>
   );
@@ -347,6 +347,7 @@ export function OnboardingBooking({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
   const [hasAdvancedStep, setHasAdvancedStep] = useState(false);
+  const [retryCooldown, setRetryCooldown] = useState(0);
 
   const [formData, setFormData] = useState({
     firstName: clientInfo?.firstName || '',
@@ -359,6 +360,13 @@ export function OnboardingBooking({
 
   const timezone = useMemo(() => detectTimezone(), []);
   const today = useMemo(() => getTodayString(), []);
+
+  // Cooldown countdown timer after booking error
+  useEffect(() => {
+    if (retryCooldown <= 0) return;
+    const timer = setTimeout(() => setRetryCooldown(prev => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [retryCooldown]);
 
   // Smart polling: pause when on form step
   const shouldPoll = step !== 'fill-form' && step !== 'confirming' && step !== 'success';
@@ -544,8 +552,9 @@ export function OnboardingBooking({
         setStep('fill-form');
         refetchAvailability();
       } else {
-        setError(err instanceof Error ? err.message : 'Something went wrong');
+        setError(err instanceof Error ? err.message : 'Something went wrong. Please wait and try again.');
         setStep('fill-form');
+        setRetryCooldown(30);
         refetchAvailability();
       }
     } finally {
@@ -655,11 +664,17 @@ export function OnboardingBooking({
       {error && !isSlotExpired && (
         <div className={styles.errorBanner}>
           {error}
-          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-            <button onClick={handleConfirmBooking} className={styles.errorRefresh} type="button" data-testid="booking-retry-button">
-              Try Again
-            </button>
-            <button onClick={() => setError(null)} className={styles.errorDismiss} type="button">×</button>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto', alignItems: 'center' }}>
+            {retryCooldown > 0 ? (
+              <span style={{ fontSize: '13px', color: '#b91c1c', whiteSpace: 'nowrap' }}>
+                Retry in {retryCooldown}s
+              </span>
+            ) : (
+              <button onClick={handleConfirmBooking} className={styles.errorRefresh} type="button" data-testid="booking-retry-button">
+                Try Again
+              </button>
+            )}
+            <button onClick={() => { setError(null); setRetryCooldown(0); }} className={styles.errorDismiss} type="button">×</button>
           </div>
         </div>
       )}
@@ -714,6 +729,7 @@ export function OnboardingBooking({
             selectedSlot={selectedSlot}
             onConfirm={handleConfirmBooking}
             isSubmitting={isSubmitting}
+            retryCooldown={retryCooldown}
           />
         </div>
       )}

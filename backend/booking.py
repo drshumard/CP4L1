@@ -45,6 +45,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/booking", tags=["booking"])
 
+# Per-email booking cooldown to prevent rapid-fire requests
+_booking_cooldowns: dict = {}  # email -> timestamp of last attempt
+BOOKING_COOLDOWN_SECONDS = 30
+
 
 # ============================================================================
 # Response Models
@@ -348,6 +352,19 @@ async def book_session(
     """
     logger.info(f"[{correlation_id}] Booking request: {request.email} for {request.slot_start_time}")
     
+    # Per-email cooldown to prevent rapid-fire requests
+    email_lower = request.email.lower()
+    now = time.time()
+    last_attempt = _booking_cooldowns.get(email_lower, 0)
+    remaining = BOOKING_COOLDOWN_SECONDS - (now - last_attempt)
+    if remaining > 0:
+        logger.warning(f"[{correlation_id}] Booking cooldown active for {email_lower}, {remaining:.0f}s remaining")
+        raise HTTPException(
+            status_code=429,
+            detail=f"Please wait {int(remaining)} seconds before trying again."
+        )
+    _booking_cooldowns[email_lower] = now
+    
     is_duplicate, existing_session = await idempotency_store.check_and_set(
         request.email,
         request.consultant_id,
@@ -423,6 +440,9 @@ async def book_session(
         )
         
         logger.info(f"[{correlation_id}] Booking successful: {result.session_id}")
+        
+        # Clear cooldown on success
+        _booking_cooldowns.pop(email_lower, None)
         
         # Save client_record_id AND auto-advance user to Step 2 as backend fallback
         # This ensures progression even if frontend advancement call fails
