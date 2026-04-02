@@ -234,7 +234,7 @@ class PracticeBetterConfig(BaseModel):
             send_invitation=os.environ.get("PRACTICE_BETTER_SEND_INVITATION", "true").lower() == "true",
             portal_base_url=os.environ.get("PRACTICE_BETTER_PORTAL_URL", "https://portal.practicebetter.io"),
             availability_cache_ttl=int(os.environ.get("PRACTICE_BETTER_CACHE_TTL", "60")),
-            max_retries=int(os.environ.get("PRACTICE_BETTER_MAX_RETRIES", "3")),
+            max_retries=int(os.environ.get("PRACTICE_BETTER_MAX_RETRIES", "2")),
         )
 
 

@@ -190,22 +190,38 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 ## Codebase Review
 See `/app/memory/CODEBASE_REVIEW.md` for detailed analysis of potential failure points for 50+ non-tech-savvy users.
 
-## Recent Updates (April 1, 2026)
+## Recent Updates (April 2, 2026)
+
+### Bug Fix: Practice Better 429 Rate Limiting
+- **Root Cause**: Aggressive retry strategy (3 retries × short delays × multiple user clicks) exhausted PB rate limits
+- **Fixes applied**:
+  - Reduced max_retries from 3 to 2, increased base delay from 1s to 2s
+  - `_request()` now respects `Retry-After` header on 429 with 10s minimum delay
+  - `get_or_create_client()` checks local cache FIRST, then searches PB API on failure before retrying POST
+  - New `search_client_by_email()` method searches PB `/consultant/records` endpoint
+  - Per-email 30-second cooldown in `booking.py` rejects rapid-fire requests (429 response)
+  - Frontend shows 30-second countdown timer after booking error, disables Confirm button and Try Again button during cooldown
+- **Status**: RESOLVED
 
 ### Bug Fix: User Lookup + Sign in Email
 - **Root Causes**: Two bugs in `GET /api/user/lookup`:
   1. FastAPI query param parsing converts `+` to space — fixed by parsing raw query string from `request.url.query`
   2. `+` is a regex quantifier in MongoDB `$regex` — fixed with `re.escape()`
-- **Status**: RESOLVED — Both raw `+` and `%2B`-encoded emails now work correctly
+- **Status**: RESOLVED
+
+### Enhancement: Lookup Endpoint Response Cleanup
+- Removed `first_name`/`last_name` (null for most users), replaced with `name` field
+- Progress now derived from actual `user_progress` step documents (was querying nonexistent fields)
+- **Status**: IMPLEMENTED
 
 ### Enhancement: Activate Portal Button Loading State
 - Added `isActivating` state to Step 3 "Activate Portal" button
-- Button shows "Activating..." and becomes disabled during API calls to prevent double-clicks
+- Button shows "Activating..." and becomes disabled during API calls
 - **Status**: IMPLEMENTED
 
 ### Enhancement: Booking Error "Try Again" Button
 - Added "Try Again" button to booking error banner in `OnboardingBooking.jsx`
-- Button retries the booking action for non-409 errors (slot unavailable errors already have their own refresh UI)
+- Button includes 30-second cooldown after errors to prevent hammering
 - **Status**: IMPLEMENTED
 
 ## Last Updated
