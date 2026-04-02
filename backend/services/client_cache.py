@@ -98,6 +98,15 @@ class ClientCache:
             row = cursor.fetchone()
             return dict(row) if row else None
     
+    def delete_by_email(self, email: str) -> bool:
+        """Remove a client record by email (used when PB says the record is stale)"""
+        normalized_email = email.lower().strip()
+        with self._get_connection() as conn:
+            conn.execute("DELETE FROM clients WHERE LOWER(email) = ?", (normalized_email,))
+            conn.commit()
+            return conn.total_changes > 0
+
+    
     def upsert_client(self, client: Dict) -> bool:
         """Insert or update a single client record"""
         try:

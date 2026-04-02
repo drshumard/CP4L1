@@ -33,6 +33,7 @@ from services.practice_better_v2 import (
     get_idempotency_store,
     IdempotencyStore,
 )
+from services.client_cache import get_client_cache
 
 # Import database connection
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -156,11 +157,13 @@ def get_correlation_id(
 
 
 async def refresh_availability_cache():
-    """Background task to refresh availability cache"""
+    """Background task to refresh availability cache and periodically sync clients"""
     global _availability_cache, _background_task_running
     
     _background_task_running = True
     logger.info("Starting background availability cache refresh task")
+    sync_counter = 0
+    CLIENT_SYNC_EVERY_N_CYCLES = 15  # ~30 min at 2-min intervals
     
     while _background_task_running:
         try:
@@ -192,6 +195,21 @@ async def refresh_availability_cache():
                 }
             
             logger.info(f"[background] Cache refreshed: {len(slots)} slots, {len(dates)} dates")
+            
+            # Periodic client sync
+            sync_counter += 1
+            if sync_counter >= CLIENT_SYNC_EVERY_N_CYCLES:
+                sync_counter = 0
+                try:
+                    from services.client_sync import ClientSyncService
+                    sync_service = ClientSyncService(
+                        base_url=pb_service.config.base_url,
+                        token_getter=pb_service.token_manager.get_token
+                    )
+                    result = await sync_service.sync_all_clients()
+                    logger.info(f"[background] Client sync complete: {result}")
+                except Exception as e:
+                    logger.warning(f"[background] Client sync failed: {e}")
             
         except Exception as e:
             logger.error(f"[background] Error refreshing cache: {e}")
@@ -428,11 +446,45 @@ async def book_session(
         # Set cooldown now — we're about to hit Practice Better's API
         _booking_cooldowns[email_lower] = time.time()
         
-        result = await pb_service.complete_booking(
+        # Pre-flight: check MongoDB for existing PB client record ID
+        # This avoids hitting PB's create endpoint for clients that already exist
+        import re as re_module
+        email_escaped = re_module.escape(request.email)
+        existing_user = await db.users.find_one(
+            {"email": {"$regex": f"^{email_escaped}$", "$options": "i"}},
+            {"pb_client_record_id": 1}
+        )
+        existing_pb_id = (existing_user or {}).get("pb_client_record_id")
+        if existing_pb_id:
+            logger.info(f"[{correlation_id}] Found existing PB record in MongoDB: {existing_pb_id}")
+            # Seed the local cache so get_or_create_client finds it
+            cache = get_client_cache()
+            cache.upsert_client({
+                "id": existing_pb_id,
+                "profile": {
+                    "emailAddress": request.email,
+                    "firstName": request.first_name,
+                    "lastName": request.last_name,
+                    "mobilePhone": request.phone or ""
+                },
+                "status": "active"
+            })
+        
+        try:
+            result = await pb_service.complete_booking(
             booking_request,
             cached_availability=cached_slots,
             correlation_id=correlation_id
         )
+        except BookingError as be:
+            # If we used a stored PB ID and it failed, clear the stale record
+            if existing_pb_id:
+                logger.info(f"[{correlation_id}] Clearing stale pb_client_record_id for {request.email}")
+                await db.users.update_one(
+                    {"email": {"$regex": f"^{email_escaped}$", "$options": "i"}},
+                    {"$unset": {"pb_client_record_id": ""}}
+                )
+            raise
         
         await idempotency_store.complete(
             request.email,
@@ -539,6 +591,7 @@ async def book_session(
     
     except SlotUnavailableError as e:
         await idempotency_store.remove(request.email, request.consultant_id, request.slot_start_time)
+        _booking_cooldowns.pop(email_lower, None)  # Slot error, not PB overload
         
         logger.warning(f"[{correlation_id}] Slot unavailable: {e.internal_message}")
         raise HTTPException(
@@ -548,6 +601,9 @@ async def book_session(
     
     except BookingError as e:
         await idempotency_store.remove(request.email, request.consultant_id, request.slot_start_time)
+        # Keep cooldown only if it's a rate-limit issue; clear for other errors
+        if "busy" not in e.message.lower():
+            _booking_cooldowns.pop(email_lower, None)
         
         logger.error(f"[{correlation_id}] Booking error: {e.internal_message}")
         raise HTTPException(
@@ -566,10 +622,14 @@ async def book_session(
         logger.error(f"[{correlation_id}] HTTP error: {e.response.status_code} - {error_body}")
         
         if e.response.status_code == 429:
+            # Keep cooldown — PB is overloaded
             raise HTTPException(
                 status_code=503,
                 detail="Service is busy. Please try again in a moment."
             )
+        
+        # Non-rate-limit HTTP errors: clear cooldown
+        _booking_cooldowns.pop(email_lower, None)
         
         if "slot" in error_body.lower() or "unavailable" in error_body.lower():
             raise HTTPException(
@@ -584,6 +644,7 @@ async def book_session(
     
     except Exception as e:
         await idempotency_store.remove(request.email, request.consultant_id, request.slot_start_time)
+        _booking_cooldowns.pop(email_lower, None)
         
         logger.error(f"[{correlation_id}] Unexpected error: {e}")
         raise HTTPException(

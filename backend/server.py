@@ -3887,15 +3887,28 @@ async def startup_event():
     except Exception as e:
         logger.warning(f"Could not start background cache refresh: {e}")
     
-    # Initialize client cache (SQLite database auto-creates on first access)
+    # Initialize client cache and run initial sync
     try:
         from services.client_cache import get_client_cache
         cache = get_client_cache()
         logger.info(f"Client cache initialized: {cache.db_path}")
         
-        # Note: Client sync requires Practice Better token and runs on-demand
-        # To force initial sync, use: python -c "from services.client_sync import ..."
-        # or call the /api/admin/sync-clients endpoint
+        # Run client sync in background to warm cache
+        async def initial_sync():
+            try:
+                from services.client_sync import ClientSyncService
+                from services.practice_better_v2 import get_practice_better_service
+                pb = get_practice_better_service()
+                sync_service = ClientSyncService(
+                    base_url=pb.config.base_url,
+                    token_getter=pb.token_manager.get_token
+                )
+                result = await sync_service.sync_all_clients()
+                logger.info(f"Initial client sync complete: {result}")
+            except Exception as e:
+                logger.warning(f"Initial client sync failed (non-blocking): {e}")
+        
+        asyncio.create_task(initial_sync())
     except Exception as e:
         logger.warning(f"Could not initialize client cache: {e}")
 

@@ -658,32 +658,48 @@ class PracticeBetterService:
         correlation_id: str = None
     ) -> Optional[str]:
         """Search Practice Better for an existing client record by email.
-        Returns the record ID if found, None otherwise.
-        Uses _request for consistent retry/logging behaviour."""
+        Paginates through results since PB doesn't support email-based filtering.
+        Returns the record ID if found, None otherwise."""
         cid = correlation_id or str(uuid.uuid4())[:8]
+        normalized = email.lower().strip()
+        last_id = None
+        pages_checked = 0
+        max_pages = 10  # Safety limit: 10 pages × 100 = 1000 clients max
+        
         try:
-            data = await self._request(
-                "GET",
-                "/consultant/records",
-                correlation_id=cid,
-                params={
+            while pages_checked < max_pages:
+                params = {
                     "type": "client",
-                    "status": "active",
-                    "limit": 20
+                    "limit": 100
                 }
-            )
+                if last_id:
+                    params["afterId"] = last_id
+                
+                data = await self._request(
+                    "GET",
+                    "/consultant/records",
+                    correlation_id=cid,
+                    params=params
+                )
+                
+                items = data.get("items", [])
+                if not items:
+                    break
+                
+                for item in items:
+                    profile = item.get("profile", {})
+                    item_email = (profile.get("emailAddress") or "").lower().strip()
+                    if item_email == normalized:
+                        record_id = item.get("id")
+                        logger.info(f"[{cid}] Found existing client via API search: {email} -> {record_id} (page {pages_checked + 1})")
+                        cache = get_client_cache()
+                        cache.upsert_client(item)
+                        return record_id
+                
+                last_id = items[-1].get("id")
+                pages_checked += 1
             
-            normalized = email.lower().strip()
-            for item in data.get("items", []):
-                profile = item.get("profile", {})
-                item_email = (profile.get("emailAddress") or "").lower().strip()
-                if item_email == normalized:
-                    record_id = item.get("id")
-                    logger.info(f"[{cid}] Found existing client via API search: {email} -> {record_id}")
-                    cache = get_client_cache()
-                    cache.upsert_client(item)
-                    return record_id
-            
+            logger.info(f"[{cid}] Client not found in PB after {pages_checked} pages: {email}")
             return None
         except Exception as e:
             logger.warning(f"[{cid}] Client search by email failed: {e}")
@@ -722,23 +738,37 @@ class PracticeBetterService:
             return (client_record_id, True)
             
         except httpx.HTTPStatusError as e:
-            logger.warning(f"[{cid}] Client creation failed ({e.response.status_code}): {e}")
+            status = e.response.status_code
+            response_body = ""
+            try:
+                response_body = e.response.text
+            except Exception:
+                pass
+            logger.warning(f"[{cid}] Client creation failed ({status}): {e}")
+            if response_body:
+                logger.warning(f"[{cid}] Response body: {response_body[:500]}")
             
-            # On 429 or any failure, search PB API for the client (may have been created)
+            # 500 from PB on client creation typically means the client already exists.
+            # 429 means rate limited. Either way, search for existing client.
             found_id = await self.search_client_by_email(profile.email, correlation_id=cid)
             if found_id:
                 return (found_id, False)
             
-            # If not found via API search and it was a 429, the client likely wasn't created
-            if e.response.status_code == 429:
+            if status == 429:
                 raise BookingError(
                     "The booking service is temporarily busy. Please wait a moment and try again.",
                     internal_message=f"Rate limited creating client for {profile.email}"
                 )
             
+            if status == 500:
+                raise BookingError(
+                    "We couldn't create your account. Please try again or contact support.",
+                    internal_message=f"PB returned 500 for {profile.email} and client not found via search. Response: {response_body[:200]}"
+                )
+            
             raise BookingError(
                 "We couldn't complete your booking. Please try again in a moment.",
-                internal_message=f"Client creation failed for {profile.email}: {e}"
+                internal_message=f"Client creation failed ({status}) for {profile.email}: {e}"
             )
         
         except Exception as e:
@@ -835,7 +865,38 @@ class PracticeBetterService:
                     raise SlotUnavailableError(
                         internal_message=f"Slot {request.slot_start_time} unavailable: {e.response.text}"
                     )
-                raise
+                # Stale client record ID — PB says it doesn't exist
+                if e.response.status_code == 404 and "item_not_found" in error_text:
+                    logger.warning(f"[{cid}] Stale client record {client_record_id}, evicting and recreating")
+                    cache = get_client_cache()
+                    cache.delete_by_email(request.email)
+                    
+                    # Force-create a new client (skip cache)
+                    new_record_id = await self.create_client_record(
+                        ClientProfile(
+                            first_name=request.first_name,
+                            last_name=request.last_name,
+                            email=request.email,
+                            phone=request.phone,
+                            timezone=request.timezone
+                        ),
+                        correlation_id=cid
+                    )
+                    logger.info(f"[{cid}] Recreated client: {request.email} -> {new_record_id}")
+                    client_record_id = new_record_id
+                    is_new_client = True
+                    
+                    # Retry session booking with new record ID
+                    session = await self.book_session(
+                        client_record_id=client_record_id,
+                        consultant_id=request.consultant_id,
+                        session_date=request.slot_start_time,
+                        timezone=request.timezone,
+                        notes=request.notes,
+                        correlation_id=cid
+                    )
+                else:
+                    raise
             
             session_id = session["id"]
             

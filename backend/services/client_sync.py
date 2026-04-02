@@ -95,8 +95,9 @@ class ClientSyncService:
             try:
                 total_synced = 0
                 last_id = None
+                max_pages = 100  # Safety: 100 × 100 = 10,000 clients max
                 
-                while True:
+                for page in range(max_pages):
                     data = await self.fetch_clients_page(
                         limit=100,
                         after_id=last_id
@@ -109,12 +110,21 @@ class ClientSyncService:
                     
                     synced = self.cache.upsert_clients_batch(items)
                     total_synced += synced
-                    last_id = items[-1].get("id")
+                    
+                    new_last_id = items[-1].get("id")
+                    if new_last_id == last_id:
+                        logger.warning(f"Pagination stuck at afterId={last_id}, breaking")
+                        break
+                    last_id = new_last_id
                     
                     if progress_callback:
                         progress_callback(total_synced, None)
                     
-                    await asyncio.sleep(0.1)
+                    # If we got fewer items than the limit, this is the last page
+                    if len(items) < 100:
+                        break
+                    
+                    await asyncio.sleep(0.2)
                 
                 self.cache.update_sync_state(
                     last_record_id=last_id,
