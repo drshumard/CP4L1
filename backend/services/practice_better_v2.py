@@ -760,11 +760,12 @@ class PracticeBetterService:
             if response_body:
                 logger.warning(f"[{cid}] Response body: {response_body[:500]}")
             
-            # 500 from PB on client creation typically means the client already exists.
-            # 429 means rate limited. Either way, search for existing client.
-            found_id = await self.search_client_by_email(profile.email, correlation_id=cid)
-            if found_id:
-                return (found_id, False)
+            # 400 = duplicate email / bad request, 500 = server-side duplicate,
+            # 429 = rate limited. All cases: search for existing client first.
+            if status in (400, 429, 500):
+                found_id = await self.search_client_by_email(profile.email, correlation_id=cid)
+                if found_id:
+                    return (found_id, False)
             
             if status == 429:
                 raise BookingError(
@@ -772,15 +773,9 @@ class PracticeBetterService:
                     internal_message=f"Rate limited creating client for {profile.email}"
                 )
             
-            if status == 500:
-                raise BookingError(
-                    "We couldn't create your account. Please try again or contact support.",
-                    internal_message=f"PB returned 500 for {profile.email} and client not found via search. Response: {response_body[:200]}"
-                )
-            
             raise BookingError(
-                "We couldn't complete your booking. Please try again in a moment.",
-                internal_message=f"Client creation failed ({status}) for {profile.email}: {e}"
+                "We couldn't create your account. Please try again or contact support.",
+                internal_message=f"PB returned {status} for {profile.email} and client not found via search. Response: {response_body[:200]}"
             )
         
         except Exception as e:

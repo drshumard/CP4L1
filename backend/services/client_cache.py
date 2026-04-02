@@ -219,6 +219,12 @@ class ClientCache:
             cursor = conn.execute("SELECT COUNT(*) FROM clients")
             return cursor.fetchone()[0]
     
+    def get_all_clients(self) -> List[Dict]:
+        """Get all cached clients (for MongoDB sync)"""
+        with self._get_connection() as conn:
+            cursor = conn.execute("SELECT record_id, email FROM clients WHERE email IS NOT NULL AND email != ''")
+            return [dict(row) for row in cursor.fetchall()]
+    
     def needs_sync(self, max_age_minutes: int = 60) -> bool:
         """Check if cache needs to be synced"""
         sync_info = self.get_last_sync_info()

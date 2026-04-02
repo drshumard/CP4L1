@@ -166,6 +166,8 @@ async def refresh_availability_cache():
     logger.info("Starting background availability cache refresh task")
     sync_counter = 0
     CLIENT_SYNC_EVERY_N_CYCLES = 15  # ~30 min at 2-min intervals
+    MONGO_SYNC_EVERY_N_CYCLES = 60  # ~2 hours at 2-min intervals
+    mongo_sync_counter = 0
     
     while _background_task_running:
         try:
@@ -198,7 +200,7 @@ async def refresh_availability_cache():
             
             logger.info(f"[background] Cache refreshed: {len(slots)} slots, {len(dates)} dates")
             
-            # Periodic client sync
+            # Periodic client sync (SQLite cache)
             sync_counter += 1
             if sync_counter >= CLIENT_SYNC_EVERY_N_CYCLES:
                 sync_counter = 0
@@ -212,6 +214,15 @@ async def refresh_availability_cache():
                     logger.info(f"[background] Client sync complete: {result}")
                 except Exception as e:
                     logger.warning(f"[background] Client sync failed: {e}")
+            
+            # Periodic MongoDB sync (match cached PB clients to local users, no extra API calls)
+            mongo_sync_counter += 1
+            if mongo_sync_counter >= MONGO_SYNC_EVERY_N_CYCLES:
+                mongo_sync_counter = 0
+                try:
+                    await sync_pb_clients_to_mongo(correlation_id="bg-mongo-sync")
+                except Exception as e:
+                    logger.warning(f"[background] MongoDB PB sync failed: {e}")
             
         except Exception as e:
             logger.error(f"[background] Error refreshing cache: {e}")
@@ -240,6 +251,51 @@ def stop_background_refresh():
         _background_task.cancel()
         _background_task = None
     logger.info("Background cache refresh task stopped")
+
+
+
+async def sync_pb_clients_to_mongo(
+    pb_service: PracticeBetterService = None,
+    correlation_id: str = "mongo-sync"
+):
+    """
+    Sync pb_client_record_id from the local SQLite cache into MongoDB users.
+    Reads the already-synced SQLite cache (no extra PB API calls).
+    Matches by email. Only updates users who are missing or have a stale PB ID.
+    """
+    from services.client_cache import get_client_cache
+    cache = get_client_cache()
+    all_clients = cache.get_all_clients()
+
+    if not all_clients:
+        logger.info(f"[{correlation_id}] No cached clients to sync to MongoDB")
+        return {"total_cached": 0, "updated": 0}
+
+    updated_count = 0
+    for client in all_clients:
+        pb_email = (client.get("email") or "").lower().strip()
+        pb_record_id = client.get("record_id")
+        if not pb_email or not pb_record_id:
+            continue
+
+        email_escaped = re_module.escape(pb_email)
+        result = await db.users.update_one(
+            {
+                "email": {"$regex": f"^{email_escaped}$", "$options": "i"},
+                "$or": [
+                    {"pb_client_record_id": {"$exists": False}},
+                    {"pb_client_record_id": None},
+                    {"pb_client_record_id": ""},
+                ]
+            },
+            {"$set": {"pb_client_record_id": pb_record_id}}
+        )
+        if result.modified_count > 0:
+            updated_count += 1
+
+    logger.info(f"[{correlation_id}] MongoDB PB sync complete: {len(all_clients)} cached clients checked, {updated_count} MongoDB users updated")
+    return {"total_cached": len(all_clients), "updated": updated_count}
+
 
 
 async def get_cached_availability(

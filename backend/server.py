@@ -3893,7 +3893,7 @@ async def startup_event():
         cache = get_client_cache()
         logger.info(f"Client cache initialized: {cache.db_path}")
         
-        # Run client sync in background to warm cache
+        # Run client sync in background to warm cache + sync to MongoDB
         async def initial_sync():
             try:
                 from services.client_sync import ClientSyncService
@@ -3905,6 +3905,11 @@ async def startup_event():
                 )
                 result = await sync_service.sync_all_clients()
                 logger.info(f"Initial client sync complete: {result}")
+                
+                # Also sync PB client IDs into MongoDB users (reads from SQLite cache, no extra API calls)
+                from booking import sync_pb_clients_to_mongo
+                mongo_result = await sync_pb_clients_to_mongo(correlation_id="startup-mongo-sync")
+                logger.info(f"Initial MongoDB PB sync complete: {mongo_result}")
             except Exception as e:
                 logger.warning(f"Initial client sync failed (non-blocking): {e}")
         
