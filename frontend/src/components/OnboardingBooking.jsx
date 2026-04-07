@@ -406,7 +406,7 @@ export function OnboardingBooking({
     return slotsByDate[selectedDate];
   }, [selectedDate, slotsByDate]);
 
-  // Filter dates_with_availability to only include dates within the window (if set)
+  // Filter dates_with_availability to only the first N dates that have slots (rolling window)
   const filteredDatesWithAvailability = useMemo(() => {
     if (!availability?.dates_with_availability) return [];
     
@@ -415,14 +415,10 @@ export function OnboardingBooking({
       return availability.dates_with_availability;
     }
     
-    const cutoffDate = new Date(today);
-    cutoffDate.setDate(cutoffDate.getDate() + availabilityDays);
-    
-    return availability.dates_with_availability.filter(date => {
-      const d = new Date(date);
-      return d < cutoffDate;
-    });
-  }, [availability?.dates_with_availability, today, availabilityDays]);
+    // Sort dates and take the first N (rolling: counts only dates with availability)
+    const sorted = [...availability.dates_with_availability].sort();
+    return sorted.slice(0, availabilityDays);
+  }, [availability?.dates_with_availability, availabilityDays]);
 
   const datesByMonth = useMemo(() => {
     if (!filteredDatesWithAvailability.length) return {};

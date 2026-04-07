@@ -617,7 +617,7 @@ const AdminDashboard = () => {
                 </Button>
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                Controls how many days into the future users can see available booking slots. Currently showing {settings.availability_days} days.
+                Shows the next {settings.availability_days} dates that have available booking slots (skips weekends and days with no availability).
               </p>
             </CardContent>
           </Card>

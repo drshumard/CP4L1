@@ -233,36 +233,26 @@ export function formatTimeRange(startTime, endTime) {
  * Sorts slots by time within each date
  * Filters to only include dates within maxDays from startDate
  */
-export function groupSlotsByDate(slots, startDate = null, maxDays = 14) {
-  // Calculate the cutoff date
-  let cutoffDate = null;
-  if (startDate && maxDays) {
-    const start = new Date(startDate);
-    cutoffDate = new Date(start);
-    cutoffDate.setDate(cutoffDate.getDate() + maxDays);
-  }
-  
+export function groupSlotsByDate(slots, startDate = null, maxAvailableDays = null) {
+  // Group all slots by date first, then take the first N dates with availability
   const grouped = slots.reduce((acc, slot) => {
     const date = slot.start_time.split('T')[0];
     
-    // Filter out dates beyond the cutoff
-    if (cutoffDate) {
+    // Only include dates from startDate onward
+    if (startDate) {
       const slotDate = new Date(date);
-      if (slotDate >= cutoffDate) {
-        return acc; // Skip this slot
-      }
+      const start = new Date(startDate);
+      if (slotDate < start) return acc;
     }
     
     if (!acc[date]) {
       acc[date] = [];
     }
     
-    // Check if we already have a slot at this exact time
+    // Deduplicate by exact start_time
     const existingSlotIndex = acc[date].findIndex(
       s => s.start_time === slot.start_time
     );
-    
-    // Only add if no slot exists at this time (deduplicate)
     if (existingSlotIndex === -1) {
       acc[date].push(slot);
     }
@@ -274,6 +264,17 @@ export function groupSlotsByDate(slots, startDate = null, maxDays = 14) {
   Object.keys(grouped).forEach(date => {
     grouped[date].sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   });
+  
+  // If maxAvailableDays is set, keep only the first N dates (rolling window)
+  if (maxAvailableDays) {
+    const sortedDates = Object.keys(grouped).sort();
+    const allowedDates = new Set(sortedDates.slice(0, maxAvailableDays));
+    for (const date of Object.keys(grouped)) {
+      if (!allowedDates.has(date)) {
+        delete grouped[date];
+      }
+    }
+  }
   
   return grouped;
 }
