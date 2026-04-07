@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, Users, BarChart3, RefreshCw, Trash2, Activity,
   Search, Mail, Phone, Calendar, X, Eye, EyeOff,
-  Send, Key, Edit2, Clock, CheckCircle2, AlertCircle
+  Send, Key, Edit2, Clock, CheckCircle2, AlertCircle, Settings
 } from 'lucide-react';
 import { 
   trackAdminPanelViewed,
@@ -56,10 +56,42 @@ const AdminDashboard = () => {
     timezone: '',
     notes: ''
   });
+  const [settings, setSettings] = useState({ availability_days: 14 });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await axios.get(`${API}/admin/settings`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSettings(res.data);
+    } catch (e) {
+      // Non-blocking — use defaults
+    }
+  };
+
+  const saveSettings = async (updates) => {
+    setSettingsLoading(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await axios.put(`${API}/admin/settings`, updates, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSettings(res.data);
+      toast.success('Settings saved');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Failed to save settings');
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -498,6 +530,15 @@ const AdminDashboard = () => {
                 >
                   <Activity size={16} />
                 </Button>
+                <Button 
+                  variant={showSettings ? "default" : "outline"}
+                  onClick={() => setShowSettings(!showSettings)} 
+                  className="flex items-center gap-2"
+                  size="sm"
+                  data-testid="settings-toggle-mobile"
+                >
+                  <Settings size={16} />
+                </Button>
                 <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" size="sm">
                   <Home size={16} />
                 </Button>
@@ -521,6 +562,15 @@ const AdminDashboard = () => {
                 <Activity size={16} />
                 <span>Logs</span>
               </Button>
+              <Button 
+                variant={showSettings ? "default" : "outline"}
+                onClick={() => setShowSettings(!showSettings)} 
+                className="flex items-center gap-2"
+                data-testid="settings-toggle"
+              >
+                <Settings size={16} />
+                <span>Settings</span>
+              </Button>
               <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
                 <Home size={16} />
                 <span>Home</span>
@@ -531,6 +581,48 @@ const AdminDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Settings Panel */}
+        {showSettings && (
+          <Card className="bg-white border border-gray-200 shadow-sm mb-6" data-testid="settings-panel">
+            <CardHeader className="border-b border-gray-100 pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings className="text-teal-600" size={20} />
+                Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Booking Calendar — Days of Availability
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={settings.availability_days}
+                    onChange={(e) => setSettings(prev => ({ ...prev, availability_days: parseInt(e.target.value) || 14 }))}
+                    className="w-20 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    data-testid="availability-days-input"
+                  />
+                  <span className="text-sm text-gray-500">days</span>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={() => saveSettings({ availability_days: settings.availability_days })}
+                  disabled={settingsLoading}
+                  data-testid="save-settings-btn"
+                >
+                  {settingsLoading ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-400 mt-2">
+                Controls how many days into the future users can see available booking slots. Currently showing {settings.availability_days} days.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Users Table */}
         <Card className="bg-white border border-gray-200 shadow-sm">
           <CardHeader className="border-b border-gray-100 pb-4">

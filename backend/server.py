@@ -3856,6 +3856,62 @@ async def submit_support_request(request: SupportRequest):
     
     return {"message": "Support request submitted successfully"}
 
+
+# ============================================================================
+# Admin Settings
+# ============================================================================
+
+SETTINGS_DEFAULTS = {
+    "availability_days": 14,
+}
+
+@api_router.get("/admin/settings")
+async def get_settings(admin_user: dict = Depends(get_admin_user)):
+    """Get all admin-configurable settings."""
+    doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
+    return {**SETTINGS_DEFAULTS, **(doc or {})}
+
+@api_router.put("/admin/settings")
+async def update_settings(request: Request, admin_user: dict = Depends(get_admin_user)):
+    """Update admin-configurable settings."""
+    body = await request.json()
+    allowed_keys = set(SETTINGS_DEFAULTS.keys())
+    updates = {}
+    for key in allowed_keys:
+        if key in body:
+            val = body[key]
+            if key == "availability_days":
+                val = int(val)
+                if val < 1 or val > 90:
+                    raise HTTPException(status_code=400, detail="availability_days must be between 1 and 90")
+            updates[key] = val
+
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid settings provided")
+
+    await db.settings.update_one(
+        {"_id": "app_settings"},
+        {"$set": updates},
+        upsert=True
+    )
+
+    await log_activity(
+        event_type="SETTINGS_UPDATED",
+        user_email=admin_user.get("email"),
+        details=updates,
+        status="success"
+    )
+
+    doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
+    return {**SETTINGS_DEFAULTS, **(doc or {})}
+
+@api_router.get("/settings/public")
+async def get_public_settings():
+    """Get public-facing settings (no auth required). Used by booking widget."""
+    doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
+    merged = {**SETTINGS_DEFAULTS, **(doc or {})}
+    return {"availability_days": merged["availability_days"]}
+
 # Include routers
 app.include_router(api_router)
 

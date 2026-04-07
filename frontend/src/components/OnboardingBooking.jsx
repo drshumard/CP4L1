@@ -361,6 +361,18 @@ export function OnboardingBooking({
   const timezone = useMemo(() => detectTimezone(), []);
   const today = useMemo(() => getTodayString(), []);
 
+  // Fetch availability_days setting from admin config
+  const [availabilityDays, setAvailabilityDays] = useState(14);
+  useEffect(() => {
+    const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+    fetch(`${BACKEND_URL}/api/settings/public`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.availability_days) setAvailabilityDays(data.availability_days);
+      })
+      .catch(() => {}); // fallback to default 14
+  }, []);
+
   // Cooldown countdown timer after booking error
   useEffect(() => {
     if (retryCooldown <= 0) return;
@@ -383,16 +395,11 @@ export function OnboardingBooking({
 
   const bookSession = useBookSession();
 
-  // Configuration for availability window
-  // Set to null to show ALL available dates, or a number to limit (e.g., 14 for 2 weeks)
-  // See /app/rayguide.md for instructions on changing this
-  const AVAILABILITY_DAYS = 15; // Show only 15 days of availability
-
-  // Derived data - filter to only show dates within AVAILABILITY_DAYS (if set)
+  // Derived data - filter to only show dates within availabilityDays
   const slotsByDate = useMemo(() => {
     if (!availability?.slots) return {};
-    return groupSlotsByDate(availability.slots, today, AVAILABILITY_DAYS);
-  }, [availability?.slots, today]);
+    return groupSlotsByDate(availability.slots, today, availabilityDays);
+  }, [availability?.slots, today, availabilityDays]);
 
   const slotsForSelectedDate = useMemo(() => {
     if (!selectedDate || !slotsByDate[selectedDate]) return [];
@@ -404,18 +411,18 @@ export function OnboardingBooking({
     if (!availability?.dates_with_availability) return [];
     
     // If no limit set, return all dates
-    if (!AVAILABILITY_DAYS) {
+    if (!availabilityDays) {
       return availability.dates_with_availability;
     }
     
     const cutoffDate = new Date(today);
-    cutoffDate.setDate(cutoffDate.getDate() + AVAILABILITY_DAYS);
+    cutoffDate.setDate(cutoffDate.getDate() + availabilityDays);
     
     return availability.dates_with_availability.filter(date => {
       const d = new Date(date);
       return d < cutoffDate;
     });
-  }, [availability?.dates_with_availability, today]);
+  }, [availability?.dates_with_availability, today, availabilityDays]);
 
   const datesByMonth = useMemo(() => {
     if (!filteredDatesWithAvailability.length) return {};

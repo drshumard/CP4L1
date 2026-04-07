@@ -136,11 +136,14 @@ Build a comprehensive multi-step onboarding portal for Dr. Shumard's wellness pr
 
 ## Backlog (Future Tasks)
 - P1: Grant Staff Access to Admin Pages (pending user confirmation)
-- ~~P1: Add loading/disabled state to "Activate Portal" button~~ ✅ Done
-- ~~P1: Add "Try Again" button for non-409 booking failures~~ ✅ Done
+- ~~P1: Add loading/disabled state to "Activate Portal" button~~ Done
+- ~~P1: Add "Try Again" button for non-409 booking failures~~ Done
+- ~~P0: Fix PB pagination (before_id, 400 handling)~~ Done
+- ~~P1: Admin-configurable availability days~~ Done
 - P2: Save and show video watch progress
 - P2: Send automated email nudges for incomplete steps
 - P2: Refactor StepsPage.js into smaller components
+- P2: Refactor server.py into smaller routers
 - P3: Shareable certificate upon completion
 - P3: SMS reminders for consultations
 - P3: Offline support / caching
@@ -240,5 +243,36 @@ All 12 items from code review addressed:
 - Button includes 30-second cooldown after errors to prevent hammering
 - **Status**: IMPLEMENTED
 
+## Recent Updates (April 7, 2026)
+
+### Critical Bug Fix: Practice Better Pagination
+- **Root Cause**: Two bugs in `search_client_by_email` caused pagination to infinitely loop on the first 100 records:
+  1. Parameter name `afterId` (camelCase) was being silently ignored by PB API — should be `after_id` (snake_case)
+  2. Using `after_id` (ascending order) when PB returns records in descending order — should use `before_id`
+- **Fix**: Changed to `before_id` for correct descending-order pagination, added duplicate ID detection to prevent infinite loops
+- **Result**: Full client sync now fetches all 10,000+ PB records (was stuck at 100)
+- **Status**: RESOLVED
+
+### Bug Fix: Client Creation 400 Error Handling
+- **Root Cause**: `get_or_create_client` only handled 500 errors from PB client creation, but PB returns 400 for duplicate emails
+- **Fix**: Now handles 400, 429, and 500 — all trigger fallback search for existing client
+- **Status**: RESOLVED
+
+### Feature: Automatic PB→MongoDB Sync
+- On server startup: fetches all PB clients to SQLite cache, then syncs `pb_client_record_id` to MongoDB users (matching by email)
+- Background task re-syncs every ~2 hours
+- Admin endpoints for manual sync and lookup:
+  - `GET /api/booking/pb-clients/fetch` — Full PB→MongoDB bulk sync (admin Bearer token)
+  - `GET /api/booking/pb-clients/lookup?email=xxx` — Look up specific email in PB, sync to MongoDB (admin Bearer token)
+  - `GET /api/booking/cache-lookup?email=xxx` — Check if email exists in local SQLite cache (no auth)
+  - `GET /api/booking/cache-status` — Total cached clients and sync status (no auth)
+
+### Feature: Admin-Configurable Availability Days
+- **Previously**: Hardcoded to 15 days in `OnboardingBooking.jsx`
+- **Now**: Configurable from admin panel via Settings button
+- **Backend**: `GET/PUT /api/admin/settings` stores in MongoDB `settings` collection
+- **Frontend**: Booking widget fetches setting from `GET /api/settings/public` on load
+- **Range**: 1–90 days
+
 ## Last Updated
-April 1, 2026 - Fixed user lookup + sign handling, added Activate Portal loading state, added booking error Try Again button
+April 7, 2026
