@@ -362,15 +362,20 @@ export function OnboardingBooking({
   const today = useMemo(() => getTodayString(), []);
 
   // Fetch availability_days setting from admin config
-  const [availabilityDays, setAvailabilityDays] = useState(14);
+  const [availabilityDays, setAvailabilityDays] = useState(null); // null = loading
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
   useEffect(() => {
     const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
     fetch(`${BACKEND_URL}/api/settings/public`)
       .then(r => r.json())
       .then(data => {
-        if (data.availability_days) setAvailabilityDays(data.availability_days);
+        setAvailabilityDays(data.availability_days || 14);
+        setSettingsLoaded(true);
       })
-      .catch(() => {}); // fallback to default 14
+      .catch(() => {
+        setAvailabilityDays(14); // fallback
+        setSettingsLoaded(true);
+      });
   }, []);
 
   // Cooldown countdown timer after booking error
@@ -576,8 +581,8 @@ export function OnboardingBooking({
     }
   }, [bookingResult, onBookingComplete]);
 
-  // Loading
-  if (isLoadingAvailability) {
+  // Loading (wait for both availability AND settings to be ready)
+  if (isLoadingAvailability || !settingsLoaded) {
     return <div className={styles.container}><LoadingState /></div>;
   }
 
