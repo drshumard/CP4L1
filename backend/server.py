@@ -3951,18 +3951,31 @@ async def startup_event():
         
         # Run client sync in background to warm cache + sync to MongoDB
         async def initial_sync():
+            # IMPORTANT: Wait 60s before syncing to avoid burning PB rate limits
+            # on startup. Real user availability requests take priority.
+            await asyncio.sleep(60)
             try:
+                from services.client_cache import get_client_cache
                 from services.client_sync import ClientSyncService
                 from services.practice_better_v2 import get_practice_better_service
-                pb = get_practice_better_service()
-                sync_service = ClientSyncService(
-                    base_url=pb.config.base_url,
-                    token_getter=pb.token_manager.get_token
-                )
-                result = await sync_service.sync_all_clients()
-                logger.info(f"Initial client sync complete: {result}")
                 
-                # Also sync PB client IDs into MongoDB users (reads from SQLite cache, no extra API calls)
+                cache = get_client_cache()
+                cached_count = cache.get_total_cached_clients()
+                needs_sync = cache.needs_sync(max_age_minutes=360)  # 6 hours
+                
+                if cached_count > 0 and not needs_sync:
+                    logger.info(f"Skipping PB client sync: {cached_count} clients cached, last sync is recent")
+                else:
+                    logger.info(f"Starting PB client sync: {cached_count} cached, needs_sync={needs_sync}")
+                    pb = get_practice_better_service()
+                    sync_service = ClientSyncService(
+                        base_url=pb.config.base_url,
+                        token_getter=pb.token_manager.get_token
+                    )
+                    result = await sync_service.sync_all_clients()
+                    logger.info(f"Initial client sync complete: {result}")
+                
+                # MongoDB sync always runs (reads local cache, no PB API calls)
                 from booking import sync_pb_clients_to_mongo
                 mongo_result = await sync_pb_clients_to_mongo(correlation_id="startup-mongo-sync")
                 logger.info(f"Initial MongoDB PB sync complete: {mongo_result}")

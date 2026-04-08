@@ -274,5 +274,11 @@ All 12 items from code review addressed:
 - **Frontend**: Booking widget fetches setting from `GET /api/settings/public` on load
 - **Range**: 1–90 days
 
+### Rolling Availability Days (April 8, 2026)
+- Changed from "X calendar days" to "next X dates that have available slots" (rolling window)
+- Fixed race condition: `settingsLoaded` guard prevents calendar re-render mid-interaction
+- Fixed startup sync burning PB rate limits: 60s delay, 1s between pages, skips if cache <6 hours old
+- Added 5-min backoff on background refresh when PB returns 429
+
 ## Last Updated
-April 7, 2026
+April 8, 2026

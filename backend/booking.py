@@ -226,6 +226,11 @@ async def refresh_availability_cache():
             
         except Exception as e:
             logger.error(f"[background] Error refreshing cache: {e}")
+            # If rate limited, back off longer (5 minutes instead of 2)
+            if "429" in str(e):
+                logger.warning("[background] Rate limited, backing off for 5 minutes")
+                await asyncio.sleep(300)
+                continue
         
         # Wait before next refresh
         await asyncio.sleep(BACKGROUND_REFRESH_INTERVAL)

@@ -126,7 +126,7 @@ class ClientSyncService:
                     if len(items) < 100:
                         break
                     
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(1.0)
                 
                 self.cache.update_sync_state(
                     last_record_id=last_id,
