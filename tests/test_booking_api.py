@@ -13,7 +13,7 @@ import os
 from datetime import datetime, timedelta
 
 # Get backend URL from environment
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://staff-access-12.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://wellness-onboard-4.preview.emergentagent.com')
 
 
 class TestBookingHealth:

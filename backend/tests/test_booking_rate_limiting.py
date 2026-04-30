@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 # Get backend URL from environment
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://staff-access-12.preview.emergentagent.com"
+    BASE_URL = "https://wellness-onboard-4.preview.emergentagent.com"
 
 # Test credentials
 LOOKUP_API_KEY = "HuwbV7JB4U96TZaRKnezWu3byhABolyulgdFs6jZUBc="

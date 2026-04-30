@@ -1,150 +1,19 @@
-<analysis>**original_problem_statement**: The user's primary goal is to build a comprehensive multi-step onboarding portal. The session focused on fixing critical analytics 500 errors, resolving iOS-specific frontend crashes, building a robust custom Automations builder (for outbound webhooks), refining the analytics date picker UI, and creating a public user-lookup API.
-PRODUCT REQUIREMENTS: Multi-step user flow (Booking, Intake Form, Activation), Admin analytics with timezone conversions, Automations builder (triggering outgoing webhooks on appointment/cancel with custom headers/retries), and Public user lookup API.
-
-**User's preferred language**: English (INSTRUCT next agent to respond in English)
-
-**what currently exists?** 
-A full-stack onboarding portal (React, FastAPI, MongoDB) with user/staff/admin roles. Features include multi-step onboarding, LeadConnector webhook integration, an admin dashboard, a detailed analytics page with custom  filters defaulting to Last 7 Days, an Automations builder to dispatch outbound webhooks on specific triggers (supporting multi-actions, custom headers, and retries), and a public  endpoint protected by an  header for external querying of user progress.
-
-**Last working item**:
-    - Last item agent was working: Modifying the new  endpoint to properly handle the  character in email addresses (e.g., parsing  correctly since FastAPI query params convert  to spaces by default).
-    - Status: USER VERIFICATION PENDING
-    - Agent Testing Done: Y
-    - Which testing method agent to use? Manual testing by curl to ensure  signs in query parameters are handled successfully. 
-    - User Testing Done: N
-
-**All Pending/In progress Issue list**:
-  None currently active and blocking. The previous P0 500 errors were resolved.
-
-**In progress Task List**:
-  - Task 1: Grant Staff Access to Admin Pages (P1)
-     - Where to resume: Update the  dependency in  to allow the  role.
-     - What will be achieved with this? Allows staff to view Users, Analytics, and Logs pages.
-     - Status: NOT STARTED
-     - Should Test frontend/backend/both after fix? Both
-     - Blocked on something: User confirmation (Agent previously asked but user pivoted to other priorities).
-  - Task 2: Add loading/disabled state to Activate Portal button (P2)
-     - Where to resume: Step 3 UI component. Prevent users from double-clicking the activation button.
-     - What will be achieved with this? Prevents duplicate API requests.
-     - Status: NOT STARTED
-     - Should Test frontend/backend/both after fix? Frontend
-     - Blocked on something: None
-  - Task 3: Add Try Again button for booking failures (P2)
-     - Where to resume:  error state.
-     - What will be achieved with this? Allows users to retry non-409 booking errors easily.
-     - Status: NOT STARTED
-     - Should Test frontend/backend/both after fix? Frontend
-     - Blocked on something: None
-
-**Upcoming and Future Tasks**
-    Future Tasks:
-    - (P2) Save and show video watch progress.
-    - (P2) Send automated email nudges for incomplete steps.
-    - (P2) Generate a shareable certificate upon program completion.
-    - (P2) Send SMS reminders for consultations.
-    - (P3) Cache content for better performance (Offline Support).
-    - (P3) Add multi-language support.
-
-**Completed work in this session**
-- Fixed 500 error in  () (DONE)
-- Fixed Admin Analytics date filter UI stale closure bug (DONE)
-- Added  endpoint for timezone boundary troubleshooting (DONE)
-- Resolved  error on iOS Facebook browser by creating  (DONE)
-- Built Automations feature: ,  endpoints, triggered on  and  (DONE)
-- Enhanced Automations: Added multi-action webhooks, execution logs, custom headers, and retry functionality (DONE)
-- Revamped Analytics Date Picker using  with a compact design and presets, defaulting to Last 7 Days (DONE)
-- Created public  endpoint using  header (DONE)
-
-**Earlier issues found/mentioned but not fixed**
-   - Issue 1: Lint Warning in 
-   - Debug checklist: A non-blocking  warning. Refactor the  logic.
-   - Why to solve this issue and what will be achieved with this? Code quality improvement.
-   - Should Test frontend/backend/both after fix: Frontend
-   - Is recurring issue? N
-
-**Known issue recurrence from previous fork**
-  - Issue recurrence in previous fork: Cloudflare Invalid domain error.
-  - Recurrence count: 3+
-  - Status: BLOCKED (pending user-side configuration outside of the code).
-
-**Code Architecture**
-
-
-**Key Technical Concepts**
-React frontend, FastAPI backend, MongoDB. Custom date filtering via . Custom Automation dispatcher built within FastAPI to manage multiple outbound webhooks alongside execution logs ( collection). FastApi Request validation involving Custom API headers () separate from system webhooks. 
-
-**key DB schema**
-  - users: 
-  - user_progress: 
-  - automations (NEW): 
-  - automation_logs (NEW): 
-
-**changes in tech stack**
-  - Added  package to the frontend.
-
-**All files of reference** 
-  - : Heavily updated. Contains Automations CRUD, Webhook triggers, User Lookup API, and Analytics fixes.
-  - : New. UI for creating/editing automations and viewing webhook execution logs.
-  - : New. Error boundary wrapper to prevent Facebook/Instagram in-app browser crashes.
-  - : Updated with compact date picker.
-  - : Updated with specific CSS overwrites for .
-  - : Added .
-
-**Areas that need refactoring**: 
- has grown massive (>3800 lines). It urgently needs to be refactored into smaller routers (e.g., , , , ).
-
-**key api endpoints**
-  - : (NEW) Public user lookup requiring  header and  query param.
-  - : (NEW) CRUD operations for outbound webhook automations.
-  - : (NEW) Retries a failed outbound webhook execution.
-  - : Fixed 500 error causing crash.
-  - : (NEW) Returns precise timezone conversion timestamps.
-
-**Critical Info for New Agent** 
-  - The new  endpoint utilizes the environment variable  for authentication via the  header. Do NOT mix this up with the  used for internal endpoint callbacks.
-  - In , FastAPI inherently parses  symbols in URL query strings as spaces. The agent added a quick  in the logic to fix  style emails. Verify this works perfectly, or implement standard  parsing if it still fails.
-  - The  uses an explicit error boundary logic because standard iOS Facebook/IG in-app browsers fire touch events before the internal canvas is ready, crashing the React DOM. Maintain this wrapper for all future signature instances.
-
-**documents and test reports created in this job** 
-  - /app/memory/PRD.md
-
-**Last 10 User Messages and any pending HUMAN messages** 
- - User: Reports  returns user not found because of the  sign handling.
- - Agent: Modifies the backend to replace spaces with  in the email query param string. (User verification pending).
- - User: Explains GET is better for retrieving, notes POST errored out when using form-data instead of raw json.
- - Agent: Changes endpoint to GET, requiring  header and  as a query parameter.
- - User: Wants the lookup endpoint to take API key in header and email in body.
- - Agent: Updates endpoint to POST.
- - User: Checks if  change affected other endpoints.
- - Agent: Confirms only the lookup endpoint is affected.
- - User: Asks for the API lookup endpoint to require a different .
- - Agent: Implements  in  and endpoint. Tests it.
-
-**Project Health Check:**
-All systems functioning correctly. 
-
-**3rd Party Integrations** 
- - LeadConnector (Webhooks) — requires User-provided secrets
- - Outbound Automations Builder — user configures custom 3rd party endpoints via UI.
-
-**Testing status**
-  - Testing agent used after significant changes: YES
-  - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: []
-  - Known regressions: None
-
-**Credentials to test flow:**
-  - Admin Dashboard:  / 
-  - Lookup API ():  Header matching  in .
-
-**What agent forgot to execute**
-The agent completely bypassed three previous P1/P2 tasks in order to focus on the user's immediate pivot towards the Automations Builder. The tasks that were skipped and still need implementation are:
-1. Granting Staff Access to Admin Pages.
-2. Adding a loading/disabled state to the Activate Portal button.
-3. Adding a Try Again button for non-409 booking failures.
-
-**Debugging checklist for current issue**
-    Issue: Email query string parsing fails for  tags in 
-    
-    Backend files to check: 
-    .replace(' ', '+')</analysis>
+<analysis>services/client_cache.pyget_admin_userbackend/server.py'staff'server.pysearch_client_by_emailbefore_idtype=clientget_or_create_clientsync_pb_clients_to_mongo/api/booking/pb-clients/lookup/api/booking/pb-clients/fetch/api/booking/cache-status/api/booking/cache-lookupsettings/api/admin/settingsavailability_daysOnboardingBooking.jsxsettingsLoadedsetState in useEffectSignup.js
+/app/
+├── backend/
+│   ├── server.py                 # Core routing, Admin Settings, Lookup API
+│   ├── booking.py                # Booking endpoints, Cache endpoints, Background sync logic
+│   ├── services/
+│   │   ├── practice_better_v2.py # PB API integration, 400/429/500 error handling
+│   │   ├── client_sync.py        # Background task syncing PB clients (with delay logic)
+│   │   ├── client_cache.py       # SQLite local cache
+│   │   ├── dropbox_service.py    # Dropbox integration (Auto-refreshes tokens)
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── OnboardingBooking.jsx # Rolling availability logic, Settings guard
+│   │   ├── pages/
+│   │   │   ├── AdminDashboard.js     # Settings Panel UI
+│   │   ├── hooks/
+│   │   │   ├── useBooking.js         # groupSlotsByDate logic
+pb_client_record_idavailability_dayssettingsLoadedavailability_days?portal_rid={recordId}{role, email, name, pb_client_record_id, ...}{availability_days: int}{user_id, step_number, tasks_completed, completed_at}/app/backend/booking.py/app/backend/services/practice_better_v2.pybefore_id/app/frontend/src/components/OnboardingBooking.jsx/app/backend/server.py/api/admin/settings/app/frontend/src/pages/AdminDashboard.js/app/backend/services/client_sync.pyasyncio.sleep/app/backend/server.pyrouters/automations.pyrouters/settings.pyrouters/users.pyrouters/webhooks.pyGET /api/admin/settingsPOST /api/admin/settingsavailability_daysGET /api/booking/cache-statusGET /api/booking/cache-lookupGET /api/booking/pb-clients/lookupGET /api/booking/pb-clients/fetchPOST /api/booking/bookGET /clientsbefore_idafterIdafter_idawait asyncio.sleep(60)server.pybooking.pyOnboardingBooking.jsxsettingsLoadedoauth2_refresh_tokendropbox_service.pyrecordId + 4groupSlotsByDatefilteredDatesWithAvailabilityoauth2_refresh_token/app/memory/test_credentials.mdtestadmin@test.comtest123test@test.comTest123!/app/backend/booking.pysync_pb_clients_to_mongo/app/backend/services/practice_better_v2.py429get_or_create_client</analysis>
