@@ -1478,29 +1478,22 @@ async def save_pb_client_record(request: PBClientRecordRequest, current_user: di
 async def complete_task(request: TaskCompleteRequest, current_user: dict = Depends(get_current_user)):
     user_id = current_user["id"]
     current_step = current_user["current_step"]
-    
-    # Get or create progress for current step
-    progress = await db.user_progress.find_one(
+
+    # Idempotent upsert: adds task_id to tasks_completed (creates the array if missing,
+    # does nothing if already present). Safe even when the progress doc was created by
+    # another code path (e.g. advance_step) without a tasks_completed field.
+    await db.user_progress.update_one(
         {"user_id": user_id, "step_number": current_step},
-        {"_id": 0}
+        {
+            "$addToSet": {"tasks_completed": request.task_id},
+            "$setOnInsert": {
+                "id": str(uuid.uuid4()),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+        },
+        upsert=True,
     )
-    
-    if not progress:
-        progress = UserProgress(
-            user_id=user_id,
-            step_number=current_step,
-            tasks_completed=[request.task_id]
-        )
-        progress_dict = progress.model_dump()
-        await db.user_progress.insert_one(progress_dict)
-    else:
-        # Add task if not already completed
-        if request.task_id not in progress["tasks_completed"]:
-            await db.user_progress.update_one(
-                {"user_id": user_id, "step_number": current_step},
-                {"$push": {"tasks_completed": request.task_id}}
-            )
-    
+
     return {"message": "Task completed"}
 
 @api_router.post("/user/advance-step")
