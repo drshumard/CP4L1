@@ -74,12 +74,20 @@ async function fetchAvailabilityForDate(date) {
 async function bookSession(request) {
   const correlationId = generateCorrelationId();
 
+  // Attach auth token if present so backend can advance the logged-in user
+  // regardless of the email typed in the booking form
+  const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+  const headers = {
+    'Content-Type': 'application/json',
+    'X-Correlation-ID': correlationId,
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_BASE}/book`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Correlation-ID': correlationId,
-    },
+    headers,
     body: JSON.stringify(request),
   });
 

@@ -416,9 +416,25 @@ async def get_availability_for_date(
         raise HTTPException(status_code=503, detail="Unable to fetch availability")
 
 
+def _decode_optional_jwt_user_id(authorization: Optional[str]) -> Optional[str]:
+    """Decode the Authorization: Bearer <JWT> header if present. Returns user_id (sub) or None.
+    Silent on failure — this is an optional auth hint, not a gate.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization[7:]
+    try:
+        secret_key = os.environ.get("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+        payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        return payload.get("sub")
+    except jwt.PyJWTError:
+        return None
+
+
 @router.post("/book", response_model=BookSessionResponse)
 async def book_session(
     request: BookSessionRequest,
+    authorization: Optional[str] = Header(None),
     pb_service: PracticeBetterService = Depends(get_practice_better_service),
     idempotency_store: IdempotencyStore = Depends(get_idempotency_store),
     correlation_id: str = Depends(get_correlation_id)
@@ -564,8 +580,23 @@ async def book_session(
         # This ensures progression even if frontend advancement call fails
         if result.client_record_id:
             try:
-                # Find user and check their current step
-                user = await db.users.find_one({"email": request.email.lower()}, {"_id": 0})
+                # Prefer the JWT-identified logged-in user (advances the account of whoever
+                # is actually using the app, even if they typed a different email in the
+                # booking form — e.g. purchaser booking on behalf of someone else).
+                # Fall back to email match for unauthenticated flows.
+                jwt_user_id = _decode_optional_jwt_user_id(authorization)
+                user = None
+                match_filter = None
+                if jwt_user_id:
+                    user = await db.users.find_one({"id": jwt_user_id}, {"_id": 0})
+                    if user:
+                        match_filter = {"id": jwt_user_id}
+                        logger.info(f"[{correlation_id}] Advancing logged-in user {user.get('email')} (via JWT)")
+                if not user:
+                    user = await db.users.find_one({"email": request.email.lower()}, {"_id": 0})
+                    if user:
+                        match_filter = {"email": request.email.lower()}
+                        logger.info(f"[{correlation_id}] Advancing user by booking email match: {request.email.lower()}")
                 
                 if user:
                     # Build booking info to store
@@ -613,7 +644,7 @@ async def book_session(
                                 booking_time = result.session_start.strftime("%H:%M:%S")
                             
                             webhook_payload = {
-                                "email": request.email,
+                                "email": user.get("email") or request.email,
                                 "step": 1,
                                 "booking_date": booking_date,
                                 "booking_time": booking_time
@@ -625,17 +656,17 @@ async def book_session(
                                     json=webhook_payload,
                                     timeout=10.0
                                 )
-                            logger.info(f"[{correlation_id}] Step 1 LeadConnector webhook sent for {request.email}")
+                            logger.info(f"[{correlation_id}] Step 1 LeadConnector webhook sent for {webhook_payload['email']}")
                         except Exception as webhook_err:
                             logger.warning(f"[{correlation_id}] Failed to send Step 1 webhook: {webhook_err}")
                     
                     await db.users.update_one(
-                        {"email": request.email.lower()},
+                        match_filter,
                         {"$set": update_fields}
                     )
                     logger.info(f"[{correlation_id}] Saved booking_info and pb_client_record_id to user record")
                 else:
-                    logger.warning(f"[{correlation_id}] User not found: {request.email}")
+                    logger.warning(f"[{correlation_id}] User not found for booking — JWT sub={jwt_user_id}, email={request.email}")
             except Exception as e:
                 # Non-blocking - log but don't fail the booking
                 logger.error(f"[{correlation_id}] Failed to update user record: {e}")
