@@ -280,5 +280,20 @@ All 12 items from code review addressed:
 - Fixed startup sync burning PB rate limits: 60s delay, 1s between pages, skips if cache <6 hours old
 - Added 5-min backoff on background refresh when PB returns 429
 
+## Recent Updates (April 30, 2026)
+- **PB Service ID switched** to `69f3b650a954aca4df110509` (new service) — verified via logs; availability refreshes now hit the new service.
+- **Booking step-advance bug fix (Approach A — JWT-based user identity)**:
+  - Root cause: `POST /api/booking/book` was matching `request.email.lower()` against MongoDB users to advance `current_step`. When a user booked for someone else (purchaser flow) or used a different email, no match → user stuck on Step 1 with polling UI hang.
+  - Fix: `/api/booking/book` now reads optional `Authorization: Bearer <JWT>` header. If present, advances the logged-in user identified by JWT `sub`. Falls back to email match when no token (preserves guest flows).
+  - Frontend `useBooking.js::bookSession` now attaches the access token on the booking request.
+  - LeadConnector Step 1 webhook now sends the **logged-in user's** email (not the booking form email) so CRM gets the right account identifier.
+  - Verified end-to-end by testing agent (iteration_7.json): logged in as raymond@fireside360.co.uk, booked with raymond+6666@controlswitch.io, logged-in account advanced to Step 2 correctly.
+
+## Open Follow-ups
+- [P2] Frontend logs a 500 from `/api/user/complete-task` during Step 1→2 transition (non-blocking — user progression still succeeds via backend auto-advance). Worth investigating.
+- [P1] Grant staff role access to Admin pages (`get_admin_user` dependency in `server.py`).
+- [P2] Refactor `server.py` (>4000 lines) into modular routers.
+- [P2] Save and show video watch progress; email nudges for incomplete steps; shareable completion certificate; SMS reminders.
+
 ## Last Updated
-April 8, 2026
+April 30, 2026
