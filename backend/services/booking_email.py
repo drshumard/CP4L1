@@ -118,7 +118,10 @@ def _render_html(
     join_block = ""
     if meet_link:
         join_block = f'''
-      <div style="text-align:center; margin: 36px 0 28px 0;">
+      <p style="margin: 0 0 16px 0; color:#374151;">
+        When it's time, join the session from the button below or by the link below it.
+      </p>
+      <div style="text-align:center; margin: 20px 0 28px 0;">
         <a href="{meet_link}"
            style="display:inline-block; background:#1e4bff; color:#ffffff; padding: 16px 44px; border-radius: 999px; text-decoration:none; font-weight: 600; font-size: 16px; letter-spacing: -0.01em;">
           Join the call
@@ -161,19 +164,24 @@ def _render_html(
       Here are the details for our upcoming session:
     </p>
 
-    <p style="margin: 20px 0 0 0; font-size: 18px; font-weight: 600; color:#111827;">
-      {service_title}
-    </p>
-    <p style="margin: 4px 0 0 0; font-size: 15px; color:#6b7280;">
-      {when_label}
-    </p>
+    <div style="margin: 24px 0 0 0; padding: 20px 22px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+      <p style="margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color:#1e4bff;">
+        Your session
+      </p>
+      <p style="margin: 8px 0 0 0; font-size: 18px; font-weight: 600; color:#111827; line-height: 1.4;">
+        {service_title}
+      </p>
+      <p style="margin: 6px 0 0 0; font-size: 15px; color:#6b7280;">
+        {when_label}
+      </p>
+    </div>
 
     {hr}
 
     {video_block}
 
     <p style="margin: 0 0 16px 0;">
-      Please complete your paperwork — <strong>step 2 in the portal</strong> — within the next 48 hours so our director of admissions has enough time to prepare for your strategy session. If the paperwork is not complete within the next 48 hours we will need to cancel your appointment and get you rescheduled once your paperwork is completed.
+      Please complete your paperwork — <strong>step 2 in the portal</strong> — within the next 48 hours so our Director of Admissions has enough time to prepare for your strategy session. If the paperwork is not complete within the next 48 hours we will need to cancel your appointment and get you rescheduled once your paperwork is completed.
     </p>
 
     {hr}
@@ -201,15 +209,15 @@ def _render_html(
     {hr}
 
     <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color:#111827; letter-spacing: -0.01em;">
-      Activate your account.
+      Activate Your Practice Better Account.
     </h3>
     <p style="margin: 0 0 18px 0; color:#374151;">
-      Access your resources from any device.
+      Activate your account and get access to resources from your phone or PC any time and anywhere. It's that simple.
     </p>
     <p style="margin: 0 0 8px 0;">
       <a href="{activate_url}"
-         style="display:inline-block; background:#111827; color:#ffffff; padding: 12px 28px; border-radius: 999px; text-decoration:none; font-weight: 600; font-size: 15px;">
-        Activate account
+         style="display:inline-block; background:#14532d; color:#ffffff; padding: 12px 28px; border-radius: 999px; text-decoration:none; font-weight: 600; font-size: 15px;">
+        Activate My Account
       </a>
     </p>
 
