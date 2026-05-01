@@ -150,7 +150,7 @@ def _render_html(
 
     <!-- Logo -->
     <div style="text-align: center; margin-bottom: 40px;">
-      <img src="{_logo_url()}" alt="Dr. Shumard" style="max-width: 170px; height: auto; display:block; margin: 0 auto;">
+      <img src="{_logo_url()}" alt="Dr. Shumard" style="max-width: 260px; height: auto; display:block; margin: 0 auto;">
     </div>
 
     <!-- Hero -->
