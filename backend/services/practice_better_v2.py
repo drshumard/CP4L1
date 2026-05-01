@@ -207,6 +207,9 @@ class PracticeBetterConfig(BaseModel):
     # When False, PB will NOT send a session booking email/invite to the client.
     # Client record creation invitation (sendInvitation) is still controlled separately.
     session_notify: bool = False
+    # When True, the booked session is created in a confirmed state (skips PB's
+    # pending/tentative state). Controlled via PRACTICE_BETTER_MARK_CONFIRMED env var.
+    mark_confirmed: bool = True
     portal_base_url: str = "https://portal.practicebetter.io"
     availability_cache_ttl: int = 60
     max_retries: int = 2
@@ -242,6 +245,7 @@ class PracticeBetterConfig(BaseModel):
             tag_ids=tag_ids,
             send_invitation=os.environ.get("PRACTICE_BETTER_SEND_INVITATION", "true").lower() == "true",
             session_notify=os.environ.get("PRACTICE_BETTER_SESSION_NOTIFY", "false").lower() == "true",
+            mark_confirmed=os.environ.get("PRACTICE_BETTER_MARK_CONFIRMED", "true").lower() == "true",
             portal_base_url=os.environ.get("PRACTICE_BETTER_PORTAL_URL", "https://portal.practicebetter.io"),
             availability_cache_ttl=int(os.environ.get("PRACTICE_BETTER_CACHE_TTL", "60")),
             max_retries=int(os.environ.get("PRACTICE_BETTER_MAX_RETRIES", "2")),
@@ -818,6 +822,7 @@ class PracticeBetterService:
             "duration": duration_seconds,
             "timeZone": windows_timezone,
             "notify": self.config.session_notify,
+            "markConfirmed": self.config.mark_confirmed,
         }
         # Only include telehealthSettings when explicitly configured. Otherwise PB
         # uses the service's dashboard config (no override).
