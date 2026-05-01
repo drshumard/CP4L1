@@ -3912,6 +3912,10 @@ app.include_router(api_router)
 from booking import router as booking_router
 app.include_router(booking_router)
 
+# Include Google Calendar Meet router
+from google_calendar_routes import router as gcal_router, start_background_renewal as start_gcal_renewal
+app.include_router(gcal_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -3978,6 +3982,12 @@ async def startup_event():
         asyncio.create_task(initial_sync())
     except Exception as e:
         logger.warning(f"Could not initialize client cache: {e}")
+
+    # Start Google Calendar watch renewal loop (hourly check)
+    try:
+        start_gcal_renewal()
+    except Exception as e:
+        logger.warning(f"Could not start Google Calendar renewal loop: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
