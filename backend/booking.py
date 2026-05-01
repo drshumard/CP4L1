@@ -123,6 +123,9 @@ class BookSessionResponse(BaseModel):
     success: bool
     session_id: str
     client_record_id: str
+    consultant_id: Optional[str] = None
+    consultant_name: Optional[str] = None
+    consultant_email: Optional[str] = None
     session_start: datetime
     session_end: datetime
     duration: int
@@ -605,7 +608,9 @@ async def book_session(
                         "session_start": result.session_start.isoformat() if result.session_start else None,
                         "session_end": result.session_end.isoformat() if result.session_end else None,
                         "duration": result.duration,
-                        "consultant_id": request.consultant_id,
+                        "consultant_id": result.consultant_id or request.consultant_id,
+                        "consultant_name": result.consultant_name,
+                        "consultant_email": result.consultant_email,
                         "timezone": request.timezone,
                         "booked_at": datetime.now(tz.utc).isoformat(),
                         "source": "online_booking"
@@ -675,6 +680,9 @@ async def book_session(
             success=True,
             session_id=result.session_id,
             client_record_id=result.client_record_id,
+            consultant_id=result.consultant_id,
+            consultant_name=result.consultant_name,
+            consultant_email=result.consultant_email,
             session_start=result.session_start,
             session_end=result.session_end,
             duration=result.duration,

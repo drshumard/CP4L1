@@ -196,7 +196,10 @@ class PracticeBetterConfig(BaseModel):
     
     session_duration: int = 30
     session_type: str = "virtual"
-    telehealth_app: str = "zoom"
+    # When empty/None, the booking payload omits telehealthSettings entirely
+    # so PB falls back to whatever the service is configured to use.
+    # Set PRACTICE_BETTER_TELEHEALTH_APP env var (e.g. "zoom") to force a specific app.
+    telehealth_app: Optional[str] = None
     
     practitioner_ids: Optional[List[str]] = None
     tag_ids: List[str] = []
@@ -231,7 +234,7 @@ class PracticeBetterConfig(BaseModel):
             service_id=os.environ["PRACTICE_BETTER_SERVICE_ID"],
             session_duration=int(os.environ.get("PRACTICE_BETTER_SESSION_DURATION", "30")),
             session_type=os.environ.get("PRACTICE_BETTER_SESSION_TYPE", "virtual"),
-            telehealth_app=os.environ.get("PRACTICE_BETTER_TELEHEALTH_APP", "zoom"),
+            telehealth_app=os.environ.get("PRACTICE_BETTER_TELEHEALTH_APP") or None,
             practitioner_ids=practitioner_ids,
             tag_ids=tag_ids,
             send_invitation=os.environ.get("PRACTICE_BETTER_SEND_INVITATION", "true").lower() == "true",
@@ -279,7 +282,9 @@ class BookingResult(BaseModel):
     """Result of a successful booking"""
     session_id: str
     client_record_id: str
+    consultant_id: Optional[str] = None
     consultant_name: str
+    consultant_email: Optional[str] = None
     session_start: datetime
     session_end: datetime
     duration: int  # seconds (from PB API response)
@@ -809,10 +814,13 @@ class PracticeBetterService:
             "duration": duration_seconds,
             "timeZone": windows_timezone,
             "notify": True,
-            "telehealthSettings": {
+        }
+        # Only include telehealthSettings when explicitly configured. Otherwise PB
+        # uses the service's dashboard config (no override).
+        if self.config.telehealth_app:
+            payload["telehealthSettings"] = {
                 "launchApplication": self.config.telehealth_app
             }
-        }
         
         if notes:
             payload["notes"] = notes
@@ -913,11 +921,16 @@ class PracticeBetterService:
             consultant_name = f"{consultant.get('firstName', '')} {consultant.get('lastName', '')}".strip()
             if not consultant_name:
                 consultant_name = consultant.get("emailAddress", "")
+            consultant_email = consultant.get("emailAddress") or None
+            # Prefer the asConsultantId we sent (canonical PB id); fall back to whatever's on the response
+            resolved_consultant_id = request.consultant_id or consultant.get("id") or consultant.get("_id")
             
             return BookingResult(
                 session_id=session_id,
                 client_record_id=client_record_id,
+                consultant_id=resolved_consultant_id,
                 consultant_name=consultant_name,
+                consultant_email=consultant_email,
                 session_start=datetime.fromisoformat(session["sessionDate"].replace("Z", "+00:00")),
                 session_end=datetime.fromisoformat(session["endDate"].replace("Z", "+00:00")),
                 duration=session["duration"],  # seconds (from PB API)
