@@ -96,6 +96,10 @@ def _first_name(user: dict) -> str:
     return full.split(" ", 1)[0] if full else "there"
 
 
+def _logo_url() -> str:
+    return os.environ.get("EMAIL_LOGO_URL", "https://portal-drshumard.b-cdn.net/logo.png")
+
+
 # ---------------------------------------------------------------------------
 # HTML + plain-text rendering
 # ---------------------------------------------------------------------------
@@ -108,13 +112,22 @@ def _render_html(
     video_url: str,
     activate_url: str,
 ) -> str:
-    meet_block = ""
+    when_label = f"{date_line} @ {time_line}" if date_line and time_line else "your upcoming session"
+
+    # Prominent Join-call block. Rendered only when we have a Meet URL.
+    join_block = ""
     if meet_link:
-        meet_block = f'''
-        <p style="margin: 16px 0;">
-          <strong>Google Meet link:</strong>
-          <a href="{meet_link}" style="color:#1a73e8;">{meet_link}</a>
-        </p>'''
+        join_block = f'''
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="{meet_link}"
+             style="display:inline-block; background:#1a73e8; color:#ffffff; padding: 14px 32px; border-radius: 6px; text-decoration:none; font-weight: 600; font-size: 16px;">
+            Join call here
+          </a>
+          <p style="margin: 12px 0 0 0; font-size: 13px; color:#555;">
+            Or copy this link if the button above doesn't work for you:<br>
+            <a href="{meet_link}" style="color:#1a73e8; word-break: break-all;">{meet_link}</a>
+          </p>
+        </div>'''
 
     video_block = ""
     if video_url:
@@ -127,38 +140,51 @@ def _render_html(
 
     return f"""<!doctype html>
 <html>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color:#222; line-height:1.6; max-width:640px; margin: 0 auto; padding: 24px;">
-  <p>I've booked a session with you for <strong>{date_line} @ {time_line}</strong>.</p>
+<body style="margin:0; padding:0; background:#f3f4f6;">
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color:#222; line-height:1.6; max-width:640px; margin: 0 auto; padding: 24px;">
 
-  <p>Hi {first_name},</p>
+    <!-- Header box -->
+    <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 28px 24px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+      <img src="{_logo_url()}" alt="Dr. Shumard" style="max-width: 180px; height: auto; display:block; margin: 0 auto 16px;">
+      <p style="margin: 0; font-size: 16px; color: #111827;">
+        I've booked a session with you for <strong>{when_label}</strong>.
+      </p>
+    </div>
 
-  <p>Here are the details for our upcoming session:</p>
+    <!-- Body -->
+    <div style="background:#ffffff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; padding: 28px 24px; margin-top: -1px;">
 
-  <p style="margin: 20px 0; padding: 16px; background:#f6f8fa; border-left: 4px solid #1a73e8; border-radius: 4px;">
-    <strong>{service_title}</strong><br>
-    {date_line} @ {time_line}
-  </p>
-  {meet_block}
-  {video_block}
+      <p>Hi {first_name},</p>
 
-  <p>Please complete your paperwork, <strong>step 2 in the portal</strong> within the next 48 hours so our director of admissions has enough time to prepare for your strategy session. If the paperwork is not complete within the next 48 hours we will need to cancel your appointment and get you rescheduled once your paperwork is completed.</p>
+      <p>Here are the details for our upcoming session:</p>
 
-  <ul>
-    <li>Make sure you are in a quiet area during the strategy session.</li>
-    <li>Make sure your spouse and or significant other is part of the strategy session.</li>
-  </ul>
+      <p style="margin: 20px 0; padding: 16px; background:#f6f8fa; border-left: 4px solid #1a73e8; border-radius: 4px;">
+        <strong>{service_title}</strong><br>
+        {when_label}
+      </p>
+      {video_block}
+      {join_block}
 
-  <p>If you have any questions or need assistance, please call us at <strong>858-564-7081</strong> and we can help. Please also make sure that you log on to the call <strong>10 minutes before the actual call time</strong>. Thank you and I am looking forward to seeing you soon!</p>
+      <p>Please complete your paperwork, <strong>step 2 in the portal</strong> within the next 48 hours so our director of admissions has enough time to prepare for your strategy session. If the paperwork is not complete within the next 48 hours we will need to cancel your appointment and get you rescheduled once your paperwork is completed.</p>
 
-  <hr style="border:none; border-top: 1px solid #e0e0e0; margin: 32px 0;">
+      <ul>
+        <li>Make sure you are in a quiet area during the strategy session.</li>
+        <li>Make sure your spouse and or significant other is part of the strategy session.</li>
+      </ul>
 
-  <p>Activate your account to access your resources from any device.</p>
-  <p>
-    <a href="{activate_url}"
-       style="display:inline-block; background:#1a73e8; color:#ffffff; padding: 12px 24px; border-radius: 6px; text-decoration:none; font-weight: 600;">
-      Activate account
-    </a>
-  </p>
+      <p>If you have any questions or need assistance, please call us at <strong>858-564-7081</strong> and we can help. Please also make sure that you log on to the call <strong>10 minutes before the actual call time</strong>. Thank you and I am looking forward to seeing you soon!</p>
+
+      <hr style="border:none; border-top: 1px solid #e0e0e0; margin: 32px 0;">
+
+      <p>Activate your account to access your resources from any device.</p>
+      <p>
+        <a href="{activate_url}"
+           style="display:inline-block; background:#1a73e8; color:#ffffff; padding: 12px 24px; border-radius: 6px; text-decoration:none; font-weight: 600;">
+          Activate account
+        </a>
+      </p>
+    </div>
+  </div>
 </body>
 </html>"""
 
