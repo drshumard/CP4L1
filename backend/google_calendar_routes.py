@@ -239,7 +239,7 @@ async def _save_meet_url(event: dict, meet_url: str, calendar_id: str, consultan
     if consultant_id:
         filter_q["booking_info.consultant_id"] = consultant_id
 
-    user = await db.users.find_one(filter_q, {"_id": 0, "email": 1, "booking_info": 1})
+    user = await db.users.find_one(filter_q, {"_id": 0})
     if not user:
         logger.warning(
             "No matching booking for event at %s (utc=%s) on calendar %s consultant=%s",
@@ -258,7 +258,30 @@ async def _save_meet_url(event: dict, meet_url: str, calendar_id: str, consultan
         },
     )
     logger.info("Saved meet_link for %s (event=%s, meet=%s)", user["email"], event.get("id"), meet_url)
-    # TODO: trigger patient email with meet_url (SMTP2GO — to be wired up)
+
+    # Send patient confirmation email — atomically claim the "sent" slot to avoid
+    # double-send when Google fires multiple webhooks concurrently for the same event.
+    from datetime import datetime as _dt, timezone as _tz
+    now_iso = _dt.now(_tz.utc).isoformat()
+    claim = await db.users.update_one(
+        {
+            "email": user["email"],
+            "booking_info.confirmation_email_sent_at": {"$exists": False},
+        },
+        {"$set": {"booking_info.confirmation_email_sent_at": now_iso}},
+    )
+    if claim.matched_count > 0:
+        try:
+            from services.booking_email import send_booking_confirmation
+            await send_booking_confirmation(user, event, meet_url)
+            logger.info("Sent booking confirmation email to %s", user["email"])
+        except Exception:
+            # Send failed — unset the claim so a future webhook can retry
+            await db.users.update_one(
+                {"email": user["email"]},
+                {"$unset": {"booking_info.confirmation_email_sent_at": ""}},
+            )
+            logger.exception("Failed to send booking confirmation email to %s (will retry next webhook)", user["email"])
     return True
 
 

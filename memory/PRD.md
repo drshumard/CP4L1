@@ -280,20 +280,40 @@ All 12 items from code review addressed:
 - Fixed startup sync burning PB rate limits: 60s delay, 1s between pages, skips if cache <6 hours old
 - Added 5-min backoff on background refresh when PB returns 429
 
-## Recent Updates (April 30, 2026)
+## Recent Updates (April 30 - May 1, 2026)
 - **PB Service ID switched** to `69f3b650a954aca4df110509` (new service) — verified via logs; availability refreshes now hit the new service.
 - **Booking step-advance bug fix (Approach A — JWT-based user identity)**:
-  - Root cause: `POST /api/booking/book` was matching `request.email.lower()` against MongoDB users to advance `current_step`. When a user booked for someone else (purchaser flow) or used a different email, no match → user stuck on Step 1 with polling UI hang.
-  - Fix: `/api/booking/book` now reads optional `Authorization: Bearer <JWT>` header. If present, advances the logged-in user identified by JWT `sub`. Falls back to email match when no token (preserves guest flows).
-  - Frontend `useBooking.js::bookSession` now attaches the access token on the booking request.
-  - LeadConnector Step 1 webhook now sends the **logged-in user's** email (not the booking form email) so CRM gets the right account identifier.
-  - Verified end-to-end by testing agent (iteration_7.json): logged in as raymond@fireside360.co.uk, booked with raymond+6666@controlswitch.io, logged-in account advanced to Step 2 correctly.
+  - `/api/booking/book` reads optional `Authorization: Bearer <JWT>` header. Advances the logged-in user (by JWT sub) regardless of what email the booking form contained. Falls back to email match when no token.
+  - Frontend `useBooking.js::bookSession` attaches `access_token` from localStorage.
+  - LeadConnector Step 1 webhook now sends logged-in user's email.
+- **`/api/user/complete-task` 500 fix**: replaced read-modify-write with idempotent `$addToSet` upsert. Safe for progress docs created by other code paths (`advance_step`, step-4 cap) that lack a `tasks_completed` field.
+- **Practice Better payload cleanup**:
+  - `telehealthSettings` omitted by default (PB honors service dashboard config instead of forcing Zoom). Override via `PRACTICE_BETTER_TELEHEALTH_APP` env var if needed.
+  - Session booking `notify: false` by default (PB doesn't send its own session invite — we send our own). Override via `PRACTICE_BETTER_SESSION_NOTIFY`.
+  - `BookSessionResponse` returns `consultant_id`, `consultant_name`, `consultant_email`. Persisted into `users.booking_info`.
 
-## Open Follow-ups
-- [P2] Frontend logs a 500 from `/api/user/complete-task` during Step 1→2 transition (non-blocking — user progression still succeeds via backend auto-advance). Worth investigating.
-- [P1] Grant staff role access to Admin pages (`get_admin_user` dependency in `server.py`).
-- [P2] Refactor `server.py` (>4000 lines) into modular routers.
-- [P2] Save and show video watch progress; email nudges for incomplete steps; shareable completion certificate; SMS reminders.
+## Google Calendar + Meet Integration (NEW — May 1, 2026)
+- **Architecture**: Service Account with Domain-Wide Delegation impersonating `drjason@drshumard.com` → watch channels on 6 per-practitioner sub-calendars → incremental sync on push → `events.patch` with `conferenceData.createRequest (hangoutsMeet)` → save Meet URL into `users.booking_info.meet_link` → send patient confirmation email via SMTP2GO.
+- **Files**: `/app/backend/services/google_calendar.py` (core SA + watch lifecycle + Meet attach), `/app/backend/google_calendar_routes.py` (webhook + admin endpoints + hourly renewal loop).
+- **Env vars**: `GOOGLE_SERVICE_ACCOUNT_KEY_PATH`, `GOOGLE_CALENDAR_WATCH_TOKEN`, `GOOGLE_CALENDAR_SUBJECT`, `MEET_EVENT_SUMMARY_PREFIX`, `PB_CONSULTANT_CALENDAR_MAP` (JSON: consultant_id → calendar_id).
+- **Admin endpoints**: `POST /api/google/admin/watches/register|renew|stop`, `GET /api/google/admin/watches`, `POST /api/google/admin/watches/process?calendar_id=...`.
+- **Public webhook**: `POST /api/google/calendar-webhook` (token-verified via `X-Goog-Channel-Token`).
+- **Idempotency**: (a) `event_has_meet` check prevents re-patching events that already have Meet; (b) atomic `$exists: false` claim on `booking_info.confirmation_email_sent_at` ensures exactly-once email even under concurrent webhook delivery.
+
+## SMTP2GO Email Integration (NEW — May 1, 2026)
+- **Files**: `/app/backend/services/smtp2go.py` (thin wrapper around `/v3/email/send`), `/app/backend/services/booking_email.py` (template builder + `send_booking_confirmation`).
+- **Env vars**: `SMTP2GO_API_KEY`, `EMAIL_FROM_ADDRESS=notifications@bookings.drshumard.com`, `EMAIL_FROM_NAME=Dr. Shumard`, `PB_PORTAL_BASE_URL=https://drshumard.practicebetter.io`, `ONBOARDING_VIDEO_URL` (optional — hides "watch video" link when empty).
+- **Template includes**: patient-timezone-formatted date/time, clean service title (patient name stripped from summary), Google Meet link, paperwork reminder (48h), phone number, join-10-min-early instruction, "Activate account" button linking to `{PB_PORTAL_BASE_URL}/#/u/activate/{bigint(record_id)+4 hex}?portal_rid={record_id}` (same logic as frontend Step 3).
+- **Trigger**: fires automatically from `_save_meet_url` in `google_calendar_routes.py` after Meet URL is saved. Atomic-claim idempotency prevents duplicate sends.
+
+## Open Follow-ups (as of May 1, 2026)
+- **P1 🔒 Rotate the Google Calendar service account JSON key** — was uploaded to a public emergent-assets URL during setup. Generate a new key, swap in `/app/backend/.secrets/google_calendar_sa.json`, delete old key.
+- **P2** Set `ONBOARDING_VIDEO_URL` in `.env` so the "Click here to watch the Diabetes Consultation Onboarding Video" link appears in patient emails.
+- **P2** Optionally clean up the 2 test Meet links on Dr. Dan's historical events (`gv8fjbjh...` and `goaa4qfh...`) — they were from verification tests.
+- **P2** Admin UI for watch management (view/register/renew via Admin dashboard instead of curl).
+- **P1** Grant staff role access to Admin pages (`get_admin_user` dependency in `server.py`).
+- **P2** Refactor `server.py` (>4000 lines) into modular routers.
+- **P2** Video watch progress tracking; email nudges for incomplete steps; shareable completion certificate; SMS reminders.
 
 ## Last Updated
-April 30, 2026
+May 1, 2026
