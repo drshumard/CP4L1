@@ -114,76 +114,105 @@ def _render_html(
 ) -> str:
     when_label = f"{date_line} @ {time_line}" if date_line and time_line else "your upcoming session"
 
-    # Prominent Join-call block. Rendered only when we have a Meet URL.
+    # Join-call block — a prominent primary button with a copy-link fallback underneath.
     join_block = ""
     if meet_link:
         join_block = f'''
-        <div style="text-align: center; margin: 28px 0;">
-          <a href="{meet_link}"
-             style="display:inline-block; background:#1a73e8; color:#ffffff; padding: 14px 32px; border-radius: 6px; text-decoration:none; font-weight: 600; font-size: 16px;">
-            Join call here
-          </a>
-          <p style="margin: 12px 0 0 0; font-size: 13px; color:#555;">
-            Or copy this link if the button above doesn't work for you:<br>
-            <a href="{meet_link}" style="color:#1a73e8; word-break: break-all;">{meet_link}</a>
-          </p>
-        </div>'''
+      <div style="text-align:center; margin: 36px 0 28px 0;">
+        <a href="{meet_link}"
+           style="display:inline-block; background:#1e4bff; color:#ffffff; padding: 16px 44px; border-radius: 999px; text-decoration:none; font-weight: 600; font-size: 16px; letter-spacing: -0.01em;">
+          Join the call
+        </a>
+        <p style="margin: 18px 0 0 0; font-size: 13px; color:#6b7280; line-height: 1.5;">
+          Or copy this link if the button above doesn't work for you:<br>
+          <a href="{meet_link}" style="color:#1e4bff; text-decoration: none; word-break: break-all;">{meet_link}</a>
+        </p>
+      </div>'''
 
     video_block = ""
     if video_url:
-        video_block = (
-            f'<p>'
-            f'<a href="{video_url}" style="color:#1a73e8;">Click here to watch the '
-            f'Diabetes Consultation Onboarding Video.</a>'
-            f'</p>'
-        )
+        video_block = f'''
+      <p style="margin: 0 0 24px 0;">
+        <a href="{video_url}" style="color:#1e4bff; text-decoration: none; font-weight: 500;">
+          Watch the Diabetes Consultation Onboarding Video &rarr;
+        </a>
+      </p>'''
+
+    hr = '<hr style="border:none; border-top: 1px solid #e5e7eb; margin: 32px 0;">'
 
     return f"""<!doctype html>
 <html>
-<body style="margin:0; padding:0; background:#f3f4f6;">
-  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color:#222; line-height:1.6; max-width:640px; margin: 0 auto; padding: 24px;">
+<body style="margin:0; padding:0; background:#ffffff;">
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color:#111827; line-height:1.65; max-width: 560px; margin: 0 auto; padding: 40px 24px;">
 
-    <!-- Header box -->
-    <div style="background: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 28px 24px; text-align: center; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-      <img src="{_logo_url()}" alt="Dr. Shumard" style="max-width: 180px; height: auto; display:block; margin: 0 auto 16px;">
-      <p style="margin: 0; font-size: 16px; color: #111827;">
-        I've booked a session with you for <strong>{when_label}</strong>.
-      </p>
+    <!-- Logo -->
+    <div style="text-align: center; margin-bottom: 40px;">
+      <img src="{_logo_url()}" alt="Dr. Shumard" style="max-width: 170px; height: auto; display:block; margin: 0 auto;">
     </div>
 
-    <!-- Body -->
-    <div style="background:#ffffff; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px; padding: 28px 24px; margin-top: -1px;">
+    <!-- Hero -->
+    <h1 style="margin: 0 0 16px 0; font-size: 28px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; color: #111827; text-align: center;">
+      I've booked a session with you for {when_label}.
+    </h1>
 
-      <p>Hi {first_name},</p>
+    <p style="margin: 24px 0 0 0; font-size: 16px; color: #374151;">Hi {first_name},</p>
 
-      <p>Here are the details for our upcoming session:</p>
+    <p style="margin: 16px 0 0 0; font-size: 16px; color: #374151;">
+      Here are the details for our upcoming session:
+    </p>
 
-      <p style="margin: 20px 0; padding: 16px; background:#f6f8fa; border-left: 4px solid #1a73e8; border-radius: 4px;">
-        <strong>{service_title}</strong><br>
-        {when_label}
-      </p>
-      {video_block}
-      {join_block}
+    <p style="margin: 20px 0 0 0; font-size: 18px; font-weight: 600; color:#111827;">
+      {service_title}
+    </p>
+    <p style="margin: 4px 0 0 0; font-size: 15px; color:#6b7280;">
+      {when_label}
+    </p>
 
-      <p>Please complete your paperwork, <strong>step 2 in the portal</strong> within the next 48 hours so our director of admissions has enough time to prepare for your strategy session. If the paperwork is not complete within the next 48 hours we will need to cancel your appointment and get you rescheduled once your paperwork is completed.</p>
+    {hr}
 
-      <ul>
-        <li>Make sure you are in a quiet area during the strategy session.</li>
-        <li>Make sure your spouse and or significant other is part of the strategy session.</li>
-      </ul>
+    {video_block}
 
-      <p>If you have any questions or need assistance, please call us at <strong>858-564-7081</strong> and we can help. Please also make sure that you log on to the call <strong>10 minutes before the actual call time</strong>. Thank you and I am looking forward to seeing you soon!</p>
+    <p style="margin: 0 0 16px 0;">
+      Please complete your paperwork — <strong>step 2 in the portal</strong> — within the next 48 hours so our director of admissions has enough time to prepare for your strategy session. If the paperwork is not complete within the next 48 hours we will need to cancel your appointment and get you rescheduled once your paperwork is completed.
+    </p>
 
-      <hr style="border:none; border-top: 1px solid #e0e0e0; margin: 32px 0;">
+    {hr}
 
-      <p>Activate your account to access your resources from any device.</p>
-      <p>
-        <a href="{activate_url}"
-           style="display:inline-block; background:#1a73e8; color:#ffffff; padding: 12px 24px; border-radius: 6px; text-decoration:none; font-weight: 600;">
-          Activate account
-        </a>
-      </p>
-    </div>
+    <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color:#111827; letter-spacing: -0.01em;">
+      Find a quiet space.
+    </h3>
+    <p style="margin: 0 0 24px 0; color:#374151;">
+      Make sure you are somewhere calm and free of distractions for the duration of the call.
+    </p>
+
+    <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color:#111827; letter-spacing: -0.01em;">
+      Bring your partner.
+    </h3>
+    <p style="margin: 0 0 8px 0; color:#374151;">
+      Please make sure your spouse and/or significant other is part of the strategy session.
+    </p>
+
+    {join_block}
+
+    <p style="margin: 0;">
+      If you have any questions or need assistance, please call us at <strong>858-564-7081</strong>. Please also log on to the call <strong>10 minutes before the start time</strong>. Thank you — looking forward to seeing you soon!
+    </p>
+
+    {hr}
+
+    <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 700; color:#111827; letter-spacing: -0.01em;">
+      Activate your account.
+    </h3>
+    <p style="margin: 0 0 18px 0; color:#374151;">
+      Access your resources from any device.
+    </p>
+    <p style="margin: 0 0 8px 0;">
+      <a href="{activate_url}"
+         style="display:inline-block; background:#111827; color:#ffffff; padding: 12px 28px; border-radius: 999px; text-decoration:none; font-weight: 600; font-size: 15px;">
+        Activate account
+      </a>
+    </p>
+
   </div>
 </body>
 </html>"""
@@ -198,24 +227,23 @@ def _render_text(
     video_url: str,
     activate_url: str,
 ) -> str:
-    meet_line = f"\nGoogle Meet link: {meet_link}\n" if meet_link else ""
+    when_label = f"{date_line} @ {time_line}" if date_line and time_line else "your upcoming session"
+    join_line = f"\nJoin the call: {meet_link}\n" if meet_link else ""
     video_line = f"\nOnboarding video: {video_url}\n" if video_url else ""
     return (
-        f"I've booked a session with you for {date_line} @ {time_line}.\n\n"
+        f"I've booked a session with you for {when_label}.\n\n"
         f"Hi {first_name},\n\n"
         f"Here are the details for our upcoming session:\n\n"
-        f"{service_title}\n"
-        f"{date_line} @ {time_line}\n"
-        f"{meet_line}{video_line}\n"
-        f"Please complete your paperwork, step 2 in the portal within the next 48 hours "
-        f"so our director of admissions has enough time to prepare for your strategy session. "
-        f"If the paperwork is not complete within the next 48 hours we will need to cancel "
-        f"your appointment and get you rescheduled once your paperwork is completed.\n\n"
-        f"- Make sure you are in a quiet area during the strategy session.\n"
-        f"- Make sure your spouse and or significant other is part of the strategy session.\n\n"
-        f"If you have any questions or need assistance, please call us at 858-564-7081. "
-        f"Please also make sure that you log on to the call 10 minutes before the actual call time. "
-        f"Thank you and I am looking forward to seeing you soon!\n\n"
+        f"{service_title}\n{when_label}\n"
+        f"{video_line}\n"
+        f"Please complete your paperwork (step 2 in the portal) within the next 48 hours "
+        f"so our director of admissions has enough time to prepare. If paperwork isn't complete "
+        f"in 48 hours we'll need to cancel and reschedule.\n\n"
+        f"Find a quiet space.\nMake sure you are somewhere calm and free of distractions.\n\n"
+        f"Bring your partner.\nMake sure your spouse and/or significant other is part of the strategy session.\n"
+        f"{join_line}\n"
+        f"If you have any questions, call us at 858-564-7081. "
+        f"Please log on to the call 10 minutes before the start time.\n\n"
         f"Activate your account: {activate_url}\n"
     )
 
