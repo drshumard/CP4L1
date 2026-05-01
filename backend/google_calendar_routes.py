@@ -15,7 +15,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import jwt
-from fastapi import APIRouter, HTTPException, Request, Header, status
+from fastapi import APIRouter, HTTPException, Request, Header
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from services import google_calendar as gc
@@ -29,7 +29,6 @@ db = _mongo_client[DB_NAME]
 
 router = APIRouter(prefix="/api/google", tags=["google-calendar"])
 
-# Renew watches this many hours before they expire
 RENEW_LEAD_HOURS = 24
 
 
@@ -63,22 +62,22 @@ async def _require_admin(request: Request) -> dict:
 # ---------------------------------------------------------------------------
 async def _upsert_watch(doc: dict) -> None:
     await db.calendar_watches.update_one(
-        {"calendar_email": doc["calendar_email"]},
+        {"calendar_id": doc["calendar_id"]},
         {"$set": doc},
         upsert=True,
     )
 
 
-async def _get_watch(calendar_email: str) -> Optional[dict]:
-    return await db.calendar_watches.find_one({"calendar_email": calendar_email}, {"_id": 0})
+async def _get_watch(calendar_id: str) -> Optional[dict]:
+    return await db.calendar_watches.find_one({"calendar_id": calendar_id}, {"_id": 0})
 
 
 async def _get_watch_by_channel(channel_id: str) -> Optional[dict]:
     return await db.calendar_watches.find_one({"channel_id": channel_id}, {"_id": 0})
 
 
-async def _delete_watch(calendar_email: str) -> None:
-    await db.calendar_watches.delete_one({"calendar_email": calendar_email})
+async def _delete_watch(calendar_id: str) -> None:
+    await db.calendar_watches.delete_one({"calendar_id": calendar_id})
 
 
 async def _list_watches() -> list[dict]:
@@ -89,22 +88,23 @@ async def _list_watches() -> list[dict]:
 # ---------------------------------------------------------------------------
 # Core: register / stop / renew
 # ---------------------------------------------------------------------------
-async def register_for_calendar(calendar_email: str) -> dict:
+async def register_for_calendar(calendar_id: str, consultant_id: Optional[str] = None) -> dict:
     """Register a watch channel for a single calendar. Idempotent-ish:
     stops any existing channel first.
     """
-    existing = await _get_watch(calendar_email)
+    existing = await _get_watch(calendar_id)
     if existing and existing.get("channel_id") and existing.get("resource_id"):
         try:
-            await gc.stop_watch(calendar_email, existing["channel_id"], existing["resource_id"])
+            await gc.stop_watch(existing["channel_id"], existing["resource_id"])
         except Exception as e:
-            logger.warning("Failed to stop existing channel for %s: %s", calendar_email, e)
+            logger.warning("Failed to stop existing channel for %s: %s", calendar_id, e)
 
-    info = await gc.register_watch(calendar_email)
+    info = await gc.register_watch(calendar_id)
     exp = gc.expiration_dt(info.get("expiration_ms"))
 
     doc = {
-        "calendar_email": calendar_email,
+        "calendar_id": calendar_id,
+        "consultant_id": consultant_id,
         "channel_id": info["channel_id"],
         "resource_id": info["resource_id"],
         "expiration_ms": info["expiration_ms"],
@@ -113,21 +113,31 @@ async def register_for_calendar(calendar_email: str) -> dict:
         "registered_at": datetime.now(timezone.utc).isoformat(),
     }
     await _upsert_watch(doc)
-    logger.info("Registered watch on %s (channel=%s, expires=%s)", calendar_email, info["channel_id"], exp)
+    logger.info("Registered watch on %s (channel=%s, expires=%s)", calendar_id, info["channel_id"], exp)
     return doc
 
 
 async def register_all() -> list[dict]:
     cal_map = gc.consultant_calendar_map()
     results = []
-    for consultant_id, email in cal_map.items():
+    # Deduplicate on calendar_id so we don't double-watch identical calendars
+    # (e.g. Jake/Strang currently share one id due to a reported typo).
+    seen: set[str] = set()
+    for consultant_id, calendar_id in cal_map.items():
+        if calendar_id in seen:
+            results.append({
+                "calendar_id": calendar_id,
+                "consultant_id": consultant_id,
+                "skipped": "duplicate calendar_id",
+            })
+            continue
+        seen.add(calendar_id)
         try:
-            doc = await register_for_calendar(email)
-            doc["consultant_id"] = consultant_id
+            doc = await register_for_calendar(calendar_id, consultant_id=consultant_id)
             results.append(doc)
         except Exception as e:
-            logger.exception("Failed to register watch for %s", email)
-            results.append({"calendar_email": email, "error": str(e)})
+            logger.exception("Failed to register watch for %s", calendar_id)
+            results.append({"calendar_id": calendar_id, "consultant_id": consultant_id, "error": str(e)})
     return results
 
 
@@ -145,36 +155,35 @@ async def renew_if_expiring() -> list[dict]:
             continue
         if exp <= threshold:
             try:
-                doc = await register_for_calendar(w["calendar_email"])
+                doc = await register_for_calendar(w["calendar_id"], w.get("consultant_id"))
                 renewed.append(doc)
             except Exception as e:
-                logger.exception("Renewal failed for %s", w["calendar_email"])
-                renewed.append({"calendar_email": w["calendar_email"], "error": str(e)})
+                logger.exception("Renewal failed for %s", w["calendar_id"])
+                renewed.append({"calendar_id": w["calendar_id"], "error": str(e)})
     return renewed
 
 
 # ---------------------------------------------------------------------------
 # Webhook handling: incremental sync + Meet attach + persist + email hook
 # ---------------------------------------------------------------------------
-async def _process_push(calendar_email: str) -> dict:
-    """Do incremental sync for calendar_email, patch any matching events,
+async def _process_push(calendar_id: str) -> dict:
+    """Do incremental sync for calendar_id, patch any matching events,
     save Meet URLs into users.booking_info.meet_link."""
-    watch = await _get_watch(calendar_email)
+    watch = await _get_watch(calendar_id)
     if not watch:
-        logger.warning("No watch record for %s; ignoring push", calendar_email)
+        logger.warning("No watch record for %s; ignoring push", calendar_id)
         return {"status": "no_watch"}
 
     sync_token = watch.get("sync_token")
     if not sync_token:
-        # Bootstrap freshly
-        new_token = await gc.bootstrap_sync_token(calendar_email)
+        new_token = await gc.bootstrap_sync_token(calendar_id)
         await _upsert_watch({**watch, "sync_token": new_token})
         return {"status": "bootstrapped"}
 
-    events, new_token, needs_full = await gc.list_events_incremental(calendar_email, sync_token)
+    events, new_token, needs_full = await gc.list_events_incremental(calendar_id, sync_token)
     if needs_full:
-        logger.info("Sync token expired for %s, re-bootstrapping", calendar_email)
-        fresh = await gc.bootstrap_sync_token(calendar_email)
+        logger.info("Sync token expired for %s, re-bootstrapping", calendar_id)
+        fresh = await gc.bootstrap_sync_token(calendar_id)
         await _upsert_watch({**watch, "sync_token": fresh})
         return {"status": "resynced"}
 
@@ -185,18 +194,17 @@ async def _process_push(calendar_email: str) -> dict:
         if not gc.is_pb_meet_event(ev):
             continue
         if gc.event_has_meet(ev):
-            # Already has a Meet link — just make sure we've saved it
             meet_url = gc._extract_meet_url(ev)
             if meet_url:
-                await _save_meet_url(ev, meet_url, calendar_email)
+                await _save_meet_url(ev, meet_url, calendar_id, watch.get("consultant_id"))
             continue
         try:
-            meet_url = await gc.attach_meet(calendar_email, ev["id"])
+            meet_url = await gc.attach_meet(calendar_id, ev["id"])
             if meet_url:
-                saved = await _save_meet_url(ev, meet_url, calendar_email)
-                attached.append({"event_id": ev["id"], "meet_url": meet_url, "matched_booking": saved})
+                matched = await _save_meet_url(ev, meet_url, calendar_id, watch.get("consultant_id"))
+                attached.append({"event_id": ev["id"], "meet_url": meet_url, "matched_booking": matched})
         except Exception as e:
-            logger.exception("Failed to attach Meet to event %s on %s", ev.get("id"), calendar_email)
+            logger.exception("Failed to attach Meet to event %s on %s", ev.get("id"), calendar_id)
             attached.append({"event_id": ev.get("id"), "error": str(e)})
 
     if new_token:
@@ -205,7 +213,7 @@ async def _process_push(calendar_email: str) -> dict:
     return {"status": "processed", "changed_events": len(events), "attached": attached}
 
 
-async def _save_meet_url(event: dict, meet_url: str, calendar_email: str) -> bool:
+async def _save_meet_url(event: dict, meet_url: str, calendar_id: str, consultant_id: Optional[str]) -> bool:
     """Match event to a users.booking_info record by start_time + consultant_id,
     then write meet_link. Returns True if a booking was matched.
     """
@@ -213,23 +221,19 @@ async def _save_meet_url(event: dict, meet_url: str, calendar_email: str) -> boo
     if not start:
         return False
 
-    # Map calendar_email back to PB consultant_id
-    consultant_id = None
-    for cid, email in gc.consultant_calendar_map().items():
-        if email.lower() == calendar_email.lower():
-            consultant_id = cid
-            break
-
-    # Match a booking where session_start is within 1 minute of the event start
     try:
-        event_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        # Normalize to UTC regardless of source TZ (Google returns local-TZ strings
+        # like "2026-05-21T11:00:00-07:00" but we store "2026-05-21T18:00:00+00:00"
+        # in Mongo — lexicographic comparison across TZs is wrong, so convert both
+        # to UTC before building the ±1 min window.
+        event_dt_utc = datetime.fromisoformat(start.replace("Z", "+00:00")).astimezone(timezone.utc)
     except ValueError:
         return False
 
-    window_start = (event_dt - timedelta(minutes=1)).isoformat()
-    window_end = (event_dt + timedelta(minutes=1)).isoformat()
+    window_start = (event_dt_utc - timedelta(minutes=1)).isoformat()
+    window_end = (event_dt_utc + timedelta(minutes=1)).isoformat()
 
-    filter_q = {
+    filter_q: dict = {
         "booking_info.session_start": {"$gte": window_start, "$lte": window_end},
     }
     if consultant_id:
@@ -237,7 +241,10 @@ async def _save_meet_url(event: dict, meet_url: str, calendar_email: str) -> boo
 
     user = await db.users.find_one(filter_q, {"_id": 0, "email": 1, "booking_info": 1})
     if not user:
-        logger.warning("No matching booking for event at %s on %s", start, calendar_email)
+        logger.warning(
+            "No matching booking for event at %s (utc=%s) on calendar %s consultant=%s",
+            start, event_dt_utc.isoformat(), calendar_id, consultant_id,
+        )
         return False
 
     await db.users.update_one(
@@ -246,11 +253,11 @@ async def _save_meet_url(event: dict, meet_url: str, calendar_email: str) -> boo
             "$set": {
                 "booking_info.meet_link": meet_url,
                 "booking_info.gcal_event_id": event.get("id"),
-                "booking_info.gcal_calendar": calendar_email,
+                "booking_info.gcal_calendar_id": calendar_id,
             }
         },
     )
-    logger.info("Saved meet_link for %s (event=%s)", user["email"], event.get("id"))
+    logger.info("Saved meet_link for %s (event=%s, meet=%s)", user["email"], event.get("id"), meet_url)
     # TODO: trigger patient email with meet_url (SMTP2GO — to be wired up)
     return True
 
@@ -282,7 +289,6 @@ async def calendar_webhook(
     if not x_goog_channel_id:
         return {"ok": True, "note": "no channel id"}
 
-    # The `sync` state is a lifecycle ping after channel creation — ack and skip
     if x_goog_resource_state == "sync":
         return {"ok": True, "note": "sync acknowledged"}
 
@@ -291,30 +297,28 @@ async def calendar_webhook(
         logger.warning("Unknown channel id %s — acking but not processing", x_goog_channel_id)
         return {"ok": True, "note": "unknown channel"}
 
-    # Process in background so Google sees a fast 200 (webhooks retry if slow/5xx)
-    asyncio.create_task(_safe_process(watch["calendar_email"]))
+    # Process in background so Google sees a fast 200
+    asyncio.create_task(_safe_process(watch["calendar_id"]))
     return {"ok": True}
 
 
-async def _safe_process(calendar_email: str):
+async def _safe_process(calendar_id: str):
     try:
-        await _process_push(calendar_email)
+        await _process_push(calendar_id)
     except Exception:
-        logger.exception("Background processing failed for %s", calendar_email)
+        logger.exception("Background processing failed for %s", calendar_id)
 
 
 @router.post("/admin/watches/register")
 async def admin_register(request: Request):
     await _require_admin(request)
-    result = await register_all()
-    return {"registered": result}
+    return {"registered": await register_all()}
 
 
 @router.post("/admin/watches/renew")
 async def admin_renew(request: Request):
     await _require_admin(request)
-    result = await renew_if_expiring()
-    return {"renewed": result}
+    return {"renewed": await renew_if_expiring()}
 
 
 @router.get("/admin/watches")
@@ -329,19 +333,19 @@ async def admin_stop_all(request: Request):
     stopped = []
     for w in await _list_watches():
         try:
-            await gc.stop_watch(w["calendar_email"], w["channel_id"], w["resource_id"])
-            await _delete_watch(w["calendar_email"])
-            stopped.append({"calendar_email": w["calendar_email"], "stopped": True})
+            await gc.stop_watch(w["channel_id"], w["resource_id"])
+            await _delete_watch(w["calendar_id"])
+            stopped.append({"calendar_id": w["calendar_id"], "stopped": True})
         except Exception as e:
-            stopped.append({"calendar_email": w["calendar_email"], "error": str(e)})
+            stopped.append({"calendar_id": w["calendar_id"], "error": str(e)})
     return {"stopped": stopped}
 
 
-@router.post("/admin/watches/process/{calendar_email}")
-async def admin_force_process(calendar_email: str, request: Request):
-    """Manually trigger processing for a calendar (useful if a webhook was missed)."""
+@router.post("/admin/watches/process")
+async def admin_force_process(request: Request, calendar_id: str):
+    """Manually trigger incremental processing for a calendar (useful to replay missed events)."""
     await _require_admin(request)
-    return await _process_push(calendar_email)
+    return await _process_push(calendar_id)
 
 
 # ---------------------------------------------------------------------------
@@ -351,13 +355,12 @@ _renewal_task: Optional[asyncio.Task] = None
 
 
 async def _renewal_loop():
-    # Check hourly
     while True:
         try:
             await renew_if_expiring()
         except Exception:
             logger.exception("Renewal loop error")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(3600)  # hourly
 
 
 def start_background_renewal():
