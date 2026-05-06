@@ -37,6 +37,7 @@ const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
@@ -60,10 +61,25 @@ const AdminDashboard = () => {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const PAGE_SIZE = 50;
+
   useEffect(() => {
     fetchData();
     fetchSettings();
-  }, []);
+  }, [currentPage, debouncedSearch]);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to page 1 on new search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchSettings = async () => {
     try {
@@ -95,12 +111,21 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('access_token');
-      const usersRes = await axios.get(`${API}/admin/users`, {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        page_size: PAGE_SIZE.toString(),
+      });
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      
+      const usersRes = await axios.get(`${API}/admin/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       setUsers(usersRes.data.users);
+      setTotalPages(usersRes.data.total_pages || 1);
+      setTotalUsers(usersRes.data.total || 0);
       
       trackAdminPanelViewed(localStorage.getItem('user_id'));
     } catch (error) {
@@ -440,18 +465,8 @@ const AdminDashboard = () => {
     }
   };
 
-  // Sort by created_at descending (newest first) and filter
-  const filteredUsers = users
-    .filter(user =>
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.phone?.includes(searchTerm)
-    )
-    .sort((a, b) => {
-      const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
-      const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
-      return dateB - dateA;
-    });
+  // Users are already sorted and filtered by the server
+  const filteredUsers = users;
 
   const getStepLabel = (step) => {
     const labels = {
@@ -629,7 +644,7 @@ const AdminDashboard = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="text-teal-600" size={20} />
-                Users ({filteredUsers.length})
+                Users ({totalUsers})
               </CardTitle>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
@@ -707,6 +722,60 @@ const AdminDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 px-1" data-testid="pagination-controls">
+            <p className="text-sm text-gray-500">
+              Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, totalUsers)} of {totalUsers} users
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                data-testid="pagination-prev"
+              >
+                Previous
+              </Button>
+              {/* Show page numbers */}
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 7) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 4) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i;
+                } else {
+                  pageNum = currentPage - 3 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant={pageNum === currentPage ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className="w-9"
+                    data-testid={`pagination-page-${pageNum}`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                data-testid="pagination-next"
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* User Details Modal */}

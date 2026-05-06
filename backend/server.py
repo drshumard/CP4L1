@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Header
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Header, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -1852,18 +1852,46 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
 
 # Admin Routes
 @api_router.get("/admin/users")
-async def get_all_users(admin_user: dict = Depends(get_admin_user)):
-    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+async def get_all_users(
+    admin_user: dict = Depends(get_admin_user),
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=10, le=200, description="Users per page"),
+    search: str = Query("", description="Search by name, email, or phone")
+):
+    # Build filter
+    query = {}
+    if search.strip():
+        search_regex = {"$regex": search.strip(), "$options": "i"}
+        query["$or"] = [
+            {"name": search_regex},
+            {"email": search_regex},
+            {"phone": search_regex}
+        ]
     
-    # Fetch appointments for all users
-    appointments = await db.appointments.find({}, {"_id": 0}).to_list(1000)
+    # Get total count for pagination
+    total = await db.users.count_documents(query)
     
-    # Create a map of user_id to appointment
+    # Fetch paginated users sorted by created_at desc (newest first)
+    skip = (page - 1) * page_size
+    users = await db.users.find(query, {"_id": 0, "password_hash": 0}) \
+        .sort("created_at", -1) \
+        .skip(skip) \
+        .limit(page_size) \
+        .to_list(page_size)
+    
+    # Fetch ALL appointments (no cap) for enrichment
+    # Only fetch appointments for users in this page to be efficient
+    user_ids = [u.get("id") for u in users if u.get("id")]
+    appointments = await db.appointments.find(
+        {"user_id": {"$in": user_ids}},
+        {"_id": 0}
+    ).to_list(length=None)
+    
+    # Create a map of user_id to most recent appointment
     user_appointments = {}
     for appt in appointments:
         user_id = appt.get("user_id")
         if user_id:
-            # Store the most recent appointment for each user
             if user_id not in user_appointments or appt.get("created_at", "") > user_appointments[user_id].get("created_at", ""):
                 user_appointments[user_id] = appt
     
@@ -1872,7 +1900,6 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
         user_id = user.get("id")
         if user_id and user_id in user_appointments:
             appt = user_appointments[user_id]
-            # Merge appointment into booking_info if not already set
             if not user.get("booking_info"):
                 user["booking_info"] = {
                     "session_start": appt.get("session_date"),
@@ -1881,11 +1908,16 @@ async def get_all_users(admin_user: dict = Depends(get_admin_user)):
                     "created_at": appt.get("created_at")
                 }
             else:
-                # Add webhook data to existing booking_info
                 user["booking_info"]["webhook_booking_id"] = appt.get("booking_id")
                 user["booking_info"]["webhook_session_date"] = appt.get("session_date")
     
-    return {"users": users}
+    return {
+        "users": users,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
 
 # Public API endpoint to lookup user step by email
 @api_router.get("/user/lookup")
@@ -3929,6 +3961,12 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     """Pre-populate availability cache on startup for instant loading"""
+    # Ensure indexes for pagination performance
+    try:
+        await db.users.create_index([("created_at", -1)])
+        await db.users.create_index([("email", 1)])
+    except Exception:
+        pass
     try:
         from booking import start_background_refresh
         start_background_refresh()

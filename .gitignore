@@ -75,6 +75,9 @@ chainlit.md
 # Build caches
 .cache/
 frontend/node_modules/.cache/default-development/0.pack
+
+# Local cache databases (each environment maintains its own)
+backend/client_cache.db
 -e 
 # Environment files
 *.env

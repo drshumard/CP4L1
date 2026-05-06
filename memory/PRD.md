@@ -289,6 +289,12 @@ All 12 items from code review addressed:
   - LeadConnector Step 1 webhook now sends the **logged-in user's** email (not the booking form email) so CRM gets the right account identifier.
   - Verified end-to-end by testing agent (iteration_7.json): logged in as raymond@fireside360.co.uk, booked with raymond+6666@controlswitch.io, logged-in account advanced to Step 2 correctly.
 
+### Admin Users Pagination (May 6, 2026)
+- Removed hard 1000-user cap (was silently dropping newest users)
+- Added server-side pagination with `page`/`page_size`/`search` params, sorted `created_at` desc
+- Frontend: debounced search, page controls, only loads 50 users per request
+- Added MongoDB index on `users.created_at`
+
 ## Open Follow-ups
 - [P2] Frontend logs a 500 from `/api/user/complete-task` during Step 1→2 transition (non-blocking — user progression still succeeds via backend auto-advance). Worth investigating.
 - [P1] Grant staff role access to Admin pages (`get_admin_user` dependency in `server.py`).
@@ -296,4 +302,4 @@ All 12 items from code review addressed:
 - [P2] Save and show video watch progress; email nudges for incomplete steps; shareable completion certificate; SMS reminders.
 
 ## Last Updated
-April 30, 2026
+May 6, 2026
