@@ -280,5 +280,11 @@ All 12 items from code review addressed:
 - Fixed startup sync burning PB rate limits: 60s delay, 1s between pages, skips if cache <6 hours old
 - Added 5-min backoff on background refresh when PB returns 429
 
+### Admin Users Pagination (May 6, 2026)
+- Removed hard 1000-user cap (was silently dropping newest users)
+- Added server-side pagination with `page`/`page_size`/`search` params, sorted `created_at` desc
+- Frontend: debounced search, page controls, only loads 50 users per request
+- Added MongoDB index on `users.created_at`
+
 ## Last Updated
-April 8, 2026
+May 6, 2026
