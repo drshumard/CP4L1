@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Local dev docs (machine-specific, may contain secrets)
+localrun.md
+
 # IDE and editors
 .idea/
 .vscode/

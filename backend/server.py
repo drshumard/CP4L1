@@ -12,8 +12,10 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
+from pymongo import ReturnDocument
 from jose import JWTError, jwt
 import secrets
+import re
 import resend
 from urllib.parse import quote
 
@@ -46,6 +48,24 @@ TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 
 # Zapier Webhook URL for support requests
 ZAPIER_SUPPORT_WEBHOOK = os.environ.get('ZAPIER_SUPPORT_WEBHOOK', 'https://hooks.zapier.com/hooks/catch/1815480/uf7u8ms/')
+
+# Passwordless auth config
+LEGACY_PASSWORD_LOGIN = os.environ.get('LEGACY_PASSWORD_LOGIN', 'false').lower() == 'true'
+MAGIC_LINK_TTL_DAYS = int(os.environ.get('MAGIC_LINK_TTL_DAYS', '7'))
+OTP_RATE_LIMIT = int(os.environ.get('OTP_RATE_LIMIT', '5'))
+OTP_RATE_WINDOW_MIN = int(os.environ.get('OTP_RATE_WINDOW_MIN', '15'))
+
+# Twilio Verify (for SMS OTP)
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_VERIFY_SERVICE_SID = os.environ.get('TWILIO_VERIFY_SERVICE_SID', '')
+_twilio_client = None
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID:
+    try:
+        from twilio.rest import Client as _TwilioClient
+        _twilio_client = _TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    except Exception as e:
+        logging.warning(f"Twilio init failed: {e}")
 
 # Create the main app
 app = FastAPI()
@@ -153,7 +173,7 @@ class User(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     name: str
-    password_hash: str
+    password_hash: Optional[str] = None
     current_step: int = 1
     role: str = "user"  # user or admin
     reset_token: Optional[str] = None
@@ -172,7 +192,7 @@ class UserProgress(BaseModel):
 class SignupRequest(BaseModel):
     email: EmailStr
     name: str
-    password: str
+    password: Optional[str] = None  # Ignored in passwordless mode; kept for backwards compat
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -201,6 +221,16 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
+
+class MagicLinkRequest(BaseModel):
+    email: EmailStr
+
+class SmsSendRequest(BaseModel):
+    email: EmailStr
+
+class SmsVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str
 
 class TaskCompleteRequest(BaseModel):
     task_id: str
@@ -278,22 +308,102 @@ def create_refresh_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def create_auto_login_token(user_id: str, email: str) -> str:
-    """Create a one-time auto-login token valid for 7 days"""
+async def create_auto_login_token(
+    user_id: str,
+    email: str,
+    purpose: str = "welcome",
+    ttl_minutes: Optional[int] = None,
+) -> str:
+    """Create an auto-login token.
+
+    Both 'welcome' (GHL signup) and 'magic_link' (user-requested re-entry)
+    default to MAGIC_LINK_TTL_DAYS (7 days) and are reusable until expiry.
+    The `purpose` field is recorded for auditability.
+    """
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-    
-    # Store token in database
+    if ttl_minutes is None:
+        ttl_minutes = MAGIC_LINK_TTL_DAYS * 24 * 60
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)
+
     await db.auto_login_tokens.insert_one({
         "token": token,
         "user_id": user_id,
         "email": email,
+        "purpose": purpose,
         "expires_at": expires_at.isoformat(),
         "used": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    
+
     return token
+
+def normalize_phone(phone: Optional[str]) -> Optional[str]:
+    """Normalize a phone number to E.164. Returns None if it can't be parsed."""
+    if not phone:
+        return None
+    raw = phone.strip()
+    digits = re.sub(r'\D', '', raw)
+    if not digits:
+        return None
+    if raw.startswith('+'):
+        return '+' + digits
+    if len(digits) == 10:
+        return '+1' + digits
+    if len(digits) == 11 and digits.startswith('1'):
+        return '+' + digits
+    return None
+
+async def check_rate_limit(key: str, limit: Optional[int] = None, window_minutes: Optional[int] = None) -> bool:
+    """Atomically increment the counter for (key, current time bucket) and
+    return True iff the post-increment count is within `limit`.
+
+    Implementation: each (key, bucket) is one document. `find_one_and_update`
+    with $inc + $setOnInsert + upsert is a single atomic Mongo op, so
+    concurrent requests can't observe the same pre-update count and both
+    decide to proceed. The unique index on (key, bucket) backs this up.
+
+    Buckets are aligned to the window length so they roll over predictably;
+    counts decay at the next bucket and the TTL index on expires_at sweeps
+    old docs.
+    """
+    if limit is None:
+        limit = OTP_RATE_LIMIT
+    if window_minutes is None:
+        window_minutes = OTP_RATE_WINDOW_MIN
+    now = datetime.now(timezone.utc)
+    window_seconds = window_minutes * 60
+    bucket = (int(now.timestamp()) // window_seconds) * window_seconds
+    # Keep the doc around past the window so late writers in the next bucket
+    # don't accidentally re-create a 'fresh' record for a still-hot client.
+    expires_at = datetime.fromtimestamp(bucket + window_seconds * 2, tz=timezone.utc)
+
+    doc = await db.rate_limits.find_one_and_update(
+        {"key": key, "bucket": bucket},
+        {
+            "$inc": {"count": 1},
+            "$setOnInsert": {
+                "key": key,
+                "bucket": bucket,
+                "expires_at": expires_at,
+            },
+        },
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    return doc["count"] <= limit
+
+
+async def check_ip_rate_limit(ip_address: Optional[str], scope: str, limit: int = 20, window_minutes: int = 15) -> bool:
+    """IP-based rate limit, looser than the per-identifier check.
+
+    Bounds enumeration cost when an attacker rotates emails/phones from a
+    single source. We allow shared NATs by setting the IP limit higher than
+    the per-account one. Returns True if no IP is available (don't fail
+    closed for ambiguous clients).
+    """
+    if not ip_address:
+        return True
+    return await check_rate_limit(f"ip:{scope}:{ip_address}", limit=limit, window_minutes=window_minutes)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     credentials_exception = HTTPException(
@@ -351,7 +461,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     
     # Generate memorable password using random word combinations
     import random
-    
+
     # Word lists for memorable passwords
     adjectives = [
         "Swift", "Bright", "Golden", "Silver", "Crystal", "Cosmic", "Solar", "Lunar",
@@ -391,27 +501,35 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         # Adjective + Number + Element (e.g., Cosmic88Neon)
         generated_password = random.choice(adjectives) + str(number) + random.choice(elements)
     
-    # Hash password
-    hashed_password = get_password_hash(generated_password)
-    
-    # Create new user with generated password (email stored lowercase)
+    # Hash password (only stored when legacy password login is enabled;
+    # passwordless mode skips this — auth happens via magic link / SMS OTP)
+    hashed_password = get_password_hash(generated_password) if LEGACY_PASSWORD_LOGIN else None
+
+    # Create new user (email stored lowercase)
     user = User(
         email=email_lower,
         name=full_name,
         password_hash=hashed_password
     )
-    
+
     user_dict = user.model_dump()
     user_dict['created_at'] = user_dict['created_at'].isoformat()
+    if not LEGACY_PASSWORD_LOGIN:
+        # Don't persist a None password_hash field in passwordless mode
+        user_dict.pop('password_hash', None)
     # Store first_name and last_name separately if provided
     if data.first_name:
         user_dict['first_name'] = data.first_name
     if data.last_name:
         user_dict['last_name'] = data.last_name
-    # Store phone if provided
-    if data.phone:
+    # Store normalized phone if provided (E.164 for Twilio Verify)
+    normalized_phone = normalize_phone(data.phone)
+    if normalized_phone:
+        user_dict['phone'] = normalized_phone
+    elif data.phone:
+        # Keep the raw value so admins can correct it later
         user_dict['phone'] = data.phone
-    
+
     await db.users.insert_one(user_dict)
     
     # Log user creation
@@ -434,10 +552,45 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     signup_url = f"{frontend_url}/signup?email={encoded_email}&name={encoded_name}"
     auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
     
+    # Build conditional email fragments based on auth mode
+    if LEGACY_PASSWORD_LOGIN:
+        credentials_html = f"""
+                            <!-- Credentials Box -->
+                            <table width="100%" cellpadding="15" cellspacing="0" border="1" style="border-color: #000000; border-collapse: collapse; margin: 25px 0;">
+                                <tr>
+                                    <td colspan="2" style="background-color: #f5f5f5; font-weight: bold; font-size: 18px;">
+                                        Your Login Information
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; width: 120px;">Email:</td>
+                                    <td style="font-size: 16px;">{email_lower}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold;">Password:</td>
+                                    <td style="font-family: Courier, monospace; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{generated_password}</td>
+                                </tr>
+                            </table>"""
+        note_html = """
+                            <p style="margin: 25px 0; padding: 15px; border: 2px solid #000000; background-color: #fffde7;">
+                                <strong>IMPORTANT:</strong> Please save your password in a safe place. You will need it to log into your portal.
+                            </p>"""
+        cta_url = f"{frontend_url}/login"
+        cta_label = "LOG IN TO YOUR PORTAL"
+    else:
+        credentials_html = ""
+        note_html = f"""
+                            <p style="margin: 25px 0;">
+                                If this link expires, head to <a href="{frontend_url}/login" style="color: #000000;">{frontend_url}/login</a> and enter your email &mdash; we'll send a fresh sign-in link or text a 6-digit code to the phone on file.
+                            </p>"""
+        cta_url = auto_login_url
+        cta_label = "ACCESS YOUR PORTAL"
+
     try:
         resend.Emails.send({
             "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
             "to": data.email,
+            "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
             "subject": "Welcome to Your Diabetes Reversal Journey",
             "html": f"""
             <!DOCTYPE html>
@@ -463,43 +616,23 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                             
                             <!-- Main Message -->
                             <p style="margin: 20px 0;">
-                                Thank you for joining us. Your account has been created and you can now access your wellness portal.
+                                Thank you for joining us. Your account has been created and you can now access your onboarding portal.
                             </p>
-                            
-                            <!-- Credentials Box -->
-                            <table width="100%" cellpadding="15" cellspacing="0" border="1" style="border-color: #000000; border-collapse: collapse; margin: 25px 0;">
-                                <tr>
-                                    <td colspan="2" style="background-color: #f5f5f5; font-weight: bold; font-size: 18px;">
-                                        Your Login Information
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="font-weight: bold; width: 120px;">Email:</td>
-                                    <td style="font-size: 16px;">{email_lower}</td>
-                                </tr>
-                                <tr>
-                                    <td style="font-weight: bold;">Password:</td>
-                                    <td style="font-family: Courier, monospace; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{generated_password}</td>
-                                </tr>
-                            </table>
-                            
-                            <!-- Important Note -->
-                            <p style="margin: 25px 0; padding: 15px; border: 2px solid #000000; background-color: #fffde7;">
-                                <strong>IMPORTANT:</strong> Please save your password in a safe place. You will need it to log into your portal.
-                            </p>
-                            
+                            {credentials_html}
+                            {note_html}
+
                             <!-- Login Button -->
                             <p style="margin: 30px 0; text-align: center;">
-                                <a href="{frontend_url}/login" 
+                                <a href="{cta_url}"
                                    style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
-                                    LOG IN TO YOUR PORTAL
+                                    {cta_label}
                                 </a>
                             </p>
-                            
+
                             <!-- Alternative Link -->
                             <p style="margin: 20px 0; font-size: 14px;">
                                 If the button above doesn't work, copy and paste this link into your browser:<br>
-                                <span style="word-break: break-all;">{frontend_url}/login</span>
+                                <span style="word-break: break-all;">{cta_url}</span>
                             </p>
                             
                             <!-- What's Next -->
@@ -515,7 +648,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                             <!-- Need Help -->
                             <p style="margin: 30px 0; padding: 15px; background-color: #f5f5f5;">
                                 <strong>Need Help?</strong><br>
-                                If you have any questions or need assistance, please reply to this email or contact our support team.
+                                If you have any questions or need assistance, please reply to this email or contact our support team at <a href="mailto:concierge@drshumard.com" style="color: #000000;">concierge@drshumard.com</a> or <a href="tel:+18585647081" style="color: #000000;">858-564-7081</a>.
                             </p>
                             
                             <!-- Footer -->
@@ -1033,33 +1166,31 @@ async def signup(request: SignupRequest):
     # Normalize email to lowercase
     email_lower = request.email.lower()
     
-    # Initial wait: 10 seconds to give webhook time to process
-    logging.info(f"Signup request for {email_lower}. Waiting 10 seconds for webhook processing...")
-    await asyncio.sleep(10)
-    
-    # Retry logic: Check for user with 5-second intervals for up to 30 seconds (6 retries)
-    max_retries = 6
-    retry_delay = 5
+    # Poll for the user that the GHL webhook creates. Check immediately —
+    # the webhook often lands before the post-purchase redirect — and then
+    # every second for up to ~40s. Fast path returns in <100ms when the
+    # webhook arrived first; we still tolerate slow webhook queues so paid
+    # users never hit a 404.
+    logging.info(f"Signup request for {email_lower}. Polling for webhook user creation...")
+    max_attempts = 40
+    retry_delay = 1.0
     user = None
-    
-    for attempt in range(max_retries + 1):
+
+    for attempt in range(1, max_attempts + 1):
         user = await db.users.find_one({"email": email_lower}, {"_id": 0})
-        
         if user:
-            logging.info(f"User {email_lower} found after {attempt} retries")
+            logging.info(f"User {email_lower} found on attempt {attempt}/{max_attempts}")
             break
-        
-        if attempt < max_retries:
-            logging.info(f"User {email_lower} not found yet. Retry {attempt + 1}/{max_retries} in {retry_delay} seconds...")
+        if attempt < max_attempts:
             await asyncio.sleep(retry_delay)
-    
+
     # After all retries, if still no user, raise error
     if not user:
-        logging.error(f"User {email_lower} not found after {max_retries} retries (total wait: {10 + (max_retries * retry_delay)} seconds)")
+        logging.error(f"User {email_lower} not found after {max_attempts} attempts (~{int(max_attempts * retry_delay)}s)")
         await log_activity(
             event_type="SIGNUP_FAILED",
             user_email=email_lower,
-            details={"reason": "user_not_found", "retries": max_retries},
+            details={"reason": "user_not_found", "attempts": max_attempts},
             status="failure"
         )
         raise HTTPException(
@@ -1067,12 +1198,12 @@ async def signup(request: SignupRequest):
             detail="Email not found. Please complete purchase first."
         )
     
-    if not user.get("password_hash"):
+    if LEGACY_PASSWORD_LOGIN and not user.get("password_hash"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Account not properly initialized. Please contact support."
         )
-    
+
     # Check if user was in "refunded" state (step 0)
     # If so, reset them to step 1 and send notification email
     was_refunded = user.get("current_step", 1) == 0
@@ -1151,6 +1282,11 @@ async def signup(request: SignupRequest):
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(request: LoginRequest, req: Request):
+    if not LEGACY_PASSWORD_LOGIN:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Password login is disabled. Use the magic link or SMS code on the sign-in page."
+        )
     # Get client info
     ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
     if ip_address and "," in ip_address:
@@ -1298,22 +1434,22 @@ async def auto_login(token: str):
     # Check if token is expired
     expires_at = datetime.fromisoformat(token_doc["expires_at"])
     if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=401, detail="Login link has expired. Please use your email and password to login.")
-    
-    # Check if already used (optional - can allow multiple uses within validity period)
-    # if token_doc.get("used"):
-    #     raise HTTPException(status_code=401, detail="Login link has already been used")
-    
+        raise HTTPException(status_code=401, detail="Login link has expired. Request a new one from the sign-in page.")
+
+    # Tokens are reusable until expiry; we still record first/last use below.
+
     # Find the user
     user = await db.users.find_one({"id": token_doc["user_id"]}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     
-    # Mark token as used (optional)
-    await db.auto_login_tokens.update_one(
-        {"token": token},
-        {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}}
-    )
+    # Record usage (links are reusable, but we track first + last use for audit)
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_set = {"last_used_at": now_iso}
+    if not token_doc.get("used"):
+        update_set["used"] = True
+        update_set["used_at"] = now_iso
+    await db.auto_login_tokens.update_one({"token": token}, {"$set": update_set})
     
     # Generate access tokens
     access_token = create_access_token(
@@ -1333,11 +1469,398 @@ async def auto_login(token: str):
     
     return TokenResponse(
         access_token=access_token,
-        refresh_token=refresh_token
+        refresh_token=refresh_token,
+        user_id=user["id"],
+        email=user["email"]
     )
+
+@api_router.post("/auth/magic-link/request")
+async def request_magic_link(request: MagicLinkRequest, req: Request):
+    """Email a short-lived magic-link login URL to the user.
+
+    Returns 404 with a helpful message when the email isn't on file so that
+    users who mistype don't sit waiting for an email that will never arrive.
+    Enumeration is bounded by per-email + per-IP rate limiters.
+    """
+    email_lower = request.email.lower()
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+
+    if not await check_rate_limit(f"magic_link:{email_lower}"):
+        await log_activity(
+            event_type="MAGIC_LINK_RATE_LIMITED",
+            user_email=email_lower,
+            ip_address=ip_address,
+            details={"reason": "per_email"},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again in a few minutes."
+        )
+
+    if not await check_ip_rate_limit(ip_address, scope="magic_link", limit=20, window_minutes=15):
+        await log_activity(
+            event_type="MAGIC_LINK_RATE_LIMITED",
+            user_email=email_lower,
+            ip_address=ip_address,
+            details={"reason": "per_ip"},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests from this network. Please try again in a few minutes."
+        )
+
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+    if not user:
+        await log_activity(
+            event_type="MAGIC_LINK_UNKNOWN_EMAIL",
+            user_email=email_lower,
+            ip_address=ip_address,
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="We couldn't find an account with that email. Please use the email from your purchase/checkout."
+        )
+
+    token = await create_auto_login_token(user["id"], user["email"], purpose="magic_link")
+    frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    magic_url = f"{frontend_url}/auto-login/{token}"
+
+    try:
+        resend.Emails.send({
+            "from": "Dr. Shumard Portal <noreply@portal.drshumard.com>",
+            "to": user["email"],
+            "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
+            "subject": "Access Your Portal",
+            "html": f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Access Your Portal</title>
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <tr>
+                        <td>
+                            <!-- Header -->
+                            <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
+                                Access Your Portal
+                            </h1>
+
+                            <!-- Greeting -->
+                            <p style="font-size: 18px; margin: 20px 0;">
+                                Hello {user.get('name', 'there')},
+                            </p>
+
+                            <!-- Main Message -->
+                            <p style="margin: 20px 0;">
+                                Click the button below to access your onboarding portal. This link will log you in automatically.
+                            </p>
+
+                            <!-- Login Button -->
+                            <p style="margin: 30px 0; text-align: center;">
+                                <a href="{magic_url}"
+                                   style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
+                                    ACCESS YOUR PORTAL
+                                </a>
+                            </p>
+
+                            <!-- Alternative Link -->
+                            <p style="margin: 20px 0; font-size: 14px;">
+                                If the button doesn't work, copy and paste this link into your browser:<br>
+                                <span style="word-break: break-all;">{magic_url}</span>
+                            </p>
+
+                            <!-- Expiration Note -->
+                            <p style="margin: 25px 0; padding: 15px; background-color: #f5f5f5; font-size: 14px;">
+                                <strong>Note:</strong> This link is valid for {MAGIC_LINK_TTL_DAYS} days and can be reused. If it expires, head to <a href="{frontend_url}/login" style="color: #000000;">{frontend_url}/login</a> and enter your email &mdash; we'll send a fresh link or text a 6-digit code to the phone on file.
+                            </p>
+
+                            <!-- Need Help -->
+                            <p style="margin: 30px 0; padding: 15px; background-color: #f5f5f5;">
+                                <strong>Need Help?</strong><br>
+                                If you have any questions, please reply to this email or contact our support team at <a href="mailto:concierge@drshumard.com" style="color: #000000;">concierge@drshumard.com</a> or <a href="tel:+18585647081" style="color: #000000;">858-564-7081</a>.
+                            </p>
+
+                            <!-- Footer -->
+                            <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
+                                Best regards,<br>
+                                <strong>Dr. Shumard's Team</strong>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """
+        })
+        await log_activity(
+            event_type="MAGIC_LINK_SENT",
+            user_email=user["email"],
+            user_id=user["id"],
+            ip_address=ip_address,
+            status="success"
+        )
+    except Exception as e:
+        logging.error(f"Failed to send magic-link email: {e}")
+        await log_activity(
+            event_type="MAGIC_LINK_EMAIL_FAILED",
+            user_email=user["email"],
+            user_id=user["id"],
+            ip_address=ip_address,
+            details={"error": str(e)},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="We couldn't send the sign-in email. Please try again in a moment."
+        )
+
+    return {"message": f"Sign-in link sent to {user['email']}."}
+
+
+def _mask_phone(phone_e164: str) -> str:
+    """Mask a phone for client display: '+14423853181' -> '•••-•••-3181'."""
+    if not phone_e164 or len(phone_e164) < 4:
+        return "•••"
+    return f"•••-•••-{phone_e164[-4:]}"
+
+
+@api_router.post("/auth/otp/sms/send")
+async def send_sms_otp(request: SmsSendRequest, req: Request):
+    """Trigger Twilio Verify to text a 6-digit code to the phone on file for this email.
+
+    The phone is never sent by the client — we look it up server-side from the
+    user record created at purchase. Returns a masked phone hint so the UI can
+    confirm which number was used.
+    """
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+
+    email_lower = request.email.lower()
+
+    if not await check_rate_limit(f"sms_otp:{email_lower}"):
+        await log_activity(
+            event_type="SMS_OTP_RATE_LIMITED",
+            user_email=email_lower,
+            ip_address=ip_address,
+            details={"reason": "per_email"},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again in a few minutes."
+        )
+
+    # IP-level cap: looser than per-email (10/15min) to allow shared NATs but
+    # still bound SMS cost if an attacker rotates emails from one source.
+    if not await check_ip_rate_limit(ip_address, scope="sms_otp", limit=10, window_minutes=15):
+        await log_activity(
+            event_type="SMS_OTP_RATE_LIMITED",
+            user_email=email_lower,
+            ip_address=ip_address,
+            details={"reason": "per_ip"},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests from this network. Please try again in a few minutes."
+        )
+
+    if not _twilio_client:
+        logging.error("SMS OTP requested but Twilio is not configured.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SMS sign-in is not available right now."
+        )
+
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+
+    if not user:
+        await log_activity(
+            event_type="SMS_OTP_UNKNOWN_EMAIL",
+            user_email=email_lower,
+            ip_address=ip_address,
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="We couldn't find an account with that email. Please use the email from your purchase/checkout."
+        )
+
+    phone_e164 = normalize_phone(user.get("phone"))
+    if not phone_e164:
+        await log_activity(
+            event_type="SMS_OTP_NO_PHONE_ON_FILE",
+            user_email=user["email"],
+            user_id=user["id"],
+            ip_address=ip_address,
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No phone number is on file for this account. Please use the email sign-in link instead."
+        )
+
+    try:
+        await asyncio.to_thread(
+            lambda: _twilio_client.verify.v2
+                .services(TWILIO_VERIFY_SERVICE_SID)
+                .verifications.create(to=phone_e164, channel="sms")
+        )
+        await log_activity(
+            event_type="SMS_OTP_SENT",
+            user_email=user["email"],
+            user_id=user["id"],
+            ip_address=ip_address,
+            details={"phone": phone_e164},
+            status="success"
+        )
+    except Exception as e:
+        logging.error(f"Twilio Verify send failed for {phone_e164}: {e}")
+        await log_activity(
+            event_type="SMS_OTP_SEND_FAILED",
+            user_email=user["email"],
+            user_id=user["id"],
+            ip_address=ip_address,
+            details={"phone": phone_e164, "error": str(e)},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="We couldn't send the code. Please try again in a moment."
+        )
+
+    return {
+        "message": "Code sent.",
+        "phone_hint": _mask_phone(phone_e164),
+    }
+
+
+@api_router.post("/auth/otp/sms/verify", response_model=TokenResponse)
+async def verify_sms_otp(request: SmsVerifyRequest, req: Request):
+    """Verify a Twilio Verify code for the email's phone on file and issue JWTs."""
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+
+    email_lower = request.email.lower()
+    code = (request.code or "").strip()
+    if not code:
+        raise HTTPException(status_code=400, detail="Code is required.")
+
+    if not _twilio_client:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="SMS sign-in is not available right now."
+        )
+
+    # Per-email + per-IP brute-force defense. IP cap is tighter here because
+    # verify attempts are the actual brute-force surface (vs. send).
+    if not await check_rate_limit(f"sms_verify:{email_lower}", limit=10, window_minutes=15):
+        await log_activity(
+            event_type="SMS_OTP_VERIFY_RATE_LIMITED",
+            user_email=email_lower,
+            ip_address=ip_address,
+            details={"reason": "per_email"},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts. Please try again later."
+        )
+
+    if not await check_ip_rate_limit(ip_address, scope="sms_verify", limit=30, window_minutes=15):
+        await log_activity(
+            event_type="SMS_OTP_VERIFY_RATE_LIMITED",
+            user_email=email_lower,
+            ip_address=ip_address,
+            details={"reason": "per_ip"},
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many attempts from this network. Please try again later."
+        )
+
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+    if not user:
+        await log_activity(
+            event_type="SMS_OTP_VERIFY_UNKNOWN_EMAIL",
+            user_email=email_lower,
+            ip_address=ip_address,
+            status="failure"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="We couldn't find an account with that email."
+        )
+
+    phone_e164 = normalize_phone(user.get("phone"))
+    if not phone_e164:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No phone number is on file for this account. Please use the email sign-in link instead."
+        )
+
+    try:
+        verification = await asyncio.to_thread(
+            lambda: _twilio_client.verify.v2
+                .services(TWILIO_VERIFY_SERVICE_SID)
+                .verification_checks.create(to=phone_e164, code=code)
+        )
+    except Exception as e:
+        logging.error(f"Twilio verify check failed for {phone_e164}: {e}")
+        raise HTTPException(status_code=400, detail="Invalid or expired code.")
+
+    if getattr(verification, "status", None) != "approved":
+        await log_activity(
+            event_type="SMS_OTP_VERIFY_FAILED",
+            user_email=user["email"],
+            user_id=user["id"],
+            ip_address=ip_address,
+            details={"phone": phone_e164, "twilio_status": getattr(verification, "status", None)},
+            status="failure"
+        )
+        raise HTTPException(status_code=400, detail="Invalid or expired code.")
+
+    access_token = create_access_token(
+        data={"sub": user["id"]},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    refresh_token_value = create_refresh_token(data={"sub": user["id"]})
+
+    await log_activity(
+        event_type="SMS_OTP_LOGIN_SUCCESS",
+        user_email=user["email"],
+        user_id=user["id"],
+        ip_address=ip_address,
+        details={"phone": phone_e164},
+        status="success"
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token_value,
+        user_id=user["id"],
+        email=user["email"]
+    )
+
 
 @api_router.post("/auth/request-reset")
 async def request_password_reset(request: PasswordResetRequest):
+    if not LEGACY_PASSWORD_LOGIN:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Password reset is disabled. Request a magic link from the sign-in page."
+        )
     # Normalize email to lowercase
     email_lower = request.email.lower()
     user = await db.users.find_one({"email": email_lower}, {"_id": 0})
@@ -1407,6 +1930,11 @@ async def request_password_reset(request: PasswordResetRequest):
 
 @api_router.post("/auth/reset-password")
 async def reset_password(request: PasswordResetConfirm):
+    if not LEGACY_PASSWORD_LOGIN:
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail="Password reset is disabled. Request a magic link from the sign-in page."
+        )
     user = await db.users.find_one({"reset_token": request.token}, {"_id": 0})
     
     if not user:
@@ -3476,9 +4004,6 @@ async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
     
     return {"message": "User deleted successfully", "user_id": user_id}
 
-class SetPasswordRequest(BaseModel):
-    password: str
-
 class UpdateUserRequest(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
@@ -3505,6 +4030,7 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
         resend.Emails.send({
             "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
             "to": user["email"],
+            "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
             "subject": "Access Your Dr. Shumard Portal",
             "html": f"""
             <!DOCTYPE html>
@@ -3522,40 +4048,40 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
                             <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
                                 Access Your Portal
                             </h1>
-                            
+
                             <!-- Greeting -->
                             <p style="font-size: 18px; margin: 20px 0;">
                                 Hello {user.get('name', 'there')},
                             </p>
-                            
+
                             <!-- Main Message -->
                             <p style="margin: 20px 0;">
-                                Click the button below to access your wellness portal. This link will log you in automatically.
+                                Click the button below to access your onboarding portal. This link will log you in automatically.
                             </p>
-                            
+
                             <!-- Login Button -->
                             <p style="margin: 30px 0; text-align: center;">
-                                <a href="{auto_login_url}" 
+                                <a href="{auto_login_url}"
                                    style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
                                     ACCESS YOUR PORTAL
                                 </a>
                             </p>
-                            
+
                             <!-- Alternative Link -->
                             <p style="margin: 20px 0; font-size: 14px;">
                                 If the button doesn't work, copy and paste this link into your browser:<br>
                                 <span style="word-break: break-all;">{auto_login_url}</span>
                             </p>
-                            
+
                             <!-- Note -->
                             <p style="margin: 25px 0; padding: 15px; border: 1px solid #cccccc; background-color: #f5f5f5;">
-                                <strong>Note:</strong> This link is valid for 7 days. If it expires, you can always log in with your email and password at {frontend_url}/login
+                                <strong>Note:</strong> This link is valid for 7 days and can be reused. If it expires, head to <a href="{frontend_url}/login" style="color: #000000;">{frontend_url}/login</a> and enter your email &mdash; we'll send a fresh link or text a 6-digit code to the phone on file.
                             </p>
-                            
+
                             <!-- Need Help -->
                             <p style="margin: 30px 0;">
                                 <strong>Need Help?</strong><br>
-                                If you have any questions, please reply to this email or contact our support team.
+                                If you have any questions, please reply to this email or contact our support team at <a href="mailto:concierge@drshumard.com" style="color: #000000;">concierge@drshumard.com</a> or <a href="tel:+18585647081" style="color: #000000;">858-564-7081</a>.
                             </p>
                             
                             <!-- Footer -->
@@ -3586,166 +4112,6 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
         logging.error(f"Failed to send welcome email via Resend: {e}")
         await log_activity(
             event_type="WELCOME_EMAIL_RESENT",
-            user_email=user["email"],
-            user_id=user_id,
-            details={"admin_id": admin_user["id"], "error": str(e)},
-            status="failure"
-        )
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
-
-@api_router.post("/admin/user/{user_id}/set-password")
-async def set_user_password(user_id: str, request: SetPasswordRequest, admin_user: dict = Depends(get_admin_user)):
-    """Set a new password for user and email it to them - Admin only (uses Resend API)"""
-    
-    user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    if len(request.password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
-    
-    # Hash and update password
-    hashed_password = get_password_hash(request.password)
-    await db.users.update_one({"id": user_id}, {"$set": {"password_hash": hashed_password}})
-    
-    # Generate auto-login token
-    auto_login_token = await create_auto_login_token(user_id, user["email"])
-    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
-    auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
-    
-    # Send email with new password using Resend API
-    try:
-        resend.Emails.send({
-            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
-            "to": user["email"],
-            "subject": "Your Password Has Been Updated",
-            "html": f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);">
-                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
-                    <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
-                        <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
-                        <h1 style="color: white; margin: 0; font-size: 24px;">Password Updated</h1>
-                    </div>
-                    <div style="padding: 30px;">
-                        <p style="color: #333; font-size: 16px;">Hello {user.get('name', 'there')},</p>
-                        <p style="color: #666; font-size: 15px;">Your password has been updated by an administrator. Here are your new credentials:</p>
-                        <div style="background: linear-gradient(135deg, #f0fdfa 0%, #ecfeff 100%); padding: 20px; border-radius: 12px; margin: 25px 0; border: 1px solid #99f6e4;">
-                            <p style="margin: 8px 0; color: #0f766e;"><strong>Email:</strong> {user['email']}</p>
-                            <p style="margin: 8px 0; color: #0f766e;"><strong>New Password:</strong> {request.password}</p>
-                        </div>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="{auto_login_url}" style="display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                                Login Now
-                            </a>
-                        </div>
-                        <p style="color: #999; font-size: 13px; text-align: center;">If you did not request this change, please contact support immediately.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-        })
-        
-        logging.info(f"Password update email sent to {user['email']} via Resend API")
-        
-        await log_activity(
-            event_type="PASSWORD_SET_BY_ADMIN",
-            user_email=user["email"],
-            user_id=user_id,
-            details={"admin_id": admin_user["id"], "method": "resend_api"},
-            status="success"
-        )
-        
-        return {"message": "Password updated and email sent"}
-    except Exception as e:
-        logging.error(f"Failed to send password email via Resend: {e}")
-        await log_activity(
-            event_type="PASSWORD_SET_BY_ADMIN",
-            user_email=user["email"],
-            user_id=user_id,
-            details={"admin_id": admin_user["id"], "error": str(e), "email_sent": False},
-            status="partial"
-        )
-        # Password was still updated, just email failed
-        return {"message": f"Password updated but email failed to send: {str(e)}"}
-
-@api_router.post("/admin/user/{user_id}/send-reset-link")
-async def send_password_reset_link(user_id: str, admin_user: dict = Depends(get_admin_user)):
-    """Send password reset link to user - Admin only (uses Resend API)"""
-    
-    user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    # Generate reset token (24 hour validity)
-    reset_token = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
-    
-    # Store reset token
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {"reset_token": reset_token, "reset_token_expires": expires_at.isoformat()}}
-    )
-    
-    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
-    reset_url = f"{frontend_url}/reset-password?token={reset_token}"
-    
-    try:
-        # Use Resend API
-        resend.Emails.send({
-            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
-            "to": user["email"],
-            "subject": "Reset Your Password",
-            "html": f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            </head>
-            <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 100%);">
-                <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
-                    <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
-                        <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Logo" style="max-width: 180px; margin-bottom: 15px;">
-                        <h1 style="color: white; margin: 0; font-size: 24px;">Password Reset</h1>
-                    </div>
-                    <div style="padding: 30px;">
-                        <p style="color: #333; font-size: 16px;">Hello {user.get('name', 'there')},</p>
-                        <p style="color: #666; font-size: 15px;">A password reset was requested for your account. Click the button below to set a new password:</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="{reset_url}" style="display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                                Reset Password
-                            </a>
-                        </div>
-                        <p style="color: #999; font-size: 13px; text-align: center;">This link is valid for 24 hours. If you didn't request this, please ignore this email.</p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """
-        })
-        
-        logging.info(f"Password reset link sent to {user['email']} via Resend API")
-        
-        await log_activity(
-            event_type="PASSWORD_RESET_LINK_SENT",
-            user_email=user["email"],
-            user_id=user_id,
-            details={"admin_id": admin_user["id"], "method": "resend_api"},
-            status="success"
-        )
-        
-        return {"message": "Password reset link sent"}
-    except Exception as e:
-        logging.error(f"Failed to send reset link via Resend: {e}")
-        await log_activity(
-            event_type="PASSWORD_RESET_LINK_SENT",
             user_email=user["email"],
             user_id=user_id,
             details={"admin_id": admin_user["id"], "error": str(e)},
@@ -3965,8 +4331,26 @@ async def startup_event():
     try:
         await db.users.create_index([("created_at", -1)])
         await db.users.create_index([("email", 1)])
+        await db.users.create_index([("phone", 1)])
     except Exception:
         pass
+    # Auth-related indexes
+    try:
+        await db.auto_login_tokens.create_index([("token", 1)], unique=True)
+        await db.auto_login_tokens.create_index([("user_id", 1)])
+        # TTL on rate_limits.expires_at (stored as native datetime in check_rate_limit)
+        await db.rate_limits.create_index("expires_at", expireAfterSeconds=0)
+        # Unique (key, bucket) backs the atomic upsert in check_rate_limit so
+        # concurrent inserts can't create duplicate counter docs for the same window.
+        # Partial filter skips legacy docs (from before bucketed schema) which
+        # all have bucket missing and would otherwise collide on null.
+        await db.rate_limits.create_index(
+            [("key", 1), ("bucket", 1)],
+            unique=True,
+            partialFilterExpression={"bucket": {"$exists": True}},
+        )
+    except Exception as e:
+        logging.warning(f"Auth index creation failed: {e}")
     try:
         from booking import start_background_refresh
         start_background_refresh()

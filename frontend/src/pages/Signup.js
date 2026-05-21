@@ -12,7 +12,7 @@ const API = `${BACKEND_URL}/api`;
 const Signup = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [stage, setStage] = useState(0); // 0: welcome, 1: setting up, 2: password sent, 3: redirecting
+  const [stage, setStage] = useState(0); // 0: welcome, 1: setting up, 2: account ready, 3: redirecting
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [progress, setProgress] = useState(0); // Progress percentage 0-100
@@ -21,69 +21,62 @@ const Signup = () => {
   // Signup process starts automatically via the other useEffect
 
   const startSignupProcess = useCallback(async (userEmail, userName) => {
-    // Progress animation - smooth updates every 500ms
-    // Total: Up to 55s (6s welcome + 4s setting up + backend 40s retry + 5s final)
+    // The welcome animation and the API call run in parallel. The animation
+    // is purely presentational (acknowledges the screen for ~2s); the API
+    // fires on mount so the fast path — webhook already landed — can
+    // complete in well under 5s instead of forcing a 16s minimum wait.
     const startTime = Date.now();
-    
+    const MIN_WELCOME_MS = 2000;       // user sees the welcome stage at least this long
+    const ANIMATION_TARGET_SECONDS = 14; // progress bar fills over ~14s; holds at 95% if API is slower
+
     const progressInterval = setInterval(() => {
       setProgress(() => {
-        const currentTime = Date.now();
-        const elapsed = (currentTime - startTime) / 1000; // seconds elapsed
-        
-        if (elapsed >= 54) {
-          return 100; // Final stage, show 100%
-        }
-        
-        // Calculate progress smoothly over the entire duration
-        const calculatedProgress = (elapsed / 54) * 100;
-        return Math.min(calculatedProgress, 100);
+        const elapsed = (Date.now() - startTime) / 1000;
+        if (elapsed >= ANIMATION_TARGET_SECONDS) return 95;
+        return Math.min((elapsed / ANIMATION_TARGET_SECONDS) * 95, 95);
       });
-    }, 500);
+    }, 200);
 
-    // Stage 0: Welcome animation (6s) - 0% to ~11%
-    setTimeout(() => setStage(1), 6000);
-    
-    // Stage 1: Setting up account - call API immediately after welcome
-    // The backend will handle the 40-second retry logic
-    setTimeout(async () => {
-      try {
-        // This call may take up to 40 seconds due to backend retry logic
-        const response = await axios.post(`${API}/auth/signup`, {
-          email: userEmail,
-          name: userName,
-          password: 'auto-generated'
-        });
+    // Animation: welcome (stage 0) → setting up (stage 1) after MIN_WELCOME_MS.
+    setTimeout(() => {
+      setStage((s) => (s < 2 ? 1 : s));
+    }, MIN_WELCOME_MS);
 
-        localStorage.setItem('access_token', response.data.access_token);
-        localStorage.setItem('refresh_token', response.data.refresh_token);
-        localStorage.setItem('user_email', userEmail);
-        
-        // Move to stage 2 after successful signup
+    // API fires immediately. When it returns, we wait out the welcome minimum
+    // before transitioning to stage 2 so the user always sees the intro frame.
+    try {
+      const response = await axios.post(`${API}/auth/signup`, {
+        email: userEmail,
+        name: userName,
+      });
+
+      localStorage.setItem('access_token', response.data.access_token);
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+      localStorage.setItem('user_email', userEmail);
+
+      const elapsed = Date.now() - startTime;
+      const waitBeforeReady = Math.max(0, MIN_WELCOME_MS - elapsed);
+
+      setTimeout(() => {
+        setProgress(100);
         setStage(2);
-        
-        // Stage 2: Password sent message (2s)
-        setTimeout(() => setStage(3), 2000);
-        
-        // Stage 3: Redirecting message (3s) then navigate
-        // Use replace to prevent going back to signup page
+        setTimeout(() => setStage(3), 800);
         setTimeout(() => {
           clearInterval(progressInterval);
           navigate('/steps', { replace: true });
-        }, 5000);
-        
-      } catch (error) {
-        clearInterval(progressInterval);
-        
-        // Show helpful error message
-        const errorMessage = error.response?.status === 404 
-          ? 'Please make sure you have completed payment. If you have and believe this is a mistake, contact admin@drshumard.com'
-          : getErrorMessage(error, 'Signup failed. Please try again.');
-        
-        toast.error(errorMessage, { id: 'signup-error', duration: 8000 });
-        setTimeout(() => navigate('/login', { replace: true }), 8000);
-        return;
-      }
-    }, 6000);
+        }, 1600);
+      }, waitBeforeReady);
+
+    } catch (error) {
+      clearInterval(progressInterval);
+
+      const errorMessage = error.response?.status === 404
+        ? 'Please make sure you have completed payment. If you have and believe this is a mistake, contact admin@drshumard.com'
+        : getErrorMessage(error, 'Signup failed. Please try again.');
+
+      toast.error(errorMessage, { id: 'signup-error', duration: 8000 });
+      setTimeout(() => navigate('/login', { replace: true }), 8000);
+    }
   }, [navigate]);
 
   useEffect(() => {
@@ -290,7 +283,7 @@ const Signup = () => {
                   Creating your personalized wellness dashboard...
                 </p>
                 <p className="text-sm text-gray-600">
-                  This may take up to a minute. Please do not close this page.
+                  This may take a moment — please don't close this page.
                 </p>
               </div>
             </motion.div>
@@ -298,35 +291,35 @@ const Signup = () => {
 
           {stage === 2 && (
             <motion.div
-              key="password-sent"
+              key="account-ready"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 1.1 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.3 }}
               className="text-center"
             >
               <div className="glass-dark rounded-3xl p-12 shadow-2xl border-0">
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ duration: 0.5 }}
+                  transition={{ duration: 0.3 }}
                   className="inline-block mb-6"
                 >
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center mx-auto shadow-xl">
                     <CheckCircle2 className="text-white" size={48} />
                   </div>
                 </motion.div>
-                
+
                 <h2 className="text-5xl font-bold mb-4" style={{
                   background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}>
-                  Password Sent!
+                  Account Ready!
                 </h2>
-                
+
                 <p className="text-xl text-gray-700">
-                  Check {email} for your login credentials
+                  Taking you to your portal...
                 </p>
               </div>
             </motion.div>

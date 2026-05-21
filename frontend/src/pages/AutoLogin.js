@@ -132,7 +132,7 @@ const AutoLogin = () => {
               <XCircle className="w-16 h-16 text-red-500" />
             </motion.div>
             <h2 className="text-xl font-bold text-gray-800 mb-2">
-              Login Link Expired
+              We couldn't sign you in
             </h2>
             <p className="text-gray-600 mb-4">
               {errorMessage}

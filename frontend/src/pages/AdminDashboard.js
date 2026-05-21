@@ -13,16 +13,15 @@ import {
 } from '../components/ui/table';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Home, Users, BarChart3, RefreshCw, Trash2, Activity,
-  Search, Mail, Phone, Calendar, X, Eye, EyeOff,
-  Send, Key, Edit2, Clock, CheckCircle2, AlertCircle, Settings
+  Search, Mail, Phone, Calendar, X,
+  Send, Edit2, Clock, CheckCircle2, AlertCircle, Settings
 } from 'lucide-react';
-import { 
+import {
   trackAdminPanelViewed,
   trackAdminUserViewed,
   trackAdminUserEdited,
-  trackAdminPasswordReset,
   trackAdminWelcomeEmailSent,
   trackAdminUserDeleted,
   trackModalOpened,
@@ -40,15 +39,9 @@ const AdminDashboard = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
-  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [pendingStep, setPendingStep] = useState(null);
-  const [passwordFormData, setPasswordFormData] = useState({
-    mode: 'set',
-    newPassword: '',
-    showPassword: false
-  });
   const [actionLoading, setActionLoading] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [bookingFormData, setBookingFormData] = useState({
@@ -247,47 +240,6 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!selectedUser) return;
-    
-    setActionLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      if (passwordFormData.mode === 'set') {
-        if (!passwordFormData.newPassword || passwordFormData.newPassword.length < 6) {
-          toast.error('Password must be at least 6 characters', { id: 'password-length-error' });
-          setActionLoading(false);
-          return;
-        }
-        
-        await axios.post(
-          `${API}/admin/user/${selectedUser.id}/set-password`,
-          { password: passwordFormData.newPassword },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        trackAdminPasswordReset(selectedUser.id);
-        toast.success('Password updated and email sent to user', { id: 'password-set-success' });
-      } else {
-        await axios.post(
-          `${API}/admin/user/${selectedUser.id}/send-reset-link`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        trackAdminPasswordReset(selectedUser.id);
-        toast.success('Password reset link sent to user', { id: 'password-link-success' });
-      }
-      
-      setShowResetPasswordModal(false);
-      trackModalClosed('reset_password');
-      setPasswordFormData({ mode: 'set', newPassword: '', showPassword: false });
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to reset password', { id: 'password-reset-error' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const handleEditUser = async () => {
     if (!selectedUser) return;
     
@@ -331,11 +283,6 @@ const AdminDashboard = () => {
       last_name: selectedUser.last_name || ''
     });
     setShowEditModal(true);
-  };
-
-  const openResetPasswordModal = () => {
-    setPasswordFormData({ mode: 'set', newPassword: '', showPassword: false });
-    setShowResetPasswordModal(true);
   };
 
   const openBookingModal = () => {
@@ -961,14 +908,6 @@ const AdminDashboard = () => {
                     <Button
                       variant="outline"
                       className="flex items-center justify-center gap-2 py-5"
-                      onClick={openResetPasswordModal}
-                    >
-                      <Key size={16} />
-                      Reset Password
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex items-center justify-center gap-2 py-5"
                       onClick={() => handleResendWelcomeEmail(selectedUser.id)}
                       disabled={actionLoading}
                     >
@@ -1011,109 +950,6 @@ const AdminDashboard = () => {
                     </Button>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Reset Password Modal */}
-      <AnimatePresence>
-        {showResetPasswordModal && selectedUser && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowResetPasswordModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-800">Reset Password</h3>
-                  <button
-                    onClick={() => setShowResetPasswordModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">For {selectedUser.name}</p>
-              </div>
-
-              <div className="p-6 space-y-4">
-                {/* Mode Selection */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setPasswordFormData({ ...passwordFormData, mode: 'set' })}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      passwordFormData.mode === 'set'
-                        ? 'border-teal-500 bg-teal-50 text-teal-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    <Key className="mx-auto mb-1" size={20} />
-                    <p className="text-sm font-medium">Set Password</p>
-                  </button>
-                  <button
-                    onClick={() => setPasswordFormData({ ...passwordFormData, mode: 'link' })}
-                    className={`flex-1 py-3 px-4 rounded-lg border-2 transition-colors ${
-                      passwordFormData.mode === 'link'
-                        ? 'border-teal-500 bg-teal-50 text-teal-700'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    <Send className="mx-auto mb-1" size={20} />
-                    <p className="text-sm font-medium">Send Reset Link</p>
-                  </button>
-                </div>
-
-                {/* Password Input (only for 'set' mode) */}
-                {passwordFormData.mode === 'set' && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">New Password</label>
-                    <div className="relative">
-                      <input
-                        type={passwordFormData.showPassword ? 'text' : 'password'}
-                        value={passwordFormData.newPassword}
-                        onChange={(e) => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
-                        placeholder="Enter new password..."
-                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setPasswordFormData({ ...passwordFormData, showPassword: !passwordFormData.showPassword })}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        {passwordFormData.showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                    <p className="text-xs text-gray-500">Password will be emailed to the user</p>
-                  </div>
-                )}
-
-                {passwordFormData.mode === 'link' && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-700">
-                      A password reset link will be sent to <strong>{selectedUser.email}</strong>. 
-                      The link will be valid for 24 hours.
-                    </p>
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleResetPassword}
-                  disabled={actionLoading || (passwordFormData.mode === 'set' && !passwordFormData.newPassword)}
-                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white py-5"
-                >
-                  {actionLoading ? 'Processing...' : passwordFormData.mode === 'set' ? 'Set Password & Send Email' : 'Send Reset Link'}
-                </Button>
               </div>
             </motion.div>
           </motion.div>
