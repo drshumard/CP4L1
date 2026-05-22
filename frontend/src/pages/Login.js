@@ -183,7 +183,7 @@ const Login = () => {
                   transition={{ delay: 0.4 }}
                   className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 md:mb-6 leading-tight"
                 >
-                  Welcome to Your<br />Wellness Portal
+                  Welcome to Your<br />Onboarding Portal
                 </motion.h1>
 
                 <motion.p
@@ -192,7 +192,7 @@ const Login = () => {
                   transition={{ delay: 0.5 }}
                   className="text-base md:text-xl text-cyan-100 mb-6 md:mb-12"
                 >
-                  Continue your journey to better health and wellness
+                  Sign in to continue your onboarding
                 </motion.p>
 
                 <motion.div
@@ -201,7 +201,7 @@ const Login = () => {
                   transition={{ delay: 0.6 }}
                   className="space-y-3 md:space-y-4 hidden sm:block"
                 >
-                  {['Personalized wellness programs', 'Track your progress', 'Expert health advocate support'].map((line) => (
+                  {['Guided onboarding steps', 'Track your progress', 'Concierge support'].map((line) => (
                     <div key={line} className="flex items-center gap-3 md:gap-4">
                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
                         <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

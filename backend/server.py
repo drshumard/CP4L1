@@ -588,17 +588,17 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
 
     try:
         resend.Emails.send({
-            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
+            "from": "Onboarding Portal <admin@portal.drshumard.com>",
             "to": data.email,
             "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
-            "subject": "Welcome to Your Diabetes Reversal Journey",
+            "subject": "Welcome to Your Reversal Onboarding Portal",
             "html": f"""
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Welcome to Dr. Shumard's Portal</title>
+                <title>Welcome to Your Reversal Onboarding Portal</title>
             </head>
             <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -606,7 +606,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                         <td>
                             <!-- Header -->
                             <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
-                                Welcome to Dr. Shumard's Portal
+                                Welcome to Your Reversal Onboarding Portal
                             </h1>
                             
                             <!-- Greeting -->
@@ -640,9 +640,9 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                                 What to Do Next
                             </h2>
                             <ol style="margin: 15px 0; padding-left: 25px;">
-                                <li style="margin: 10px 0;"><strong>Step 1:</strong> Book your initial consultation</li>
-                                <li style="margin: 10px 0;"><strong>Step 2:</strong> Complete your health profile form</li>
-                                <li style="margin: 10px 0;"><strong>Step 3:</strong> Review final preparations for your appointment</li>
+                                <li style="margin: 10px 0;"><strong>Step 1:</strong> Book your strategy session</li>
+                                <li style="margin: 10px 0;"><strong>Step 2:</strong> Complete your onboarding form</li>
+                                <li style="margin: 10px 0;"><strong>Step 3:</strong> Review next steps for your strategy session</li>
                             </ol>
                             
                             <!-- Need Help -->
@@ -654,7 +654,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
                             <!-- Footer -->
                             <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
                                 Best regards,<br>
-                                <strong>Dr. Shumard's Team</strong>
+                                <strong>Onboarding Team, DS</strong>
                             </p>
                         </td>
                     </tr>
@@ -1532,7 +1532,7 @@ async def request_magic_link(request: MagicLinkRequest, req: Request):
 
     try:
         resend.Emails.send({
-            "from": "Dr. Shumard Portal <noreply@portal.drshumard.com>",
+            "from": "Onboarding Portal <noreply@portal.drshumard.com>",
             "to": user["email"],
             "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
             "subject": "Access Your Portal",
@@ -1591,7 +1591,7 @@ async def request_magic_link(request: MagicLinkRequest, req: Request):
                             <!-- Footer -->
                             <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
                                 Best regards,<br>
-                                <strong>Dr. Shumard's Team</strong>
+                                <strong>Onboarding Team, DS</strong>
                             </p>
                         </td>
                     </tr>
@@ -2228,7 +2228,7 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
             raise pdf_gen_error
         
         # Generate filename: Legal Name Diabetes Intake Form.pdf
-        filename = f"{pdf_name} Diabetes Intake Form.pdf"
+        filename = f"{pdf_name} Intake Form.pdf"
         submission_data["pdf_filename"] = filename
         
         # Upload to Dropbox
@@ -4028,10 +4028,10 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
     try:
         # Use Resend API - Simple accessible design for 50+ users
         resend.Emails.send({
-            "from": "Dr. Shumard Portal <admin@portal.drshumard.com>",
+            "from": "Onboarding Portal <admin@portal.drshumard.com>",
             "to": user["email"],
             "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
-            "subject": "Access Your Dr. Shumard Portal",
+            "subject": "Access Your Reversal Onboarding Portal",
             "html": f"""
             <!DOCTYPE html>
             <html lang="en">
@@ -4087,7 +4087,7 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
                             <!-- Footer -->
                             <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
                                 Best regards,<br>
-                                <strong>Dr. Shumard's Team</strong>
+                                <strong>The Onboarding Team, DS</strong>
                             </p>
                         </td>
                     </tr>

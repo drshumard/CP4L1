@@ -280,7 +280,7 @@ const Signup = () => {
                 </h2>
                 
                 <p className="text-xl text-gray-700 mb-3">
-                  Creating your personalized wellness dashboard...
+                  Setting up your onboarding portal...
                 </p>
                 <p className="text-sm text-gray-600">
                   This may take a moment — please don't close this page.
@@ -354,7 +354,7 @@ const Signup = () => {
                 </h2>
                 
                 <p className="text-xl text-gray-700">
-                  Get ready to start your wellness journey!
+                  Get ready to start your onboarding!
                 </p>
               </div>
             </motion.div>
