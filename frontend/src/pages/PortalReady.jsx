@@ -10,6 +10,20 @@ import './prototype/proto.css';
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
 const PB_PORTAL = 'https://my.practicebetter.io';
+const PB_PORTAL_BASE = 'https://drshumard.practicebetter.io';
+
+// Per-patient Practice Better activation deep-link — the same computation the booking email uses:
+// activationId = (record id as hex) + 4, hex, zero-padded to the record id's length. Falls back to
+// the generic PB login when we don't have the patient's record id yet.
+function pbActivateUrl(recordId) {
+  if (!recordId) return PB_PORTAL;
+  try {
+    const activationId = (BigInt('0x' + recordId) + 4n).toString(16).padStart(recordId.length, '0');
+    return `${PB_PORTAL_BASE}/#/u/activate/${activationId}?portal_rid=${recordId}`;
+  } catch {
+    return PB_PORTAL;
+  }
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
@@ -180,7 +194,7 @@ export default function PortalReady() {
             <p className="proto-muted mt-1 max-w-lg" style={{ fontSize: 14, lineHeight: 1.5 }}>
               Set up your secure account in Practice Better to access your plan, messages, and resources before we meet. You can also find the activation email in your inbox or spam.
             </p>
-            <a href={PB_PORTAL} target="_blank" rel="noreferrer" className="proto-btn proto-btn--primary proto-btn--lg mt-4" style={{ gap: 8 }}>
+            <a href={pbActivateUrl(user?.pb_client_record_id)} target="_blank" rel="noreferrer" className="proto-btn proto-btn--primary proto-btn--lg mt-4" style={{ gap: 8 }}>
               <ExternalLink size={19} strokeWidth={2.2} /> Activate your Practice Better portal
             </a>
           </div>
