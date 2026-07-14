@@ -1,0 +1,8 @@
+node_modules/
+build/
+.env
+.env.*
+coverage/
+playwright-report/
+test-results/
+.railway/
