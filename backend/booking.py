@@ -867,9 +867,13 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
     #    synchronous so the portal reflects the booking on the next call).
     await _advance_journey_and_mirror_local(booking, request, jwt_user_id, correlation_id)
 
-    # 4. Confirmation email (exactly once). The Meet link + time are the payload; the PB record
-    #    id is filled later by the background mirror, so we don't hold the email for PB.
-    await _send_confirmation_once(booking, request, session_title, meet_link, None, correlation_id)
+    # 4. Confirmation email (exactly once). Include the patient's PB record id when we already have
+    #    one (from the client sync) so the "Activate my account" link is the per-patient deep link;
+    #    a brand-new PB client (record id created later by the background mirror) falls back to the
+    #    generic PB login. We don't hold the email for PB either way.
+    _puser = await db.users.find_one({"id": jwt_user_id}, {"_id": 0, "pb_client_record_id": 1})
+    await _send_confirmation_once(booking, request, session_title, meet_link,
+                                  (_puser or {}).get("pb_client_record_id"), correlation_id)
 
     # 5. Coordinator add + Practice Better mirror run in the BACKGROUND so the patient isn't held
     #    on a slow or rate-limited PB call. pb_status stays "pending" until the mirror patches it.

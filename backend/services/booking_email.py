@@ -31,6 +31,21 @@ def _portal_base_url() -> str:
     return os.environ.get("PB_PORTAL_BASE_URL", "https://drshumard.practicebetter.io").rstrip("/")
 
 
+def _pb_activation_url(pb_record_id: Optional[str]) -> str:
+    """Per-patient Practice Better activation deep-link — the same computation Step 3 (PortalReady)
+    used: activationId = (record id as hex) + 4, back to hex, zero-padded to the record id's
+    length; then {portal}/#/u/activate/{activationId}?portal_rid={recordId}. Falls back to the
+    generic PB portal login when we don't have a record id yet (brand-new PB client)."""
+    rid = (pb_record_id or "").strip()
+    if not rid:
+        return PB_ACTIVATE_URL
+    try:
+        activation_id = format(int(rid, 16) + 4, "x").zfill(len(rid))
+    except ValueError:
+        return PB_ACTIVATE_URL
+    return f"{_portal_base_url()}/#/u/activate/{activation_id}?portal_rid={rid}"
+
+
 def _logo_url() -> str:
     return os.environ.get("EMAIL_LOGO_URL", "https://portal-drshumard.b-cdn.net/logo.png")
 
@@ -132,6 +147,7 @@ async def send_booking_confirmation(
 ) -> dict:
     date_line, time_line = _format_when(session_start_iso, patient_timezone)
     when_label = f"{date_line} @ {time_line}" if date_line and time_line else "your upcoming session"
+    activate_url = _pb_activation_url(pb_record_id)
     inner = f"""
     {_h1("Your session is booked")}
     <p style="font-size:18px; margin:20px 0;">Hello {first_name},</p>
@@ -143,17 +159,17 @@ async def send_booking_confirmation(
     <h2 style="font-size:18px; color:#000000; margin:0 0 12px 0; border-bottom:1px solid #cccccc; padding-bottom:10px;">Activate your patient portal</h2>
     <p style="margin:15px 0;">Set up your secure Practice Better account to access your plan, messages, and resources any time, from any device.</p>
     <p style="margin:30px 0; text-align:center;">
-      <a href="{PB_ACTIVATE_URL}" style="display:inline-block; padding:15px 40px; background-color:#000000; color:#ffffff; text-decoration:none; font-size:18px; font-weight:bold;">ACTIVATE MY ACCOUNT</a>
+      <a href="{activate_url}" style="display:inline-block; padding:15px 40px; background-color:#000000; color:#ffffff; text-decoration:none; font-size:18px; font-weight:bold;">ACTIVATE MY ACCOUNT</a>
     </p>
     <p style="margin:20px 0; font-size:14px;">If the button doesn't work, copy and paste this link:<br>
-      <span style="word-break:break-all;">{PB_ACTIVATE_URL}</span></p>"""
+      <span style="word-break:break-all;">{activate_url}</span></p>"""
     text = (
         f"Your session is booked.\n\nHello {first_name},\n\n"
         f"{session_title}\n{when_label}\n"
         + (f"\nJoin the call: {meet_link}\n" if meet_link else "")
         + f"\nPlease complete your paperwork (step 2 in the portal) within 48 hours.\n"
         f"Questions? Call {SUPPORT_PHONE}. Log on 10 minutes before.\n"
-        f"\nActivate your account: {PB_ACTIVATE_URL}\n"
+        f"\nActivate your account: {activate_url}\n"
     )
     return await _send(to_email, f"Your session is booked — {date_line}" if date_line else "Your session is booked",
                        _shell(inner), text)
