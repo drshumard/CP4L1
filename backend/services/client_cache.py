@@ -7,6 +7,7 @@ Provides local caching of Practice Better client records to:
 - Handle duplicate email detection
 """
 
+import os
 import sqlite3
 import logging
 from datetime import datetime, timedelta
@@ -268,9 +269,11 @@ class ClientCache:
 _client_cache: Optional[ClientCache] = None
 
 
-def get_client_cache(db_path: str = "client_cache.db") -> ClientCache:
-    """Get or create the global client cache instance"""
+def get_client_cache(db_path: str = None) -> ClientCache:
+    """Get or create the global client cache instance. The SQLite path can be overridden with
+    CLIENT_CACHE_DB_PATH (e.g. a mounted volume) so the cache survives redeploys on ephemeral
+    filesystems; defaults to a local file for dev/Lightsail."""
     global _client_cache
     if _client_cache is None:
-        _client_cache = ClientCache(db_path)
+        _client_cache = ClientCache(db_path or os.environ.get("CLIENT_CACHE_DB_PATH", "client_cache.db"))
     return _client_cache
