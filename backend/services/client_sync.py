@@ -48,6 +48,9 @@ class ClientSyncService:
         before_id: str = None
     ) -> Dict:
         """Fetch a page of client records from Practice Better"""
+        # Share the booking service's token bucket so sync + bookings together stay under PB's limit.
+        from services.practice_better_v2 import get_pb_rate_limiter
+        await get_pb_rate_limiter().acquire()
         async with httpx.AsyncClient(timeout=30.0) as client:
             token = await self.token_getter(client)
             
@@ -91,21 +94,25 @@ class ClientSyncService:
             try:
                 total_synced = 0
                 last_id = None
+                newest_id = None  # first record of the first page = newest overall -> the bookmark
                 seen_ids: set = set()
                 max_pages = 100  # Safety: 100 × 100 = 10,000 clients max
-                
+
                 for page in range(max_pages):
-                    # PB returns records in descending order; use before_id for next page
+                    # PB returns records newest-first; use before_id to walk toward older pages.
                     data = await self.fetch_clients_page(
                         limit=100,
                         before_id=last_id
                     )
-                    
+
                     items = data.get("items", [])
-                    
+
                     if not items:
                         break
-                    
+
+                    if newest_id is None:
+                        newest_id = items[0].get("id")
+
                     # Check for duplicate IDs to detect infinite loop
                     first_id = items[0].get("id")
                     if first_id in seen_ids:
@@ -113,23 +120,23 @@ class ClientSyncService:
                         break
                     for item in items:
                         seen_ids.add(item.get("id"))
-                    
+
                     synced = self.cache.upsert_clients_batch(items)
                     total_synced += synced
-                    
+
                     last_id = items[-1].get("id")
-                    
+
                     if progress_callback:
                         progress_callback(total_synced, None)
-                    
+
                     # If we got fewer items than the limit, this is the last page
                     if len(items) < 100:
                         break
-                    
-                    await asyncio.sleep(1.0)
-                
+                    # Pacing is handled by the shared PB rate limiter — no extra sleep needed.
+
+                # Bookmark the NEWEST id so the incremental sync only pulls clients created after it.
                 self.cache.update_sync_state(
-                    last_record_id=last_id,
+                    last_record_id=newest_id,
                     total_records=total_synced
                 )
                 
@@ -144,37 +151,45 @@ class ClientSyncService:
             finally:
                 self._is_syncing = False
     
-    async def sync_recent_clients(self, limit: int = 50) -> Dict:
-        """Sync only recently updated clients since last sync"""
-        sync_info = self.cache.get_last_sync_info()
-        last_record_id = sync_info.get("last_record_id")
-        
+    async def sync_recent_clients(self, max_pages: int = 5) -> Dict:
+        """Pull only clients created since the last sync — the cache already holds the older ones.
+        PB returns newest-first, so we read from the newest and stop as soon as we reach the
+        bookmarked id, then advance the bookmark to the newest id seen. Falls back to a full seed
+        if there's no bookmark yet."""
+        bookmark = (self.cache.get_last_sync_info() or {}).get("last_record_id")
+        if not bookmark:
+            return await self.sync_all_clients()
+
+        new_items = []
+        newest_id = None
+        before_id = None
         try:
-            data = await self.fetch_clients_page(
-                limit=limit,
-                after_id=last_record_id
-            )
-            
-            items = data.get("items", [])
-            
-            if items:
-                synced = self.cache.upsert_clients_batch(items)
-                new_last_id = items[-1].get("id")
-                
+            for _ in range(max_pages):
+                data = await self.fetch_clients_page(limit=100, before_id=before_id)
+                items = data.get("items", [])
+                if not items:
+                    break
+                if newest_id is None:
+                    newest_id = items[0].get("id")  # newest overall -> next bookmark
+                reached_bookmark = False
+                for item in items:
+                    if item.get("id") == bookmark:
+                        reached_bookmark = True
+                        break
+                    new_items.append(item)
+                if reached_bookmark or len(items) < 100:
+                    break
+                before_id = items[-1].get("id")
+
+            if new_items:
+                self.cache.upsert_clients_batch(new_items)
+            if newest_id and newest_id != bookmark:
                 self.cache.update_sync_state(
-                    last_record_id=new_last_id,
-                    total_records=self.cache.get_total_cached_clients()
+                    last_record_id=newest_id,
+                    total_records=self.cache.get_total_cached_clients(),
                 )
-                
-                logger.info(f"Synced {synced} recent clients")
-                
-                return {
-                    "status": "complete",
-                    "synced": synced
-                }
-            
-            return {"status": "complete", "synced": 0}
-        
+            logger.info(f"Synced {len(new_items)} new clients (incremental)")
+            return {"status": "complete", "synced": len(new_items)}
         except Exception as e:
             logger.error(f"Error syncing recent clients: {e}")
             return {"status": "error", "error": str(e)}

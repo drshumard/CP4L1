@@ -336,9 +336,18 @@ export const trackSessionStart = () => {
     screen_height: window.screen.height,
     viewport_width: window.innerWidth,
     viewport_height: window.innerHeight,
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    timezone: safeTimezone()
   });
 };
+
+// Resolve the browser timezone without throwing — some extensions break Intl.DateTimeFormat.
+function safeTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+}
 
 // ============================================
 // ADMIN EVENTS

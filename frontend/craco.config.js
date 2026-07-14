@@ -68,6 +68,28 @@ const webpackConfig = {
         webpackConfig.plugins.push(healthPluginInstance);
       }
 
+      // Don't run source-map-loader over node_modules. Some packages (e.g. lucide-react 1.x
+      // ESM) ship sourceMappingURL comments that reference source files not published to npm,
+      // which makes source-map-loader throw ENOENT and fail the dev build. We only need source
+      // maps for our own code.
+      webpackConfig.module.rules.forEach((rule) => {
+        if (rule.enforce === 'pre' && rule.loader && rule.loader.includes('source-map-loader')) {
+          rule.exclude = /node_modules/;
+        }
+      });
+      webpackConfig.ignoreWarnings = [
+        ...(webpackConfig.ignoreWarnings || []),
+        /Failed to parse source map/,
+      ];
+
+      // react-select (via react-timezone-select) imports @babel/runtime helpers, which CRA's
+      // ModuleScopePlugin incorrectly rejects as "outside src". Drop that guard (standard fix).
+      if (webpackConfig.resolve) {
+        webpackConfig.resolve.plugins = (webpackConfig.resolve.plugins || []).filter(
+          (p) => p && p.constructor && p.constructor.name !== 'ModuleScopePlugin',
+        );
+      }
+
       return webpackConfig;
     },
   },
@@ -80,33 +102,44 @@ if (config.enableVisualEdits) {
   };
 }
 
-// Setup dev server with visual edits and/or health check
-if (config.enableVisualEdits || config.enableHealthCheck) {
-  webpackConfig.devServer = (devServerConfig) => {
-    // Apply visual edits dev server setup if enabled
-    if (config.enableVisualEdits && setupDevServer) {
-      devServerConfig = setupDevServer(devServerConfig);
-    }
+// Setup dev server: always keep the benign "ResizeObserver loop" notice out of the error
+// overlay, plus visual edits / health check when those are enabled.
+webpackConfig.devServer = (devServerConfig) => {
+  // Apply visual edits dev server setup if enabled
+  if (config.enableVisualEdits && setupDevServer) {
+    devServerConfig = setupDevServer(devServerConfig);
+  }
 
-    // Add health check endpoints if enabled
-    if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
-      const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
+  // Add health check endpoints if enabled
+  if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
+    const originalSetupMiddlewares = devServerConfig.setupMiddlewares;
 
-      devServerConfig.setupMiddlewares = (middlewares, devServer) => {
-        // Call original setup if exists
-        if (originalSetupMiddlewares) {
-          middlewares = originalSetupMiddlewares(middlewares, devServer);
-        }
+    devServerConfig.setupMiddlewares = (middlewares, devServer) => {
+      // Call original setup if exists
+      if (originalSetupMiddlewares) {
+        middlewares = originalSetupMiddlewares(middlewares, devServer);
+      }
 
-        // Setup health endpoints
-        setupHealthEndpoints(devServer, healthPluginInstance);
+      // Setup health endpoints
+      setupHealthEndpoints(devServer, healthPluginInstance);
 
-        return middlewares;
-      };
-    }
+      return middlewares;
+    };
+  }
 
-    return devServerConfig;
+  // The ResizeObserver "loop completed with undelivered notifications" message is a benign
+  // browser notice (Radix poppers measuring long lists). Filter it out of the dev overlay so
+  // it doesn't surface as a fatal runtime error.
+  const prevOverlay = (devServerConfig.client && devServerConfig.client.overlay) || {};
+  devServerConfig.client = {
+    ...(devServerConfig.client || {}),
+    overlay: {
+      ...(typeof prevOverlay === 'object' ? prevOverlay : {}),
+      runtimeErrors: (error) => !(error && /ResizeObserver loop/.test(error.message || '')),
+    },
   };
-}
+
+  return devServerConfig;
+};
 
 module.exports = webpackConfig;

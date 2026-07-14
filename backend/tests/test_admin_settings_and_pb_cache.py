@@ -203,23 +203,35 @@ class TestCacheEndpoints:
         assert data["total_cached_clients"] > 0
         print(f"PASS: Cache status - {data['total_cached_clients']} clients, last_sync={data['last_sync']}")
     
-    def test_cache_lookup_existing_email(self):
-        """GET /api/booking/cache-lookup?email=raymond@fireside360.co.uk returns found=true"""
+    def test_cache_lookup_requires_auth(self):
+        """GET /api/booking/cache-lookup without a token is rejected (client-membership
+        info is sensitive for a medical practice — admin-gated since 2026-07-10)."""
         response = requests.get(
             f"{BASE_URL}/api/booking/cache-lookup",
             params={"email": "raymond@fireside360.co.uk"}
+        )
+        assert response.status_code == 401
+        print("PASS: Cache lookup rejects unauthenticated requests")
+
+    def test_cache_lookup_existing_email(self, admin_token):
+        """GET /api/booking/cache-lookup?email=raymond@fireside360.co.uk returns found=true (admin auth)"""
+        response = requests.get(
+            f"{BASE_URL}/api/booking/cache-lookup",
+            params={"email": "raymond@fireside360.co.uk"},
+            headers={"Authorization": f"Bearer {admin_token}"}
         )
         assert response.status_code == 200
         data = response.json()
         assert data["found"] == True
         assert "record_id" in data
         print(f"PASS: Cache lookup found raymond@fireside360.co.uk with record_id={data['record_id']}")
-    
-    def test_cache_lookup_nonexistent_email(self):
-        """GET /api/booking/cache-lookup?email=nonexistent@test.com returns found=false"""
+
+    def test_cache_lookup_nonexistent_email(self, admin_token):
+        """GET /api/booking/cache-lookup?email=nonexistent@test.com returns found=false (admin auth)"""
         response = requests.get(
             f"{BASE_URL}/api/booking/cache-lookup",
-            params={"email": "nonexistent_test_12345@test.com"}
+            params={"email": "nonexistent_test_12345@test.com"},
+            headers={"Authorization": f"Bearer {admin_token}"}
         )
         assert response.status_code == 200
         data = response.json()

@@ -49,12 +49,13 @@ const AppointmentCountdown = ({ appointment }) => {
       try {
         // Get timezone from Intl API (based on system settings)
         const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        
+
         // Also get locale info
         const locale = navigator.language || navigator.userLanguage || 'en-US';
-        
-        // Use the browser timezone but note it's from locale
-        setUserTimezone(browserTimezone);
+
+        // Use the browser timezone but note it's from locale (guard null — some
+        // browsers/privacy extensions resolve no timezone)
+        setUserTimezone(browserTimezone || 'America/New_York');
       } catch (e) {
         setUserTimezone('Local Time');
       }

@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card } from '../components/ui/card';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '../components/ui/input-otp';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Mail, MessageSquare, ArrowLeft, ExternalLink, Check } from 'lucide-react';
 import { getErrorMessage } from '../utils/errorHandler';
 import { trackLogin, trackLoginFailed, trackPageView, trackButtonClicked } from '../utils/analytics';
 import { safeSetItem } from '../utils/safeStorage';
@@ -15,17 +12,38 @@ import { safeSetItem } from '../utils/safeStorage';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+function maskEmail(email) {
+  try {
+    const [local, domain] = email.split('@');
+    return `${(local?.[0] || '') + '•••'}@${domain}`;
+  } catch {
+    return email;
+  }
+}
+
+// Best-effort "open email app" target for common providers.
+function inboxUrl(email) {
+  const domain = (email.split('@')[1] || '').toLowerCase();
+  if (domain.includes('gmail') || domain.includes('googlemail')) return 'https://mail.google.com/mail/u/0/#inbox';
+  if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live') || domain.includes('msn')) return 'https://outlook.live.com/mail/0/inbox';
+  if (domain.includes('yahoo')) return 'https://mail.yahoo.com/';
+  if (domain.includes('icloud') || domain.includes('me.com') || domain.includes('mac.com')) return 'https://www.icloud.com/mail';
+  if (domain.includes('proton')) return 'https://mail.proton.me/u/0/inbox';
+  if (domain.includes('aol')) return 'https://mail.aol.com/';
+  return null;
+}
+
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // 'request' = enter email, choose email-link or SMS
-  // 'email_sent' = magic link sent confirmation
-  // 'code_entry' = enter SMS code (phone is looked up server-side)
-  const [stage, setStage] = useState('request');
+  const [stage, setStage] = useState('request'); // request | check_email | sms_code
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [emailSent, setEmailSent] = useState(false); // an email code is outstanding (still valid)
   const [phoneHint, setPhoneHint] = useState('');
+  const [tryAnother, setTryAnother] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
 
@@ -35,355 +53,298 @@ const Login = () => {
   useEffect(() => {
     trackPageView('login');
     if (bookingSuccess || bookingMessage) {
-      toast.success('Your consultation has been booked! Please sign in to continue.', {
-        id: 'booking-login-prompt',
-        duration: 6000,
-      });
+      toast.success('Your consultation has been booked! Please sign in to continue.', { id: 'booking-login-prompt', duration: 6000 });
     }
   }, [bookingSuccess, bookingMessage]);
 
   useEffect(() => {
-    if (!notification) return;
+    if (!notification) return undefined;
     const t = setTimeout(() => setNotification(null), 5000);
     return () => clearTimeout(t);
   }, [notification]);
 
-  const showNotification = (type, message) => setNotification({ type, message });
+  const note = (type, message) => setNotification({ type, message });
 
-  const handleSendMagicLink = async (e) => {
-    e?.preventDefault();
-    if (!email) return showNotification('error', 'Please enter your email.');
-    setLoading(true);
-    try {
-      await axios.post(`${API}/auth/magic-link/request`, { email });
-      trackButtonClicked('send_magic_link', 'login_page');
-      setStage('email_sent');
-    } catch (err) {
-      const status = err.response?.status;
-      if (status === 404) {
-        showNotification('error', "We couldn't find an account with that email. Please use the email from your purchase/checkout.");
-      } else if (status === 429) {
-        showNotification('error', 'Too many requests. Try again in a few minutes.');
-      } else if (status === 502) {
-        showNotification('error', "We couldn't send the email right now. Please try again in a moment.");
-      } else {
-        showNotification('error', getErrorMessage(err, 'Could not send sign-in link.'));
-      }
-    } finally {
-      setLoading(false);
-    }
+  const finishLogin = (data, method) => {
+    safeSetItem('access_token', data.access_token);
+    safeSetItem('refresh_token', data.refresh_token);
+    if (data.email) safeSetItem('user_email', data.email);
+    trackLogin(data.user_id, data.email, method);
+    note('success', 'Signed in!');
+    setTimeout(() => navigate(bookingSuccess || bookingMessage ? '/steps?booking=success' : '/'), 500);
   };
 
-  const handleSendSmsCode = async () => {
-    if (!email) return showNotification('error', 'Please enter your email first.');
+  // ---- email channel ----
+  const startEmail = async (e) => {
+    e?.preventDefault();
+    if (!email) return note('error', 'Please enter your email.');
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/auth/otp/sms/send`, { email });
-      trackButtonClicked('send_sms_code', 'login_page');
-      setPhoneHint(response.data?.phone_hint || '');
+      const res = await axios.post(`${API}/auth/email/start`, { email });
+      trackButtonClicked('email_signin_start', 'login_page');
+      setMaskedEmail(res.data?.masked_email || maskEmail(email));
       setCode('');
-      setStage('code_entry');
+      setTryAnother(false);
+      setEmailSent(true);
+      setStage('check_email');
     } catch (err) {
-      const status = err.response?.status;
-      if (status === 404) {
-        showNotification('error', "We couldn't find an account with that email. Please use the email from your purchase/checkout.");
-      } else if (status === 409) {
-        showNotification('error', "No phone number is on file for this account. Please use the email sign-in link instead.");
-      } else if (status === 503) {
-        showNotification('error', 'SMS sign-in is unavailable. Try the email link instead.');
-      } else if (status === 429) {
-        showNotification('error', 'Too many requests. Try again in a few minutes.');
-      } else if (status === 502) {
-        showNotification('error', "We couldn't send the code right now. Please try again in a moment.");
-      } else {
-        showNotification('error', getErrorMessage(err, 'Could not send code.'));
-      }
+      const s = err.response?.status;
+      if (s === 404) note('error', "We couldn't find an account with that email. Use the email from your checkout.");
+      else if (s === 429) note('error', 'Too many requests. Try again in a few minutes.');
+      else if (s === 502) note('error', "We couldn't send the email right now. Please try again in a moment.");
+      else note('error', getErrorMessage(err, 'Could not send the sign-in email.'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyCode = async (e) => {
-    e?.preventDefault();
-    if (code.length !== 6) return showNotification('error', 'Enter the 6-digit code.');
+  const verifyEmailCode = async (value) => {
+    const c = value ?? code;
+    if (c.length !== 6) return;
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/auth/otp/sms/verify`, { email, code });
-      safeSetItem('access_token', response.data.access_token);
-      safeSetItem('refresh_token', response.data.refresh_token);
-      if (response.data.email) safeSetItem('user_email', response.data.email);
-
-      trackLogin(response.data.user_id, response.data.email, 'sms_otp');
-      showNotification('success', 'Signed in!');
-
-      if (bookingSuccess || bookingMessage) {
-        setTimeout(() => navigate('/steps?booking=success'), 600);
-      } else {
-        setTimeout(() => navigate('/'), 600);
-      }
+      const res = await axios.post(`${API}/auth/email/verify`, { email, code: c });
+      finishLogin(res.data, 'email_code');
     } catch (err) {
       trackLoginFailed(email, getErrorMessage(err, 'Verification failed'));
-      const status = err.response?.status;
-      if (status === 400) {
-        showNotification('error', 'Invalid or expired code. Try again or request a new one.');
-      } else if (status === 404) {
-        showNotification('error', "We couldn't find an account with that email.");
-      } else if (status === 409) {
-        showNotification('error', "No phone number is on file. Please use the email sign-in link instead.");
-      } else {
-        showNotification('error', getErrorMessage(err, 'Verification failed.'));
-      }
+      setCode('');
+      const s = err.response?.status;
+      if (s === 400) note('error', 'Incorrect or expired code. Try again or resend.');
+      else if (s === 429) note('error', 'Too many attempts. Resend a new code.');
+      else note('error', getErrorMessage(err, 'Verification failed.'));
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 overflow-x-hidden bg-grid-pattern" style={{ background: '#F4F3F2' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full h-full flex items-center justify-center overflow-x-hidden"
+  // ---- SMS channel ----
+  const sendSms = async () => {
+    if (!email) return note('error', 'Please enter your email first.');
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/auth/otp/sms/send`, { email });
+      trackButtonClicked('send_sms_code', 'login_page');
+      setPhoneHint(res.data?.phone_hint || '');
+      setCode('');
+      setStage('sms_code');
+    } catch (err) {
+      const s = err.response?.status;
+      if (s === 404) note('error', "We couldn't find an account with that email.");
+      else if (s === 409) note('error', 'No phone number is on file. Please use the email code instead.');
+      else if (s === 503) note('error', 'SMS sign-in is unavailable. Use the email code instead.');
+      else if (s === 429) note('error', 'Too many requests. Try again in a few minutes.');
+      else note('error', getErrorMessage(err, 'Could not send the text code.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifySms = async (value) => {
+    const c = value ?? code;
+    if (c.length !== 6) return;
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API}/auth/otp/sms/verify`, { email, code: c });
+      finishLogin(res.data, 'sms_otp');
+    } catch (err) {
+      trackLoginFailed(email, getErrorMessage(err, 'Verification failed'));
+      setCode('');
+      const s = err.response?.status;
+      if (s === 400) note('error', 'Invalid or expired code. Try again or resend.');
+      else note('error', getErrorMessage(err, 'Verification failed.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const otpSlots = (onComplete) => (
+    <div className="flex justify-center">
+      <InputOTP
+        maxLength={6}
+        value={code}
+        onChange={(v) => { setCode(v); if (v.length === 6) onComplete(v); }}
+        data-testid="otp-input"
       >
-        <Card
-          className="shadow-2xl border-0 overflow-hidden w-full max-w-7xl"
-          data-testid="login-card"
+        <InputOTPGroup className="gap-2.5">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <InputOTPSlot key={i} index={i} className="otp-slot" />
+          ))}
+        </InputOTPGroup>
+      </InputOTP>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-2 sm:p-4 md:p-6 lg:p-8 overflow-x-hidden"
+      style={{ background: 'var(--brand-50)', fontFamily: "'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}
+        className="w-full h-full flex items-center justify-center overflow-x-hidden">
+        <div className="grid md:grid-cols-2 bg-white overflow-hidden border border-[#d9eaf1] w-full max-w-7xl"
           style={{
+            borderRadius: 14,
+            boxShadow: '0 16px 40px rgba(47,70,83,0.12)',
             height: window.innerWidth < 768 ? 'auto' : 'calc(100vh - 4rem)',
             minHeight: window.innerWidth < 768 ? '100vh' : 'auto',
-          }}
-        >
-          <div className="grid md:grid-cols-2 h-full w-full overflow-hidden">
-            {/* Left Side - Gradient Panel */}
-            <div className="relative bg-gradient-to-br from-teal-500 via-cyan-600 to-cyan-700 p-4 sm:p-6 md:p-12 lg:p-16 flex flex-col justify-center text-white overflow-hidden min-h-[300px] md:min-h-0 w-full">
-              <div className="absolute top-10 left-10 md:top-20 md:left-20 w-32 h-32 md:w-64 md:h-64 bg-white/10 rounded-full blur-2xl md:blur-3xl"></div>
-              <div className="absolute bottom-10 right-10 md:bottom-32 md:right-20 w-40 h-40 md:w-80 md:h-80 bg-cyan-400/20 rounded-full blur-2xl md:blur-3xl"></div>
-              <div className="hidden md:block absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-teal-400/10 rounded-full blur-3xl"></div>
-
-              <div className="relative z-10">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.3, type: 'spring', stiffness: 200 }}
-                  className="mb-6 md:mb-8"
-                >
-                  <div className="mb-4 md:mb-8 flex justify-center">
-                    <img
-                      src="https://portal-drshumard.b-cdn.net/logo.png"
-                      alt="Logo"
-                      className="w-40 h-40 md:w-56 md:h-56 object-contain"
-                    />
-                  </div>
-                </motion.div>
-
-                <motion.h1
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 md:mb-6 leading-tight"
-                >
-                  Welcome to Your<br />Onboarding Portal
-                </motion.h1>
-
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 }}
-                  className="text-base md:text-xl text-cyan-100 mb-6 md:mb-12"
-                >
-                  Sign in to continue your onboarding
-                </motion.p>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="space-y-3 md:space-y-4 hidden sm:block"
-                >
+          }}>
+          {/* Brand panel */}
+          <div className="relative p-6 sm:p-8 md:p-12 lg:p-16 flex flex-col text-white overflow-hidden min-h-[300px] md:min-h-0"
+            style={{
+              backgroundImage: 'linear-gradient(150deg, rgba(74,122,143,0.88), rgba(47,70,83,0.94)), url("https://portal-drshumard.b-cdn.net/Honeycomb_mesh_with_brand_colors_202606220846.jpeg")',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}>
+            <div className="relative z-10 flex flex-col flex-1">
+              <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard"
+                className="h-12 md:h-16 lg:h-20 object-contain self-center md:self-start brightness-0 invert" />
+              <div className="flex-1 flex flex-col justify-center mt-8 md:mt-0">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold leading-tight mb-3 md:mb-4 text-center" style={{ letterSpacing: '-0.02em' }}>Welcome to your onboarding portal</h1>
+                <p className="text-base md:text-lg mb-6 text-center" style={{ color: 'var(--brand-100)' }}>Sign in to continue your onboarding journey.</p>
+                <div className="space-y-3 hidden sm:block self-center">
                   {['Guided onboarding steps', 'Track your progress', 'Concierge support'].map((line) => (
-                    <div key={line} className="flex items-center gap-3 md:gap-4">
-                      <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-5 h-5 md:w-6 md:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <p className="text-cyan-50 text-sm md:text-lg">{line}</p>
+                    <div key={line} className="flex items-center gap-3">
+                      <span className="w-7 h-7 rounded-full grid place-items-center flex-none" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                        <Check size={16} strokeWidth={2.5} />
+                      </span>
+                      <span className="text-sm md:text-base" style={{ color: 'var(--brand-100)' }}>{line}</span>
                     </div>
                   ))}
-                </motion.div>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Right Side - Passwordless Form */}
-            <div className="bg-white p-4 sm:p-6 md:p-10 lg:p-12 xl:p-16 flex flex-col justify-center w-full overflow-hidden">
+          {/* Form panel */}
+          <div className="p-6 sm:p-8 md:p-10 lg:p-14 xl:p-16 flex flex-col justify-center overflow-y-auto">
+            <div className="relative w-full">
               <AnimatePresence>
                 {notification && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -20, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: 'auto' }}
-                    exit={{ opacity: 0, y: -20, height: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="overflow-hidden mb-4 md:mb-6"
-                  >
-                    <div
-                      className={`p-3 md:p-4 rounded-lg border ${
-                        notification.type === 'success'
-                          ? 'bg-teal-50 border-teal-200 text-teal-800'
-                          : 'bg-red-50 border-red-200 text-red-800'
-                      }`}
-                    >
-                      <p className="text-xs md:text-sm font-medium leading-relaxed">{notification.message}</p>
+                  <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute bottom-full inset-x-0 mb-3 z-10">
+                    <div className="p-3 rounded-[7px] text-sm font-medium border shadow-sm"
+                      style={notification.type === 'success'
+                        ? { background: 'var(--brand-50)', borderColor: 'var(--brand-200)', color: 'var(--brand-800)' }
+                        : { background: '#fff1f2', borderColor: '#fecdd3', color: '#be123c' }}>
+                      {notification.message}
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="mb-6 md:mb-10">
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-2 md:mb-3">Sign In</h2>
-                <p className="text-sm md:text-lg text-gray-600">
-                  {stage === 'request' && "Enter your email — we'll send a sign-in link or text you a code."}
-                  {stage === 'email_sent' && 'Check your inbox.'}
-                  {stage === 'code_entry' && 'Enter the 6-digit code we just sent.'}
-                </p>
-              </div>
+            {/* STAGE: request */}
+            {stage === 'request' && (
+              <form onSubmit={startEmail} data-testid="request-form">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] mb-2" style={{ color: 'var(--brand-700)' }}>Onboarding</p>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1" style={{ letterSpacing: '-0.01em' }}>Sign in</h2>
+                <p className="text-[15px] text-slate-500 mb-7">Enter your email and we'll send a sign-in link and code.</p>
 
-              {/* STAGE: request */}
-              {stage === 'request' && (
-                <form onSubmit={handleSendMagicLink} className="space-y-4 md:space-y-6" data-testid="request-form">
-                  <div className="space-y-2 md:space-y-3">
-                    <Label htmlFor="email" className="text-sm md:text-base font-medium text-gray-700">Email address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@example.com"
-                      className="h-12 md:h-14 px-4 md:px-5 text-sm md:text-base border-gray-300 focus:border-teal-500 focus:ring-teal-500"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
-                      required
-                      data-testid="email-input"
-                    />
-                  </div>
+                <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                <input id="email" type="email" placeholder="you@example.com" value={email}
+                  onChange={(e) => setEmail(e.target.value)} autoComplete="email" required data-testid="email-input"
+                  className="w-full h-12 px-4 text-[15px] border border-slate-200 rounded-[7px] outline-none focus:border-[var(--brand-500)] focus:ring-2 focus:ring-[var(--brand-100)]" />
 
-                  <Button
-                    type="submit"
-                    className="w-full h-12 md:h-14 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold rounded-lg shadow-lg text-base md:text-lg"
-                    disabled={loading}
-                    data-testid="send-magic-link-button"
-                  >
-                    {loading ? 'Sending…' : 'Email me a sign-in link'}
-                  </Button>
+                <button type="submit" disabled={loading} data-testid="continue-button"
+                  className="brand-btn w-full h-12 mt-5 rounded-[7px] font-semibold text-[15px]">
+                  {loading ? 'Sending…' : 'Continue'}
+                </button>
 
-                  <div className="flex items-center gap-3 my-2">
-                    <div className="flex-1 h-px bg-gray-200"></div>
-                    <span className="text-xs uppercase tracking-wider text-gray-400">or</span>
-                    <div className="flex-1 h-px bg-gray-200"></div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSendSmsCode}
-                    disabled={loading}
-                    className="w-full text-sm md:text-base text-teal-700 hover:text-teal-800 font-medium underline-offset-4 hover:underline disabled:opacity-50"
-                    data-testid="send-sms-instead-button"
-                  >
-                    Verify with SMS instead
-                  </button>
-                </form>
-              )}
-
-              {/* STAGE: email_sent */}
-              {stage === 'email_sent' && (
-                <div className="space-y-5" data-testid="email-sent-confirmation">
-                  <div className="p-4 md:p-5 rounded-lg border border-teal-200 bg-teal-50 text-teal-900">
-                    <p className="text-sm md:text-base">
-                      We've sent a sign-in link to <strong>{email}</strong>. The link is valid for 7 days and can be reused.
-                    </p>
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Didn't receive it? Check your spam folder, or try one of the options below.
-                  </p>
-
-                  <Button
-                    type="button"
-                    onClick={handleSendMagicLink}
-                    disabled={loading}
-                    className="w-full h-12 md:h-14 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold rounded-lg shadow-lg text-base md:text-lg"
-                    data-testid="resend-magic-link-button"
-                  >
-                    {loading ? 'Sending…' : 'Resend sign-in link'}
-                  </Button>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSendSmsCode}
-                    disabled={loading}
-                    className="w-full h-12 md:h-14 text-base md:text-lg"
-                    data-testid="switch-to-sms-button"
-                  >
-                    Text me a code instead
-                  </Button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStage('request')}
-                    className="w-full text-sm md:text-base text-gray-600 hover:text-gray-900 font-medium"
-                    data-testid="edit-email-button"
-                  >
-                    ← Edit email
+                <div className="text-center mt-5">
+                  <button type="button" onClick={sendSms} disabled={loading} data-testid="use-phone-instead"
+                    className="brand-link text-sm font-medium inline-flex items-center gap-1.5 disabled:opacity-50">
+                    <MessageSquare size={15} strokeWidth={1.75} /> Use phone instead
                   </button>
                 </div>
-              )}
+              </form>
+            )}
 
-              {/* STAGE: code_entry */}
-              {stage === 'code_entry' && (
-                <form onSubmit={handleVerifyCode} className="space-y-6" data-testid="code-entry-form">
-                  <p className="text-sm md:text-base text-gray-700">
-                    We sent a code to the phone on file{phoneHint ? <> (<strong>{phoneHint}</strong>)</> : ''}.
-                  </p>
-                  <div className="flex justify-center">
-                    <InputOTP maxLength={6} value={code} onChange={(v) => setCode(v)} data-testid="otp-input">
-                      <InputOTPGroup>
-                        {[0, 1, 2, 3, 4, 5].map((i) => (
-                          <InputOTPSlot key={i} index={i} className="h-12 w-12 md:h-14 md:w-14 text-lg md:text-2xl" />
-                        ))}
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-12 md:h-14 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold rounded-lg shadow-lg text-base md:text-lg"
-                    disabled={loading || code.length !== 6}
-                    data-testid="verify-code-button"
-                  >
-                    {loading ? 'Verifying…' : 'Verify and sign in'}
-                  </Button>
-                  <div className="flex items-center justify-between text-sm">
-                    <button
-                      type="button"
-                      onClick={() => { setStage('request'); setCode(''); setPhoneHint(''); }}
-                      className="text-gray-600 hover:text-gray-900 font-medium"
-                      data-testid="back-to-request-from-code"
-                    >
-                      ← Use a different email
+            {/* STAGE: check_email */}
+            {stage === 'check_email' && (
+              <div data-testid="check-email">
+                <div className="w-11 h-11 rounded-full grid place-items-center mb-4" style={{ background: 'var(--brand-50)' }}>
+                  <Mail size={20} strokeWidth={1.75} style={{ color: 'var(--brand-600)' }} />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">Check your email</h2>
+                <p className="text-[15px] text-slate-500 mb-6">
+                  We sent a sign-in link and code to <strong className="text-slate-700">{maskedEmail}</strong>.
+                </p>
+
+                <label className="block text-sm font-medium text-slate-700 mb-3 text-center">Enter the 6-digit code</label>
+                <div className="mb-3">{otpSlots(verifyEmailCode)}</div>
+                {loading && <p className="text-sm text-slate-400 mb-4 text-center">Verifying…</p>}
+
+                <button type="button" onClick={() => verifyEmailCode()} disabled={loading || code.length !== 6}
+                  className="brand-btn w-full h-12 mt-3 rounded-[7px] font-semibold text-[15px]" data-testid="verify-email-code">
+                  {loading ? 'Verifying…' : 'Verify and sign in'}
+                </button>
+
+                <div className="flex items-center justify-between mt-4 text-sm">
+                  {inboxUrl(email) ? (
+                    <a href={inboxUrl(email)} target="_blank" rel="noreferrer"
+                      className="brand-link font-medium inline-flex items-center gap-1.5">
+                      <ExternalLink size={15} strokeWidth={1.75} /> Open email app
+                    </a>
+                  ) : <span />}
+                  <button type="button" onClick={startEmail} disabled={loading}
+                    className="text-slate-500 hover:text-slate-800 font-medium disabled:opacity-50" data-testid="resend-email">
+                    Didn't get it? Resend
+                  </button>
+                </div>
+
+                <div className="border-t border-slate-100 mt-6 pt-5">
+                  {!tryAnother ? (
+                    <button type="button" onClick={() => setTryAnother(true)}
+                      className="text-sm text-slate-500 hover:text-slate-800 font-medium" data-testid="try-another-way">
+                      Try another way
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleSendSmsCode}
-                      disabled={loading}
-                      className="text-teal-600 hover:text-teal-700 font-medium disabled:opacity-50"
-                      data-testid="resend-code"
-                    >
-                      Resend code
+                  ) : (
+                    <button type="button" onClick={sendSms} disabled={loading}
+                      className="w-full h-11 rounded-[7px] border border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-sm inline-flex items-center justify-center gap-2 disabled:opacity-50"
+                      data-testid="text-me-instead">
+                      <MessageSquare size={16} strokeWidth={1.75} /> Text me a code instead
                     </button>
-                  </div>
-                </form>
-              )}
+                  )}
+                </div>
+
+                <button type="button" onClick={() => { setStage('request'); setCode(''); setEmailSent(false); }}
+                  className="mt-5 text-sm text-slate-400 hover:text-slate-700 inline-flex items-center gap-1.5" data-testid="edit-email">
+                  <ArrowLeft size={15} strokeWidth={1.75} /> Use a different email
+                </button>
+              </div>
+            )}
+
+            {/* STAGE: sms_code */}
+            {stage === 'sms_code' && (
+              <div data-testid="sms-code">
+                <div className="w-11 h-11 rounded-full grid place-items-center mb-4" style={{ background: 'var(--brand-50)' }}>
+                  <MessageSquare size={20} strokeWidth={1.75} style={{ color: 'var(--brand-600)' }} />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-1">Enter the text code</h2>
+                <p className="text-[15px] text-slate-500 mb-6">
+                  We texted a 6-digit code to the phone on file{phoneHint ? <> (<strong className="text-slate-700">{phoneHint}</strong>)</> : ''}.
+                </p>
+
+                <div className="mb-2">{otpSlots(verifySms)}</div>
+
+                <button type="button" onClick={() => verifySms()} disabled={loading || code.length !== 6}
+                  className="brand-btn w-full h-12 mt-4 rounded-[7px] font-semibold text-[15px]" data-testid="verify-sms-code">
+                  {loading ? 'Verifying…' : 'Verify and sign in'}
+                </button>
+
+                <div className="flex items-center justify-between mt-4 text-sm">
+                  <button type="button" onClick={() => { setStage(emailSent ? 'check_email' : 'request'); setCode(''); }}
+                    className="text-slate-500 hover:text-slate-800 font-medium inline-flex items-center gap-1.5" data-testid="back-from-sms">
+                    <ArrowLeft size={15} strokeWidth={1.75} /> {emailSent ? 'Use email code' : 'Use email'}
+                  </button>
+                  <button type="button" onClick={sendSms} disabled={loading}
+                    className="brand-link font-medium disabled:opacity-50" data-testid="resend-sms">
+                    Resend code
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
           </div>
-        </Card>
+        </div>
       </motion.div>
     </div>
   );

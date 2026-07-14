@@ -1,14 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Activity, Filter, RefreshCw, Download, ArrowLeft, Clock, User, AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Zap } from 'lucide-react';
+import { RefreshCw, Download, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { fmtDateTime } from './admin/format';
+import { humanizeEvent } from './admin/events';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+const HEADER_GRADIENT = 'linear-gradient(to top, #F8F8F8, #F8F8F899, #00000000)';
+const HEAD = 'h-12 px-4 text-left align-middle text-[13px] font-semibold text-foreground';
+const CELL = 'px-4 py-2.5 text-sm align-top';
+const ALL = '__all__';
+const TG_ON = 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground';
+
+const statusColor = (s) => {
+  const v = String(s || '').toLowerCase();
+  if (['success', 'sent', 'synced', 'complete', 'completed', 'active'].includes(v)) return 'text-emerald-600';
+  if (['error', 'failed', 'cancelled', 'canceled'].includes(v)) return 'text-red-600';
+  if (['pending', 'skipped', 'queued', 'processing'].includes(v)) return 'text-amber-600';
+  return 'text-muted-foreground';
+};
 
 const ActivityLogs = () => {
   const navigate = useNavigate();
@@ -16,43 +35,29 @@ const ActivityLogs = () => {
   const [eventTypes, setEventTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
-    page: 1,
-    per_page: 50,
-    total_count: 0,
-    total_pages: 0,
-    has_next: false,
-    has_prev: false
+    page: 1, per_page: 50, total_count: 0, total_pages: 0, has_next: false, has_prev: false,
   });
-  const [filters, setFilters] = useState({
-    event_type: '',
-    user_email: ''
-  });
+  const [filters, setFilters] = useState({ event_type: '', user_email: '' });
+  const [category, setCategory] = useState('all'); // all | patient | admin
 
-  useEffect(() => {
-    fetchLogs(1);
-  }, []);
+  useEffect(() => { fetchLogs(1); /* eslint-disable-next-line */ }, []);
 
-  const fetchLogs = async (page = pagination.page) => {
+  const fetchLogs = async (page = pagination.page, cat = category) => {
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
       const params = new URLSearchParams();
-      
       params.append('page', page);
       params.append('per_page', pagination.per_page);
+      if (cat && cat !== 'all') params.append('category', cat);
       if (filters.event_type) params.append('event_type', filters.event_type);
       if (filters.user_email) params.append('user_email', filters.user_email);
-
       const response = await axios.get(`${API}/admin/activity-logs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       setLogs(response.data.logs);
       setEventTypes(response.data.event_types);
-      setPagination(prev => ({
-        ...prev,
-        ...response.data.pagination
-      }));
+      setPagination((prev) => ({ ...prev, ...response.data.pagination }));
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error('Unauthorized access');
@@ -65,451 +70,212 @@ const ActivityLogs = () => {
     }
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const handlePerPageChange = (value) => {
-    setPagination(prev => ({ ...prev, per_page: parseInt(value), page: 1 }));
-  };
-
-  const applyFilters = () => {
-    fetchLogs(1);
-  };
-
+  const handleFilterChange = (key, value) => setFilters((prev) => ({ ...prev, [key]: value }));
+  const handlePerPageChange = (value) => setPagination((prev) => ({ ...prev, per_page: parseInt(value, 10), page: 1 }));
+  const applyFilters = () => fetchLogs(1);
   const clearFilters = () => {
     setFilters({ event_type: '', user_email: '' });
-    setPagination(prev => ({ ...prev, page: 1 }));
+    setPagination((prev) => ({ ...prev, page: 1 }));
     setTimeout(() => fetchLogs(1), 100);
   };
-
-  const goToPage = (page) => {
-    if (page >= 1 && page <= pagination.total_pages) {
-      fetchLogs(page);
-    }
-  };
+  const goToPage = (page) => { if (page >= 1 && page <= pagination.total_pages) fetchLogs(page); };
 
   const exportLogs = async () => {
     try {
       const token = localStorage.getItem('access_token');
       const params = new URLSearchParams();
       params.append('page', 1);
-      params.append('per_page', 500); // Export up to 500 at a time
+      params.append('per_page', 500);
+      if (category && category !== 'all') params.append('category', category);
       if (filters.event_type) params.append('event_type', filters.event_type);
       if (filters.user_email) params.append('user_email', filters.user_email);
-
       const response = await axios.get(`${API}/admin/activity-logs?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      const exportLogs = response.data.logs;
+      const rows = response.data.logs;
       const csvContent = [
-        ['Timestamp', 'Event Type', 'User Email', 'User ID', 'Device', 'Location', 'IP Address', 'Status', 'Details'],
-        ...exportLogs.map(log => [
-          log.timestamp,
-          log.event_type,
-          log.user_email || 'N/A',
-          log.user_id || 'N/A',
+        ['Timestamp', 'Category', 'Event Type', 'Actor', 'User Email', 'User ID', 'Device', 'Location', 'IP Address', 'Status', 'Details'],
+        ...rows.map((log) => [
+          log.timestamp, log.category || 'patient', log.event_type, log.actor_email || log.actor_name || 'N/A', log.user_email || 'N/A', log.user_id || 'N/A',
           log.device_info ? `${log.device_info.device_type || ''} / ${log.device_info.browser || ''} / ${log.device_info.os || ''}` : 'N/A',
           log.location_info?.city && log.location_info?.country ? `${log.location_info.city}, ${log.location_info.country}` : 'N/A',
-          log.ip_address || 'N/A',
-          log.status,
-          JSON.stringify(log.details || {}).replace(/,/g, ';')
-        ])
-      ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-
+          log.ip_address || 'N/A', log.status,
+          JSON.stringify(log.details || {}).replace(/,/g, ';'),
+        ]),
+      ].map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `activity_logs_${new Date().toISOString()}.csv`;
       a.click();
-      toast.success(`Exported ${exportLogs.length} logs`);
+      toast.success(`Exported ${rows.length} logs`);
     } catch (error) {
       toast.error('Failed to export logs');
     }
   };
 
-  const getEventIcon = (eventType) => {
-    switch (eventType) {
-      case 'USER_CREATED':
-        return <User className="text-teal-600" size={18} />;
-      case 'LOGIN_SUCCESS':
-      case 'SIGNUP_SUCCESS':
-        return <CheckCircle2 className="text-green-600" size={18} />;
-      case 'LOGIN_FAILED':
-      case 'SIGNUP_FAILED':
-        return <AlertCircle className="text-red-600" size={18} />;
-      case 'EMAIL_SENT':
-        return <CheckCircle2 className="text-blue-600" size={18} />;
-      case 'EMAIL_FAILED':
-        return <AlertCircle className="text-orange-600" size={18} />;
-      default:
-        return <Activity className="text-gray-600" size={18} />;
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'success':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'failure':
-        return 'bg-red-100 text-red-800 border-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString('en-US', {
-      timeZone: 'America/Los_Angeles',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
-
-  // Generate page numbers to display
   const getPageNumbers = () => {
     const pages = [];
     const maxVisible = 5;
     let start = Math.max(1, pagination.page - Math.floor(maxVisible / 2));
-    let end = Math.min(pagination.total_pages, start + maxVisible - 1);
-    
-    if (end - start + 1 < maxVisible) {
-      start = Math.max(1, end - maxVisible + 1);
-    }
-    
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
+    const end = Math.min(pagination.total_pages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+    for (let i = start; i <= end; i += 1) pages.push(i);
     return pages;
   };
 
-  if (loading && logs.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading activity logs...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen p-6" style={{ background: '#F4F3F2' }}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/admin')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft size={18} />
-              Back to Admin
+    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto w-full">
+      {/* Toolbar */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{pagination.total_count.toLocaleString()} total log{pagination.total_count === 1 ? '' : 's'}</p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => fetchLogs(pagination.page)} disabled={loading}>
+            <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
+          </Button>
+          <Button size="sm" onClick={exportLogs}><Download className="size-4" /> Export CSV</Button>
+        </div>
+      </div>
+
+      {/* Patient vs admin activity */}
+      <div className="mb-4">
+        <ToggleGroup type="single" value={category} variant="outline" className="justify-start"
+          onValueChange={(v) => { if (v) { setCategory(v); fetchLogs(1, v); } }}>
+          <ToggleGroupItem value="all" className={TG_ON}>All activity</ToggleGroupItem>
+          <ToggleGroupItem value="patient" className={TG_ON}>Patient</ToggleGroupItem>
+          <ToggleGroupItem value="admin" className={TG_ON}>Admin activity</ToggleGroupItem>
+        </ToggleGroup>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border bg-card p-4 shadow-sm">
+        <div className="space-y-1.5">
+          <Label>Event type</Label>
+          <Select value={filters.event_type || ALL} onValueChange={(v) => handleFilterChange('event_type', v === ALL ? '' : v)}>
+            <SelectTrigger className="w-[220px]" aria-label="Event type"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All events</SelectItem>
+              {eventTypes.map((t) => <SelectItem key={t} value={t}>{humanizeEvent(t)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="al-email">User email</Label>
+          <Input id="al-email" type="email" placeholder="Filter by email" value={filters.user_email}
+            onChange={(e) => handleFilterChange('user_email', e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && applyFilters()} className="w-[220px]" />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Per page</Label>
+          <Select value={String(pagination.per_page)} onValueChange={handlePerPageChange}>
+            <SelectTrigger className="w-[100px]" aria-label="Rows per page"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[25, 50, 100, 200, 500].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={applyFilters}>Apply</Button>
+        <Button variant="outline" onClick={clearFilters}>Clear</Button>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-hidden" tabIndex={0} role="region" aria-label="Activity log">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b hover:bg-transparent" style={{ backgroundImage: HEADER_GRADIENT }}>
+              <TableHead className={HEAD}>Timestamp</TableHead>
+              <TableHead className={HEAD}>Event Type</TableHead>
+              <TableHead className={HEAD}>Actor</TableHead>
+              <TableHead className={HEAD}>User</TableHead>
+              <TableHead className={HEAD}>Device</TableHead>
+              <TableHead className={HEAD}>Location</TableHead>
+              <TableHead className={HEAD}>Status</TableHead>
+              <TableHead className={HEAD}>Details</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading && logs.length === 0 ? (
+              <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">Loading...</TableCell></TableRow>
+            ) : logs.length === 0 ? (
+              <TableRow><TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No activity logs found.</TableCell></TableRow>
+            ) : logs.map((log, index) => (
+              <TableRow key={index}>
+                <TableCell className={`${CELL} whitespace-nowrap text-xs text-muted-foreground`}>{fmtDateTime(log.timestamp)}</TableCell>
+                <TableCell className={`${CELL} font-medium text-foreground`} title={log.event_type}>{humanizeEvent(log.event_type)}</TableCell>
+                <TableCell className={CELL}>
+                  {log.actor_name || log.actor_email
+                    ? <span className="font-medium text-foreground" title={log.actor_email || ''}>{log.actor_name || log.actor_email}</span>
+                    : <span className="text-muted-foreground/60">-</span>}
+                </TableCell>
+                <TableCell className={`${CELL} text-muted-foreground`}>{log.user_email || <span className="text-muted-foreground/60">N/A</span>}</TableCell>
+                <TableCell className={CELL}>
+                  {log.device_info ? (
+                    <div className="flex flex-col">
+                      <span className="font-medium text-foreground">{log.device_info.device_type || 'Unknown'}</span>
+                      <span className="text-xs text-muted-foreground">{log.device_info.browser} / {log.device_info.os}</span>
+                    </div>
+                  ) : <span className="text-muted-foreground/60">-</span>}
+                </TableCell>
+                <TableCell className={CELL}>
+                  {log.location_info || log.ip_address ? (
+                    <div className="flex flex-col">
+                      {log.location_info?.city && log.location_info?.country ? (
+                        <>
+                          <span className="flex items-center gap-1.5 font-medium text-foreground">
+                            <MapPin className="size-3.5 text-muted-foreground" />
+                            {log.location_info.city}, {log.location_info.country}
+                          </span>
+                          {log.location_info.region && <span className="text-xs text-muted-foreground">{log.location_info.region}</span>}
+                        </>
+                      ) : log.ip_address ? <span className="text-xs text-muted-foreground">IP: {log.ip_address}</span> : null}
+                      {log.ip_address && log.location_info?.city && <span className="mt-0.5 text-xs text-muted-foreground/70">{log.ip_address}</span>}
+                    </div>
+                  ) : <span className="text-muted-foreground/60">-</span>}
+                </TableCell>
+                <TableCell className={CELL}>
+                  <span className={`font-semibold capitalize ${statusColor(log.status)}`}>{log.status}</span>
+                </TableCell>
+                <TableCell className={`${CELL} text-muted-foreground`}>
+                  <div className="max-w-xs truncate" title={JSON.stringify(log.details, null, 2)}>
+                    {log.details && Object.keys(log.details).length > 0 ? (
+                      Object.entries(log.details).slice(0, 2).map(([key, value]) => (
+                        <div key={key} className="text-xs">
+                          <span className="text-muted-foreground">{key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())}</span>{' '}
+                          <span className="font-medium text-foreground">{String(value)}</span>
+                        </div>
+                      ))
+                    ) : <span className="text-muted-foreground/60">No details</span>}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Pagination */}
+      {pagination.total_pages > 1 && (
+        <div className="mt-3 flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total_count)} of {pagination.total_count.toLocaleString()}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.page - 1)} disabled={!pagination.has_prev || loading}>
+              <ChevronLeft className="size-4" /> Previous
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <Activity className="text-teal-600" size={32} />
-                Activity Logs
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {pagination.total_count.toLocaleString()} total logs
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/admin/automations')}
-              className="flex items-center gap-2"
-              data-testid="automations-btn"
-            >
-              <Zap size={18} />
-              Automations
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => fetchLogs(pagination.page)}
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-              Refresh
-            </Button>
-            <Button
-              onClick={exportLogs}
-              className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white flex items-center gap-2"
-            >
-              <Download size={18} />
-              Export CSV
+            {getPageNumbers().map((pageNum) => (
+              <Button key={pageNum} variant={pageNum === pagination.page ? 'default' : 'outline'} size="sm"
+                className="w-9" onClick={() => goToPage(pageNum)} disabled={loading}>
+                {pageNum}
+              </Button>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => goToPage(pagination.page + 1)} disabled={!pagination.has_next || loading}>
+              Next <ChevronRight className="size-4" />
             </Button>
           </div>
         </div>
-
-        {/* Filters */}
-        <Card className="mb-6 border-0 shadow-xl">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Filter className="text-teal-600" size={20} />
-              Filters
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Event Type</label>
-                <select
-                  value={filters.event_type}
-                  onChange={(e) => handleFilterChange('event_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="">All Events</option>
-                  {eventTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">User Email</label>
-                <Input
-                  type="email"
-                  placeholder="Filter by email"
-                  value={filters.user_email}
-                  onChange={(e) => handleFilterChange('user_email', e.target.value)}
-                  className="border-gray-300 focus:border-teal-500 focus:ring-teal-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Per Page</label>
-                <select
-                  value={pagination.per_page}
-                  onChange={(e) => handlePerPageChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                >
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                  <option value="200">200</option>
-                  <option value="500">500</option>
-                </select>
-              </div>
-              <div className="flex items-end gap-2">
-                <Button
-                  onClick={applyFilters}
-                  className="flex-1 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white"
-                >
-                  Apply
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={clearFilters}
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Logs Table */}
-        <Card className="border-0 shadow-xl">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-cyan-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Timestamp
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Event Type
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Device
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Location
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                      Details
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {logs.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                        No activity logs found
-                      </td>
-                    </tr>
-                  ) : (
-                    logs.map((log, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <Clock size={14} className="text-gray-400" />
-                            {formatTimestamp(log.timestamp)}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            {getEventIcon(log.event_type)}
-                            <span className="font-medium text-gray-800">{log.event_type}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {log.user_email || <span className="text-gray-400">N/A</span>}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {log.device_info ? (
-                            <div className="flex flex-col">
-                              <span className="font-medium text-gray-700">
-                                {log.device_info.device_type === 'mobile' ? '📱' : 
-                                 log.device_info.device_type === 'tablet' ? '📱' : '💻'} 
-                                {log.device_info.device_type || 'Unknown'}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {log.device_info.browser} / {log.device_info.os}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          {log.location_info || log.ip_address ? (
-                            <div className="flex flex-col">
-                              {log.location_info?.city && log.location_info?.country ? (
-                                <>
-                                  <span className="font-medium text-gray-700">
-                                    📍 {log.location_info.city}, {log.location_info.country}
-                                  </span>
-                                  {log.location_info.region && (
-                                    <span className="text-xs text-gray-500">{log.location_info.region}</span>
-                                  )}
-                                </>
-                              ) : log.ip_address ? (
-                                <span className="text-gray-500 text-xs">IP: {log.ip_address}</span>
-                              ) : null}
-                              {log.ip_address && log.location_info?.city && (
-                                <span className="text-gray-400 font-mono text-xs mt-0.5">{log.ip_address}</span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(log.status)}`}>
-                            {log.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          <div className="max-w-xs truncate" title={JSON.stringify(log.details, null, 2)}>
-                            {log.details && Object.keys(log.details).length > 0 ? (
-                              Object.entries(log.details).slice(0, 2).map(([key, value]) => (
-                                <div key={key} className="text-xs">
-                                  <span className="font-medium">{key}:</span> {String(value)}
-                                </div>
-                              ))
-                            ) : (
-                              <span className="text-gray-400">No details</span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            {pagination.total_pages > 1 && (
-              <div className="px-4 py-4 border-t border-gray-200 bg-gray-50">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="text-sm text-gray-600">
-                    Showing {((pagination.page - 1) * pagination.per_page) + 1} - {Math.min(pagination.page * pagination.per_page, pagination.total_count)} of {pagination.total_count.toLocaleString()} logs
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {/* First Page */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(1)}
-                      disabled={!pagination.has_prev || loading}
-                      className="px-2"
-                    >
-                      <ChevronsLeft size={16} />
-                    </Button>
-                    
-                    {/* Previous Page */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(pagination.page - 1)}
-                      disabled={!pagination.has_prev || loading}
-                      className="px-2"
-                    >
-                      <ChevronLeft size={16} />
-                    </Button>
-
-                    {/* Page Numbers */}
-                    {getPageNumbers().map(pageNum => (
-                      <Button
-                        key={pageNum}
-                        variant={pageNum === pagination.page ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => goToPage(pageNum)}
-                        disabled={loading}
-                        className={`px-3 ${pageNum === pagination.page ? 'bg-teal-600 text-white' : ''}`}
-                      >
-                        {pageNum}
-                      </Button>
-                    ))}
-
-                    {/* Next Page */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(pagination.page + 1)}
-                      disabled={!pagination.has_next || loading}
-                      className="px-2"
-                    >
-                      <ChevronRight size={16} />
-                    </Button>
-
-                    {/* Last Page */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => goToPage(pagination.total_pages)}
-                      disabled={!pagination.has_next || loading}
-                      className="px-2"
-                    >
-                      <ChevronsRight size={16} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      )}
     </div>
   );
 };

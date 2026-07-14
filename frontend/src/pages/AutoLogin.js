@@ -49,9 +49,9 @@ const AutoLogin = () => {
           duration: 3000
         });
         
-        // Redirect to steps page after brief success message
+        // Redirect to the portal home after brief success message
         setTimeout(() => {
-          navigate('/steps', { replace: true });
+          navigate('/dashboard', { replace: true });
         }, 1500);
         
       } catch (error) {

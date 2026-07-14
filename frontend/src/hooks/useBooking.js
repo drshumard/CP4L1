@@ -197,10 +197,10 @@ export function useBookingFlow() {
  */
 export function detectTimezone() {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return 'America/New_York'; // Better default than UTC for US-based service
-  }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) return tz; // some browsers / privacy extensions resolve this to null/empty
+  } catch { /* fall through to default */ }
+  return 'America/New_York'; // Better default than UTC for US-based service
 }
 
 /**

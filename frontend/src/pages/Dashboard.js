@@ -111,7 +111,7 @@ const Dashboard = () => {
                     data-testid="admin-button"
                   >
                     <User size={14} className="mr-1.5 hidden sm:inline" />
-                    Users
+                    Admin
                   </Button>
                   <Button 
                     variant="outline"

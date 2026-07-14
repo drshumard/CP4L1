@@ -1,0 +1,197 @@
+/* Cadence design system — admin theme.
+   Foundations from Cadence.pdf: Hanken Grotesk (UI) + JetBrains Mono (data),
+   monochrome slate-ink, scheduling-state color only, hairline structure, crisp small radii.
+   Scoped under .admin-shell so the teal patient portal is untouched. */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* Redesigned admin uses Geist throughout — override the global Space Grotesk headings. */
+.admin-geist h1, .admin-geist h2, .admin-geist h3, .admin-geist h4, .admin-geist h5, .admin-geist h6 {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+/* Roomier sidebar nav: 16px text + doubled (16px) padding. */
+.admin-geist [data-sidebar="content"] [data-sidebar="menu-button"],
+.admin-geist [data-sidebar="content"] [data-sidebar="menu-sub-button"] {
+  height: auto;
+  font-size: 14px;
+  padding: 16px;
+}
+
+/* Sidebar reads as pure white (lab(100% 0 0)), matching the content card. */
+.admin-geist [data-sidebar="sidebar"] { background-color: #fff; }
+
+/* Hide the leading nav icon when the sidebar is expanded — icons appear only in collapsed (icon) mode. */
+.admin-geist [data-state="expanded"] [data-sidebar="content"] [data-sidebar="menu-button"] > svg:first-child {
+  display: none;
+}
+
+.admin-shell {
+  /* Slate ink — the brand neutral */
+  --ink-950: #020617;
+  --ink-900: #0f172a; /* primary action, active nav, emphasis */
+  --ink-800: #1e293b; /* hover */
+  --ink-700: #334155;
+  --ink-600: #475569; /* secondary text */
+  --ink-400: #94a3b8; /* muted text */
+  --ink-300: #cbd5e1;
+  --ink-200: #e2e8f0; /* hairlines */
+  --ink-100: #f1f5f9;
+  --ink-50:  #f8fafc; /* app canvas */
+  --link: #2563eb;
+
+  /* Scheduling status — the only functional color (bg / fg / dot) */
+  --st-available-bg: #ecfdf5; --st-available-fg: #047857; --st-available-dot: #10b981;
+  --st-booked-bg:    #eff6ff; --st-booked-fg:    #1d4ed8; --st-booked-dot:    #2563eb;
+  --st-pending-bg:   #fffbeb; --st-pending-fg:   #b45309; --st-pending-dot:   #f59e0b;
+  --st-holiday-bg:   #f5f3ff; --st-holiday-fg:   #6d28d9; --st-holiday-dot:   #7c3aed;
+  --st-conflict-bg:  #fff1f2; --st-conflict-fg:  #be123c; --st-conflict-dot:  #e11d48;
+
+  /* Crisp radii */
+  --r-xs: 3px; --r-sm: 5px; --r-md: 7px; --r-lg: 10px; --r-xl: 14px;
+
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--ink-900);
+  background: var(--ink-50);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.admin-shell h1, .admin-shell h2, .admin-shell h3,
+.admin-shell h4, .admin-shell h5, .admin-shell h6 {
+  font-family: 'Hanken Grotesk', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Quiet motion only — no decorative button lift inside admin. */
+.admin-shell button:hover { transform: none; }
+
+/* Sidebar nav hover (inactive items only; active items carry inline slate bg). */
+.admin-shell .cad-nav:hover { background: var(--ink-100) !important; color: var(--ink-900) !important; }
+
+/* Data: tabular mono for times, dates, durations, IDs, metrics. */
+.cad-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+
+/* Tracked uppercase eyebrow — the only uppercase in the system. */
+.cad-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--ink-400);
+}
+
+/* Surfaces — border before shadow, flat before raised. */
+.cad-card { background: #fff; border: 1px solid var(--ink-200); border-radius: var(--r-md); }
+.cad-divide { border-top: 1px solid var(--ink-200); }
+
+/* Buttons — squared, small radius (5px). */
+.cad-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 600; line-height: 1; cursor: pointer;
+  border: 1px solid transparent; transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.cad-btn:disabled { opacity: .5; cursor: not-allowed; }
+.cad-btn--sm { padding: 6px 10px; font-size: 13px; }
+.cad-btn--primary { background: var(--ink-900); color: #fff; }
+.cad-btn--primary:hover:not(:disabled) { background: var(--ink-800); }
+.cad-btn--secondary { background: #fff; color: var(--ink-700); border-color: var(--ink-200); }
+.cad-btn--secondary:hover:not(:disabled) { background: var(--ink-50); }
+.cad-btn--ghost { background: transparent; color: var(--ink-700); }
+.cad-btn--ghost:hover:not(:disabled) { background: var(--ink-100); }
+.cad-btn--danger { background: var(--st-conflict-dot); color: #fff; }
+.cad-btn--danger:hover:not(:disabled) { background: var(--st-conflict-fg); }
+
+/* Form controls — hairline, small radius. */
+.cad-input {
+  width: 100%; padding: 9px 12px; font-size: 14px;
+  border: 1px solid var(--ink-200); border-radius: var(--r-sm);
+  background: #fff; color: var(--ink-900); outline: none;
+}
+.cad-input:focus { border-color: var(--ink-400); box-shadow: 0 0 0 3px rgba(15,23,42,.06); }
+.cad-input::placeholder { color: var(--ink-400); }
+/* Leading-icon inputs: keep room for the icon (cad-input's shorthand padding would
+   otherwise clobber a Tailwind pl-* utility). Higher specificity wins. */
+.admin-shell .cad-input.pl-9 { padding-left: 2.25rem; }
+.cad-label { display: block; font-size: 13px; font-weight: 500; color: var(--ink-700); margin-bottom: 6px; }
+.cad-help { font-size: 12px; color: var(--ink-400); margin-top: 4px; }
+
+/* Native date inputs: keep the field on-brand via .cad-input + tone the calendar icon.
+   (The OS date popup itself can't be themed, but the field stays consistent.) */
+.admin-shell input[type="date"] { color: var(--ink-900); font-variant-numeric: tabular-nums; }
+.admin-shell input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer; opacity: 0.5; transition: opacity .12s;
+}
+.admin-shell input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 0.9; }
+
+/* Cadence custom select (CadSelect) — trigger + portaled listbox. */
+.cad-select2 { position: relative; }
+.cad-select2-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; cursor: pointer; gap: 8px; }
+.cad-select2-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.cad-select2-placeholder { color: var(--ink-400); }
+/* Menu is portaled to <body> (outside .admin-shell), so colors are literal slate. */
+.cad-menu {
+  background: #ffffff; border: 1px solid #e2e8f0; border-radius: 7px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12); padding: 4px; z-index: 70;
+  max-height: 280px; overflow-y: auto;
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.cad-menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-radius: 5px; font-size: 14px; color: #334155;
+  cursor: pointer; user-select: none;
+}
+.cad-menu-item.is-active { background: #f1f5f9; color: #0f172a; }
+.cad-menu-item.is-selected { color: #0f172a; font-weight: 600; }
+.cad-menu-item[aria-disabled='true'] { color: #cbd5e1; cursor: not-allowed; }
+
+/* Underline tabs (content level) — NOT pills. */
+.cad-tabs { display: flex; gap: 24px; border-bottom: 1px solid var(--ink-200); }
+.cad-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 2px; margin-bottom: -1px;
+  font-size: 14px; font-weight: 500; color: var(--ink-400);
+  border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.cad-tab:hover { color: var(--ink-700); }
+.cad-tab.cad-tab-active { color: var(--ink-900); font-weight: 600; border-bottom-color: var(--ink-900); }
+.cad-tab-count {
+  font-size: 12px; font-weight: 600; color: var(--ink-500, #64748b);
+  background: var(--ink-100); border-radius: 9999px; padding: 1px 7px;
+}
+
+/* Status badge / dot — color carries meaning. */
+.cad-dot { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+.cad-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: var(--r-sm);
+  font-size: 12px; font-weight: 600; line-height: 1.3; white-space: nowrap;
+}
+.cad-badge--available { background: var(--st-available-bg); color: var(--st-available-fg); }
+.cad-badge--available .cad-dot { background: var(--st-available-dot); }
+.cad-badge--booked { background: var(--st-booked-bg); color: var(--st-booked-fg); }
+.cad-badge--booked .cad-dot { background: var(--st-booked-dot); }
+.cad-badge--pending { background: var(--st-pending-bg); color: var(--st-pending-fg); }
+.cad-badge--pending .cad-dot { background: var(--st-pending-dot); }
+.cad-badge--holiday { background: var(--st-holiday-bg); color: var(--st-holiday-fg); }
+.cad-badge--holiday .cad-dot { background: var(--st-holiday-dot); }
+.cad-badge--conflict { background: var(--st-conflict-bg); color: var(--st-conflict-fg); }
+.cad-badge--conflict .cad-dot { background: var(--st-conflict-dot); }
+.cad-badge--muted { background: var(--ink-100); color: var(--ink-600); }
+.cad-badge--muted .cad-dot { background: var(--ink-400); }
+.cad-badge--ink { background: var(--ink-900); color: #fff; }
+.cad-badge--ink .cad-dot { background: #fff; }
+
+/* Native select with room for a custom chevron (chevron sits inset, not at the edge). */
+.cad-select-wrap { position: relative; display: inline-block; }
+.cad-select-wrap > select { -webkit-appearance: none; -moz-appearance: none; appearance: none; padding-right: 34px; }
+.cad-select-wrap > .cad-chevron { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--ink-400); }
+
+/* Availability block — left status accent + tinted bg. */
+.cad-block { border-left: 3px solid var(--ink-300); border-radius: var(--r-sm); padding: 10px 12px; }
+.cad-block--available { border-left-color: var(--st-available-dot); background: var(--st-available-bg); color: var(--st-available-fg); }
+.cad-block--booked { border-left-color: var(--st-booked-dot); background: var(--st-booked-bg); color: var(--st-booked-fg); }
+.cad-block--holiday { border-left-color: var(--st-holiday-dot); background: var(--st-holiday-bg); color: var(--st-holiday-fg); }
+
+/* Tag (chip) — squared, hairline or solid slate. */
+.cad-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500; }
+.cad-tag--solid { background: var(--ink-900); color: #fff; }
+.cad-tag--outline { background: #fff; color: var(--ink-700); border: 1px solid var(--ink-200); }

@@ -88,6 +88,29 @@ class ClientCache:
             row = cursor.fetchone()
             return dict(row) if row else None
     
+    def search_clients(self, query: str = "", limit: int = 20) -> List[Dict]:
+        """Search cached PB clients by name or email (case-insensitive substring). An empty
+        query returns the most recently modified clients — a sensible default dropdown."""
+        limit = max(1, min(int(limit or 20), 50))
+        q = (query or "").strip().lower()
+        with self._get_connection() as conn:
+            if q:
+                like = f"%{q.replace('%', '').replace('_', '')}%"
+                cursor = conn.execute("""
+                    SELECT record_id, email, first_name, last_name, phone, status FROM clients
+                    WHERE LOWER(COALESCE(email, '')) LIKE ?
+                       OR LOWER(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) LIKE ?
+                    ORDER BY modified_at DESC, created_at DESC
+                    LIMIT ?
+                """, (like, like, limit))
+            else:
+                cursor = conn.execute("""
+                    SELECT record_id, email, first_name, last_name, phone, status FROM clients
+                    ORDER BY modified_at DESC, created_at DESC
+                    LIMIT ?
+                """, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+
     def get_client_by_record_id(self, record_id: str) -> Optional[Dict]:
         """Look up client by Practice Better record ID"""
         with self._get_connection() as conn:

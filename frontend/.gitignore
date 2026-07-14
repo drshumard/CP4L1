@@ -21,3 +21,10 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Playwright UI audit
+e2e/.auth/
+e2e/report/
+e2e/results.json
+test-results/
+playwright-report/

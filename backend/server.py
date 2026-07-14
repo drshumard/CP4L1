@@ -1,13 +1,14 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Header, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Response, Header, Query, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import copy
 import logging
 import asyncio
 from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -15,9 +16,12 @@ from passlib.context import CryptContext
 from pymongo import ReturnDocument
 from jose import JWTError, jwt
 import secrets
+import hashlib
+import hmac
 import re
 import resend
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -79,9 +83,17 @@ async def log_activity(
     details: dict = None,
     status: str = "success",
     ip_address: str = None,
-    user_agent: str = None
+    user_agent: str = None,
+    category: str = "patient",
+    actor_email: str = None,
+    actor_name: str = None
 ):
-    """Log backend activity to MongoDB with device info and geolocation"""
+    """Log backend activity to MongoDB with device info and geolocation.
+
+    category: "patient" for end-user/auth events, "admin" for staff-initiated changes.
+    actor_email/actor_name: WHO performed an admin action (for accountability); the
+    user_email/user_id then describe the affected target (a patient, a director, etc.).
+    """
     import httpx
     
     try:
@@ -152,20 +164,52 @@ async def log_activity(
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type,
+            "category": category,
             "user_email": user_email,
             "user_id": user_id,
+            "actor_email": actor_email,
+            "actor_name": actor_name,
             "details": details or {},
             "status": status,
             "ip_address": ip_address,
             "device_info": device_info,
             "location_info": location_info
         }
-        
+
         await db.activity_logs.insert_one(log_entry)
         logging.debug(f"Activity logged: {event_type} for {user_email}")
-        
+
     except Exception as e:
         logging.error(f"Failed to log activity {event_type}: {str(e)}")
+
+
+async def log_admin_action(
+    event_type: str,
+    admin_user: dict,
+    details: dict = None,
+    target_email: str = None,
+    target_user_id: str = None,
+    request: "Request" = None,
+):
+    """Record a staff-initiated change (scheduling, settings, user management) for
+    accountability. Captures the acting admin as the actor and, where available, the
+    request's IP/user-agent. Best-effort: never raises into the caller."""
+    try:
+        ua = request.headers.get("user-agent") if request is not None else None
+        ip = (request.client.host if (request is not None and request.client) else None)
+        await log_activity(
+            event_type=event_type,
+            user_email=target_email,
+            user_id=target_user_id,
+            details=details or {},
+            category="admin",
+            actor_email=(admin_user or {}).get("email"),
+            actor_name=(admin_user or {}).get("name"),
+            ip_address=ip,
+            user_agent=ua,
+        )
+    except Exception as e:
+        logging.error(f"Failed to log admin action {event_type}: {str(e)}")
 
 # Models
 class User(BaseModel):
@@ -192,6 +236,7 @@ class UserProgress(BaseModel):
 class SignupRequest(BaseModel):
     email: EmailStr
     name: str
+    contact_id: Optional[str] = None  # GHL contact id from the first-entry link (validated)
     password: Optional[str] = None  # Ignored in passwordless mode; kept for backwards compat
 
 class LoginRequest(BaseModel):
@@ -214,6 +259,14 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     current_step: int
     role: str
+    avatar_url: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -241,6 +294,16 @@ class GHLWebhookData(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     phone: Optional[str] = None
+    # GHL contact id for this purchase — the unguessable secret we save and later require in
+    # the first-entry signup link (carried in the URL under the opaque name `zsh`). Accept
+    # contact_id / contactId / zsh in the webhook body so you can name it however you map it.
+    contact_id: Optional[str] = None
+    contactId: Optional[str] = None
+    zsh: Optional[str] = None
+
+    @property
+    def resolved_contact_id(self) -> Optional[str]:
+        return (self.contact_id or self.contactId or self.zsh or "").strip() or None
 
 class AppointmentWebhookData(BaseModel):
     booking_id: str
@@ -439,7 +502,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     """Receive webhook from GHL after purchase - Protected by webhook secret"""
     
     # Validate webhook secret
-    if not WEBHOOK_SECRET or webhook_secret != WEBHOOK_SECRET:
+    if not WEBHOOK_SECRET or not webhook_secret or not secrets.compare_digest(str(webhook_secret).encode('utf-8'), str(WEBHOOK_SECRET).encode('utf-8')):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret"
@@ -451,7 +514,52 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     # Check if user already exists
     existing_user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     if existing_user:
-        return {"message": "User already exists", "user_id": existing_user["id"]}
+        # Repurchase reactivation. This webhook is secret-protected and fires only on a real
+        # checkout, so it is the TRUSTED signal that a REFUNDED user (step 0) has bought
+        # again — the one place we restore access (never the public /auth/signup URL).
+        # Guard: only when the purchase lands on a LATER calendar day than the original, so
+        # a retry/duplicate of the ORIGINAL purchase can't silently undo a same-day refund.
+        reactivated = False
+        if existing_user.get("current_step", 1) == 0:
+            created_date = None
+            try:
+                created_date = datetime.fromisoformat(
+                    str(existing_user.get("created_at", "")).replace("Z", "+00:00")).date()
+            except (ValueError, TypeError):
+                created_date = None
+            if created_date is None or created_date != datetime.now(timezone.utc).date():
+                now_iso = datetime.now(timezone.utc).isoformat()
+                await db.users.update_one({"id": existing_user["id"]},
+                                          {"$set": {"current_step": 1, "reactivated_at": now_iso}})
+                reactivated = True
+                logging.info(f"Reactivated refunded user {email_lower} via repurchase webhook")
+                await log_activity(
+                    event_type="REFUNDED_USER_REACTIVATED",
+                    user_email=existing_user["email"], user_id=existing_user["id"],
+                    details={"previous_step": 0, "new_step": 1, "trigger": "ghl_webhook_repurchase"},
+                    status="success",
+                )
+                try:
+                    resend.Emails.send({
+                        "from": "Dr. Shumard's Office <noreply@email.drshumard.com>",
+                        "to": os.environ.get("ADMIN_NOTIFICATION_EMAIL", "drjason@drshumard.com"),
+                        "subject": f"🔁 Refunded User Reactivated (repurchased): {existing_user['email']}",
+                        "html": f"""
+                            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                                <h2 style="color: #333;">Refunded User Reactivated</h2>
+                                <p>A previously refunded user purchased again — their portal access has been restored to onboarding step 1.</p>
+                                <ul style="line-height: 1.8;">
+                                    <li><strong>Name:</strong> {existing_user.get('name', 'N/A')}</li>
+                                    <li><strong>Email:</strong> {existing_user['email']}</li>
+                                    <li><strong>Phone:</strong> {existing_user.get('phone', 'N/A')}</li>
+                                    <li><strong>Time:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</li>
+                                </ul>
+                            </div>
+                        """
+                    })
+                except Exception as e:
+                    logging.error(f"Failed to send reactivation notification: {e}")
+        return {"message": "User already exists", "user_id": existing_user["id"], "reactivated": reactivated}
     
     # Build full name from first_name + last_name if provided, otherwise use name field
     if data.first_name and data.last_name:
@@ -530,6 +638,17 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         # Keep the raw value so admins can correct it later
         user_dict['phone'] = data.phone
 
+    # Arm the single-use first-entry link: the signup link must carry this same GHL contact
+    # id, is good once, and expires 3h after purchase. Without a stored id the link can never
+    # validate — so a webhook that forgets to send it fails CLOSED (buyer just uses OTP).
+    resolved_cid = data.resolved_contact_id
+    if resolved_cid:
+        user_dict['signup_contact_id'] = resolved_cid
+        user_dict['signup_token_used'] = False
+        user_dict['signup_link_issued_at'] = datetime.now(timezone.utc).isoformat()
+    else:
+        logging.warning(f"GHL webhook created {email_lower} WITHOUT a contact_id — first-entry link disabled; buyer must use OTP")
+
     await db.users.insert_one(user_dict)
     
     # Log user creation
@@ -549,7 +668,11 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     # URL-encode email to handle special characters like + signs
     encoded_email = quote(data.email, safe='')
     encoded_name = quote(data.name, safe='')
+    # Include the contact id so this link (if ever used instead of the auto-login one) passes
+    # the first-entry gate. Omitted when the webhook didn't send a contact id (link disabled).
     signup_url = f"{frontend_url}/signup?email={encoded_email}&name={encoded_name}"
+    if resolved_cid:
+        signup_url += f"&zsh={quote(resolved_cid, safe='')}"
     auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
     
     # Build conditional email fragments based on auth mode
@@ -588,25 +711,28 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
 
     try:
         resend.Emails.send({
-            "from": "Onboarding Portal <admin@portal.drshumard.com>",
+            "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
             "to": data.email,
-            "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
-            "subject": "Welcome to Your Reversal Onboarding Portal",
+            "reply_to": ["concierge@drshumard.com"],
+            "subject": "Welcome to Your Onboarding Portal",
             "html": f"""
             <!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="utf-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Welcome to Your Reversal Onboarding Portal</title>
+                <title>Welcome to Your Onboarding Portal</title>
             </head>
             <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <tr>
                         <td>
+                            <!-- Logo -->
+                            <p style="margin: 0 0 24px 0; text-align: center;"><img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;"></p>
+
                             <!-- Header -->
                             <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
-                                Welcome to Your Reversal Onboarding Portal
+                                Welcome to your onboarding portal with Dr Shumard
                             </h1>
                             
                             <!-- Greeting -->
@@ -801,12 +927,68 @@ async def execute_automations(trigger: str, data: dict):
     
     return results
 
+@api_router.post("/webhook/twilio/inbound")
+async def twilio_inbound_webhook(request: Request):
+    """Twilio inbound-SMS webhook. Records STOP/START opt-out state in `sms_opt_outs` (keyed by
+    E.164) so the reminder engine can suppress opted-out numbers. Fails CLOSED:
+      - no TWILIO_AUTH_TOKEN  -> 503 (can't verify authenticity)
+      - bad X-Twilio-Signature -> 403
+    Signature validation is what stops a forged request from opting a victim out — or, worse,
+    opting someone back IN (a TCPA problem). Returns empty TwiML; Twilio's Advanced Opt-Out has
+    already sent the patient the standard confirmation, so we must not reply again."""
+    if not TWILIO_AUTH_TOKEN:
+        raise HTTPException(status_code=503, detail="Twilio is not configured")
+
+    # Cheap DoS guard: reject an oversized body before buffering/parsing it (a real Twilio inbound
+    # is a few KB; the signature check below can only run after the body is read).
+    clen = request.headers.get("content-length")
+    if clen and clen.isdigit() and int(clen) > 64 * 1024:
+        raise HTTPException(status_code=413, detail="Payload too large")
+
+    form = await request.form()
+    params = {k: str(v) for k, v in form.items()}
+    signature = request.headers.get("X-Twilio-Signature", "")
+    # Twilio signs the EXACT public URL it POSTed to. Behind a TLS-terminating proxy the request
+    # URL can differ (scheme/host), so allow an explicit override that must match Twilio's config.
+    url = os.environ.get("TWILIO_INBOUND_WEBHOOK_URL") or str(request.url)
+
+    from twilio.request_validator import RequestValidator
+    if not RequestValidator(TWILIO_AUTH_TOKEN).validate(url, params, signature):
+        logging.warning("Twilio inbound webhook: invalid signature — rejected")
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
+    from services.sms import classify_optout
+    from_number = normalize_phone(params.get("From"))
+    body = (params.get("Body") or "").strip()
+    opt_type = (params.get("OptOutType") or "").strip().upper()  # STOP/START/HELP w/ Advanced Opt-Out
+    action = "stop" if opt_type == "STOP" else "start" if opt_type == "START" else classify_optout(body)
+
+    if from_number and action in ("stop", "start"):
+        opted = action == "stop"
+        now_iso = datetime.now(timezone.utc).isoformat()
+        await db.sms_opt_outs.update_one(
+            {"_id": from_number},
+            {"$set": {"opted_out": opted, "updated_at": now_iso,
+                      "source": "twilio_inbound", "last_body": body[:160]}},
+            upsert=True)
+        user = await db.users.find_one({"phone": from_number}, {"_id": 0, "id": 1, "email": 1})
+        await log_activity(
+            event_type="SMS_OPT_OUT" if opted else "SMS_OPT_IN",
+            user_email=(user or {}).get("email"), user_id=(user or {}).get("id"),
+            details={"phone": _mask_phone(from_number), "keyword": body[:32]},
+            category="patient")
+        logging.info(f"SMS {'opt-out' if opted else 'opt-in'} recorded for {_mask_phone(from_number)}")
+
+    return Response(content='<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
+                    media_type="application/xml")
+
+
 @api_router.post("/webhook/appointment")
 async def appointment_webhook(data: AppointmentWebhookData, webhook_secret: str = None):
     """Receive appointment booking webhook from GHL - Protected by webhook secret"""
     
     # Validate webhook secret
-    if not WEBHOOK_SECRET or webhook_secret != WEBHOOK_SECRET:
+    if not WEBHOOK_SECRET or not webhook_secret or not secrets.compare_digest(str(webhook_secret).encode('utf-8'), str(WEBHOOK_SECRET).encode('utf-8')):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret"
@@ -995,7 +1177,7 @@ async def cancel_appointment_webhook(data: AppointmentCancellationData, webhook_
     """Receive appointment cancellation webhook from GHL - Protected by webhook secret"""
     
     # Validate webhook secret
-    if not WEBHOOK_SECRET or webhook_secret != WEBHOOK_SECRET:
+    if not WEBHOOK_SECRET or not webhook_secret or not secrets.compare_digest(str(webhook_secret).encode('utf-8'), str(WEBHOOK_SECRET).encode('utf-8')):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret"
@@ -1109,6 +1291,7 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
         # Convert booking_info to appointment format for consistency
         appointment = {
             "session_date": booking_info.get("session_start") or booking_info.get("booking_datetime"),
+            "meet_link": booking_info.get("meet_link"),
             "first_name": user_data.get("first_name", ""),
             "last_name": user_data.get("last_name", ""),
             "email": user_data.get("email"),
@@ -1140,6 +1323,7 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
                             # Admin update is more recent, use booking_info
                             appointment = {
                                 "session_date": booking_date_str,
+                                "meet_link": booking_info.get("meet_link"),
                                 "first_name": user_data.get("first_name", ""),
                                 "last_name": user_data.get("last_name", ""),
                                 "email": user_data.get("email"),
@@ -1159,13 +1343,29 @@ async def get_user_appointment(current_user: dict = Depends(get_current_user)):
     return {"appointment": appointment}
 
 @api_router.post("/auth/signup", response_model=TokenResponse)
-async def signup(request: SignupRequest):
+async def signup(request: SignupRequest, req: Request):
     """Auto-login user (password already sent via webhook)"""
     import asyncio
-    
+
     # Normalize email to lowercase
     email_lower = request.email.lower()
-    
+
+    # Rate-limit like the other auth endpoints: this route holds a ~40s poll and is a cheap
+    # amplification + email-enumeration primitive if left open. Per-IP and per-email.
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+    if not await check_ip_rate_limit(ip_address, scope="signup", limit=20, window_minutes=15):
+        await log_activity(event_type="SIGNUP_RATE_LIMITED", user_email=email_lower,
+                           ip_address=ip_address, details={"reason": "per_ip"}, status="failure")
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts. Please wait a few minutes and try again.")
+    if not await check_rate_limit(f"signup:{email_lower}"):
+        await log_activity(event_type="SIGNUP_RATE_LIMITED", user_email=email_lower,
+                           ip_address=ip_address, details={"reason": "per_email"}, status="failure")
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts. Please wait a few minutes and try again.")
+
     # Poll for the user that the GHL webhook creates. Check immediately —
     # the webhook often lands before the post-purchase redirect — and then
     # every second for up to ~40s. Fast path returns in <100ms when the
@@ -1204,57 +1404,89 @@ async def signup(request: SignupRequest):
             detail="Account not properly initialized. Please contact support."
         )
 
-    # Check if user was in "refunded" state (step 0)
-    # If so, reset them to step 1 and send notification email
-    was_refunded = user.get("current_step", 1) == 0
-    
-    if was_refunded:
-        # Reset user to step 1
-        await db.users.update_one(
-            {"id": user["id"]},
-            {"$set": {"current_step": 1}}
-        )
-        # Note: user_progress tracks step completion, not current_step
-        # The current_step is only on the users collection
-        
-        # Send notification email to admin
+    # ---- First-entry link validation (closes the "?email= alone logs you in" hole) ----
+    # The signup link carries the GHL contact id the webhook saved: an unguessable secret,
+    # good ONCE, valid for 3h after purchase. Matching email alone no longer grants anything.
+    # Returning members never use this path — they sign in with email/phone OTP.
+    stored_cid = (user.get("signup_contact_id") or "").strip()
+    provided_cid = (request.contact_id or "").strip()
+    # Compare as bytes: secrets.compare_digest on str requires ASCII, so a non-ASCII
+    # contact_id would raise (500). Encoding makes any mismatch a clean False -> 403.
+    if (not stored_cid or not provided_cid
+            or not secrets.compare_digest(stored_cid.encode("utf-8"), provided_cid.encode("utf-8"))):
+        await log_activity(event_type="SIGNUP_LINK_REJECTED", user_email=email_lower,
+                           details={"reason": "contact_id_missing_or_mismatch"}, status="failure")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This sign-in link is invalid. Please sign in with your email to continue.")
+
+    # 3h window — fail CLOSED on a missing/unparseable timestamp (can't prove freshness).
+    issued_dt = None
+    try:
+        issued_dt = datetime.fromisoformat(str(user.get("signup_link_issued_at")).replace("Z", "+00:00"))
+        if issued_dt.tzinfo is None:
+            issued_dt = issued_dt.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        issued_dt = None
+    if issued_dt is None or (datetime.now(timezone.utc) - issued_dt > timedelta(hours=3)):
+        await log_activity(event_type="SIGNUP_LINK_REJECTED", user_email=email_lower,
+                           details={"reason": "expired_or_no_timestamp"}, status="failure")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This sign-in link has expired. Please sign in with your email to continue.")
+
+    # Atomically claim the single use — a double-click / reopened tab can't both succeed.
+    claim = await db.users.update_one(
+        {"id": user["id"], "signup_token_used": {"$ne": True}},
+        {"$set": {"signup_token_used": True, "signup_token_used_at": datetime.now(timezone.utc).isoformat()}})
+    if claim.modified_count == 0:
+        await log_activity(event_type="SIGNUP_LINK_REJECTED", user_email=email_lower,
+                           details={"reason": "already_used"}, status="failure")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This sign-in link has already been used. Please sign in with your email to continue.")
+
+    # A refunded user (current_step == 0) is REVOKED: don't mint a token at all (the backend
+    # doesn't gate current_step per-request, so issuing one would grant real API access — the
+    # /refunded route guard is frontend-only). Reactivation happens solely via the secret
+    # repurchase webhook. Alert the office, then reject.
+    if user.get("current_step", 1) == 0:
         try:
             notification_email = os.environ.get("ADMIN_NOTIFICATION_EMAIL", "drjason@drshumard.com")
             resend.Emails.send({
                 "from": "Dr. Shumard's Office <noreply@email.drshumard.com>",
                 "to": notification_email,
-                "subject": f"🔔 Refunded User Re-entered Portal: {user['email']}",
+                "subject": f"🔔 Refunded User Attempted Re-entry: {user['email']}",
                 "html": f"""
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                        <h2 style="color: #333;">Refunded User Re-entered Portal</h2>
-                        <p>A previously refunded user has re-entered the portal onboarding:</p>
+                        <h2 style="color: #333;">Refunded User Attempted Portal Re-entry</h2>
+                        <p>A previously refunded user opened the onboarding link. Their access was <strong>not</strong> restored automatically.</p>
                         <ul style="line-height: 1.8;">
                             <li><strong>Name:</strong> {user.get('name', 'N/A')}</li>
                             <li><strong>Email:</strong> {user['email']}</li>
                             <li><strong>Phone:</strong> {user.get('phone', 'N/A')}</li>
                             <li><strong>Time:</strong> {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</li>
                         </ul>
-                        <p style="color: #666;">Please check if they have repurchased before their consultation.</p>
+                        <p style="color: #666;">If they have repurchased, restore their access from the admin panel.</p>
                     </div>
                 """
             })
-            logging.info(f"Sent refunded user re-entry notification for {email_lower}")
+            logging.info(f"Sent refunded user re-entry ATTEMPT notification for {email_lower}")
         except Exception as e:
             logging.error(f"Failed to send refunded user notification: {e}")
-        
-        # Log the re-entry
+
+        # Log the attempt (access not restored — step stays 0).
         await log_activity(
-            event_type="REFUNDED_USER_REENTERED",
+            event_type="REFUNDED_USER_REENTRY_BLOCKED",
             user_email=user["email"],
             user_id=user["id"],
-            details={
-                "previous_step": 0,
-                "new_step": 1,
-                "notification_sent": True
-            },
-            status="success"
+            details={"previous_step": 0, "new_step": 0, "access_restored": False},
+            status="warning"
         )
-    
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account isn't active. Please contact support if you believe this is an error.")
+
     # User already has password (set via webhook), just login them
     access_token = create_access_token(
         data={"sub": user["id"]},
@@ -1270,7 +1502,7 @@ async def signup(request: SignupRequest):
         details={
             "auto_login": True, 
             "session_duration_minutes": ACCESS_TOKEN_EXPIRE_MINUTES,
-            "was_refunded": was_refunded
+            "was_refunded": False  # refunded users are rejected (403) before reaching here
         },
         status="success"
     )
@@ -1532,9 +1764,9 @@ async def request_magic_link(request: MagicLinkRequest, req: Request):
 
     try:
         resend.Emails.send({
-            "from": "Onboarding Portal <noreply@portal.drshumard.com>",
+            "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
             "to": user["email"],
-            "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
+            "reply_to": ["concierge@drshumard.com"],
             "subject": "Access Your Portal",
             "html": f"""
             <!DOCTYPE html>
@@ -1548,6 +1780,9 @@ async def request_magic_link(request: MagicLinkRequest, req: Request):
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <tr>
                         <td>
+                            <!-- Logo -->
+                            <p style="margin: 0 0 24px 0; text-align: center;"><img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;"></p>
+
                             <!-- Header -->
                             <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
                                 Access Your Portal
@@ -1630,6 +1865,218 @@ def _mask_phone(phone_e164: str) -> str:
     if not phone_e164 or len(phone_e164) < 4:
         return "•••"
     return f"•••-•••-{phone_e164[-4:]}"
+
+
+# ---------------------------------------------------------------------------
+# Email sign-in: ONE email with both a magic link AND a 6-digit code.
+# ---------------------------------------------------------------------------
+
+EMAIL_CODE_TTL_MINUTES = 10
+EMAIL_CODE_MAX_ATTEMPTS = 5
+
+
+def _mask_email(email: str) -> str:
+    """'alice@domain.com' -> 'a•••@domain.com'."""
+    try:
+        local, domain = email.split("@", 1)
+        masked = (local[0] + "•••") if local else "•••"
+        return f"{masked}@{domain}"
+    except Exception:
+        return email
+
+
+def _generate_email_code() -> str:
+    return f"{secrets.randbelow(1000000):06d}"
+
+
+def _hash_email_code(code: str) -> str:
+    return hashlib.sha256(f"{code}:{SECRET_KEY}".encode("utf-8")).hexdigest()
+
+
+class EmailCodeVerify(BaseModel):
+    email: EmailStr
+    code: str
+
+
+def _signin_email_html(name: str, magic_url: str, code: str, frontend_url: str) -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in to your portal</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <tr>
+            <td>
+                <!-- Logo -->
+                <p style="margin: 0 0 24px 0; text-align: center;">
+                    <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;">
+                </p>
+
+                <!-- Header -->
+                <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
+                    Sign in to your portal
+                </h1>
+
+                <!-- Greeting -->
+                <p style="font-size: 18px; margin: 20px 0;">
+                    Hello {name},
+                </p>
+
+                <p style="margin: 20px 0;">
+                    Use either option below to sign in &mdash; both will log you in.
+                </p>
+
+                <!-- Login Button -->
+                <p style="margin: 30px 0; text-align: center;">
+                    <a href="{magic_url}"
+                       style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
+                        SIGN IN TO YOUR PORTAL
+                    </a>
+                </p>
+
+                <!-- Code -->
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 25px 0;">
+                    <tr><td style="padding: 20px; background-color: #f5f5f5; text-align: center;">
+                        <span style="display: block; font-size: 14px; color: #555555; margin-bottom: 10px;">Or enter this code:</span>
+                        <span style="display: block; font-size: 30px; font-weight: bold; letter-spacing: 6px; color: #000000;">{code}</span>
+                        <span style="display: block; font-size: 13px; color: #777777; margin-top: 10px;">This code expires in {EMAIL_CODE_TTL_MINUTES} minutes.</span>
+                    </td></tr>
+                </table>
+
+                <!-- Alternative Link -->
+                <p style="margin: 20px 0; font-size: 14px;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    <span style="word-break: break-all;">{magic_url}</span>
+                </p>
+
+                <!-- Need Help -->
+                <p style="margin: 30px 0; padding: 15px; background-color: #f5f5f5;">
+                    <strong>Need Help?</strong><br>
+                    If you have any questions, please reply to this email or contact our support team at <a href="mailto:concierge@drshumard.com" style="color: #000000;">concierge@drshumard.com</a> or <a href="tel:+18585647081" style="color: #000000;">858-564-7081</a>.
+                </p>
+
+                <!-- Footer -->
+                <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
+                    Best regards,<br>
+                    <strong>Onboarding Team, DS</strong>
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>"""
+
+
+@api_router.post("/auth/email/start")
+async def email_signin_start(request: MagicLinkRequest, req: Request):
+    """Send ONE email containing a magic-link AND a 6-digit code (valid 10 min)."""
+    email_lower = request.email.lower()
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+
+    if not await check_rate_limit(f"email_signin:{email_lower}"):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many requests. Please try again in a few minutes.")
+    if not await check_ip_rate_limit(ip_address, scope="email_signin", limit=20, window_minutes=15):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many requests from this network. Please try again shortly.")
+
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+    if not user:
+        await log_activity(event_type="EMAIL_SIGNIN_UNKNOWN_EMAIL", user_email=email_lower,
+                           ip_address=ip_address, status="failure")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="We couldn't find an account with that email. Use the email from your checkout.")
+
+    token = await create_auto_login_token(user["id"], user["email"], purpose="magic_link")
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+    magic_url = f"{frontend_url}/auto-login/{token}"
+
+    code = _generate_email_code()
+    now = datetime.now(timezone.utc)
+    await db.email_login_codes.update_one(
+        {"_id": email_lower},
+        {"$set": {"email": email_lower, "code_hash": _hash_email_code(code),
+                  "expires_at": now + timedelta(minutes=EMAIL_CODE_TTL_MINUTES),
+                  "attempts": 0, "created_at": now}},
+        upsert=True,
+    )
+
+    try:
+        resend.Emails.send({
+            "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
+            "to": user["email"],
+            "reply_to": ["concierge@drshumard.com"],
+            "subject": "Your sign-in link and code",
+            "html": _signin_email_html(user.get("name", "there"), magic_url, code, frontend_url),
+        })
+        await log_activity(event_type="EMAIL_SIGNIN_SENT", user_email=user["email"],
+                           user_id=user["id"], ip_address=ip_address, status="success")
+    except Exception as e:
+        logging.error(f"Failed to send sign-in email: {e}")
+        await log_activity(event_type="EMAIL_SIGNIN_FAILED", user_email=user["email"],
+                           user_id=user["id"], details={"error": str(e)}, status="failure")
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
+                            detail="We couldn't send the sign-in email. Please try again in a moment.")
+
+    return {"message": "Sign-in email sent.", "masked_email": _mask_email(user["email"]),
+            "code_ttl_minutes": EMAIL_CODE_TTL_MINUTES}
+
+
+@api_router.post("/auth/email/verify", response_model=TokenResponse)
+async def email_signin_verify(request: EmailCodeVerify, req: Request):
+    """Verify the 6-digit email code and sign the user in."""
+    email_lower = request.email.lower()
+    code = (request.code or "").strip()
+    ip_address = req.headers.get("X-Forwarded-For", req.client.host if req.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+
+    if not await check_ip_rate_limit(ip_address, scope="email_verify", limit=30, window_minutes=15):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts from this network. Please try again shortly.")
+
+    doc = await db.email_login_codes.find_one({"_id": email_lower})
+    if not doc:
+        raise HTTPException(status_code=400, detail="That code has expired. Request a new one.")
+
+    expires_at = doc["expires_at"]
+    if getattr(expires_at, "tzinfo", None) is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) > expires_at:
+        await db.email_login_codes.delete_one({"_id": email_lower})
+        raise HTTPException(status_code=400, detail="That code has expired. Request a new one.")
+
+    updated = await db.email_login_codes.find_one_and_update(
+        {"_id": email_lower}, {"$inc": {"attempts": 1}}, return_document=ReturnDocument.AFTER)
+    if updated and updated.get("attempts", 0) > EMAIL_CODE_MAX_ATTEMPTS:
+        await db.email_login_codes.delete_one({"_id": email_lower})
+        await log_activity(event_type="EMAIL_CODE_LOCKED", user_email=email_lower,
+                           ip_address=ip_address, status="failure")
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many incorrect attempts. Request a new code.")
+
+    if not hmac.compare_digest(updated["code_hash"], _hash_email_code(code)):
+        await log_activity(event_type="EMAIL_CODE_INVALID", user_email=email_lower,
+                           ip_address=ip_address, status="failure")
+        raise HTTPException(status_code=400, detail="Incorrect code. Please try again.")
+
+    await db.email_login_codes.delete_one({"_id": email_lower})
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    access_token = create_access_token(data={"sub": user["id"]},
+                                       expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    refresh_token = create_refresh_token(data={"sub": user["id"]})
+    await log_activity(event_type="EMAIL_CODE_LOGIN_SUCCESS", user_email=user["email"],
+                       user_id=user["id"], details={"method": "email_code"}, status="success")
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token,
+                         user_id=user["id"], email=user["email"])
 
 
 @api_router.post("/auth/otp/sms/send")
@@ -1885,7 +2332,8 @@ async def request_password_reset(request: PasswordResetRequest):
         
         try:
             resend.Emails.send({
-                "from": "Dr. Shumard Portal <noreply@portal.drshumard.com>",
+                "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
+                "reply_to": ["concierge@drshumard.com"],
                 "to": request.email,
                 "subject": "Password Reset Request",
                 "html": f"""
@@ -1896,6 +2344,7 @@ async def request_password_reset(request: PasswordResetRequest):
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 </head>
                 <body style="margin: 0; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #ECFEFF 0%, #CFFAFE 50%, #A5F3FC 100%);">
+                    <p style="margin: 0 0 24px 0; text-align: center;"><img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;"></p>
                     <div style="max-width: 600px; margin: 40px auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);">
                         <div style="background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%); padding: 40px 30px; text-align: center;">
                             <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 700;">Password Reset Request</h1>
@@ -1958,18 +2407,69 @@ async def reset_password(request: PasswordResetConfirm):
     
     return {"message": "Password reset successful"}
 
+def _user_response(u: dict) -> UserResponse:
+    return UserResponse(
+        id=u["id"], email=u["email"], name=u["name"],
+        first_name=u.get("first_name"), last_name=u.get("last_name"),
+        phone=u.get("phone"), current_step=u["current_step"],
+        role=u.get("role", "user"), avatar_url=u.get("avatar_url"),
+    )
+
+
 @api_router.get("/user/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
-    return UserResponse(
-        id=current_user["id"],
-        email=current_user["email"],
-        name=current_user["name"],
-        first_name=current_user.get("first_name"),
-        last_name=current_user.get("last_name"),
-        phone=current_user.get("phone"),
-        current_step=current_user["current_step"],
-        role=current_user.get("role", "user")  # Default to 'user' if role not present
-    )
+    return _user_response(current_user)
+
+
+@api_router.put("/user/me", response_model=UserResponse)
+async def update_me(payload: ProfileUpdate, current_user: dict = Depends(get_current_user)):
+    """Let a signed-in user edit their own profile (name, phone, avatar)."""
+    update: dict = {}
+    if payload.first_name is not None:
+        update["first_name"] = payload.first_name.strip()
+    if payload.last_name is not None:
+        update["last_name"] = payload.last_name.strip()
+    if payload.phone is not None:
+        update["phone"] = payload.phone.strip()
+    if payload.avatar_url is not None:
+        av = payload.avatar_url.strip()
+        if len(av) > 3_000_000:
+            raise HTTPException(status_code=400, detail="Profile image is too large")
+        update["avatar_url"] = av
+    # Keep the denormalized `name` in step with first/last when either changes.
+    if "first_name" in update or "last_name" in update:
+        fn = update.get("first_name", current_user.get("first_name") or "")
+        ln = update.get("last_name", current_user.get("last_name") or "")
+        full = f"{fn} {ln}".strip()
+        if full:
+            update["name"] = full
+    if update:
+        await db.users.update_one({"id": current_user["id"]}, {"$set": update})
+    user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
+    return _user_response(user)
+
+
+@api_router.post("/user/me/avatar", response_model=UserResponse)
+async def upload_my_avatar(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Upload a profile photo to Bunny CDN and store its public URL on the user."""
+    from services import bunny as bunny_service
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please choose an image file")
+    data = await file.read()
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image is too large (max 8MB)")
+    try:
+        url = await bunny_service.upload_avatar(current_user["id"], data)
+    except bunny_service.BunnyNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e) or "Photo uploads aren't set up yet. Add the Bunny CDN keys to the server.")
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Avatar upload to Bunny failed")
+        raise HTTPException(status_code=502, detail="Couldn't upload that image. Please try again.")
+    await db.users.update_one({"id": current_user["id"]}, {"$set": {"avatar_url": url}})
+    user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
+    return _user_response(user)
 
 @api_router.get("/user/progress")
 async def get_user_progress(current_user: dict = Depends(get_current_user)):
@@ -3582,7 +4082,14 @@ async def promote_user(
         },
         status="success"
     )
-    
+    await log_admin_action(
+        "ADMIN_USER_ROLE_CHANGED",
+        admin_user=admin_user,
+        details={"old_role": user.get("role", "user"), "new_role": request.role},
+        target_email=user.get("email"),
+        target_user_id=user_id,
+    )
+
     return {"message": f"User role changed to {request.role}", "role": request.role}
 
 
@@ -3592,7 +4099,8 @@ async def get_activity_logs(
     page: int = 1,
     per_page: int = 50,
     event_type: str = None,
-    user_email: str = None
+    user_email: str = None,
+    category: str = None
 ):
     """Get activity logs with pagination and filtering"""
     # Cap per_page at 500
@@ -3607,7 +4115,14 @@ async def get_activity_logs(
     
     if user_email:
         query["user_email"] = user_email.lower()
-    
+
+    # Admin vs patient activity. Legacy logs predate the `category` field, so treat
+    # anything not explicitly "admin" as patient activity.
+    if category == "admin":
+        query["category"] = "admin"
+    elif category == "patient":
+        query["category"] = {"$ne": "admin"}
+
     # Get total count for pagination
     total_count = await db.activity_logs.count_documents(query)
     total_pages = (total_count + per_page - 1) // per_page  # Ceiling division
@@ -3720,7 +4235,14 @@ async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin
         },
         status="success"
     )
-    
+    await log_admin_action(
+        "ADMIN_USER_PROGRESS_RESET",
+        admin_user=admin_user,
+        details={"preserved_fields": list(preserved_data.keys())},
+        target_email=user.get("email"),
+        target_user_id=user_id,
+    )
+
     return {
         "message": "User progress, intake form, and Practice Better client ID reset successfully",
         "preserved_fields": list(preserved_data.keys())
@@ -3775,7 +4297,14 @@ async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict 
         },
         status="success"
     )
-    
+    await log_admin_action(
+        "ADMIN_USER_STEP_CHANGED",
+        admin_user=admin_user,
+        details={"old_step": old_step, "new_step": request.step, "new_step_name": step_name},
+        target_email=user.get("email"),
+        target_user_id=user_id,
+    )
+
     return {
         "message": f"User moved from {old_step_name} to {step_name}",
         "old_step": old_step,
@@ -3869,7 +4398,17 @@ async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin
         },
         status="success"
     )
-    
+    await log_admin_action(
+        "ADMIN_BOOKING_UPDATED",
+        admin_user=admin_user,
+        details={
+            "new_booking_datetime": request.booking_datetime,
+            "booking_timezone": request.booking_timezone or user_timezone,
+        },
+        target_email=user.get("email"),
+        target_user_id=user_id,
+    )
+
     return {
         "message": "Booking updated successfully",
         "booking_info": booking_info,
@@ -3904,7 +4443,13 @@ async def delete_user_booking(user_id: str, admin_user: dict = Depends(get_admin
         },
         status="success"
     )
-    
+    await log_admin_action(
+        "ADMIN_BOOKING_REMOVED",
+        admin_user=admin_user,
+        target_email=user.get("email"),
+        target_user_id=user_id,
+    )
+
     return {"message": "Booking removed successfully"}
 
 @api_router.post("/admin/promote-user")
@@ -4001,7 +4546,15 @@ async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete user"
         )
-    
+
+    await log_admin_action(
+        "ADMIN_USER_DELETED",
+        admin_user=admin_user,
+        details={"user_id": user_id},
+        target_email=user.get("email"),
+        target_user_id=user_id,
+    )
+
     return {"message": "User deleted successfully", "user_id": user_id}
 
 class UpdateUserRequest(BaseModel):
@@ -4028,10 +4581,10 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
     try:
         # Use Resend API - Simple accessible design for 50+ users
         resend.Emails.send({
-            "from": "Onboarding Portal <admin@portal.drshumard.com>",
+            "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
             "to": user["email"],
-            "reply_to": ["concierge@drshumard.com", "admin@drshumard.com"],
-            "subject": "Access Your Reversal Onboarding Portal",
+            "reply_to": ["concierge@drshumard.com"],
+            "subject": "Access Your Onboarding Portal",
             "html": f"""
             <!DOCTYPE html>
             <html lang="en">
@@ -4044,6 +4597,9 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
                 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <tr>
                         <td>
+                            <!-- Logo -->
+                            <p style="margin: 0 0 24px 0; text-align: center;"><img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;"></p>
+
                             <!-- Header -->
                             <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
                                 Access Your Portal
@@ -4106,7 +4662,14 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
             details={"admin_id": admin_user["id"], "method": "resend_api"},
             status="success"
         )
-        
+        await log_admin_action(
+            "ADMIN_WELCOME_EMAIL_RESENT",
+            admin_user=admin_user,
+            details={"method": "resend_api"},
+            target_email=user["email"],
+            target_user_id=user_id,
+        )
+
         return {"message": "Welcome email sent successfully"}
     except Exception as e:
         logging.error(f"Failed to send welcome email via Resend: {e}")
@@ -4252,30 +4815,248 @@ async def submit_support_request(request: SupportRequest):
 # Admin Settings
 # ============================================================================
 
-SETTINGS_DEFAULTS = {
-    "availability_days": 14,
+# SMS reminders — every knob is admin-editable from the Settings UI (nothing hardcoded in the
+# reminder engine). booking.py's sweep reads app_settings.sms_reminders each pass, deep-merged
+# over these defaults. Per-item `value` unit depends on the key: book_* = hours after signup,
+# forms_24h = hours after booking, forms_pre = hours before appointment, precall = minutes
+# before appointment. Message placeholders: {first_name} {link} {time} {join}.
+SMS_REMINDER_DEFAULTS = {
+    "enabled": True,               # master on/off (Twilio must also be configured server-side)
+    "quiet_start_hour": 9,         # nudges send only while local hour is >= this ...
+    "quiet_end_hour": 20,          # ... and < this (pre-call reminder ignores quiet hours)
+    "booking_max_age_days": 14,    # don't send booking nudges to signups older than this
+    "items": {
+        "book_24h": {
+            "enabled": True,
+            "value": 24,
+            "message": ("Hi {first_name}, this is Dr. Shumard's office. Ready to book your "
+                        "consultation? Pick a time here: {link}\nReply STOP to opt out."),
+        },
+        "book_72h": {
+            "enabled": True,
+            "value": 72,
+            "message": ("Hi {first_name}, this is Dr. Shumard's office — you haven't booked your "
+                        "consultation yet. Reserve your time here: {link}\nReply STOP to opt out."),
+        },
+        "forms_24h": {
+            "enabled": True,
+            "value": 24,
+            "message": ("Hi {first_name}, thanks for booking! Please complete your health forms "
+                        "before your consultation so Dr. Shumard's team can prepare: {link}\n"
+                        "Reply STOP to opt out."),
+        },
+        "forms_pre": {
+            "enabled": True,
+            "value": 24,
+            "message": ("Hi {first_name}, your consultation with Dr. Shumard is coming up. Please "
+                        "complete your health forms beforehand so we're ready for you: {link}\n"
+                        "Reply STOP to opt out."),
+        },
+        "precall": {
+            "enabled": True,
+            "value": 60,
+            "message": "Reminder: your consultation with Dr. Shumard is at {time}.{join}",
+        },
+    },
 }
+
+# Per-item `value` bounds (min, max), keyed by reminder. precall is in minutes; the rest in hours.
+_SMS_REMINDER_VALUE_BOUNDS = {
+    "book_24h": (1, 720), "book_72h": (1, 720),
+    "forms_24h": (1, 720), "forms_pre": (1, 720),
+    "precall": (5, 1440),
+}
+
+SETTINGS_DEFAULTS = {
+    "availability_days": 14,           # default look-ahead the patient widget requests
+    "booking_engine": "pb",            # pb | local — cutover flag (see CADENCE_MIGRATION_PLAN §7)
+    "shared_pb_consultant_id": "",     # single shared PB consultant (used in one_director mode)
+    "pb_service_id": "",               # service offered by the PB account
+    "pb_booking_mode": "one_director", # one_director | per_director (route PB session to the assigned director's own consultant)
+    "slot_minutes": 30,
+    "min_notice_minutes": 120,
+    "max_advance_days": 90,
+    "buffer_minutes": 0,
+    "session_title": "Strategy Session",   # legacy fallback — superseded by `sessions`
+    "session_description": "",              # legacy fallback — superseded by `sessions`
+    "sessions": [],                         # [{id, title, description, duration_minutes, portal_visible}]
+    "clinic_closures": [],             # [{start_utc, end_utc, reason}]
+    "sms_reminders": SMS_REMINDER_DEFAULTS, # Twilio reminder config (see above)
+}
+
+
+def _resolve_sessions(merged: dict) -> list:
+    """The session types. If none are stored yet, synthesize one portal session from the
+    legacy session_title/description/slot_minutes so existing installs migrate transparently."""
+    sessions = merged.get("sessions") or []
+    if sessions:
+        return sessions
+    return [{
+        "id": "strategy",
+        "title": merged.get("session_title") or "Strategy Session",
+        "description": merged.get("session_description") or "",
+        "duration_minutes": int(merged.get("slot_minutes") or 30),
+        "portal_visible": True,
+        "pb_service_id": merged.get("pb_service_id") or "",
+    }]
+
+
+def _validate_settings_updates(body: dict) -> dict:
+    """Whitelist + validate incoming settings. Raises HTTPException(400) on bad input."""
+    updates: dict = {}
+    for key in SETTINGS_DEFAULTS.keys():
+        if key not in body:
+            continue
+        val = body[key]
+        if key == "availability_days":
+            val = int(val)
+            if not (1 <= val <= 90):
+                raise HTTPException(status_code=400, detail="availability_days must be between 1 and 90")
+        elif key == "booking_engine":
+            if val not in ("pb", "local"):
+                raise HTTPException(status_code=400, detail="booking_engine must be 'pb' or 'local'")
+        elif key == "pb_booking_mode":
+            if val not in ("one_director", "per_director"):
+                raise HTTPException(status_code=400, detail="pb_booking_mode must be 'one_director' or 'per_director'")
+        elif key == "slot_minutes":
+            val = int(val)
+            if not (5 <= val <= 240):
+                raise HTTPException(status_code=400, detail="slot_minutes must be between 5 and 240")
+        elif key == "min_notice_minutes":
+            val = int(val)
+            if val < 0:
+                raise HTTPException(status_code=400, detail="min_notice_minutes must be >= 0")
+        elif key == "max_advance_days":
+            val = int(val)
+            if not (1 <= val <= 365):
+                raise HTTPException(status_code=400, detail="max_advance_days must be between 1 and 365")
+        elif key == "buffer_minutes":
+            val = int(val)
+            if val < 0:
+                raise HTTPException(status_code=400, detail="buffer_minutes must be >= 0")
+        elif key in ("shared_pb_consultant_id", "pb_service_id", "session_title", "session_description"):
+            val = ("" if val is None else str(val)).strip()
+        elif key == "sessions":
+            if not isinstance(val, list):
+                raise HTTPException(status_code=400, detail="sessions must be a list")
+            cleaned = []
+            seen_ids = set()
+            for item in val:
+                if not isinstance(item, dict):
+                    raise HTTPException(status_code=400, detail="each session must be an object")
+                title = (item.get("title") or "").strip()
+                if not title:
+                    raise HTTPException(status_code=400, detail="each session needs a title")
+                dur = int(item.get("duration_minutes") or 30)
+                if not (5 <= dur <= 240):
+                    raise HTTPException(status_code=400, detail="session duration must be between 5 and 240 minutes")
+                sid = (str(item.get("id") or "").strip()) or uuid.uuid4().hex[:12]
+                while sid in seen_ids:
+                    sid = uuid.uuid4().hex[:12]
+                seen_ids.add(sid)
+                cleaned.append({
+                    "id": sid,
+                    "title": title,
+                    "description": (item.get("description") or "").strip(),
+                    "duration_minutes": dur,
+                    "portal_visible": bool(item.get("portal_visible")),
+                    "pb_service_id": (str(item.get("pb_service_id") or "").strip()),
+                })
+            val = cleaned
+        elif key == "clinic_closures":
+            if not isinstance(val, list):
+                raise HTTPException(status_code=400, detail="clinic_closures must be a list")
+            cleaned = []
+            for item in val:
+                if not isinstance(item, dict):
+                    raise HTTPException(status_code=400, detail="each clinic_closure must be an object")
+                start = _parse_utc_iso(item.get("start_utc"))
+                end = _parse_utc_iso(item.get("end_utc"))
+                if not start or not end or end <= start:
+                    raise HTTPException(status_code=400, detail="clinic_closure needs start_utc < end_utc (ISO-8601)")
+                cleaned.append({
+                    "start_utc": start.isoformat(),
+                    "end_utc": end.isoformat(),
+                    "reason": (item.get("reason") or "").strip(),
+                })
+            val = cleaned
+        elif key == "sms_reminders":
+            val = _sanitize_sms_reminders(val)
+        updates[key] = val
+    return updates
+
+
+def _sanitize_sms_reminders(incoming) -> dict:
+    """Validate + normalize the SMS reminder config into a COMPLETE object (every field present),
+    starting from defaults so a partial payload can never drop keys the engine relies on."""
+    cfg = copy.deepcopy(SMS_REMINDER_DEFAULTS)
+    if not isinstance(incoming, dict):
+        raise HTTPException(status_code=400, detail="sms_reminders must be an object")
+
+    def _clamp_int(value, lo, hi, default):
+        try:
+            n = int(value)
+        except (TypeError, ValueError):
+            return default
+        return max(lo, min(hi, n))
+
+    cfg["enabled"] = bool(incoming.get("enabled", cfg["enabled"]))
+    cfg["quiet_start_hour"] = _clamp_int(incoming.get("quiet_start_hour"), 0, 23, cfg["quiet_start_hour"])
+    cfg["quiet_end_hour"] = _clamp_int(incoming.get("quiet_end_hour"), 1, 24, cfg["quiet_end_hour"])
+    if cfg["quiet_end_hour"] <= cfg["quiet_start_hour"]:
+        raise HTTPException(status_code=400, detail="quiet_end_hour must be after quiet_start_hour")
+    cfg["booking_max_age_days"] = _clamp_int(incoming.get("booking_max_age_days"), 1, 365, cfg["booking_max_age_days"])
+
+    items_in = incoming.get("items")
+    items_in = items_in if isinstance(items_in, dict) else {}
+    for key, item in cfg["items"].items():
+        src = items_in.get(key)
+        src = src if isinstance(src, dict) else {}
+        item["enabled"] = bool(src.get("enabled", item["enabled"]))
+        lo, hi = _SMS_REMINDER_VALUE_BOUNDS.get(key, (1, 1440))
+        item["value"] = _clamp_int(src.get("value"), lo, hi, item["value"])
+        msg = src.get("message")
+        if isinstance(msg, str) and msg.strip():
+            item["message"] = msg[:800]   # cap length — each SMS segment costs money
+    return cfg
+
+
+def _parse_utc_iso(value):
+    """Parse an ISO-8601 string (or datetime) to a tz-aware UTC datetime, else None."""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(s)
+        except ValueError:
+            return None
+    else:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
 
 @api_router.get("/admin/settings")
 async def get_settings(admin_user: dict = Depends(get_admin_user)):
     """Get all admin-configurable settings."""
     doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
-    return {**SETTINGS_DEFAULTS, **(doc or {})}
+    merged = {**SETTINGS_DEFAULTS, **(doc or {})}
+    merged["sessions"] = _resolve_sessions(merged)
+    return merged
 
 @api_router.put("/admin/settings")
 async def update_settings(request: Request, admin_user: dict = Depends(get_admin_user)):
     """Update admin-configurable settings."""
     body = await request.json()
-    allowed_keys = set(SETTINGS_DEFAULTS.keys())
-    updates = {}
-    for key in allowed_keys:
-        if key in body:
-            val = body[key]
-            if key == "availability_days":
-                val = int(val)
-                if val < 1 or val > 90:
-                    raise HTTPException(status_code=400, detail="availability_days must be between 1 and 90")
-            updates[key] = val
+    updates = _validate_settings_updates(body)
 
     if not updates:
         raise HTTPException(status_code=400, detail="No valid settings provided")
@@ -4286,22 +5067,653 @@ async def update_settings(request: Request, admin_user: dict = Depends(get_admin
         upsert=True
     )
 
-    await log_activity(
-        event_type="SETTINGS_UPDATED",
-        user_email=admin_user.get("email"),
-        details=updates,
-        status="success"
-    )
+    await log_admin_action("ADMIN_SETTINGS_UPDATED", admin_user=admin_user,
+                           details={"changed_keys": list(updates.keys())}, request=request)
 
     doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
-    return {**SETTINGS_DEFAULTS, **(doc or {})}
+    merged = {**SETTINGS_DEFAULTS, **(doc or {})}
+    merged["sessions"] = _resolve_sessions(merged)
+    return merged
 
 @api_router.get("/settings/public")
 async def get_public_settings():
     """Get public-facing settings (no auth required). Used by booking widget."""
     doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
     merged = {**SETTINGS_DEFAULTS, **(doc or {})}
-    return {"availability_days": merged["availability_days"]}
+    return {
+        "availability_days": merged["availability_days"],
+        "slot_minutes": merged["slot_minutes"],
+        "min_notice_minutes": merged["min_notice_minutes"],
+        "max_advance_days": merged["max_advance_days"],
+    }
+
+
+# ============================================================================
+# Directors (Scheduling) — admin-managed; directors never log in.
+# Per-director google_calendar_id is filled in via the admin UI when ready.
+# ============================================================================
+
+class WeeklyRule(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    day_of_week: int  # 0=Mon .. 6=Sun
+    start: str        # "HH:MM" (interpreted in the director's timezone)
+    end: str
+
+    @field_validator("day_of_week")
+    @classmethod
+    def _dow_range(cls, v: int) -> int:
+        if not (0 <= int(v) <= 6):
+            raise ValueError("day_of_week must be 0 (Mon) .. 6 (Sun)")
+        return int(v)
+
+    @field_validator("start", "end")
+    @classmethod
+    def _hhmm(cls, v: str) -> str:
+        if not re.match(r"^([01]?\d|2[0-3]):[0-5]\d$", (v or "").strip()):
+            raise ValueError("time must be HH:MM (24h)")
+        return v.strip()
+
+
+class TimeOff(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    start_utc: str
+    end_utc: str
+    reason: Optional[str] = None
+
+
+class DateWindow(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    start: str  # "HH:MM" (interpreted in the director's timezone)
+    end: str
+
+    @field_validator("start", "end")
+    @classmethod
+    def _hhmm(cls, v: str) -> str:
+        if not re.match(r"^([01]?\d|2[0-3]):[0-5]\d$", (v or "").strip()):
+            raise ValueError("time must be HH:MM (24h)")
+        return v.strip()
+
+
+class DateOverride(BaseModel):
+    """A calendar-day override that supersedes the weekly rule for that date.
+    Empty windows = off that day (Calendly-style)."""
+    model_config = ConfigDict(extra="ignore")
+    date: str  # "YYYY-MM-DD" (director-local calendar day)
+    windows: List[DateWindow] = []
+
+    @field_validator("date")
+    @classmethod
+    def _date_fmt(cls, v: str) -> str:
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", (v or "").strip()):
+            raise ValueError("date must be YYYY-MM-DD")
+        return v.strip()
+
+
+class DirectorCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    email: Optional[str] = ""               # Workspace email — added as a Meet attendee / co-host on the call
+    google_calendar_id: Optional[str] = ""
+    pb_consultant_id: Optional[str] = ""   # this director's own Practice Better consultant (per_director mode)
+    timezone: str = "America/Los_Angeles"
+    active: bool = True
+    weekly_rules: List[WeeklyRule] = []
+    time_off: List[TimeOff] = []
+    date_overrides: List[DateOverride] = []
+
+    @field_validator("timezone")
+    @classmethod
+    def _tz_valid(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError(f"Invalid IANA timezone: {v}")
+        return v
+
+
+class DirectorUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: Optional[str] = None
+    email: Optional[str] = None
+    google_calendar_id: Optional[str] = None
+    pb_consultant_id: Optional[str] = None
+    timezone: Optional[str] = None
+    active: Optional[bool] = None
+    weekly_rules: Optional[List[WeeklyRule]] = None
+    time_off: Optional[List[TimeOff]] = None
+    date_overrides: Optional[List[DateOverride]] = None
+
+    @field_validator("timezone")
+    @classmethod
+    def _tz_valid(cls, v):
+        if v is None:
+            return v
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError(f"Invalid IANA timezone: {v}")
+        return v
+
+
+def _validate_time_off(time_off: list) -> list:
+    cleaned = []
+    for item in time_off or []:
+        data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
+        start = _parse_utc_iso(data.get("start_utc"))
+        end = _parse_utc_iso(data.get("end_utc"))
+        if not start or not end or end <= start:
+            raise HTTPException(status_code=400, detail="time_off needs start_utc < end_utc (ISO-8601)")
+        cleaned.append({"start_utc": start.isoformat(), "end_utc": end.isoformat(),
+                        "reason": (data.get("reason") or "").strip()})
+    return cleaned
+
+
+def _validate_date_overrides(overrides: list) -> list:
+    """Normalize date overrides: dedupe by date, keep windows that have both start+end.
+    HH:MM format is enforced by the model; the engine skips any window where end<=start."""
+    cleaned = []
+    seen = set()
+    for item in overrides or []:
+        data = item.model_dump() if hasattr(item, "model_dump") else dict(item)
+        d = (data.get("date") or "").strip()
+        if not d or d in seen:
+            continue
+        seen.add(d)
+        wins = [{"start": (w.get("start") or "").strip(), "end": (w.get("end") or "").strip()}
+                for w in (data.get("windows") or []) if w.get("start") and w.get("end")]
+        cleaned.append({"date": d, "windows": wins})
+    return cleaned
+
+
+@api_router.get("/admin/directors")
+async def list_directors(admin_user: dict = Depends(get_admin_user)):
+    """List all directors (active and inactive)."""
+    directors = [d async for d in db.directors.find({}, {"_id": 0}).sort("name", 1)]
+    return {"directors": directors}
+
+
+@api_router.post("/admin/directors")
+async def create_director(payload: DirectorCreate, admin_user: dict = Depends(get_admin_user)):
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "director_id": str(uuid.uuid4()),
+        "name": payload.name.strip(),
+        "active": payload.active,
+        "email": (payload.email or "").strip().lower(),
+        "google_calendar_id": (payload.google_calendar_id or "").strip(),
+        "pb_consultant_id": (payload.pb_consultant_id or "").strip(),
+        "timezone": payload.timezone,
+        "weekly_rules": [r.model_dump() for r in payload.weekly_rules],
+        "time_off": _validate_time_off(payload.time_off),
+        "date_overrides": _validate_date_overrides(payload.date_overrides),
+        "created_at": now,
+        "updated_at": now,
+    }
+    await db.directors.insert_one(dict(doc))
+    await log_admin_action("ADMIN_DIRECTOR_CREATED", admin_user=admin_user,
+                           details={"director_id": doc["director_id"], "name": doc["name"]})
+    return doc
+
+
+@api_router.put("/admin/directors/{director_id}")
+async def update_director(director_id: str, payload: DirectorUpdate, admin_user: dict = Depends(get_admin_user)):
+    existing = await db.directors.find_one({"director_id": director_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Director not found")
+    updates: dict = {}
+    if payload.name is not None:
+        updates["name"] = payload.name.strip()
+    if payload.email is not None:
+        updates["email"] = payload.email.strip().lower()
+    if payload.google_calendar_id is not None:
+        updates["google_calendar_id"] = payload.google_calendar_id.strip()
+    if payload.pb_consultant_id is not None:
+        updates["pb_consultant_id"] = payload.pb_consultant_id.strip()
+    if payload.timezone is not None:
+        updates["timezone"] = payload.timezone
+    if payload.active is not None:
+        updates["active"] = payload.active
+    if payload.weekly_rules is not None:
+        updates["weekly_rules"] = [r.model_dump() for r in payload.weekly_rules]
+    if payload.time_off is not None:
+        updates["time_off"] = _validate_time_off(payload.time_off)
+    if payload.date_overrides is not None:
+        updates["date_overrides"] = _validate_date_overrides(payload.date_overrides)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.directors.update_one({"director_id": director_id}, {"$set": updates})
+    await log_admin_action("ADMIN_DIRECTOR_UPDATED", admin_user=admin_user,
+                           details={"director_id": director_id, "name": updates.get("name") or existing.get("name")})
+    return await db.directors.find_one({"director_id": director_id}, {"_id": 0})
+
+
+# ---------------------------------------------------------------------------
+# Patient Care Coordinators (PCCs) + day rota (attendee-only call handoff)
+# ---------------------------------------------------------------------------
+
+class PccCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    email: EmailStr
+    active: bool = True
+
+
+class PccUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    active: Optional[bool] = None
+
+
+class PccAssignmentUpsert(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    date: str          # YYYY-MM-DD, the director-local working day
+    director_id: str
+    pcc_id: Optional[str] = None   # None clears the assignment
+
+
+def _valid_date(s: str) -> str:
+    try:
+        datetime.strptime(s, "%Y-%m-%d")
+    except Exception:
+        raise HTTPException(status_code=400, detail="date must be YYYY-MM-DD")
+    return s
+
+
+@api_router.get("/admin/pccs")
+async def list_pccs(admin_user: dict = Depends(get_admin_user)):
+    pccs = [p async for p in db.pccs.find({}, {"_id": 0}).sort("name", 1)]
+    return {"pccs": pccs}
+
+
+@api_router.post("/admin/pccs")
+async def create_pcc(payload: PccCreate, admin_user: dict = Depends(get_admin_user)):
+    now = datetime.now(timezone.utc).isoformat()
+    doc = {"pcc_id": str(uuid.uuid4()), "name": payload.name.strip(), "email": payload.email.lower(),
+           "active": payload.active, "created_at": now, "updated_at": now}
+    await db.pccs.insert_one(dict(doc))
+    await log_admin_action("ADMIN_COORDINATOR_CREATED", admin_user=admin_user,
+                           details={"pcc_id": doc["pcc_id"], "name": doc["name"], "email": doc["email"]})
+    return doc
+
+
+@api_router.put("/admin/pccs/{pcc_id}")
+async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends(get_admin_user)):
+    if not await db.pccs.find_one({"pcc_id": pcc_id}, {"_id": 0}):
+        raise HTTPException(status_code=404, detail="Coordinator not found")
+    updates: dict = {}
+    if payload.name is not None:
+        updates["name"] = payload.name.strip()
+    if payload.email is not None:
+        updates["email"] = payload.email.lower()
+    if payload.active is not None:
+        updates["active"] = payload.active
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.pccs.update_one({"pcc_id": pcc_id}, {"$set": updates})
+    await log_admin_action("ADMIN_COORDINATOR_UPDATED", admin_user=admin_user,
+                           details={"pcc_id": pcc_id, "name": updates.get("name")})
+    return await db.pccs.find_one({"pcc_id": pcc_id}, {"_id": 0})
+
+
+@api_router.delete("/admin/pccs/{pcc_id}")
+async def deactivate_pcc(pcc_id: str, admin_user: dict = Depends(get_admin_user)):
+    res = await db.pccs.update_one({"pcc_id": pcc_id},
+                                   {"$set": {"active": False, "updated_at": datetime.now(timezone.utc).isoformat()}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Coordinator not found")
+    await log_admin_action("ADMIN_COORDINATOR_DEACTIVATED", admin_user=admin_user,
+                           details={"pcc_id": pcc_id})
+    return {"success": True, "pcc_id": pcc_id, "active": False}
+
+
+@api_router.get("/admin/pcc-assignments")
+async def list_pcc_assignments(start: str, end: Optional[str] = None,
+                               admin_user: dict = Depends(get_admin_user)):
+    """Rota across a date range (director-local days). Returns the active directors plus an
+    (every date × every director) grid with the coordinator assigned to each cell (or null).
+    ``end`` defaults to ``start`` (single day). Range capped at 93 days."""
+    _valid_date(start)
+    if end:
+        _valid_date(end)
+    else:
+        end = start
+    s = datetime.strptime(start, "%Y-%m-%d").date()
+    e = datetime.strptime(end, "%Y-%m-%d").date()
+    if e < s:
+        raise HTTPException(status_code=400, detail="end must be on or after start")
+    if (e - s).days > 92:
+        raise HTTPException(status_code=400, detail="Range too large (max 93 days)")
+    dates = [(s + timedelta(days=i)).isoformat() for i in range((e - s).days + 1)]
+
+    from services import availability as availability_engine
+    settings = await availability_engine.load_engine_settings(db)
+    slot_minutes = int(settings.get("slot_minutes") or 30)
+    closures = settings.get("clinic_closures")
+
+    directors_full = [d async for d in db.directors.find({"active": {"$ne": False}}, {"_id": 0}).sort("name", 1)]
+    rows = [a async for a in db.pcc_assignments.find(
+        {"date": {"$gte": start, "$lte": end}}, {"_id": 0})]
+    amap = {(r["date"], r["director_id"]): r for r in rows}
+    # Per (date, director): does the director actually work that day? The rota only makes sense
+    # on a director's real workdays (a Mon-Fri director shouldn't be assignable Sat/Sun).
+    works = {(d, dir["director_id"]): availability_engine.director_available_on(dir, d, slot_minutes, closures)
+             for dir in directors_full for d in dates}
+
+    directors = [{"director_id": d["director_id"], "name": d.get("name"), "timezone": d.get("timezone")}
+                 for d in directors_full]
+    assignments = []
+    for d in dates:
+        for director in directors:
+            a = amap.get((d, director["director_id"])) or {}
+            assignments.append({"date": d, "director_id": director["director_id"],
+                                "director_name": director.get("name"), "timezone": director.get("timezone"),
+                                "works": works.get((d, director["director_id"]), False),
+                                "pcc_id": a.get("pcc_id"), "pcc_email": a.get("pcc_email"),
+                                "pcc_name": a.get("pcc_name")})
+    return {"start": start, "end": end, "dates": dates, "directors": directors, "assignments": assignments}
+
+
+async def _set_assignment_doc(date_str: str, director_id: str, pcc):
+    """Upsert (pcc=dict) or clear (pcc=None) one rota cell. Returns the prior pcc_email so the
+    caller can remove that coordinator from the day's bookings."""
+    prior = await db.pcc_assignments.find_one({"date": date_str, "director_id": director_id}, {"_id": 0})
+    prior_email = (prior or {}).get("pcc_email")
+    if pcc:
+        await db.pcc_assignments.update_one(
+            {"date": date_str, "director_id": director_id},
+            {"$set": {"date": date_str, "director_id": director_id, "pcc_id": pcc["pcc_id"],
+                      "pcc_email": pcc["email"], "pcc_name": pcc.get("name"),
+                      "updated_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+    else:
+        await db.pcc_assignments.delete_one({"date": date_str, "director_id": director_id})
+    return prior_email
+
+
+@api_router.put("/admin/pcc-assignments")
+async def upsert_pcc_assignment(payload: PccAssignmentUpsert, admin_user: dict = Depends(get_admin_user)):
+    """Assign (or clear, pcc_id=None) the coordinator for a director on a day, and immediately
+    add/remove them on that day's confirmed bookings (attendee-only handoff)."""
+    import booking as booking_module
+    _valid_date(payload.date)
+    if not await db.directors.find_one({"director_id": payload.director_id}, {"_id": 0}):
+        raise HTTPException(status_code=404, detail="Director not found")
+    pcc = None
+    if payload.pcc_id:
+        pcc = await db.pccs.find_one({"pcc_id": payload.pcc_id}, {"_id": 0})
+        if not pcc:
+            raise HTTPException(status_code=404, detail="Coordinator not found")
+    prior_email = await _set_assignment_doc(payload.date, payload.director_id, pcc)
+    touched = await booking_module.apply_pcc_to_day(
+        payload.director_id, payload.date, add_email=(pcc["email"] if pcc else None),
+        remove_email=prior_email, correlation_id=f"pcc-{payload.director_id[:8]}")
+    await log_activity(event_type=("PCC_ASSIGNED" if pcc else "PCC_UNASSIGNED"), user_email=admin_user.get("email"),
+                       details={"date": payload.date, "director_id": payload.director_id,
+                                "pcc_email": (pcc or {}).get("email"), "bookings_updated": touched}, status="success")
+    await log_admin_action("ADMIN_ROTA_ASSIGNED", admin_user=admin_user,
+                           details={"director_id": payload.director_id, "date": payload.date,
+                                    "pcc_id": payload.pcc_id})
+    return {"success": True, "bookings_updated": touched}
+
+
+class PccBulkAssign(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    start_date: str
+    range: str   # "day" | "week" | "month"
+    mode: str    # "round_robin" | "single"
+    pcc_id: Optional[str] = None
+
+
+_BULK_RANGE_DAYS = {"day": 1, "week": 7, "month": 30}
+
+
+async def _bulk_apply_cells(cells: list):
+    """Background: add/remove coordinators on existing bookings for many (date, director) cells.
+    Runs after the bulk endpoint returns so a large range never blocks/times out the request."""
+    import booking as booking_module
+    for c in cells:
+        try:
+            await booking_module.apply_pcc_to_day(
+                c["director_id"], c["date"], add_email=c.get("add_email"),
+                remove_email=c.get("remove_email"), correlation_id="pcc-bulk")
+        except Exception as e:
+            logging.warning(f"[pcc-bulk] apply failed for {c['director_id']} {c['date']}: {e}")
+
+
+@api_router.post("/admin/pcc-assignments/bulk")
+async def bulk_pcc_assign(payload: PccBulkAssign, admin_user: dict = Depends(get_admin_user)):
+    """Fill the rota across a range (day/week/month from start_date) in one action.
+    mode='single' assigns one coordinator to every director; mode='round_robin' distributes all
+    active coordinators across directors, rotating day to day. Assignments are saved synchronously;
+    the calendar-invite sync to existing bookings runs in the background so a month range can't
+    time out the request."""
+    _valid_date(payload.start_date)
+    n_days = _BULK_RANGE_DAYS.get(payload.range)
+    if not n_days:
+        raise HTTPException(status_code=400, detail="range must be day, week, or month")
+    if payload.mode not in ("round_robin", "single"):
+        raise HTTPException(status_code=400, detail="mode must be round_robin or single")
+
+    start = datetime.strptime(payload.start_date, "%Y-%m-%d").date()
+    dates = [(start + timedelta(days=i)).isoformat() for i in range(n_days)]
+
+    directors = [d async for d in db.directors.find({"active": {"$ne": False}}, {"_id": 0}).sort("name", 1)]
+    if not directors:
+        raise HTTPException(status_code=400, detail="No active directors")
+
+    from services import availability as availability_engine
+    _eng = await availability_engine.load_engine_settings(db)
+    slot_minutes = int(_eng.get("slot_minutes") or 30)
+    closures = _eng.get("clinic_closures")
+
+    single = None
+    pool = None
+    if payload.mode == "single":
+        if not payload.pcc_id:
+            raise HTTPException(status_code=400, detail="Choose a coordinator for single mode")
+        single = await db.pccs.find_one({"pcc_id": payload.pcc_id}, {"_id": 0})
+        if not single:
+            raise HTTPException(status_code=404, detail="Coordinator not found")
+    else:
+        pool = [p async for p in db.pccs.find({"active": {"$ne": False}}, {"_id": 0}).sort("name", 1)]
+        if not pool:
+            raise HTTPException(status_code=400, detail="No active coordinators to distribute")
+
+    cells = []
+    for di, date_str in enumerate(dates):
+        for ji, director in enumerate(directors):
+            if not availability_engine.director_available_on(director, date_str, slot_minutes, closures):
+                continue  # director doesn't work that day — no calls to cover
+            pcc = single if payload.mode == "single" else pool[(ji + di) % len(pool)]
+            prior_email = await _set_assignment_doc(date_str, director["director_id"], pcc)
+            cells.append({"date": date_str, "director_id": director["director_id"],
+                          "add_email": pcc["email"], "remove_email": prior_email})
+
+    asyncio.create_task(_bulk_apply_cells(cells))
+    await log_admin_action("ADMIN_ROTA_BULK_ASSIGNED", admin_user=admin_user,
+                           details={"start_date": payload.start_date, "range": payload.range,
+                                    "mode": payload.mode, "assignments_set": len(cells)})
+    return {"success": True, "assignments_set": len(cells), "days": len(dates),
+            "directors": len(directors), "end_date": dates[-1]}
+
+
+@api_router.get("/admin/pb-clients")
+async def search_pb_clients(
+    admin_user: dict = Depends(get_admin_user),
+    search: str = Query("", max_length=200),
+    limit: int = Query(20, ge=1, le=50),
+):
+    """Search the local Practice Better client cache (kept fresh by ClientSyncService) by
+    name or email — backs the manual-booking patient picker, so admins book against the PB
+    client list rather than portal accounts."""
+    from services.client_cache import get_client_cache
+    clients = await asyncio.to_thread(get_client_cache().search_clients, search, limit)
+    return {"clients": clients}
+
+
+@api_router.get("/admin/bookings")
+async def list_bookings(
+    admin_user: dict = Depends(get_admin_user),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    status: Optional[str] = None,
+    director_id: Optional[str] = None,
+    pb_status: Optional[str] = None,
+    search: Optional[str] = None,
+    user_id: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+):
+    """List/search the authoritative bookings ledger across all directors."""
+    query: dict = {}
+    if status:
+        query["status"] = status
+    if director_id:
+        query["director_id"] = director_id
+    if pb_status:
+        query["pb_status"] = pb_status
+    if user_id:
+        query["user_id"] = user_id
+    if search:
+        rx = {"$regex": re.escape(search), "$options": "i"}
+        query["$or"] = [{"patient.email": rx}, {"patient.first_name": rx}, {"patient.last_name": rx}]
+    df = _parse_utc_iso(date_from)
+    dt2 = _parse_utc_iso(date_to)
+    if df or dt2:
+        rng = {}
+        if df:
+            rng["$gte"] = df
+        if dt2:
+            rng["$lte"] = dt2
+        query["slot_start_utc"] = rng
+
+    total = await db.bookings.count_documents(query)
+    cursor = (
+        db.bookings.find(query, {"_id": 0})
+        .sort("slot_start_utc", -1)
+        .skip((page - 1) * page_size)
+        .limit(page_size)
+    )
+    rows = [b async for b in cursor]
+
+    dir_ids = list({b.get("director_id") for b in rows if b.get("director_id")})
+    dir_names: dict = {}
+    if dir_ids:
+        async for d in db.directors.find({"director_id": {"$in": dir_ids}}, {"_id": 0, "director_id": 1, "name": 1}):
+            dir_names[d["director_id"]] = d.get("name")
+    for b in rows:
+        b["director_name"] = dir_names.get(b.get("director_id"))
+
+    return {
+        "bookings": rows,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size if page_size else 1,
+    }
+
+
+@api_router.post("/admin/bookings")
+async def admin_create_booking(request: Request, admin_user: dict = Depends(get_admin_user)):
+    """Manually book a patient into a session (e.g. Report of Lab Findings). Creates the ledger
+    row, the chosen director's Google event + Meet link, and optionally emails the patient."""
+    import booking as booking_module
+    body = await request.json()
+    session_id = (body.get("session_id") or "").strip()
+    director_id = (body.get("director_id") or "").strip()
+    slot_start = (body.get("slot_start_utc") or "").strip()
+    patient = body.get("patient") or {}
+    patient_tz = (body.get("patient_timezone") or "UTC").strip() or "UTC"
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required")
+    if not director_id:
+        raise HTTPException(status_code=400, detail="director_id is required")
+    if not slot_start:
+        raise HTTPException(status_code=400, detail="slot_start_utc is required")
+    if not (patient.get("first_name") and patient.get("email")):
+        raise HTTPException(status_code=400, detail="patient first_name and email are required")
+
+    booking = await booking_module.create_manual_booking(
+        session_id=session_id, director_id=director_id, slot_start_iso=slot_start,
+        patient=patient, patient_timezone=patient_tz, notes=(body.get("notes") or None),
+        send_email=bool(body.get("send_email", True)), correlation_id=uuid.uuid4().hex[:8],
+    )
+    await log_activity(event_type="ADMIN_BOOKING_CREATED", user_email=admin_user.get("email"),
+                       details={"booking_id": booking["booking_id"], "session_id": session_id,
+                                "director_id": director_id}, status="success")
+    await log_admin_action("ADMIN_BOOKING_CREATED", admin_user=admin_user,
+                           details={"booking_id": booking["booking_id"], "session_id": session_id,
+                                    "slot_start_utc": slot_start, "director_id": director_id},
+                           target_email=patient.get("email"), request=request)
+    return {"success": True, "booking_id": booking["booking_id"], "meet_link": booking.get("meet_link")}
+
+
+class AdminReschedulePayload(BaseModel):
+    slot_start_time: str
+
+
+@api_router.post("/admin/bookings/{booking_id}/cancel")
+async def admin_cancel_booking(booking_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Cancel a booking (PB delete + Google delete + ledger + patient email)."""
+    import booking as booking_module
+    b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    pb = booking_module.get_pb_service_optional()
+    await booking_module._cancel_booking(
+        b, pb, f"admin-{booking_id[:8]}", actor=(admin_user.get("email") or "admin")
+    )
+    await log_activity(event_type="BOOKING_CANCELLED", user_email=admin_user.get("email"),
+                       details={"booking_id": booking_id}, status="success")
+    await log_admin_action("ADMIN_BOOKING_CANCELLED", admin_user=admin_user,
+                           details={"booking_id": booking_id},
+                           target_email=(b.get("patient") or {}).get("email"),
+                           target_user_id=b.get("user_id"))
+    return {"success": True}
+
+
+@api_router.post("/admin/bookings/{booking_id}/reschedule")
+async def admin_reschedule_booking(booking_id: str, payload: AdminReschedulePayload,
+                                   admin_user: dict = Depends(get_admin_user)):
+    """Move a booking to a new time (ledger + Google event + PB session + patient email)."""
+    import booking as booking_module
+    b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    pb = booking_module.get_pb_service_optional()
+    try:
+        b = await booking_module._reschedule_booking(
+            b, payload.slot_start_time, pb, f"admin-{booking_id[:8]}",
+            actor=(admin_user.get("email") or "admin"),
+        )
+    except booking_module.RescheduleError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+    await log_activity(event_type="BOOKING_RESCHEDULED", user_email=admin_user.get("email"),
+                       details={"booking_id": booking_id, "new_start": payload.slot_start_time}, status="success")
+    await log_admin_action("ADMIN_BOOKING_RESCHEDULED", admin_user=admin_user,
+                           details={"booking_id": booking_id, "new_start": payload.slot_start_time},
+                           target_email=(b.get("patient") or {}).get("email"),
+                           target_user_id=b.get("user_id"))
+    return {"success": True, "booking": booking_module._booking_public(b)}
+
+
+@api_router.delete("/admin/directors/{director_id}")
+async def deactivate_director(director_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Soft-delete: deactivate so historical bookings keep their director."""
+    result = await db.directors.update_one(
+        {"director_id": director_id},
+        {"$set": {"active": False, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Director not found")
+    _deactivated_dir = await db.directors.find_one({"director_id": director_id}, {"_id": 0, "name": 1})
+    await log_admin_action("ADMIN_DIRECTOR_DEACTIVATED", admin_user=admin_user,
+                           details={"director_id": director_id, "name": (_deactivated_dir or {}).get("name")})
+    return {"success": True, "director_id": director_id, "active": False}
 
 # Include routers
 app.include_router(api_router)
@@ -4340,6 +5752,8 @@ async def startup_event():
         await db.auto_login_tokens.create_index([("user_id", 1)])
         # TTL on rate_limits.expires_at (stored as native datetime in check_rate_limit)
         await db.rate_limits.create_index("expires_at", expireAfterSeconds=0)
+        # TTL sweep for expired email sign-in codes (also checked explicitly on verify)
+        await db.email_login_codes.create_index("expires_at", expireAfterSeconds=0)
         # Unique (key, bucket) backs the atomic upsert in check_rate_limit so
         # concurrent inserts can't create duplicate counter docs for the same window.
         # Partial filter skips legacy docs (from before bucketed schema) which
@@ -4351,6 +5765,31 @@ async def startup_event():
         )
     except Exception as e:
         logging.warning(f"Auth index creation failed: {e}")
+    # Bookings ledger + directors indexes. The partial unique index on
+    # (director_id, slot_start_utc) where status="confirmed" is the double-booking
+    # guard, so build it in its OWN block and FAIL LOUD — a swallowed failure would
+    # silently disable the guard. (Empty collection at deploy time => no dup risk.)
+    try:
+        await db.bookings.create_index(
+            [("director_id", 1), ("slot_start_utc", 1)],
+            unique=True,
+            partialFilterExpression={"status": "confirmed"},
+            name="uniq_confirmed_director_slot",
+        )
+        await db.bookings.create_index([("slot_start_utc", 1), ("status", 1)])
+        await db.bookings.create_index([("user_id", 1)])
+        await db.bookings.create_index([("director_id", 1), ("status", 1)])
+        await db.bookings.create_index([("pb_status", 1)])
+        await db.bookings.create_index([("booking_id", 1)], unique=True)
+        await db.directors.create_index([("director_id", 1)], unique=True)
+        await db.directors.create_index([("active", 1)])
+        await db.pccs.create_index([("pcc_id", 1)], unique=True)
+        await db.pcc_assignments.create_index([("date", 1), ("director_id", 1)], unique=True)
+        await db.pcc_assignments.create_index([("director_id", 1), ("date", 1)])
+        logger.info("Bookings/directors indexes ensured")
+    except Exception as e:
+        logger.critical(f"FATAL: could not create bookings concurrency-guard index: {e}")
+        raise
     try:
         from booking import start_background_refresh
         start_background_refresh()
@@ -4400,6 +5839,20 @@ async def startup_event():
         asyncio.create_task(initial_sync())
     except Exception as e:
         logger.warning(f"Could not initialize client cache: {e}")
+
+    # Self-heal transiently failed PB mirrors (pb_status='pending') every 15 minutes.
+    try:
+        from booking import start_pb_pending_sweep
+        start_pb_pending_sweep()
+    except Exception as e:
+        logger.warning(f"Could not start PB pending sweep: {e}")
+
+    # SMS reminders (Twilio): booking/forms nudges + ~1h-before-appointment, every 10 minutes.
+    try:
+        from booking import start_reminder_sweep
+        start_reminder_sweep()
+    except Exception as e:
+        logger.warning(f"Could not start SMS reminder sweep: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

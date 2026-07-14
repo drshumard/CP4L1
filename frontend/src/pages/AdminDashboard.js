@@ -2,6 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Textarea } from '../components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import {
+  Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle,
+} from '../components/ui/drawer';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import {
   Table,
@@ -12,12 +19,15 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { fmtDateTime } from './admin/format';
+import { confirmDialog } from './admin/confirm';
 import {
   Home, Users, BarChart3, RefreshCw, Trash2, Activity,
-  Search, Mail, Phone, Calendar, X,
-  Send, Edit2, Clock, CheckCircle2, AlertCircle, Settings
+  Search, Phone, Calendar,
+  Send, Edit2, Clock, Settings, CalendarClock, Ban
 } from 'lucide-react';
+import { RescheduleModal, cancelBooking, fetchActiveBookingForUser } from './admin/bookingActions';
+import UsersDataTable from './admin/UsersDataTable';
 import {
   trackAdminPanelViewed,
   trackAdminUserViewed,
@@ -31,6 +41,16 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Color-coded journey-step badge styles (Refunded / Step 1 / 2 / 3 / Complete).
+const STEP_BADGE = {
+  0: 'bg-rose-50 text-rose-700 border-rose-200',
+  1: 'bg-slate-100 text-slate-700 border-slate-200',
+  2: 'bg-amber-50 text-amber-700 border-amber-200',
+  3: 'bg-sky-50 text-sky-700 border-sky-200',
+  4: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+const stepBadgeClass = (step) => STEP_BADGE[step] || STEP_BADGE[1];
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
@@ -39,6 +59,8 @@ const AdminDashboard = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [sessionBooking, setSessionBooking] = useState(null);
+  const [rescheduleSession, setRescheduleSession] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [pendingStep, setPendingStep] = useState(null);
@@ -64,6 +86,17 @@ const AdminDashboard = () => {
     fetchData();
     fetchSettings();
   }, [currentPage, debouncedSearch]);
+
+  // Load the user's confirmed ledger session so the modal can reschedule/cancel it.
+  useEffect(() => {
+    let cancelled = false;
+    if (showUserModal && (selectedUser?.id || selectedUser?.email)) {
+      fetchActiveBookingForUser(selectedUser).then((b) => { if (!cancelled) setSessionBooking(b); });
+    } else {
+      setSessionBooking(null);
+    }
+    return () => { cancelled = true; };
+  }, [showUserModal, selectedUser?.id, selectedUser?.email]);
 
   // Debounce search input
   useEffect(() => {
@@ -168,7 +201,7 @@ const AdminDashboard = () => {
   };
 
   const handleResetProgress = async (userId) => {
-    if (!window.confirm('Are you sure you want to reset this user\'s progress to Step 1?')) {
+    if (!(await confirmDialog({ title: 'Reset progress?', message: "This resets the user's progress back to Step 1.", confirmLabel: 'Reset' }))) {
       return;
     }
 
@@ -194,7 +227,7 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteUser = async (userId, userName, userEmail) => {
-    if (!window.confirm(`Are you sure you want to permanently delete user "${userName}" (${userEmail})?\n\nThis action CANNOT be undone!`)) {
+    if (!(await confirmDialog({ title: 'Delete user?', message: `Permanently delete "${userName}" (${userEmail}). This can't be undone.`, confirmLabel: 'Delete' }))) {
       return;
     }
 
@@ -363,7 +396,7 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteBooking = async () => {
-    if (!window.confirm('Are you sure you want to remove this booking?')) return;
+    if (!(await confirmDialog({ title: 'Remove booking?', message: 'This removes the booking from this user.', confirmLabel: 'Remove' }))) return;
 
     setActionLoading(true);
     try {
@@ -391,7 +424,7 @@ const AdminDashboard = () => {
       ? 'Promote this user to Staff? They will have access to admin panel and be excluded from analytics.'
       : 'Demote this user to regular User?';
     
-    if (!window.confirm(confirmMessage)) return;
+    if (!(await confirmDialog({ title: newRole === 'staff' ? 'Promote to staff?' : 'Demote to user?', message: confirmMessage, danger: false, confirmLabel: newRole === 'staff' ? 'Promote' : 'Demote' }))) return;
     
     setActionLoading(true);
     try {
@@ -421,53 +454,33 @@ const AdminDashboard = () => {
       1: 'Step 1',
       2: 'Step 2',
       3: 'Step 3',
-      4: 'Complete ✓'
+      4: 'Complete'
     };
     return labels[step] || `Step ${step}`;
   };
 
-  const getStepColor = (step) => {
-    const colors = {
-      0: 'bg-red-100 text-red-700 border-red-200',
-      1: 'bg-blue-100 text-blue-700 border-blue-200',
-      2: 'bg-purple-100 text-purple-700 border-purple-200',
-      3: 'bg-amber-100 text-amber-700 border-amber-200',
-      4: 'bg-green-100 text-green-700 border-green-200'
-    };
-    return colors[step] || 'bg-gray-100 text-gray-700 border-gray-200';
-  };
-
+  // Cadence: journey-step tags are monochrome (slate); the one meaningful alert state
+  // (Refunded) borrows the conflict token. Complete reads as a filled "done" badge.
   // Format date as "Jan 15, 2025, 2:30 PM"
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      timeZone: 'America/Los_Angeles',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+  const formatDate = (dateString) => fmtDateTime(dateString);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto"></div>
+          <p className="mt-4 text-slate-600">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40" data-testid="admin-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <div className="min-h-full">
+      {/* Header replaced by the unified AdminLayout shell (sidebar + topbar). Kept hidden
+          so its handlers stay referenced; the overlapping centered-title bug is gone. */}
+      <div className="hidden" data-testid="admin-header">
+        <div className="max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-3">
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
               <img 
@@ -506,7 +519,7 @@ const AdminDashboard = () => {
                 </Button>
               </div>
             </div>
-            <h1 className="text-xl font-bold text-gray-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">User Management</h1>
+            <h1 className="text-xl font-bold text-slate-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">User Management</h1>
             <div className="hidden md:flex items-center gap-3">
               <Button 
                 variant="outline" 
@@ -542,20 +555,20 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto">
         {/* Settings Panel */}
         {showSettings && (
-          <Card className="bg-white border border-gray-200 shadow-sm mb-6" data-testid="settings-panel">
-            <CardHeader className="border-b border-gray-100 pb-3">
+          <Card className="bg-white border border-slate-200 shadow-sm mb-6" data-testid="settings-panel">
+            <CardHeader className="border-b border-slate-100 pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="text-teal-600" size={20} />
+                <Settings className="text-slate-600" size={20} />
                 Settings
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">
                     Booking Calendar — Days of Availability
                   </label>
                   <input
@@ -564,10 +577,10 @@ const AdminDashboard = () => {
                     max={90}
                     value={settings.availability_days}
                     onChange={(e) => setSettings(prev => ({ ...prev, availability_days: parseInt(e.target.value) || 14 }))}
-                    className="w-20 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                    className="w-20 px-3 py-1.5 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
                     data-testid="availability-days-input"
                   />
-                  <span className="text-sm text-gray-500">days</span>
+                  <span className="text-sm text-slate-500">days</span>
                 </div>
                 <Button
                   size="sm"
@@ -578,593 +591,219 @@ const AdminDashboard = () => {
                   {settingsLoading ? 'Saving...' : 'Save'}
                 </Button>
               </div>
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-slate-400 mt-2">
                 Shows the next {settings.availability_days} dates that have available booking slots (skips weekends and days with no availability).
               </p>
             </CardContent>
           </Card>
         )}
 
-        {/* Users Table */}
-        <Card className="bg-white border border-gray-200 shadow-sm">
-          <CardHeader className="border-b border-gray-100 pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Users className="text-teal-600" size={20} />
-                Users ({totalUsers})
-              </CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent w-full sm:w-64"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50">
-                    <TableHead className="font-semibold text-gray-700">Date Joined</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Name</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Email</TableHead>
-                    <TableHead className="font-semibold text-gray-700">Tags</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-gray-500">
-                        No users found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredUsers.map((user, index) => (
-                      <TableRow 
-                        key={user.id}
-                        onClick={() => openUserDetails(user)}
-                        className={`cursor-pointer transition-colors hover:bg-teal-50 ${
-                          index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                        }`}
-                      >
-                        <TableCell className="text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={14} className="text-gray-400" />
-                            {formatDate(user.created_at)}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium text-gray-800">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
-                              {user.name?.charAt(0)?.toUpperCase() || 'U'}
-                            </div>
-                            <span className="truncate max-w-[150px]">{user.name || 'Unknown'}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-600">
-                          <span className="truncate max-w-[200px] block">{user.email}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStepColor(user.current_step)}`}>
-                              {getStepLabel(user.current_step)}
-                            </span>
-                            {user.role === 'admin' && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
-                                Admin
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 px-1" data-testid="pagination-controls">
-            <p className="text-sm text-gray-500">
-              Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, totalUsers)} of {totalUsers} users
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                data-testid="pagination-prev"
-              >
-                Previous
-              </Button>
-              {/* Show page numbers */}
-              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 7) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 4) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 3) {
-                  pageNum = totalPages - 6 + i;
-                } else {
-                  pageNum = currentPage - 3 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={pageNum === currentPage ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setCurrentPage(pageNum)}
-                    className="w-9"
-                    data-testid={`pagination-page-${pageNum}`}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                data-testid="pagination-next"
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )}
+        {/* Users data-table (shadcn) — server-side search + pagination preserved */}
+        <UsersDataTable
+          users={filteredUsers}
+          totalUsers={totalUsers}
+          search={searchTerm}
+          onSearchChange={setSearchTerm}
+          page={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          onView={openUserDetails}
+          onResend={(u) => handleResendWelcomeEmail(u.id)}
+          formatDate={formatDate}
+          getStepLabel={getStepLabel}
+          stepBadgeClass={stepBadgeClass}
+          settingsActive={showSettings}
+          onToggleSettings={() => setShowSettings((s) => !s)}
+        />
       </div>
 
-      {/* User Details Modal */}
-      <AnimatePresence>
-        {showUserModal && selectedUser && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => { setShowUserModal(false); setPendingStep(null); }}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-lg shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Modal Header */}
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center text-white text-xl font-semibold">
-                      {selectedUser.name?.charAt(0)?.toUpperCase() || 'U'}
+      {/* User Details Drawer (bento) */}
+      <Drawer open={showUserModal} onOpenChange={(o) => { if (!o) { setShowUserModal(false); setPendingStep(null); setShowEditModal(false); setShowBookingModal(false); } }}>
+        <DrawerContent>
+          {selectedUser && (
+            <div className="mx-auto flex w-full max-w-5xl 2xl:max-w-6xl flex-col">
+              <DrawerHeader className="text-left">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex size-12 flex-none items-center justify-center rounded-full bg-foreground text-lg font-semibold text-background">
+                    {selectedUser.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </div>
+                  <div className="min-w-0">
+                    <DrawerTitle className="truncate">{selectedUser.name}</DrawerTitle>
+                    <DrawerDescription className="truncate">{selectedUser.email}</DrawerDescription>
+                  </div>
+                </div>
+              </DrawerHeader>
+
+              <div className="max-h-[64vh] overflow-y-auto px-4 pb-4">
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {/* Profile */}
+                  <div className="rounded-xl border bg-card p-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Profile</span>
+                      {!showEditModal && (
+                        <Button variant="ghost" size="sm" onClick={openEditModal} disabled={actionLoading}><Edit2 className="size-4" /> Edit</Button>
+                      )}
                     </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-800">{selectedUser.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        {selectedUser.role === 'admin' ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
-                            Administrator
-                          </span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                              selectedUser.role === 'staff' 
-                                ? 'bg-teal-100 text-teal-700' 
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {selectedUser.role === 'staff' ? 'Staff' : 'User'}
-                            </span>
-                            <button
-                              onClick={() => handlePromoteUser(selectedUser.role === 'staff' ? 'user' : 'staff')}
-                              disabled={actionLoading}
-                              className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                                selectedUser.role === 'staff'
-                                  ? 'border-gray-300 text-gray-500 hover:bg-gray-100'
-                                  : 'border-teal-300 text-teal-600 hover:bg-teal-50'
-                              }`}
-                            >
-                              {selectedUser.role === 'staff' ? 'Demote' : 'Make Staff'}
-                            </button>
+                    {showEditModal ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">First name</label>
+                            <Input value={editFormData.first_name || ''} onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })} />
                           </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">Last name</label>
+                            <Input value={editFormData.last_name || ''} onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Display name</label>
+                          <Input value={editFormData.name || ''} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Email</label>
+                          <Input type="email" value={editFormData.email || ''} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Phone</label>
+                          <Input type="tel" value={editFormData.phone || ''} onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })} />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button onClick={handleEditUser} disabled={actionLoading} className="flex-1">{actionLoading ? 'Saving...' : 'Save profile'}</Button>
+                          <Button variant="outline" onClick={() => setShowEditModal(false)} disabled={actionLoading}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <dl className="divide-y">
+                        <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Phone</dt><dd className="text-sm font-medium text-foreground">{selectedUser.phone || '—'}</dd></div>
+                        <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Email</dt><dd className="max-w-[60%] truncate text-sm font-medium text-foreground">{selectedUser.email || '—'}</dd></div>
+                        <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Joined</dt><dd className="text-sm font-medium text-foreground">{formatDate(selectedUser.created_at)}</dd></div>
+                      </dl>
+                    )}
+                  </div>
+
+                  {/* Account */}
+                  <div className="rounded-xl border bg-card p-4">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account</span>
+                    <dl className="mt-2 divide-y">
+                      <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Journey step</dt><dd><Badge variant="outline" className={stepBadgeClass(selectedUser.current_step)}>{getStepLabel(selectedUser.current_step)}</Badge></dd></div>
+                      <div className="flex items-center justify-between py-2.5">
+                        <dt className="text-sm text-muted-foreground">Role</dt>
+                        <dd className="flex items-center gap-2">
+                          {selectedUser.role === 'admin' ? (
+                            <Badge>Administrator</Badge>
+                          ) : (
+                            <>
+                              <Badge variant="secondary">{selectedUser.role === 'staff' ? 'Staff' : 'User'}</Badge>
+                              <Button variant="outline" size="sm" onClick={() => handlePromoteUser(selectedUser.role === 'staff' ? 'user' : 'staff')} disabled={actionLoading}>{selectedUser.role === 'staff' ? 'Demote' : 'Make staff'}</Button>
+                            </>
+                          )}
+                        </dd>
+                      </div>
+                    </dl>
+                    <div className="mt-3 border-t pt-3">
+                      <label className="text-sm text-muted-foreground">Move to step</label>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <Select value={String(pendingStep !== null ? pendingStep : (selectedUser?.current_step ?? 1))} onValueChange={(v) => handleStepChange(parseInt(v, 10))} disabled={actionLoading}>
+                          <SelectTrigger className="flex-1" aria-label="Move to step"><SelectValue placeholder="Select step" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">Refunded</SelectItem>
+                            <SelectItem value="1">Step 1 — Welcome &amp; booking</SelectItem>
+                            <SelectItem value="2">Step 2 — Health profile</SelectItem>
+                            <SelectItem value="3">Step 3 — Final preparations</SelectItem>
+                            <SelectItem value="4">Complete</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button onClick={handleSaveStepChange} disabled={pendingStep === null || pendingStep === selectedUser?.current_step || actionLoading}>Save</Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Booking */}
+                  <div className="rounded-xl border bg-card p-4 lg:col-span-2">
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Booking</span>
+                      <div className="flex items-center gap-2">
+                        {sessionBooking && (
+                          <>
+                            <Button variant="outline" size="sm" onClick={() => setRescheduleSession(sessionBooking)}><CalendarClock className="size-3.5" /> Reschedule</Button>
+                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={async () => { const ok = await cancelBooking(sessionBooking); if (ok) { setSessionBooking(null); setSelectedUser((u) => (u ? { ...u, booking_info: null } : u)); fetchData(); } }}><Ban className="size-3.5" /> Cancel</Button>
+                          </>
+                        )}
+                        {!showBookingModal && (
+                          <Button variant="outline" size="sm" onClick={openBookingModal}>{selectedUser.booking_info ? 'Edit booking' : 'Set booking'}</Button>
                         )}
                       </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => { setShowUserModal(false); setPendingStep(null); }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-              </div>
 
-              {/* Modal Content */}
-              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                {/* User Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Mail className="text-gray-400" size={18} />
-                    <div className="overflow-hidden">
-                      <p className="text-xs text-gray-500">Email</p>
-                      <p className="text-sm font-medium text-gray-800 truncate">{selectedUser.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Phone className="text-gray-400" size={18} />
-                    <div>
-                      <p className="text-xs text-gray-500">Phone</p>
-                      <p className="text-sm font-medium text-gray-800">{selectedUser.phone || 'Not set'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <BarChart3 className="text-gray-400" size={18} />
-                    <div>
-                      <p className="text-xs text-gray-500">Current Step</p>
-                      <p className="text-sm font-medium text-gray-800">{getStepLabel(selectedUser.current_step)}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Calendar className="text-gray-400" size={18} />
-                    <div>
-                      <p className="text-xs text-gray-500">Joined</p>
-                      <p className="text-sm font-medium text-gray-800">
-                        {formatDate(selectedUser.created_at)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Booking Info Section */}
-                <div className="pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <Clock size={16} className="text-teal-600" />
-                      Booking Information
-                    </h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={openBookingModal}
-                    >
-                      {selectedUser.booking_info ? 'Edit Booking' : 'Set Booking'}
-                    </Button>
-                  </div>
-                  
-                  {selectedUser.booking_info ? (
-                    <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={14} className="text-teal-600" />
-                        <span className="text-sm font-medium text-gray-800">
-                          {formatDate(selectedUser.booking_info.session_start || selectedUser.booking_info.booking_datetime)}
-                        </span>
+                    {showBookingModal ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
+                          <span className="flex items-center gap-1.5 font-medium"><Clock className="size-3.5" /> User timezone</span>
+                          <span className="mt-0.5 block">{selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'Unknown — please verify with the patient'}</span>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">Date</label>
+                            <Input type="date" value={bookingFormData.date} onChange={(e) => setBookingFormData({ ...bookingFormData, date: e.target.value })} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">Time</label>
+                            <Input type="time" value={bookingFormData.time} onChange={(e) => setBookingFormData({ ...bookingFormData, time: e.target.value })} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-foreground">Timezone</label>
+                            <Input type="text" value={bookingFormData.timezone} onChange={(e) => setBookingFormData({ ...bookingFormData, timezone: e.target.value })} placeholder="America/New_York" />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-sm font-medium text-foreground">Notes (optional)</label>
+                          <Textarea rows={2} value={bookingFormData.notes} onChange={(e) => setBookingFormData({ ...bookingFormData, notes: e.target.value })} placeholder="e.g., Rescheduled via phone call" />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <Button onClick={handleUpdateBooking} disabled={actionLoading || !bookingFormData.date || !bookingFormData.time} className="flex-1">{actionLoading ? 'Saving...' : 'Save booking'}</Button>
+                          {selectedUser.booking_info && (
+                            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleDeleteBooking} disabled={actionLoading}>Remove</Button>
+                          )}
+                          <Button variant="outline" onClick={() => setShowBookingModal(false)} disabled={actionLoading}>Cancel</Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Clock size={12} />
-                        <span>Timezone: {selectedUser.booking_info.timezone || selectedUser.booking_info.booking_timezone || 'Not specified'}</span>
+                    ) : sessionBooking ? (
+                      <div className="rounded-lg border bg-muted/30 p-3">
+                        <div className="font-medium text-foreground">{fmtDateTime(sessionBooking.slot_start_utc)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{sessionBooking.director_name || sessionBooking.director_id || 'Director'}{sessionBooking.patient_timezone ? ` · ${sessionBooking.patient_timezone}` : ''}</div>
                       </div>
-                      {selectedUser.booking_info.source && (
-                        <p className="text-xs text-gray-500">Source: {selectedUser.booking_info.source === 'online_booking' ? 'Online Booking' : 'Manual Entry'}</p>
-                      )}
-                      {selectedUser.booking_info.update_notes && (
-                        <p className="text-xs text-gray-500 italic">Note: {selectedUser.booking_info.update_notes}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <div className="flex items-center gap-2 text-amber-700">
-                        <AlertCircle size={14} />
-                        <span className="text-sm">No booking set</span>
+                    ) : selectedUser.booking_info ? (
+                      <div className="rounded-lg border bg-muted/30 p-3">
+                        <div className="font-medium text-foreground">{formatDate(selectedUser.booking_info.session_start || selectedUser.booking_info.booking_datetime)}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">{selectedUser.booking_info.timezone || selectedUser.booking_info.booking_timezone || 'Timezone not set'}{selectedUser.booking_info.source ? ` · ${selectedUser.booking_info.source === 'online_booking' ? 'Online booking' : 'Manual entry'}` : ''}</div>
+                        {selectedUser.booking_info.update_notes && <div className="mt-1 text-xs italic text-muted-foreground">{selectedUser.booking_info.update_notes}</div>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        User timezone: {selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'Unknown'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="pt-4 space-y-3 border-t border-gray-100">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Quick Actions</h4>
-                  
-                  {/* Move to Step */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm text-gray-600 whitespace-nowrap">Move to Step:</span>
-                    <select
-                      value={pendingStep !== null ? pendingStep : (selectedUser?.current_step || 1)}
-                      onChange={(e) => handleStepChange(parseInt(e.target.value))}
-                      disabled={actionLoading}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                    >
-                      <option value={0}>⚠️ Refunded</option>
-                      <option value={1}>Step 1 - Welcome & Booking</option>
-                      <option value={2}>Step 2 - Health Profile</option>
-                      <option value={3}>Step 3 - Final Preparations</option>
-                      <option value={4}>Complete ✓</option>
-                    </select>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex items-center justify-center gap-2 py-5"
-                      onClick={openEditModal}
-                    >
-                      <Edit2 size={16} />
-                      Edit User
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex items-center justify-center gap-2 py-5"
-                      onClick={() => handleResendWelcomeEmail(selectedUser.id)}
-                      disabled={actionLoading}
-                    >
-                      <Send size={16} />
-                      Resend Welcome
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex items-center justify-center gap-2 py-5"
-                      onClick={() => handleResetProgress(selectedUser.id)}
-                      disabled={actionLoading}
-                    >
-                      <RefreshCw size={16} />
-                      Reset Progress
-                    </Button>
-                  </div>
-
-                  {/* Save and Delete buttons side by side */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      onClick={handleSaveStepChange}
-                      disabled={pendingStep === null || pendingStep === selectedUser?.current_step || actionLoading}
-                      className={`flex items-center justify-center gap-2 py-5 ${
-                        pendingStep !== null && pendingStep !== selectedUser?.current_step
-                          ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <CheckCircle2 size={16} />
-                      Save Changes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex items-center justify-center gap-2 py-5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                      onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name, selectedUser.email)}
-                      disabled={actionLoading}
-                    >
-                      <Trash2 size={16} />
-                      Delete User
-                    </Button>
+                    ) : (
+                      <div className="rounded-lg border p-3 text-sm text-muted-foreground">No booking set · user timezone {selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'unknown'}</div>
+                    )}
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Edit User Modal */}
-      <AnimatePresence>
-        {showEditModal && selectedUser && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowEditModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-800">Edit User</h3>
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
+              <DrawerFooter className="flex-row flex-wrap gap-2">
+                <Button variant="outline" onClick={() => handleResendWelcomeEmail(selectedUser.id)} disabled={actionLoading}><Send className="size-4" /> Resend welcome</Button>
+                <Button variant="outline" onClick={() => handleResetProgress(selectedUser.id)} disabled={actionLoading}><RefreshCw className="size-4" /> Reset progress</Button>
+                <Button variant="outline" className="ml-auto text-destructive hover:text-destructive" onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name, selectedUser.email)} disabled={actionLoading}><Trash2 className="size-4" /> Delete user</Button>
+              </DrawerFooter>
+            </div>
+          )}
+        </DrawerContent>
+      </Drawer>
 
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">First Name</label>
-                    <input
-                      type="text"
-                      value={editFormData.first_name || ''}
-                      onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Last Name</label>
-                    <input
-                      type="text"
-                      value={editFormData.last_name || ''}
-                      onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Display Name</label>
-                  <input
-                    type="text"
-                    value={editFormData.name || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Email</label>
-                  <input
-                    type="email"
-                    value={editFormData.email || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Phone</label>
-                  <input
-                    type="tel"
-                    value={editFormData.phone || ''}
-                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                <Button
-                  onClick={handleEditUser}
-                  disabled={actionLoading}
-                  className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white py-5"
-                >
-                  {actionLoading ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Booking Modal */}
-      <AnimatePresence>
-        {showBookingModal && selectedUser && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowBookingModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl w-full max-w-md shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 border-b border-gray-100">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-gray-800">
-                    {selectedUser.booking_info ? 'Edit Booking' : 'Set Booking Time'}
-                  </h3>
-                  <button
-                    onClick={() => setShowBookingModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">For {selectedUser.name || selectedUser.email}</p>
-              </div>
-
-              <div className="p-6 space-y-4">
-                {/* User's Original Timezone Info */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-blue-700">
-                    <Clock size={14} />
-                    <span className="text-sm font-medium">User's Timezone</span>
-                  </div>
-                  <p className="text-sm text-blue-800 mt-1">
-                    {selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'Unknown - please verify with user'}
-                  </p>
-                </div>
-
-                {/* Date Input */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Booking Date</label>
-                  <input
-                    type="date"
-                    value={bookingFormData.date}
-                    onChange={(e) => setBookingFormData({ ...bookingFormData, date: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                {/* Time Input */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Booking Time</label>
-                  <input
-                    type="time"
-                    value={bookingFormData.time}
-                    onChange={(e) => setBookingFormData({ ...bookingFormData, time: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                {/* Timezone Override */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Timezone (for reference)</label>
-                  <input
-                    type="text"
-                    value={bookingFormData.timezone}
-                    onChange={(e) => setBookingFormData({ ...bookingFormData, timezone: e.target.value })}
-                    placeholder="e.g., America/New_York, Europe/London"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-
-                {/* Notes */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Notes (optional)</label>
-                  <textarea
-                    value={bookingFormData.notes}
-                    onChange={(e) => setBookingFormData({ ...bookingFormData, notes: e.target.value })}
-                    placeholder="e.g., Rescheduled via phone call"
-                    rows={2}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3">
-                  {selectedUser.booking_info && (
-                    <Button
-                      variant="outline"
-                      onClick={handleDeleteBooking}
-                      disabled={actionLoading}
-                      className="flex-1 py-5 text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      Remove Booking
-                    </Button>
-                  )}
-                  <Button
-                    onClick={handleUpdateBooking}
-                    disabled={actionLoading || !bookingFormData.date || !bookingFormData.time}
-                    className="flex-1 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white py-5"
-                  >
-                    {actionLoading ? 'Saving...' : 'Save Booking'}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {rescheduleSession && (
+        <RescheduleModal
+          booking={rescheduleSession}
+          onClose={() => setRescheduleSession(null)}
+          onDone={() => { fetchActiveBookingForUser(selectedUser).then(setSessionBooking); fetchData(); }}
+        />
+      )}
     </div>
   );
 };

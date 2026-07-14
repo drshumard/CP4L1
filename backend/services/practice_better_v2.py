@@ -13,6 +13,7 @@ Improvements over v1:
 
 import httpx
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import Any, Optional, Dict, List, Tuple
 import asyncio
 from pydantic import BaseModel, EmailStr
@@ -174,6 +175,25 @@ TIMEZONE_MAP = {
 }
 
 
+def to_pb_session_date(session_date: str) -> str:
+    """Convert an ISO datetime into the wall-time format PB's sessions API actually parses.
+
+    Verified empirically (2026-07-06, POST /consultant/sessions): PB ignores both a trailing
+    'Z' and the request's timeZone field when parsing sessionDate, and reads the naive
+    clock time as US Eastern wall time ('...T21:00:00Z' + timeZone=Central stored as
+    2026-07-10T01:00:00Z; naive '...T16:00:00' + timeZone=Central stored as 20:00Z). Offset
+    forms like '-05:00' make it 500 outright. So: take the real instant and send PB the
+    matching US-Eastern wall clock, naive. Naive inputs are passed through untouched (the
+    caller already speaks PB's convention — e.g. legacy availability round-trips)."""
+    try:
+        dt = datetime.fromisoformat(session_date.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return session_date
+    if dt.tzinfo is None:
+        return session_date
+    return dt.astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def convert_timezone_to_windows(iana_timezone: str) -> str:
     """Convert IANA timezone to Windows timezone format."""
     result = TIMEZONE_MAP.get(iana_timezone)
@@ -208,6 +228,9 @@ class PracticeBetterConfig(BaseModel):
     retry_base_delay: float = 2.0
     retry_max_delay: float = 15.0
     retry_429_base_delay: float = 10.0
+    # Proactive client-side throttle to stay under PB's published limits (5 req/s, burst 20).
+    rate_limit_per_second: float = 4.5
+    rate_limit_burst: int = 12
     
     @classmethod
     def from_env(cls) -> "PracticeBetterConfig":
@@ -284,6 +307,19 @@ class BookingResult(BaseModel):
     session_end: datetime
     duration: int  # seconds (from PB API response)
     is_new_client: bool = False
+    telehealth_url: Optional[str] = None  # Zoom/telehealth join link, when PB returns one
+
+
+def _extract_telehealth_url(session: dict) -> Optional[str]:
+    """Best-effort join-link extraction from a PB session payload (key names vary by
+    telehealth provider; None is fine — PB's own confirmation email carries the link)."""
+    ts = session.get("telehealthSettings") or {}
+    candidates = [ts.get(k) for k in ("joinUrl", "join_url", "launchUrl", "startUrl", "url", "link")]
+    candidates.append(session.get("location"))
+    for v in candidates:
+        if isinstance(v, str) and v.startswith("http"):
+            return v
+    return None
 
 
 # ============================================================================
@@ -389,14 +425,54 @@ class TokenManager:
 # Main Service
 # ============================================================================
 
+class _TokenBucket:
+    """Async token bucket so every PB call respects PB's rate limit (5 req/s, burst 20).
+    Tokens refill continuously; a caller waits only when the bucket is empty, so steady-state
+    throughput is capped at `rate` while short bursts up to `burst` pass instantly. This stops
+    the 429 cascades an unthrottled burst (e.g. a multi-page search) would otherwise cause."""
+
+    def __init__(self, rate: float, burst: int):
+        self.rate = max(0.1, rate)
+        self.capacity = float(max(1, burst))
+        self.tokens = self.capacity
+        self.updated = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    async def acquire(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            self.tokens = min(self.capacity, self.tokens + (now - self.updated) * self.rate)
+            self.updated = now
+            if self.tokens < 1.0:
+                await asyncio.sleep((1.0 - self.tokens) / self.rate)
+                self.tokens = 0.0
+                self.updated = time.monotonic()
+            else:
+                self.tokens -= 1.0
+
+
+_shared_rate_limiter: Optional["_TokenBucket"] = None
+
+
+def get_pb_rate_limiter(rate: float = 4.5, burst: int = 12) -> "_TokenBucket":
+    """Process-wide token bucket shared by EVERY Practice Better caller — the booking service and
+    the background client sync alike — so the sum of all PB traffic stays under PB's 5 req/s. It's
+    created once (first caller's rate/burst win) and reused thereafter."""
+    global _shared_rate_limiter
+    if _shared_rate_limiter is None:
+        _shared_rate_limiter = _TokenBucket(rate, burst)
+    return _shared_rate_limiter
+
+
 class PracticeBetterService:
     """Main service for Practice Better API interactions"""
-    
+
     def __init__(self, config: PracticeBetterConfig):
         self.config = config
         self.token_manager = TokenManager(config)
         self._client: Optional[httpx.AsyncClient] = None
         self._availability_cache = AvailabilityCache(ttl=config.availability_cache_ttl)
+        self._rate_limiter = get_pb_rate_limiter(config.rate_limit_per_second, config.rate_limit_burst)
     
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -434,8 +510,12 @@ class PracticeBetterService:
         
         while attempt < self.config.max_retries:
             try:
+                await self._rate_limiter.acquire()  # stay under PB's 5 req/s, burst 20
                 response = await client.request(method, url, headers=headers, **kwargs)
                 response.raise_for_status()
+                # DELETE / some PUTs return 204 or an empty body — don't treat that as a failure.
+                if response.status_code == 204 or not response.content:
+                    return {}
                 return response.json()
             except httpx.HTTPStatusError as e:
                 status = e.response.status_code
@@ -466,7 +546,11 @@ class PracticeBetterService:
                     attempt += 1
                     continue
                 
-                # Other HTTP errors: standard backoff
+                # Other HTTP errors: standard backoff. Log PB's response body — a bare
+                # "500 Internal Server Error" is undiagnosable without it.
+                logger.warning(f"[{cid}] PB {status} on {method} {path} "
+                               f"(attempt {attempt + 1}/{self.config.max_retries}): "
+                               f"{(e.response.text or '')[:500]}")
                 if attempt >= self.config.max_retries - 1:
                     raise
                 delay = min(
@@ -513,19 +597,30 @@ class PracticeBetterService:
         self,
         start_date: str,
         days: int = 14,
-        correlation_id: str = None
+        correlation_id: str = None,
+        consultant_ids: Optional[List[str]] = None,
     ) -> Tuple[List[TimeSlot], List[str]]:
-        """Get availability for all consultants using /consultant/availability/slots endpoint"""
+        """Get availability using /consultant/availability/slots.
+
+        consultant_ids=None keeps the legacy behavior (PB team roster filtered by the
+        PRACTICE_BETTER_PRACTITIONER_IDS env). When a list is given (the portal passes the
+        active directors' PB consultant ids), ONLY those consultants are polled — the
+        Directors admin is then the single source of who's bookable. An empty list means
+        zero slots on purpose."""
         cid = correlation_id or str(uuid.uuid4())[:8]
-        
-        # Include practitioner filter in cache key so different sets don't collide
-        prac_hash = hash(tuple(sorted(self.config.practitioner_ids))) if self.config.practitioner_ids else "all"
+
+        # Include the consultant filter in the cache key so different sets don't collide
+        prac = consultant_ids if consultant_ids is not None else self.config.practitioner_ids
+        prac_hash = hash(tuple(sorted(prac))) if prac else "all"
         cache_key = f"{start_date}:{days}:{prac_hash}"
         cached = await self._availability_cache.get(cache_key)
         if cached:
             return cached
-        
-        consultants = await self.get_consultants(correlation_id=cid)
+
+        if consultant_ids is not None:
+            consultants = [{"id": c} for c in consultant_ids]
+        else:
+            consultants = await self.get_consultants(correlation_id=cid)
         
         all_slots: List[TimeSlot] = []
         dates_set = set()
@@ -657,65 +752,48 @@ class PracticeBetterService:
         email: str,
         correlation_id: str = None
     ) -> Optional[str]:
-        """Search Practice Better for an existing client record by email.
-        Paginates through results since PB doesn't support email-based filtering.
-        Returns the record ID if found, None otherwise."""
+        """Find an existing client by email from the local SQLite cache (kept comprehensive by
+        ClientSyncService). PB's API has no email filter, so the old path paginated up to 2,000
+        records and tripped the rate limit; the cache makes this a near-instant lookup.
+
+        A cache miss almost always means a client created directly in PB (not via this portal)
+        that the periodic full sync hasn't picked up yet — and those are the MOST RECENTLY created.
+        PB returns records newest-first, so we pull just the newest 1-2 pages (walking older via
+        before_id), upsert them, and re-check. Returns the record id, or None."""
         cid = correlation_id or str(uuid.uuid4())[:8]
         normalized = email.lower().strip()
-        last_id = None
-        pages_checked = 0
-        max_pages = 20  # Safety limit: 20 pages × 100 = 2000 clients max
-        seen_ids: set = set()  # Track seen IDs to detect infinite loops
-        
+        cache = get_client_cache()
+
+        hit = cache.get_client_by_email(normalized)
+        if hit:
+            logger.info(f"[{cid}] Found existing client in cache: {email} -> {hit['record_id']}")
+            return hit["record_id"]
+
+        # Cache miss: pull the newest records (newest-first); a just-created client is in the first
+        # page or two. Bounded to 2 pages — never the old 20-page sweep.
+        before_id = None
         try:
-            while pages_checked < max_pages:
+            for page in range(2):
                 params = {"limit": 100}
-                if last_id:
-                    # PB returns records in descending order; use before_id for next page
-                    params["before_id"] = last_id
-                
-                data = await self._request(
-                    "GET",
-                    "/consultant/records",
-                    correlation_id=cid,
-                    params=params
-                )
-                
-                items = data.get("items", [])
+                if before_id:
+                    params["before_id"] = before_id  # records older than the last seen (keep descending)
+                data = await self._request("GET", "/consultant/records", correlation_id=cid, params=params)
+                items = data.get("items", []) or []
                 if not items:
                     break
-                
-                for item in items:
-                    item_id = item.get("id")
-                    if item_id in seen_ids:
-                        logger.warning(f"[{cid}] Duplicate ID detected in pagination, stopping: {item_id}")
-                        return None
-                    seen_ids.add(item_id)
-                    
-                    profile = item.get("profile", {})
-                    item_email = (profile.get("emailAddress") or "").lower().strip()
-                    if item_email == normalized:
-                        logger.info(f"[{cid}] Found existing client via API search: {email} -> {item_id} (page {pages_checked + 1})")
-                        cache = get_client_cache()
-                        cache.upsert_client(item)
-                        return item_id
-                
-                new_last_id = items[-1].get("id")
-                if new_last_id == last_id:
-                    logger.warning(f"[{cid}] Pagination stuck at before_id={last_id}, stopping")
-                    break
-                last_id = new_last_id
-                pages_checked += 1
-                
-                # If fewer than limit, we've reached the end
+                cache.upsert_clients_batch(items)
+                hit = cache.get_client_by_email(normalized)
+                if hit:
+                    logger.info(f"[{cid}] Found client in newest records (page {page + 1}): {email} -> {hit['record_id']}")
+                    return hit["record_id"]
                 if len(items) < 100:
-                    break
-            
-            logger.info(f"[{cid}] Client not found in PB after {pages_checked} pages ({len(seen_ids)} records): {email}")
-            return None
+                    break  # reached the end
+                before_id = items[-1].get("id")
         except Exception as e:
-            logger.warning(f"[{cid}] Client search by email failed: {e}")
-            return None
+            logger.warning(f"[{cid}] Newest-records refresh during client search failed: {e}")
+
+        logger.info(f"[{cid}] Client not found in cache or newest records: {email}")
+        return None
 
     async def get_or_create_client(
         self,
@@ -792,28 +870,42 @@ class PracticeBetterService:
         session_date: str,
         timezone: str,
         notes: Optional[str] = None,
-        correlation_id: str = None
+        correlation_id: str = None,
+        *,
+        include_telehealth: bool = True,
+        notify: bool = True,
+        service_id: Optional[str] = None,
+        duration_seconds: Optional[int] = None,
     ) -> dict:
-        """Book a session for a client"""
+        """Book a session for a client.
+
+        Portal-owned flow passes include_telehealth=False (Google Meet is the link,
+        carried in notes) and notify=False (the portal sends its own Resend email).
+        Legacy defaults (include_telehealth=True, notify=True) keep the old path intact.
+        service_id overrides the configured service when booking under the shared account.
+        Sessions are always created markConfirmed=True — the portal owns the booking
+        state, so PB never holds a session in an unconfirmed/pending limbo.
+        """
         cid = correlation_id or str(uuid.uuid4())[:8]
-        
-        duration_seconds = self.config.session_duration * 60
+
+        if duration_seconds is None:
+            duration_seconds = self.config.session_duration * 60
         windows_timezone = convert_timezone_to_windows(timezone)
-        
+
         payload = {
             "clientRecordId": client_record_id,
             "asConsultantId": consultant_id,
-            "serviceId": self.config.service_id,
+            "serviceId": service_id or self.config.service_id,
             "serviceType": self.config.session_type,
-            "sessionDate": session_date,
+            "sessionDate": to_pb_session_date(session_date),
             "duration": duration_seconds,
             "timeZone": windows_timezone,
-            "notify": True,
-            "telehealthSettings": {
-                "launchApplication": self.config.telehealth_app
-            }
+            "notify": notify,
+            "markConfirmed": True,  # portal is authoritative — auto-confirm on creation (no PB pending state)
         }
-        
+        if include_telehealth and self.config.telehealth_app:
+            payload["telehealthSettings"] = {"launchApplication": self.config.telehealth_app}
+
         if notes:
             payload["notes"] = notes
         
@@ -821,11 +913,46 @@ class PracticeBetterService:
         result = await self._request("POST", "/consultant/sessions", json=payload, correlation_id=cid)
         
         logger.info(f"[{cid}] Session booked: {result.get('id')}")
-        
+
         await self._availability_cache.clear()
-        
+
         return result
-    
+
+    async def reschedule_session(
+        self,
+        session_id: str,
+        session_date: str,
+        *,
+        duration_seconds: Optional[int] = None,
+        ignore_conflict: bool = True,
+        correlation_id: str = None,
+    ) -> dict:
+        """Move an existing PB session to a new date/time.
+
+        PUT /consultant/sessions/{sessionId}/date. The portal is the source of truth for
+        availability, so ignore_conflict defaults to True. duration_seconds defaults to the
+        configured session length when omitted.
+        """
+        cid = correlation_id or str(uuid.uuid4())[:8]
+        payload = {
+            "duration": duration_seconds if duration_seconds is not None else self.config.session_duration * 60,
+            "ignoreConflict": ignore_conflict,
+            "sessionDate": to_pb_session_date(session_date),
+        }
+        logger.info(f"[{cid}] Rescheduling PB session {session_id} -> {session_date}")
+        result = await self._request(
+            "PUT", f"/consultant/sessions/{session_id}/date", json=payload, correlation_id=cid
+        )
+        await self._availability_cache.clear()
+        return result
+
+    async def cancel_session(self, session_id: str, correlation_id: str = None) -> None:
+        """Delete an existing PB session. DELETE /consultant/sessions/{sessionId}."""
+        cid = correlation_id or str(uuid.uuid4())[:8]
+        logger.info(f"[{cid}] Cancelling PB session {session_id}")
+        await self._request("DELETE", f"/consultant/sessions/{session_id}", correlation_id=cid)
+        await self._availability_cache.clear()
+
     async def complete_booking(
         self,
         request: BookingRequest,
@@ -921,7 +1048,8 @@ class PracticeBetterService:
                 session_start=datetime.fromisoformat(session["sessionDate"].replace("Z", "+00:00")),
                 session_end=datetime.fromisoformat(session["endDate"].replace("Z", "+00:00")),
                 duration=session["duration"],  # seconds (from PB API)
-                is_new_client=is_new_client
+                is_new_client=is_new_client,
+                telehealth_url=_extract_telehealth_url(session),
             )
         
         except (BookingError, SlotUnavailableError):

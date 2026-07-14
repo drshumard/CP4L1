@@ -3,18 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { 
-  Home, Users, TrendingUp, BarChart3, RefreshCw, Activity, Clock, Calendar, ChevronDown
-} from 'lucide-react';
+import { BarChart3, RefreshCw, Calendar, ChevronDown, Users, TrendingUp, Clock } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Switch } from '../components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+const EYEBROW = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 
-// Date range presets
 const DATE_PRESETS = [
   { label: 'Today', getValue: () => { const today = new Date(); return { start: today, end: today }; } },
   { label: 'Yesterday', getValue: () => { const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); return { start: yesterday, end: yesterday }; } },
@@ -23,22 +22,21 @@ const DATE_PRESETS = [
   { label: 'This Month', getValue: () => { const now = new Date(); const start = new Date(now.getFullYear(), now.getMonth(), 1); return { start, end: now }; } },
   { label: 'Last Month', getValue: () => { const now = new Date(); const start = new Date(now.getFullYear(), now.getMonth() - 1, 1); const end = new Date(now.getFullYear(), now.getMonth(), 0); return { start, end }; } },
   { label: 'All Time', getValue: () => ({ start: null, end: null }) },
-  { label: 'Custom', getValue: () => null }
+  { label: 'Custom', getValue: () => null },
 ];
 
 const AdminAnalytics = () => {
   const navigate = useNavigate();
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  // Default to Last 7 Days
+
   const getDefaultDates = () => {
     const end = new Date();
     const start = new Date();
     start.setDate(start.getDate() - 6);
     return { start, end };
   };
-  
+
   const defaultDates = getDefaultDates();
   const [startDate, setStartDate] = useState(defaultDates.start);
   const [endDate, setEndDate] = useState(defaultDates.end);
@@ -46,86 +44,42 @@ const AdminAnalytics = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const datePickerRef = useRef(null);
-  
-  // Use refs to track current filter values for auto-refresh
+
   const startDateRef = useRef(startDate);
   const endDateRef = useRef(endDate);
-  
-  // Keep refs in sync with state
-  useEffect(() => {
-    startDateRef.current = startDate;
-    endDateRef.current = endDate;
-  }, [startDate, endDate]);
+  useEffect(() => { startDateRef.current = startDate; endDateRef.current = endDate; }, [startDate, endDate]);
 
-  // Close date picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (datePickerRef.current && !datePickerRef.current.contains(event.target)) {
-        setShowDatePicker(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const formatDateForAPI = (date) => {
-    if (!date) return '';
-    return date.toISOString().split('T')[0];
-  };
+  const formatDateForAPI = (date) => (date ? date.toISOString().split('T')[0] : '');
 
   const fetchAnalytics = useCallback(async (start, end) => {
     try {
       const token = localStorage.getItem('access_token');
-      const analyticsRes = await axios.get(`${API}/admin/analytics`, {
+      const res = await axios.get(`${API}/admin/analytics`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: {
-          start_date: start ? formatDateForAPI(start) : undefined,
-          end_date: end ? formatDateForAPI(end) : undefined
-        }
+        params: { start_date: start ? formatDateForAPI(start) : undefined, end_date: end ? formatDateForAPI(end) : undefined },
       });
-      setAnalytics(analyticsRes.data);
+      setAnalytics(res.data);
     } catch (error) {
-      if (error.response?.status === 403) {
-        toast.error('Admin access required', { id: 'admin-access-required' });
-        navigate('/');
-      } else if (error.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      } else {
-        toast.error('Failed to load analytics', { id: 'analytics-error' });
-      }
+      if (error.response?.status === 403) { toast.error('Admin access required', { id: 'admin-access-required' }); navigate('/'); }
+      else if (error.response?.status === 401) { localStorage.clear(); navigate('/login'); }
+      else { toast.error('Failed to load analytics', { id: 'analytics-error' }); }
     } finally {
       setLoading(false);
       setAnalyticsLoading(false);
     }
   }, [navigate]);
 
-  // Initial load with Last 7 Days
-  useEffect(() => {
-    const { start, end } = getDefaultDates();
-    fetchAnalytics(start, end);
-  }, [fetchAnalytics]);
+  useEffect(() => { const { start, end } = getDefaultDates(); fetchAnalytics(start, end); }, [fetchAnalytics]);
 
-  // Auto-refresh analytics every 30 seconds for realtime data
   useEffect(() => {
-    if (!autoRefresh) return;
-    
-    const interval = setInterval(() => {
-      // Use refs to get current filter values
-      fetchAnalytics(startDateRef.current, endDateRef.current);
-    }, 30000); // 30 seconds
-    
+    if (!autoRefresh) return undefined;
+    const interval = setInterval(() => fetchAnalytics(startDateRef.current, endDateRef.current), 30000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchAnalytics]);
 
   const handlePresetSelect = (preset) => {
     setSelectedPreset(preset.label);
-    if (preset.label === 'Custom') {
-      // Keep date picker open for custom selection
-      return;
-    }
-    
+    if (preset.label === 'Custom') return;
     const range = preset.getValue();
     if (range) {
       setStartDate(range.start);
@@ -141,7 +95,6 @@ const AdminAnalytics = () => {
     setStartDate(start);
     setEndDate(end);
     setSelectedPreset('Custom');
-    
     if (start && end) {
       setAnalyticsLoading(true);
       fetchAnalytics(start, end);
@@ -163,426 +116,190 @@ const AdminAnalytics = () => {
     return selectedPreset;
   };
 
-  // Step distribution data for horizontal bar chart
   const stepDistribution = [
-    { label: 'Refunded', count: analytics?.step_distribution?.refunded || 0, color: 'bg-red-500' },
-    { label: 'Step 1', count: analytics?.step_distribution?.step_1 || 0, color: 'bg-blue-500' },
-    { label: 'Step 2', count: analytics?.step_distribution?.step_2 || 0, color: 'bg-purple-500' },
-    { label: 'Step 3', count: analytics?.step_distribution?.step_3 || 0, color: 'bg-amber-500' },
-    { label: 'Complete', count: analytics?.step_distribution?.step_4 || 0, color: 'bg-green-500' },
+    { label: 'Refunded', count: analytics?.step_distribution?.refunded || 0, color: 'bg-rose-500' },
+    { label: 'Step 1', count: analytics?.step_distribution?.step_1 || 0, color: 'bg-slate-300' },
+    { label: 'Step 2', count: analytics?.step_distribution?.step_2 || 0, color: 'bg-slate-400' },
+    { label: 'Step 3', count: analytics?.step_distribution?.step_3 || 0, color: 'bg-slate-500' },
+    { label: 'Complete', count: analytics?.step_distribution?.step_4 || 0, color: 'bg-emerald-500' },
   ];
-
-  const maxStepCount = Math.max(...stepDistribution.map(s => s.count), 1);
+  const maxStepCount = Math.max(...stepDistribution.map((s) => s.count), 1);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
+    return <div className="py-16 text-center text-muted-foreground">Loading analytics...</div>;
   }
 
+  const kpis = [
+    { label: 'Total users', value: analytics?.total_users || 0, sub: 'all signups' },
+    { label: 'Day-1 ready', value: `${analytics?.total_users ? Math.round((analytics?.day1_ready || 0) / analytics.total_users * 100) : 0}%`, sub: `${analytics?.day1_ready || 0} of ${analytics?.total_users || 0}` },
+    { label: 'Activation rate', value: `${analytics?.completion_stats?.completion_rate || 0}%`, sub: `${analytics?.completion_stats?.completed || 0} completed`, accent: 'text-emerald-600' },
+    { label: 'Refund rate', value: `${analytics?.completion_stats?.refund_rate || 0}%`, sub: `${analytics?.completion_stats?.refunded || 0} refunded`, accent: 'text-rose-600' },
+    { label: 'Avg time to activate', value: analytics?.step_transition_times?.total_journey?.avg_formatted || '—', sub: 'booking → activation' },
+  ];
+
+  const funnel = [
+    { label: 'Started', data: analytics?.funnel_data?.started, color: 'bg-slate-300' },
+    { label: 'Booked consultation', data: analytics?.funnel_data?.completed_booking, color: 'bg-slate-400' },
+    { label: 'Submitted intake', data: analytics?.funnel_data?.completed_intake, color: 'bg-slate-500' },
+    { label: 'Activated portal', data: analytics?.funnel_data?.activated_portal, color: 'bg-emerald-500' },
+  ];
+
+  const transitions = [
+    { label: 'Booking → Intake form', data: analytics?.step_transition_times?.booking_to_intake },
+    { label: 'Intake → Completion', data: analytics?.step_transition_times?.intake_to_completion },
+    { label: 'Completion → Activated', data: analytics?.step_transition_times?.completion_to_activated },
+    { label: 'Total journey', data: analytics?.step_transition_times?.total_journey, highlight: true },
+  ];
+
+  const today = [
+    { label: 'New signups', value: analytics?.realtime_stats?.today?.signups || 0 },
+    { label: 'Logins', value: analytics?.realtime_stats?.today?.logins || 0 },
+    { label: 'Bookings', value: analytics?.realtime_stats?.today?.bookings || 0 },
+    { label: 'Forms submitted', value: analytics?.realtime_stats?.today?.form_submissions || 0 },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-40" data-testid="admin-analytics-header">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-              <img 
-                src="https://portal-drshumard.b-cdn.net/logo.png" 
-                alt="Logo" 
-                className="h-8 object-contain"
-              />
-              <div className="flex items-center gap-3 md:hidden">
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/admin')} 
-                  className="flex items-center gap-2"
-                  size="sm"
-                >
-                  <Users size={16} />
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" size="sm">
-                  <Home size={16} />
-                </Button>
+    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto w-full space-y-6">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <BarChart3 className="size-4" /> Patient journey & activation metrics
+          </p>
+          {analytics?.filters_applied?.start_date && (
+            <p className="mt-1 text-xs text-muted-foreground">{analytics.filters_applied.start_date} to {analytics.filters_applied.end_date || 'now'}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {analyticsLoading && <RefreshCw className="size-4 animate-spin text-muted-foreground" />}
+          <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Calendar className="size-4" /> {getDisplayLabel()} <ChevronDown className="size-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto min-w-[200px] p-1">
+              {DATE_PRESETS.filter((p) => p.label !== 'Custom').map((preset) => (
+                <button key={preset.label} type="button" onClick={() => handlePresetSelect(preset)}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-accent ${selectedPreset === preset.label ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <span>{preset.label}</span>
+                  {selectedPreset === preset.label && <span className="size-1.5 rounded-full bg-primary" />}
+                </button>
+              ))}
+              <div className="mt-1 border-t pt-1">
+                <button type="button" onClick={() => setSelectedPreset('Custom')}
+                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-accent ${selectedPreset === 'Custom' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  <span>Custom range</span>
+                  <ChevronDown className={`size-3.5 transition-transform ${selectedPreset === 'Custom' ? 'rotate-180' : ''}`} />
+                </button>
+                {selectedPreset === 'Custom' && (
+                  <div className="mt-1 border-t p-2">
+                    <DatePicker selected={startDate} onChange={handleCustomDateChange} startDate={startDate} endDate={endDate}
+                      selectsRange inline monthsShown={1} maxDate={new Date()} calendarClassName="!border-0 !shadow-none" />
+                  </div>
+                )}
               </div>
-            </div>
-            <h1 className="text-xl font-bold text-gray-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">Analytics</h1>
-            <div className="hidden md:flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/admin')} 
-                className="flex items-center gap-2"
-              >
-                <Users size={16} />
-                <span>Users</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/admin/logs')} 
-                className="flex items-center gap-2"
-              >
-                <Activity size={16} />
-                <span>Logs</span>
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
-                <Home size={16} />
-                <span>Home</span>
-              </Button>
-            </div>
-          </div>
+            </PopoverContent>
+          </Popover>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+            <span className="flex items-center gap-1.5">Live {autoRefresh && <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />}</span>
+          </label>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Analytics Section with Date Filter */}
-        <Card className="bg-white border border-gray-200 shadow-sm mb-6">
-          <CardHeader className="border-b border-gray-100 pb-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="text-teal-600" size={20} />
-                Analytics Overview
-              </CardTitle>
-              {/* Date Filter Dropdown */}
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative" ref={datePickerRef}>
-                  <button
-                    onClick={() => setShowDatePicker(!showDatePicker)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:border-teal-400 hover:bg-teal-50/50 transition-all text-sm"
-                    data-testid="date-filter-button"
-                  >
-                    <Calendar size={14} className="text-teal-600" />
-                    <span className="font-medium text-gray-700">{getDisplayLabel()}</span>
-                    <ChevronDown size={14} className={`text-gray-400 transition-transform ${showDatePicker ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {showDatePicker && (
-                    <div className="absolute right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden min-w-[200px]">
-                      {/* Preset Options - Compact List */}
-                      <div className="py-1">
-                        {DATE_PRESETS.filter(p => p.label !== 'Custom').map((preset) => (
-                          <button
-                            key={preset.label}
-                            onClick={() => handlePresetSelect(preset)}
-                            className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 transition-colors flex items-center justify-between ${
-                              selectedPreset === preset.label ? 'bg-teal-50 text-teal-700' : 'text-gray-600'
-                            }`}
-                          >
-                            <span>{preset.label}</span>
-                            {selectedPreset === preset.label && (
-                              <span className="w-1.5 h-1.5 bg-teal-500 rounded-full"></span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      
-                      {/* Custom Date Range Separator */}
-                      <div className="border-t border-gray-100">
-                        <button
-                          onClick={() => setSelectedPreset('Custom')}
-                          className={`w-full text-left px-3 py-1.5 text-sm hover:bg-teal-50 transition-colors flex items-center justify-between ${
-                            selectedPreset === 'Custom' ? 'bg-teal-50 text-teal-700' : 'text-gray-600'
-                          }`}
-                        >
-                          <span>Custom Range</span>
-                          <ChevronDown size={12} className={`transition-transform ${selectedPreset === 'Custom' ? 'rotate-180' : ''}`} />
-                        </button>
-                        
-                        {/* Inline Calendar - Only shown when Custom selected */}
-                        {selectedPreset === 'Custom' && (
-                          <div className="p-2 border-t border-gray-100">
-                            <DatePicker
-                              selected={startDate}
-                              onChange={handleCustomDateChange}
-                              startDate={startDate}
-                              endDate={endDate}
-                              selectsRange
-                              inline
-                              monthsShown={1}
-                              maxDate={new Date()}
-                              calendarClassName="!border-0 !shadow-none compact-calendar"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {analyticsLoading && (
-                  <RefreshCw size={14} className="animate-spin text-teal-600" />
-                )}
-                
-                {/* Auto-refresh toggle */}
-                <label className="text-xs text-gray-500 flex items-center gap-1.5 cursor-pointer ml-2 pl-2 border-l border-gray-200">
-                  <input
-                    type="checkbox"
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                    className="rounded border-gray-300 w-3.5 h-3.5"
-                  />
-                  <span className="flex items-center gap-1">
-                    Live
-                    {autoRefresh && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>}
-                  </span>
-                </label>
-              </div>
-            </div>
-            {analytics?.filters_applied?.start_date && (
-              <p className="text-xs text-teal-600 mt-2 flex items-center gap-1">
-                <Calendar size={12} />
-                {analytics.filters_applied.start_date} to {analytics.filters_applied.end_date || 'now'}
-              </p>
-            )}
-          </CardHeader>
-          <CardContent className="p-6">
-            {/* Summary Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-              <div className="bg-gray-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-gray-800">{analytics?.total_users || 0}</div>
-                <div className="text-sm text-gray-500">Total Users</div>
-              </div>
-              <div className="bg-teal-50 rounded-lg p-4 text-center border-2 border-teal-200">
-                <div className="text-2xl font-bold text-teal-600">{analytics?.day1_ready || 0}</div>
-                <div className="text-sm text-teal-600 font-medium">
-                  Day 1 Ready ({analytics?.total_users > 0 ? Math.round((analytics?.day1_ready || 0) / analytics.total_users * 100) : 0}%)
-                </div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">{analytics?.completion_stats?.completed || 0}</div>
-                <div className="text-sm text-gray-500">Completed ({analytics?.completion_stats?.completion_rate || 0}%)</div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{analytics?.completion_stats?.in_progress || 0}</div>
-                <div className="text-sm text-gray-500">In Progress ({analytics?.completion_stats?.in_progress_rate || 0}%)</div>
-              </div>
-              <div className="bg-red-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-red-600">{analytics?.completion_stats?.refunded || 0}</div>
-                <div className="text-sm text-gray-500">Refunded ({analytics?.completion_stats?.refund_rate || 0}%)</div>
-              </div>
-            </div>
-
-            {/* Step Distribution */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Users size={16} />
-                Step Distribution
-              </h3>
-              <div className="space-y-3">
-                {stepDistribution.map((step, index) => {
-                  const percentage = analytics?.total_users 
-                    ? Math.round((step.count / analytics.total_users) * 100) 
-                    : 0;
-                  const barWidth = maxStepCount > 0 
-                    ? Math.round((step.count / maxStepCount) * 100) 
-                    : 0;
-                  
-                  return (
-                    <div key={step.label} className="flex items-center gap-4">
-                      <div className="w-20 text-sm font-medium text-gray-700 flex-shrink-0">
-                        {step.label}
-                      </div>
-                      <div className="flex-1 h-7 bg-gray-100 rounded-lg overflow-hidden relative">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${barWidth}%` }}
-                          transition={{ duration: 0.6, delay: index * 0.1 }}
-                          className={`h-full ${step.color} rounded-lg flex items-center`}
-                        >
-                          {barWidth > 15 && (
-                            <span className="text-white text-sm font-medium px-3">
-                              {step.count}
-                            </span>
-                          )}
-                        </motion.div>
-                        {barWidth <= 15 && step.count > 0 && (
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-600 text-sm font-medium">
-                            {step.count}
-                          </span>
-                        )}
-                      </div>
-                      <div className="w-12 text-right text-sm text-gray-500 flex-shrink-0">
-                        {percentage}%
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Two Column Layout for Funnel and Transition Times */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Completion Funnel */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <TrendingUp size={16} />
-                  Completion Funnel
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    { label: 'Started', data: analytics?.funnel_data?.started, color: 'bg-gray-500' },
-                    { label: 'Booked Consultation', data: analytics?.funnel_data?.completed_booking, color: 'bg-blue-500' },
-                    { label: 'Submitted Intake', data: analytics?.funnel_data?.completed_intake, color: 'bg-purple-500' },
-                    { label: 'Activated Portal', data: analytics?.funnel_data?.activated_portal, color: 'bg-green-500' }
-                  ].map((stage, index) => (
-                    <div key={stage.label} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${stage.color}`}></div>
-                        <span className="text-sm text-gray-700">{stage.label}</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">{stage.data?.count || 0}</span>
-                        <span className="text-xs text-gray-500 w-12 text-right">
-                          {stage.data?.percentage || 0}%
-                        </span>
-                        {stage.data?.drop_off > 0 && (
-                          <span className="text-xs text-red-500">
-                            (-{stage.data.drop_off})
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Step Transition Times */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <Clock size={16} />
-                  Average Time Between Steps
-                </h3>
-                <div className="space-y-3">
-                  {[
-                    { 
-                      label: 'Booking → Intake Form', 
-                      data: analytics?.step_transition_times?.booking_to_intake,
-                      icon: '📅→📝'
-                    },
-                    { 
-                      label: 'Intake → Completion', 
-                      data: analytics?.step_transition_times?.intake_to_completion,
-                      icon: '📝→✓'
-                    },
-                    { 
-                      label: 'Completion → Activated', 
-                      data: analytics?.step_transition_times?.completion_to_activated,
-                      icon: '✓→🚀'
-                    },
-                    { 
-                      label: 'Total Journey', 
-                      data: analytics?.step_transition_times?.total_journey,
-                      icon: '🏁',
-                      highlight: true
-                    }
-                  ].map((transition) => (
-                    <div 
-                      key={transition.label} 
-                      className={`flex items-center justify-between ${transition.highlight ? 'bg-teal-50 -mx-2 px-2 py-1 rounded' : ''}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm">{transition.icon}</span>
-                        <span className={`text-sm ${transition.highlight ? 'font-medium text-teal-700' : 'text-gray-700'}`}>
-                          {transition.label}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {transition.data?.avg_formatted ? (
-                          <>
-                            <span className={`text-sm font-medium ${transition.highlight ? 'text-teal-700' : ''}`}>
-                              {transition.data.avg_formatted}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              ({transition.data.count} users)
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-sm text-gray-400">No data</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Realtime Stats Row */}
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-blue-600 uppercase">Today</span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                </div>
-                <div className="text-2xl font-bold text-blue-700">{analytics?.realtime_stats?.today?.signups || 0}</div>
-                <div className="text-xs text-blue-600">New Signups</div>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-purple-600 uppercase">Today</span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                </div>
-                <div className="text-2xl font-bold text-purple-700">{analytics?.realtime_stats?.today?.logins || 0}</div>
-                <div className="text-xs text-purple-600">Logins</div>
-              </div>
-              <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-4 border border-amber-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-amber-600 uppercase">Today</span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                </div>
-                <div className="text-2xl font-bold text-amber-700">{analytics?.realtime_stats?.today?.bookings || 0}</div>
-                <div className="text-xs text-amber-600">Bookings</div>
-              </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-green-600 uppercase">Today</span>
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                </div>
-                <div className="text-2xl font-bold text-green-700">{analytics?.realtime_stats?.today?.form_submissions || 0}</div>
-                <div className="text-xs text-green-600">Forms Submitted</div>
-              </div>
-            </div>
-
-            {/* Recent Activity Feed */}
-            <div className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <Activity size={16} />
-                Recent Activity
-                <span className="text-xs font-normal text-gray-400">
-                  (Last updated: {analytics?.realtime_stats?.last_updated ? new Date(analytics.realtime_stats.last_updated).toLocaleTimeString() : 'N/A'})
-                </span>
-              </h3>
-              <div className="bg-gray-50 rounded-lg divide-y divide-gray-200">
-                {analytics?.realtime_stats?.recent_activity?.length > 0 ? (
-                  analytics.realtime_stats.recent_activity.map((activity, index) => (
-                    <div key={index} className="flex items-center justify-between p-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${
-                          activity.event.includes('Signup') ? 'bg-blue-500' :
-                          activity.event.includes('Login') ? 'bg-purple-500' :
-                          activity.event.includes('Booked') ? 'bg-amber-500' :
-                          activity.event.includes('Form') ? 'bg-teal-500' :
-                          activity.event.includes('Portal') ? 'bg-green-500' : 'bg-gray-500'
-                        }`}></div>
-                        <span className="text-sm text-gray-700">{activity.event}</span>
-                        <span className="text-sm text-gray-500">{activity.email}</span>
-                      </div>
-                      <span className="text-xs text-gray-400">
-                        {activity.time ? new Date(activity.time).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : ''}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-sm text-gray-500">No recent activity</div>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        {kpis.map((k) => (
+          <div key={k.label} className="rounded-xl border bg-card p-5 shadow-sm">
+            <p className={EYEBROW}>{k.label}</p>
+            <p className={`mt-2 text-3xl font-semibold tabular-nums ${k.accent || 'text-foreground'}`}>{k.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{k.sub}</p>
+          </div>
+        ))}
       </div>
+
+      {/* Step distribution */}
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Users className="size-4 text-muted-foreground" /> Step distribution</h3>
+        <div className="mt-4 space-y-3">
+          {stepDistribution.map((step, index) => {
+            const percentage = analytics?.total_users ? Math.round((step.count / analytics.total_users) * 100) : 0;
+            const barWidth = maxStepCount > 0 ? Math.round((step.count / maxStepCount) * 100) : 0;
+            return (
+              <div key={step.label} className="flex items-center gap-4">
+                <div className="w-20 flex-shrink-0 text-sm font-medium text-foreground">{step.label}</div>
+                <div className="relative h-7 flex-1 overflow-hidden rounded-lg bg-muted">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${barWidth}%` }} transition={{ duration: 0.6, delay: index * 0.08 }}
+                    className={`flex h-full items-center rounded-lg ${step.color}`}>
+                    {barWidth > 15 && <span className="px-3 text-sm font-medium text-white">{step.count}</span>}
+                  </motion.div>
+                  {barWidth <= 15 && step.count > 0 && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm font-medium text-foreground">{step.count}</span>}
+                </div>
+                <div className="w-12 flex-shrink-0 text-right text-sm tabular-nums text-muted-foreground">{percentage}%</div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Funnel + transition times */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><TrendingUp className="size-4 text-muted-foreground" /> Completion funnel</h3>
+          <div className="mt-4 space-y-1">
+            {funnel.map((stage, i) => (
+              <div key={stage.label} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
+                <div className="flex items-center gap-2.5">
+                  <span className={`size-2.5 rounded-full ${stage.color}`} />
+                  <span className="text-sm text-foreground">{stage.label}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium tabular-nums">{stage.data?.count || 0}</span>
+                  <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">{stage.data?.percentage || 0}%</span>
+                  {stage.data?.drop_off > 0 ? <span className="text-xs font-medium text-rose-600">-{stage.data.drop_off}</span> : <span className="w-6" />}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock className="size-4 text-muted-foreground" /> Average time between steps</h3>
+          <div className="mt-4 space-y-1">
+            {transitions.map((t, i) => (
+              <div key={t.label} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
+                <span className={`text-sm ${t.highlight ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{t.label}</span>
+                <div className="flex items-center gap-2">
+                  {t.data?.avg_formatted ? (
+                    <>
+                      <span className={`text-sm tabular-nums ${t.highlight ? 'font-semibold text-foreground' : 'font-medium'}`}>{t.data.avg_formatted}</span>
+                      <span className="text-xs text-muted-foreground">({t.data.count})</span>
+                    </>
+                  ) : <span className="text-sm text-muted-foreground">No data</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      {/* Today */}
+      <section>
+        <h3 className={`${EYEBROW} mb-3`}>Today</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          {today.map((m) => (
+            <div key={m.label} className="rounded-xl border bg-card p-5 shadow-sm">
+              <div className="mb-2 flex items-center justify-between">
+                <span className={EYEBROW}>Live</span>
+                <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
+              </div>
+              <div className="text-2xl font-semibold tabular-nums text-foreground">{m.value}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{m.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 };

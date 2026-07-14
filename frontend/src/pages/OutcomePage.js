@@ -1,404 +1,232 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Trophy, Star, Heart, TrendingUp, Calendar, CheckCircle2, Sparkles, Award, Home } from 'lucide-react';
-import AppointmentCountdown from '../components/AppointmentCountdown';
+import { CheckCircle2, Calendar, Play, Home, LogOut, ClipboardCheck, Heart, TrendingUp, ArrowRight, Quote, HelpCircle } from 'lucide-react';
+import { formatInTz, safeTimezone } from '../utils/tz';
+import './prototype/proto.css';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
 
-const Confetti = () => {
-  const colors = ['#3B82F6', '#60A5FA', '#93C5FD', '#DBEAFE', '#F59E0B', '#FCD34D'];
-  const confettiPieces = Array.from({ length: 50 }, (_, i) => ({
-    id: i,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    left: `${Math.random() * 100}%`,
-    delay: Math.random() * 3,
-    duration: 3 + Math.random() * 2,
-  }));
-
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-50">
-      {confettiPieces.map((piece) => (
-        <motion.div
-          key={piece.id}
-          initial={{ y: -20, opacity: 1, rotate: 0 }}
-          animate={{
-            y: window.innerHeight + 20,
-            opacity: [1, 1, 0],
-            rotate: 360 * (Math.random() > 0.5 ? 1 : -1),
-          }}
-          transition={{
-            duration: piece.duration,
-            delay: piece.delay,
-            ease: 'linear',
-            repeat: Infinity,
-          }}
-          style={{
-            position: 'absolute',
-            left: piece.left,
-            width: '10px',
-            height: '10px',
-            backgroundColor: piece.color,
-            borderRadius: Math.random() > 0.5 ? '50%' : '0%',
-          }}
-        />
-      ))}
-    </div>
-  );
+const fadeUp = {
+  hidden: { opacity: 0, y: 14 },
+  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.45, delay: i * 0.08, ease: [0.22, 0.61, 0.36, 1] } }),
 };
 
-const OutcomePage = () => {
+const ACHIEVEMENTS = [
+  { icon: Calendar, title: 'Consultation booked', body: 'Your one-on-one call is scheduled.' },
+  { icon: ClipboardCheck, title: 'Health profile complete', body: 'We have everything we need for your visit.' },
+  { icon: Heart, title: 'Committed to your health', body: 'You took the most important step.' },
+  { icon: TrendingUp, title: 'Ready to begin', body: 'Prepared for your personalized plan.' },
+];
+
+const PREP = [
+  'Review your current medications',
+  'List your top health goals',
+  'Note any recent lab or test results',
+  'Write down questions for Dr. Shumard',
+  'Have your medical history handy',
+  'Think about lifestyle changes you want to make',
+];
+
+export default function OutcomePage() {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState(null);
-  const [progressData, setProgressData] = useState(null);
-  const [appointmentData, setAppointmentData] = useState(null);
+  const [user, setUser] = useState(null);
+  const [appt, setAppt] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const [userRes, progressRes, appointmentRes] = await Promise.all([
-        axios.get(`${API}/user/me`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/user/progress`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/user/appointment`, { headers: { Authorization: `Bearer ${token}` } }).catch(() => ({ data: { appointment: null } }))
-      ]);
-
-      setUserData(userRes.data);
-      setProgressData(progressRes.data);
-      setAppointmentData(appointmentRes.data?.appointment);
-      
-      // Redirect users who haven't completed the program (not on Step 4) back to steps
-      if (progressRes.data.current_step < 4) {
-        navigate('/steps');
-        return;
+    (async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        const h = { headers: { Authorization: `Bearer ${token}` } };
+        // Step gating lives in App.js's JourneyRoute (only step-4 users reach this page).
+        const [u, a] = await Promise.all([
+          axios.get(`${API}/user/me`, h),
+          axios.get(`${API}/user/appointment`, h).catch(() => ({ data: { appointment: null } })),
+        ]);
+        setUser(u.data);
+        setAppt(a.data?.appointment || null);
+      } catch (e) {
+        if (e.response?.status === 401) { localStorage.clear(); navigate('/login'); }
+        else toast.error('Failed to load this page', { id: 'outcome-load' });
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      if (error.response?.status === 401) {
-        localStorage.clear();
-        navigate('/login');
-      }
-      toast.error('Failed to load data');
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+  }, [navigate]);
+
+  const logout = () => { localStorage.clear(); navigate('/login'); toast.success('Logged out successfully', { id: 'logout-success' }); };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+      <div className="proto" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 999, border: '3px solid var(--brand-100)', borderTopColor: 'var(--brand-600)', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
+          <p className="proto-soft" style={{ marginTop: 14 }}>Loading...</p>
         </div>
+        <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
       </div>
     );
   }
 
-  const achievements = [
-    { icon: CheckCircle2, title: 'Consultation Booked', description: 'Scheduled your one-on-one call' },
-    { icon: Calendar, title: 'Journey Started', description: 'Took the first important step' },
-    { icon: Heart, title: 'Committed', description: 'Dedicated to better health' },
-    { icon: TrendingUp, title: 'Ready to Learn', description: 'Prepared for your wellness plan' },
-  ];
+  const firstName = (user?.name || '').trim().split(' ')[0] || 'there';
+  const sessionDate = appt?.session_date ? new Date(appt.session_date) : null;
+  const validDate = sessionDate && !Number.isNaN(sessionDate.getTime());
+  const tz = safeTimezone(appt?.timezone) || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const sessionWhen = validDate
+    ? formatInTz(sessionDate, tz, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : null;
+  const director = appt?.director_name || appt?.director || 'Dr. Shumard';
+  const durationMin = appt?.duration_minutes || appt?.duration || 30;
+  const sessionTitle = appt?.session_title || 'Strategy Session';
+  const stats = ['3/3 steps', '100% complete', appt ? 'Session booked' : 'Onboarding done'];
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ background: '#F4F3F2' }}>
-      <Confetti />
-      
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 180, 360],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{ duration: 20, repeat: Infinity }}
-          className="absolute -top-40 -left-40 w-80 h-80 rounded-full bg-teal-400 blur-3xl"
-        />
-        <motion.div
-          animate={{
-            scale: [1, 1.3, 1],
-            rotate: [360, 180, 0],
-            opacity: [0.1, 0.2, 0.1],
-          }}
-          transition={{ duration: 25, repeat: Infinity }}
-          className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full bg-cyan-400 blur-3xl"
-        />
-      </div>
-
-      {/* Header */}
-      <div className="glass-dark border-b border-gray-200 relative z-10" data-testid="outcome-header">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 flex items-center justify-center"
-              >
-                <Trophy className="text-white" size={24} />
-              </motion.div>
-              <h1 className="text-2xl font-bold text-gray-800">Congratulations!</h1>
-            </div>
-            <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" data-testid="home-button">
-              <Home size={16} />
-              Dashboard
-            </Button>
+    <div className="proto">
+      {/* Top bar */}
+      <header className="proto-topbar">
+        <div className="proto-container" style={{ height: 62, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <img src={LOGO} alt="Dr. Shumard" style={{ height: 22 }} />
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="proto-btn proto-btn--ghost proto-help-sm" style={{ padding: '8px 12px' }} aria-label="Help"
+              onClick={() => window.dispatchEvent(new Event('open-support'))}>
+              <HelpCircle size={16} />
+            </button>
+            <button className="proto-btn proto-btn--ghost" style={{ padding: '8px 12px' }} aria-label="Home" onClick={() => navigate('/dashboard')}>
+              <Home size={16} /> <span className="proto-hide-sm">Home</span>
+            </button>
+            <button className="proto-btn proto-btn--danger" style={{ padding: '8px 12px' }} aria-label="Log out" onClick={logout}>
+              <LogOut size={16} /> <span className="proto-hide-sm">Log out</span>
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-center mb-16"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="inline-block mb-6"
-          >
-            <div className="relative">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 rounded-full blur-xl opacity-50"
-              />
-              <div className="relative glass-dark rounded-full p-8 border-4 border-yellow-400">
-                <Trophy className="text-yellow-500" size={80} />
+      <main className="proto-container proto-main">
+        {/* HERO */}
+        <motion.section variants={fadeUp} initial="hidden" animate="show" className="proto-hero proto-card--pad" style={{ color: '#eaf3f6' }}>
+          <div className="flex flex-col items-center text-center md:items-start md:text-left">
+            <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, type: 'spring', stiffness: 220, damping: 16 }}
+              className="grid place-items-center rounded-full mb-5"
+              style={{ width: 76, height: 76, background: 'rgba(234,243,246,0.12)', boxShadow: '0 0 0 8px rgba(234,243,246,0.06)' }}>
+              <CheckCircle2 size={44} strokeWidth={2} color="#eaf3f6" />
+            </motion.div>
+            <span className="proto-eyebrow" style={{ color: 'var(--brand-200)' }}>Onboarding complete</span>
+            <h1 className="mt-2 font-extrabold leading-tight" style={{ fontSize: 'clamp(26px, 6vw, 38px)', color: '#fff' }}>
+              You&apos;re all set, {firstName}
+            </h1>
+            <p className="mt-3 max-w-md" style={{ color: '#cfe2e9', fontSize: 16, lineHeight: 1.55 }}>
+              Your consultation is booked and your health profile is in. Here&apos;s how to make the most of your time with Dr. Shumard.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-center md:justify-start gap-2">
+              {stats.map((s) => (
+                <span key={s} className="inline-flex items-center gap-1.5 rounded-full font-semibold"
+                  style={{ padding: '6px 12px', fontSize: 12.5, background: 'rgba(234,243,246,0.14)', color: '#eaf3f6' }}>
+                  <CheckCircle2 size={14} strokeWidth={2.4} />{s}
+                </span>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Main flow + side rail on large screens; stacks on phones/laptops */}
+        <div className="proto-cols" style={{ marginTop: 20 }}>
+        {/* Main column first in the DOM so keyboard/screen-reader order matches the
+            visual order (grid auto-placement puts the aside in the right rail). */}
+        <div className="proto-cols__main">
+        {/* What you've accomplished */}
+        <motion.section variants={fadeUp} custom={2} initial="hidden" animate="show" className="proto-card proto-card--pad">
+          <h2 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 19 }}>What you&apos;ve accomplished</h2>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+            {ACHIEVEMENTS.map((a) => {
+              const Icon = a.icon;
+              return (
+                <div key={a.title} className="flex items-start gap-3" style={{ padding: '12px 0' }}>
+                  <span className="grid place-items-center rounded-xl flex-none" style={{ width: 38, height: 38, background: 'var(--brand-100)', color: 'var(--brand-700)' }}>
+                    <Icon size={18} strokeWidth={2} />
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 15 }}>{a.title}</h3>
+                    <p className="proto-muted mt-0.5" style={{ fontSize: 13.5, lineHeight: 1.45 }}>{a.body}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        {/* Prepare for your call */}
+        <motion.section variants={fadeUp} custom={3} initial="hidden" animate="show" className="proto-card proto-card--pad">
+          <h2 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 19 }}>Prepare for your call</h2>
+          <p className="proto-muted mt-1" style={{ fontSize: 14 }}>A few things to have ready before you meet.</p>
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
+            {PREP.map((item) => (
+              <div key={item} className="flex items-center gap-2.5" style={{ padding: '9px 0' }}>
+                <CheckCircle2 size={18} strokeWidth={2} color="var(--brand-600)" className="flex-none" />
+                <span style={{ color: 'var(--brand-900)', fontSize: 14.5 }}>{item}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-5" style={{ borderTop: '1px solid var(--p-line)' }}>
+            <span className="proto-eyebrow">What comes next</span>
+            <p className="proto-muted mt-1.5 max-w-2xl" style={{ fontSize: 14, lineHeight: 1.55 }}>
+              During your consultation, Dr. Shumard will review your profile and build a personalized plan around your
+              goals — covering nutrition, lifestyle, and the right next steps for your health.
+            </p>
+          </div>
+        </motion.section>
+        </div>
+
+        <aside className="proto-cols__side">
+        {/* Booked session summary */}
+        {appt && (
+          <motion.div variants={fadeUp} custom={1} initial="hidden" animate="show" className="proto-card proto-card--pad">
+            <div className="flex items-start gap-3">
+              <span className="grid place-items-center rounded-2xl flex-none" style={{ width: 46, height: 46, background: 'var(--brand-100)', color: 'var(--brand-700)' }}>
+                <Calendar size={22} strokeWidth={2} />
+              </span>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="proto-badge proto-badge--ok">Confirmed</span>
+                  <span className="proto-muted" style={{ fontSize: 13 }}>{durationMin} min · with {director}</span>
+                </div>
+                <div className="mt-1.5 font-bold" style={{ color: 'var(--brand-900)', fontSize: 16 }}>{sessionTitle}</div>
+                {sessionWhen && <div className="mt-0.5" style={{ color: 'var(--brand-700)', fontSize: 15 }}>{sessionWhen}</div>}
+                {appt.meet_link && (
+                  <a className="proto-btn proto-btn--primary mt-3" href={appt.meet_link} target="_blank" rel="noreferrer" style={{ gap: 8 }}>
+                    <Play size={16} strokeWidth={2.4} /> Join with Google Meet
+                  </a>
+                )}
               </div>
             </div>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-5xl sm:text-6xl font-bold mb-4"
-            style={{
-              background: 'linear-gradient(135deg, #14B8A6 0%, #06B6D4 50%, #10B981 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Great Start, {userData?.name}!
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-xl text-gray-700 max-w-2xl mx-auto mb-8"
-          >
-            You've successfully completed your diabetes reversal journey onboarding! Your consultation is booked and your health profile is complete. You're all set to begin your consultation.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.8 }}
-            className="flex items-center justify-center gap-2"
-          >
-            <Sparkles className="text-green-500" size={24} />
-            <span className="text-2xl font-semibold text-gray-800">First Milestone Complete</span>
-            <Sparkles className="text-green-500" size={24} />
-          </motion.div>
-        </motion.div>
-
-        {/* Appointment Countdown - Show if appointment exists */}
-        {appointmentData && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.8 }}
-            className="mb-16 max-w-2xl mx-auto"
-          >
-            <AppointmentCountdown appointment={appointmentData} />
           </motion.div>
         )}
 
-        {/* Achievements Grid */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1, duration: 0.8 }}
-          className="mb-16"
-        >
-          <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">What You've Accomplished</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {achievements.map((achievement, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.2 + idx * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <Card className="glass-dark border-0 shadow-xl h-full overflow-hidden">
-                  <CardContent className="p-6 text-center relative">
-                    <motion.div
-                      animate={{ rotate: [0, 5, -5, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, delay: idx * 0.2 }}
-                      className="inline-block mb-4"
-                    >
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center mx-auto">
-                        <achievement.icon className="text-white" size={32} />
-                      </div>
-                    </motion.div>
-                    <h3 className="font-bold text-lg text-gray-800 mb-2">{achievement.title}</h3>
-                    <p className="text-sm text-gray-600">{achievement.description}</p>
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 1.5 + idx * 0.1, type: 'spring' }}
-                      className="absolute top-4 right-4"
-                    >
-                      <CheckCircle2 className="text-green-500" size={24} />
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+        {/* Quote (rail) */}
+        <motion.section variants={fadeUp} custom={4} initial="hidden" animate="show" className="proto-card proto-card--pad proto-card--flat" style={{ textAlign: 'center' }}>
+          <Quote size={26} color="var(--brand-300)" style={{ margin: '0 auto' }} />
+          <blockquote className="mt-3 font-bold" style={{ color: 'var(--brand-900)', fontSize: 20, lineHeight: 1.35 }}>
+            &ldquo;The greatest wealth is health.&rdquo;
+          </blockquote>
+          <p className="proto-muted mt-1.5" style={{ fontSize: 13.5 }}>— Virgil</p>
+        </motion.section>
+
+        {/* CTA (rail) */}
+        <motion.div variants={fadeUp} custom={5} initial="hidden" animate="show" className="flex justify-center">
+          <button className="proto-btn proto-btn--secondary proto-btn--block" onClick={() => navigate('/dashboard')} style={{ gap: 8 }}>
+            Back to your dashboard <ArrowRight size={17} strokeWidth={2.2} />
+          </button>
         </motion.div>
+        </aside>
+        </div>
+      </main>
 
-        {/* Journey Summary */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.6, duration: 0.8 }}
-          className="mb-16"
-        >
-          <Card className="glass-dark border-0 shadow-2xl overflow-hidden">
-            <CardContent className="p-8 sm:p-12">
-              <div className="text-center mb-8">
-                <Award className="inline-block text-teal-500 mb-4" size={48} />
-                <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready for Your Wellness Journey</h2>
-                <p className="text-gray-600 max-w-3xl mx-auto">
-                  You've completed all onboarding steps! Your consultation with Dr. Shumard is scheduled, and your health 
-                  profile is complete. You're now fully prepared to begin your personalized wellness program. Dr. Shumard 
-                  has everything he needs to guide you toward better health.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-teal-50 to-cyan-100"
-                >
-                  <div className="text-4xl font-bold text-teal-600 mb-2">3/3</div>
-                  <div className="text-sm text-gray-600">Steps Completed</div>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-green-50 to-green-100"
-                >
-                  <div className="text-4xl font-bold text-green-600 mb-2">100%</div>
-                  <div className="text-sm text-gray-600">Journey Progress</div>
-                </motion.div>
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="text-center p-6 rounded-2xl bg-gradient-to-br from-cyan-50 to-teal-100"
-                >
-                  <div className="text-4xl font-bold text-cyan-600 mb-2">✓</div>
-                  <div className="text-sm text-gray-600">All Steps Complete</div>
-                </motion.div>
-              </div>
-
-              <div className="bg-gradient-to-r from-teal-50 via-cyan-50 to-teal-50 rounded-2xl p-6 mb-8">
-                <h3 className="font-bold text-xl text-gray-800 mb-4">How to Prepare for Your Call:</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    'Review your current medications',
-                    'List your health goals',
-                    'Note recent blood sugar readings',
-                    'Write down your questions',
-                    'Prepare your medical history',
-                    'Think about lifestyle challenges',
-                    'Consider dietary preferences',
-                    'Be ready to discuss exercise habits',
-                  ].map((item, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 2 + idx * 0.1 }}
-                      className="flex items-center gap-2"
-                    >
-                      <CheckCircle2 className="text-teal-500 flex-shrink-0" size={20} />
-                      <span className="text-gray-700">{item}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="text-center">
-                <h3 className="font-bold text-xl text-gray-800 mb-3">What Comes Next?</h3>
-                <p className="text-gray-600 mb-6">
-                  During your scheduled consultation, Dr. Shumard will review your health profile and create a personalized 
-                  wellness plan tailored to your specific needs and goals. He'll guide you through diabetes management 
-                  strategies, nutrition recommendations, and lifestyle modifications to help you achieve optimal health.
-                </p>
-                <div className="flex flex-wrap justify-center gap-4">
-                  <Button
-                    onClick={() => navigate('/')}
-                    className="bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-bold px-8 py-6 rounded-xl shadow-lg"
-                  >
-                    Go to Dashboard
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/steps')}
-                    className="font-semibold px-8 py-6 rounded-xl"
-                  >
-                    View Step Details
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Motivational Quote */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 2.2 }}
-          className="text-center"
-        >
-          <Card className="glass-dark border-0 shadow-xl max-w-3xl mx-auto">
-            <CardContent className="p-8">
-              <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <Star className="inline-block text-yellow-500 mb-4" size={40} />
-              </motion.div>
-              <blockquote className="text-2xl font-semibold text-gray-800 italic mb-4">
-                "The greatest wealth is health."
-              </blockquote>
-              <p className="text-gray-600">— Virgil</p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+      <style>{'.proto-hide-sm{display:none}@media(min-width:720px){.proto-hide-sm{display:inline}}'}</style>
     </div>
   );
-};
-
-export default OutcomePage;
+}

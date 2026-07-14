@@ -40,6 +40,14 @@ const SupportPopup = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Let other UI (e.g. the navbar Help icon on mobile, where the floating button is hidden)
+  // open the support panel.
+  useEffect(() => {
+    const open = () => { setIsOpen(true); trackSupportPopupOpened(); };
+    window.addEventListener('open-support', open);
+    return () => window.removeEventListener('open-support', open);
+  }, []);
+
   // Check if Turnstile is loaded
   useEffect(() => {
     const checkTurnstile = () => {
@@ -180,21 +188,24 @@ const SupportPopup = () => {
 
   return (
     <>
-      {/* Floating Button */}
-      <motion.button
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => {
-          setIsOpen(true);
-          trackSupportPopupOpened();
-        }}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-shadow"
-        aria-label="Open support"
-      >
-        <MessageCircle size={24} />
-      </motion.button>
+      {/* Floating Button — desktop only. On mobile the navbar Help icon opens this
+          (via the 'open-support' event) so it doesn't sit in the way. */}
+      {!isMobile && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => {
+            setIsOpen(true);
+            trackSupportPopupOpened();
+          }}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-shadow"
+          aria-label="Open support"
+        >
+          <MessageCircle size={24} />
+        </motion.button>
+      )}
 
       {/* Modal */}
       <AnimatePresence>

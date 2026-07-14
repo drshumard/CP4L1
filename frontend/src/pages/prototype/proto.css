@@ -1,0 +1,318 @@
+/* ============================================================================
+   Prototype patient portal - brand-forward redesign (NON-PRODUCTION).
+   Brand palette comes from App.css (--brand-50..900). Hanken Grotesk UI.
+   Calm, premium, content-first, mobile-first. Scoped under .proto so it never
+   touches the live teal portal.
+   ============================================================================ */
+
+.proto {
+  --p-bg: #f6fafb;            /* soft brand-tinted canvas */
+  --p-surface: #ffffff;
+  --p-ink: #1d2f38;          /* primary text (near brand-900) */
+  --p-ink-soft: #56707c;     /* secondary text */
+  --p-muted: #5a7480;        /* muted / hints — WCAG AA (>=4.5:1 on white & page bg) */
+  --p-line: #e6eef2;         /* hairline */
+  --p-line-2: #d3e2e8;       /* stronger hairline */
+  --p-r: 18px;               /* card radius */
+  --p-r-sm: 12px;
+  --p-r-xs: 10px;
+  --p-shadow: 0 1px 2px rgba(31,67,82,.04), 0 10px 30px rgba(31,67,82,.06);
+  --p-shadow-lg: 0 18px 50px rgba(31,67,82,.14);
+
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--p-ink);
+  background: var(--p-bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.proto *, .proto *::before, .proto *::after { box-sizing: border-box; }
+.proto h1, .proto h2, .proto h3, .proto h4 { font-family: 'Hanken Grotesk', sans-serif; letter-spacing: -0.02em; color: var(--p-ink); margin: 0; line-height: 1.15; }
+.proto h1 { font-size: clamp(26px, 6vw, 38px); font-weight: 800; }
+.proto h2 { font-size: clamp(20px, 4.5vw, 26px); font-weight: 700; }
+.proto h3 { font-size: 17px; font-weight: 700; }
+.proto p { margin: 0; }
+.proto-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+
+/* ---- color/text helpers ---- */
+.proto-soft { color: var(--p-ink-soft); }
+.proto-muted { color: var(--p-muted); }
+.proto-brand { color: var(--brand-600); }
+.proto-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand-700); }
+
+/* ---- surfaces ---- */
+.proto-card { background: var(--p-surface); border: 1px solid var(--p-line); border-radius: var(--p-r); box-shadow: var(--p-shadow); min-width: 0; }
+.proto-card--flat { box-shadow: none; }
+.proto-card--pad { padding: 14px; }
+@media (min-width: 640px) { .proto-card--pad { padding: 26px; } }
+@media (min-width: 1440px) { .proto-card--pad { padding: 30px; } }
+
+/* A warm brand "hero" surface for primary moments */
+.proto-hero {
+  border-radius: var(--p-r);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(255,255,255,.16), transparent 55%),
+    linear-gradient(140deg, var(--brand-600), var(--brand-800));
+  color: #eaf3f6;
+}
+
+/* ---- buttons ---- */
+.proto-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-weight: 600; font-size: 15px; line-height: 1; border-radius: 12px; padding: 13px 18px; cursor: pointer; border: 1px solid transparent; transition: background-color .15s, color .15s, border-color .15s, transform .08s; white-space: nowrap; }
+.proto-btn:active { transform: translateY(1px); }
+.proto-btn:disabled { opacity: .5; cursor: not-allowed; }
+.proto-btn--primary { background: var(--brand-600); color: #fff; }
+.proto-btn--primary:hover:not(:disabled) { background: var(--brand-700); }
+.proto-btn--secondary { background: #fff; color: var(--brand-800); border-color: var(--p-line-2); }
+.proto-btn--secondary:hover:not(:disabled) { background: var(--brand-50); }
+.proto-btn--ghost { background: transparent; color: var(--brand-700); padding-left: 10px; padding-right: 10px; }
+.proto-btn--ghost:hover:not(:disabled) { background: var(--brand-50); }
+.proto-btn--danger { background: #dc2626; color: #fff; }
+.proto-btn--danger:hover:not(:disabled) { background: #b91c1c; }
+.proto-btn--onhero { background: #fff; color: var(--brand-800); }
+.proto-btn--onhero:hover:not(:disabled) { background: var(--brand-50); }
+.proto-btn--lg { padding: 15px 22px; font-size: 16px; border-radius: 14px; }
+.proto-btn--block { width: 100%; }
+
+/* ---- form controls ---- */
+.proto-input, .proto-select, .proto-textarea {
+  width: 100%; min-width: 0; box-sizing: border-box; padding: 13px 14px; font-size: 15px; font-family: inherit;
+  border: 1px solid var(--p-line-2); border-radius: 12px; background: #fff; color: var(--p-ink);
+  outline: none; transition: border-color .15s, box-shadow .15s;
+}
+.proto-input:focus, .proto-select:focus, .proto-textarea:focus { border-color: var(--brand-400); box-shadow: 0 0 0 3px var(--brand-100); }
+.proto-input::placeholder, .proto-textarea::placeholder { color: var(--p-muted); }
+.proto-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+.proto-label { display: block; font-size: 13px; font-weight: 600; color: var(--p-ink-soft); margin-bottom: 7px; }
+.proto-hint { font-size: 12.5px; color: var(--p-muted); margin-top: 6px; }
+.proto-req { color: #d1556a; }
+
+/* ---- selectable pills (dates, times, symptoms, choices) ---- */
+.proto-chip { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 11px; border: 1px solid var(--p-line-2); background: #fff; color: var(--p-ink); font-weight: 600; font-size: 14px; cursor: pointer; transition: background-color .12s, border-color .12s, color .12s; }
+.proto-chip:hover { border-color: var(--brand-300); background: var(--brand-50); }
+.proto-chip--active { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }
+/* A selected chip keeps its look on hover (avoids white text on a light hover bg). */
+.proto-chip--active:hover { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }
+.proto-chip--sm { padding: 7px 11px; font-size: 13px; border-radius: 9px; }
+
+/* date tile (calendar) */
+.proto-datetile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 11px 0; border-radius: var(--p-r-sm); border: 1px solid var(--p-line-2); background: #fff; cursor: pointer; transition: all .12s; }
+.proto-datetile:hover { border-color: var(--brand-300); background: var(--brand-50); }
+.proto-datetile--active { background: var(--brand-600); border-color: var(--brand-600); color: #fff; }
+.proto-datetile .dow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .7; }
+.proto-datetile .num { font-size: 18px; font-weight: 800; }
+
+/* ---- progress ---- */
+.proto-track { height: 9px; border-radius: 999px; background: var(--brand-100); overflow: hidden; }
+.proto-track > span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--brand-400), var(--brand-700)); transition: width .5s ease; }
+
+/* ---- badges ---- */
+.proto-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+.proto-badge--brand { background: var(--brand-100); color: var(--brand-800); }
+.proto-badge--ok { background: #e7f6ee; color: #157a4b; }
+.proto-badge--soft { background: var(--p-line); color: var(--p-ink-soft); }
+.proto-dot { width: 7px; height: 7px; border-radius: 999px; }
+
+/* ---- journey step rail ---- */
+.proto-step { display: flex; align-items: center; gap: 12px; }
+.proto-step-dot { width: 34px; height: 34px; border-radius: 999px; display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; }
+.proto-step-dot--done { background: var(--brand-600); color: #fff; }
+.proto-step-dot--current { background: #fff; color: var(--brand-700); border: 2px solid var(--brand-500); box-shadow: 0 0 0 4px var(--brand-100); }
+.proto-step-dot--todo { background: var(--p-line); color: var(--p-muted); }
+
+/* ---- segmented control ---- */
+.proto-seg { display: inline-flex; padding: 4px; background: var(--brand-50); border: 1px solid var(--p-line); border-radius: 12px; gap: 4px; }
+.proto-seg button { border: 0; background: transparent; padding: 8px 14px; border-radius: 9px; font-weight: 600; font-size: 14px; color: var(--p-ink-soft); cursor: pointer; font-family: inherit; }
+.proto-seg button.is-active { background: #fff; color: var(--brand-800); box-shadow: var(--p-shadow); }
+
+/* ---- layout shell ---- */
+.proto-topbar { position: sticky; top: 0; z-index: 30; background: rgba(255,255,255,.82); backdrop-filter: saturate(140%) blur(12px); border-bottom: 1px solid var(--p-line); }
+/* The container scales with the display: comfortable on a 13" laptop, generous on a 27"
+   monitor — pages then split into columns (.proto-cols / .proto-book-shell) so the extra
+   width is used, not just stretched. */
+.proto-container { width: 100%; max-width: 1080px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+@media (max-width: 639px) { .proto-container { padding-left: 12px; padding-right: 12px; } }
+@media (min-width: 1200px) { .proto-container { max-width: 1180px; padding-left: 24px; padding-right: 24px; } }
+@media (min-width: 1440px) { .proto-container { max-width: 1340px; } }
+@media (min-width: 1800px) { .proto-container { max-width: 1480px; } }
+/* Forms keep a reading-friendly measure even on huge displays. */
+.proto-container--form { max-width: 1080px; }
+@media (min-width: 1440px) { .proto-container--form { max-width: 1140px; } }
+/* overflow-x: clip keeps any wide child (signature pad, long content) from causing a
+   horizontal scroll on mobile — which otherwise makes cards spill past the page and the
+   sticky topbar appear cut off. */
+.proto-main { padding-top: 22px; padding-bottom: 40px; overflow-x: clip; }
+@media (min-width: 900px) { .proto-main { padding-bottom: 56px; } }
+@media (min-width: 1200px) { .proto-main { padding-top: 28px; } }
+
+/* Two-column page shell for large screens: a main flow + a sticky side rail. Stacks in
+   source order below 1200px so phones/laptops keep today's single column. */
+.proto-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.proto-cols__main, .proto-cols__side { display: grid; gap: 18px; align-content: start; min-width: 0; }
+@media (min-width: 1200px) {
+  .proto-cols { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; }
+  .proto-cols__side { position: sticky; top: 84px; }
+}
+
+/* Booking on large screens: Calendly-style sticky summary rail + the picker stage. */
+.proto-book-shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.proto-book-aside { display: none; }
+.proto-book-headmob { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+@media (min-width: 1200px) {
+  .proto-book-shell { grid-template-columns: 360px minmax(0, 1fr); gap: 24px; }
+  .proto-book-aside { display: block; position: sticky; top: 84px; min-width: 0; }
+  .proto-book-headmob { display: none; }
+}
+/* Date / time pickers: auto-fill grids that grow tile size with the screen. */
+.proto-dategrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 10px; }
+.proto-timegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 10px; }
+@media (min-width: 1200px) {
+  .proto-dategrid { grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 12px; }
+  .proto-timegrid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+}
+
+/* A group of form cards sitting on a tinted "background card" (the health-profile parts).
+   min-width:0 lets the inner cards shrink instead of spilling out on narrow screens. */
+.proto-formgroup { display: grid; gap: 10px; min-width: 0; background: var(--brand-50); border: 1px solid var(--p-line); border-radius: var(--p-r); padding: 6px; }
+.proto-formgroup > * { min-width: 0; }
+@media (min-width: 640px) { .proto-formgroup { gap: 13px; padding: 13px; } }
+
+/* Help entry shown only on mobile (where the floating chat is hidden). */
+.proto-help-sm { display: inline-flex; }
+@media (min-width: 768px) { .proto-help-sm { display: none; } }
+
+/* desktop top nav links */
+.proto-navlink { font-size: 14.5px; font-weight: 600; color: var(--p-ink-soft); padding: 8px 12px; border-radius: 9px; }
+.proto-navlink:hover { background: var(--brand-50); color: var(--brand-800); }
+.proto-navlink.is-active { background: var(--brand-50); color: var(--brand-800); }
+
+/* mobile bottom nav */
+.proto-bottomnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: flex; background: rgba(255,255,255,.94); backdrop-filter: saturate(140%) blur(12px); border-top: 1px solid var(--p-line); }
+.proto-bottomnav a { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 0 calc(10px + env(safe-area-inset-bottom)); font-size: 11px; font-weight: 600; color: var(--p-muted); text-decoration: none; }
+.proto-bottomnav a.is-active { color: var(--brand-700); }
+.proto-bottomnav a.is-active .proto-navicon { background: var(--brand-100); }
+.proto-navicon { width: 38px; height: 28px; border-radius: 999px; display: grid; place-items: center; transition: background-color .15s; }
+
+/* Form action row — sits at the end of the form (not stuck to the viewport). */
+.proto-actionbar { padding: 20px 0 4px; }
+
+/* misc */
+.proto-divider { height: 1px; background: var(--p-line); border: 0; }
+.proto-skeleton { background: linear-gradient(90deg, var(--p-line) 25%, #eef4f6 37%, var(--p-line) 63%); background-size: 400% 100%; border-radius: 8px; }
+
+/* Booking page - slightly larger, easier-to-read type (older audience) + roomier controls. */
+.proto-book h1 { font-size: clamp(30px, 6vw, 40px); }
+.proto-book h2 { font-size: clamp(22px, 4.6vw, 28px); }
+.proto-book .proto-datetile { padding: 15px 0; }
+.proto-book .proto-datetile .num { font-size: 21px; }
+.proto-book .proto-datetile .dow { font-size: 12px; }
+.proto-book .proto-chip { font-size: 16px; padding: 14px 16px; }
+.proto-book .proto-chip--sm { font-size: 14.5px; padding: 9px 13px; }
+.proto-book .proto-input, .proto-book .proto-select, .proto-book .proto-textarea { font-size: 16px; padding: 12px 14px; }
+.proto-book .proto-label { font-size: 14px; }
+.proto-book .proto-book-sub { font-size: 16.5px; }
+.proto-book .proto-book-avail { font-size: 15.5px; }
+/* Branded checkbox row (intake: review of symptoms / recent tests). */
+.proto-check { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 16px; color: var(--p-ink); line-height: 1.35; padding: 5px 0; }
+.proto-check input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--brand-600); flex: none; cursor: pointer; margin: 0; }
+.proto-check:hover { color: var(--brand-800); }
+
+/* ProtoSelect — custom dropdown (real listbox; native <select> popups can't be themed). */
+.proto-select2 { position: relative; }
+.proto-select2-trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; text-align: left; cursor: pointer; }
+.proto-select2-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.proto-select2-ph { color: var(--p-muted); }
+.proto-menu {
+  background: #fff; border: 1px solid var(--p-line-2); border-radius: 12px;
+  box-shadow: var(--p-shadow-lg); padding: 5px; z-index: 80; max-height: 300px; overflow-y: auto;
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.proto-menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 12px; border-radius: 9px; font-size: 15px; color: var(--p-ink); cursor: pointer; user-select: none;
+}
+.proto-menu-item.is-active { background: var(--brand-50); }
+.proto-menu-item.is-selected { color: var(--brand-800); font-weight: 600; }
+/* ---- Address autocomplete: input + hint + a decoupled, branded suggestions card ---- */
+.proto-addr-field { position: relative; }
+.proto-addr-inputwrap { position: relative; }
+.proto-addr-input { padding-right: 42px; }
+.proto-addr-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; color: var(--p-muted); pointer-events: none; }
+.proto-addr-hint { display: flex; align-items: center; gap: 6px; margin: 7px 0 0; font-size: 13px; line-height: 1.4; color: var(--p-muted); }
+.proto-addr-hint__ico { flex: none; }
+/* In-flow card directly below the field — never floating, so it can't cover the input. */
+.proto-addr-menu {
+  margin-top: 8px; width: 100%;
+  background: #fff; border: 1px solid #b7c7cf; border-radius: 14px;
+  box-shadow: var(--p-shadow-lg); overflow: hidden;
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.proto-addr-menu__head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; }
+.proto-addr-menu__title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--p-muted); }
+.proto-addr-menu__close { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--p-muted); cursor: pointer; transition: background-color .12s, color .12s; }
+.proto-addr-menu__close:hover { background: var(--p-line); color: var(--p-ink); }
+.proto-addr-menu__list { max-height: 280px; overflow-y: auto; padding: 2px 8px 8px; }
+.proto-addr-item { display: block; width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer; padding: 11px 12px; border-radius: 10px; font-size: 15px; line-height: 1.45; color: var(--p-muted); font-family: inherit; }
+.proto-addr-item:hover, .proto-addr-item.is-active { background: var(--brand-50); }
+.proto-addr-item__main { color: var(--p-ink); font-weight: 700; }
+.proto-addr-item__sec { color: var(--p-muted); font-weight: 400; }
+.proto-addr-menu__credit { padding: 10px 16px; background: var(--p-bg); border-top: 1px solid var(--p-line); font-size: 11.5px; color: var(--p-muted); }
+
+/* ---- Geist-style spokes spinner (booking-complete redirect) ---- */
+.proto-spinner { display: inline-block; position: relative; width: var(--proto-spinner-size, 28px); height: var(--proto-spinner-size, 28px); color: var(--brand-600); }
+.proto-spinner span { position: absolute; top: 0; left: calc(50% - var(--proto-spinner-size, 28px) * 0.04); width: calc(var(--proto-spinner-size, 28px) * 0.08); height: calc(var(--proto-spinner-size, 28px) * 0.27); border-radius: 999px; background: currentColor; transform-origin: 50% calc(var(--proto-spinner-size, 28px) / 2); animation: proto-spinner-fade 1s linear infinite; }
+.proto-spinner span:nth-child(1)  { transform: rotate(0deg);   animation-delay: -0.9166s; }
+.proto-spinner span:nth-child(2)  { transform: rotate(30deg);  animation-delay: -0.8333s; }
+.proto-spinner span:nth-child(3)  { transform: rotate(60deg);  animation-delay: -0.7500s; }
+.proto-spinner span:nth-child(4)  { transform: rotate(90deg);  animation-delay: -0.6666s; }
+.proto-spinner span:nth-child(5)  { transform: rotate(120deg); animation-delay: -0.5833s; }
+.proto-spinner span:nth-child(6)  { transform: rotate(150deg); animation-delay: -0.5000s; }
+.proto-spinner span:nth-child(7)  { transform: rotate(180deg); animation-delay: -0.4166s; }
+.proto-spinner span:nth-child(8)  { transform: rotate(210deg); animation-delay: -0.3333s; }
+.proto-spinner span:nth-child(9)  { transform: rotate(240deg); animation-delay: -0.2500s; }
+.proto-spinner span:nth-child(10) { transform: rotate(270deg); animation-delay: -0.1666s; }
+.proto-spinner span:nth-child(11) { transform: rotate(300deg); animation-delay: -0.0833s; }
+.proto-spinner span:nth-child(12) { transform: rotate(330deg); animation-delay: 0s; }
+@keyframes proto-spinner-fade { 0% { opacity: 1; } 100% { opacity: 0.15; } }
+/* comfortable on mobile, larger on web */
+.proto-spinner--redirect { --proto-spinner-size: 30px; }
+@media (min-width: 640px) { .proto-spinner--redirect { --proto-spinner-size: 38px; } }
+
+/* Field-highlight pulse when "Fix" jumps to a missing field. */
+.proto-flash { animation: proto-flash 2.4s ease; border-radius: var(--p-r-sm); }
+@keyframes proto-flash { 0%, 55% { box-shadow: 0 0 0 3px var(--brand-300); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+
+/* Validation modal (intake "fix the missing fields"). */
+.proto-modal-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(29,47,56,.40); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.proto-modal { width: 100%; max-width: 460px; max-height: 82vh; overflow-y: auto; padding: 22px; }
+.proto-modal-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--p-line); }
+.proto-modal-row:first-child { border-top: 0; }
+
+/* Geist-style modal: bordered card, title/subtitle header, full-width action footer. */
+.geist-modal { width: 100%; max-width: 420px; background: #fff; border: 1px solid var(--p-line-2); border-radius: 12px; box-shadow: var(--p-shadow-lg); overflow: hidden; }
+.geist-modal-body { padding: 22px 22px 20px; }
+.geist-modal-title { font-size: 19px; font-weight: 600; color: var(--p-ink); line-height: 1.3; }
+.geist-modal .geist-modal-subtitle { font-size: 14px; color: var(--p-ink-soft); margin-top: 14px; line-height: 1.55; }
+.geist-modal-actions { display: flex; border-top: 1px solid var(--p-line-2); }
+.geist-modal-action { flex: 1; padding: 14px 16px; font-size: 14px; font-weight: 500; background: #fff; border: 0; cursor: pointer; color: var(--p-ink); transition: background .12s ease; }
+.geist-modal-action:hover:not(:disabled) { background: #f6f6f7; }
+.geist-modal-action + .geist-modal-action { border-left: 1px solid var(--p-line-2); }
+.geist-modal-action--danger { color: #fff; background: #dc2626; }
+.geist-modal-action--danger:hover:not(:disabled) { background: #b91c1c; }
+
+/* --- override the app's GLOBAL teal input-focus + react-datepicker styles, inside the brand scope --- */
+.proto .proto-input:focus, .proto .proto-textarea:focus {
+  border-color: var(--brand-400) !important;
+  box-shadow: 0 0 0 3px var(--brand-100) !important;
+}
+.proto .react-datepicker { border: 1px solid var(--p-line-2) !important; border-radius: 12px !important; box-shadow: var(--p-shadow-lg) !important; overflow: hidden; }
+.proto .react-datepicker__header { background: var(--brand-50) !important; border-bottom: 1px solid var(--p-line) !important; }
+.proto .react-datepicker__current-month, .proto .react-datepicker__day-name { color: var(--p-ink-soft) !important; }
+.proto .react-datepicker__day--selected, .proto .react-datepicker__day--keyboard-selected,
+.proto .react-datepicker__day--in-selecting-range, .proto .react-datepicker__day--in-range {
+  background: var(--brand-600) !important; color: #fff !important;
+}
+.proto .react-datepicker__day--range-start, .proto .react-datepicker__day--range-end { background: var(--brand-700) !important; }
+.proto .react-datepicker__day:hover { background-color: var(--brand-100) !important; }
+.proto .react-datepicker__navigation:hover *::before { border-color: var(--brand-600) !important; }
+.proto .react-datepicker__month-option--selected, .proto .react-datepicker__year-option--selected { background: var(--brand-600) !important; }
+
+.proto-select { -webkit-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2356707c' stroke-width='2.2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 38px; cursor: pointer; }
