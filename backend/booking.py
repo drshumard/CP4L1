@@ -740,10 +740,14 @@ async def _book_local_sidecar(booking: dict, request: "BookSessionRequest", dire
                               meet_link: Optional[str], shared_pb_id: str, pb_service_id: str,
                               pb_service: PracticeBetterService, correlation_id: str) -> None:
     """Best-effort post-booking work that must NOT hold up the patient response: add the day's
-    coordinator to the call, then mirror the session into the shared PB account. Runs in the
-    background — PB can be slow/rate-limited, and the booking (Google event + Meet link) is
-    already confirmed and durable before this starts."""
+    coordinator to the call, mirror the session into the shared PB account, THEN send the
+    confirmation email. Runs in the background — PB can be slow/rate-limited, and the booking
+    (Google event + Meet link) is already confirmed and durable before this starts. The email is
+    sent last, on purpose, so its 'Activate my account' link can be the per-patient PB deep link
+    (built from the record id the mirror just created); it falls back to the generic PB login only
+    when the mirror is skipped or fails."""
     booking_id = booking["booking_id"]
+    pb_record_id = None
 
     # Coordinator on the rota for this day/director -> add to the call's Google event.
     try:
@@ -751,45 +755,48 @@ async def _book_local_sidecar(booking: dict, request: "BookSessionRequest", dire
     except Exception as e:
         logger.warning(f"[{correlation_id}] PCC add failed (booking still valid): {e}")
 
-    if not shared_pb_id:
-        logger.info(f"[{correlation_id}] shared_pb_consultant_id not configured; skipping PB mirror")
-        return
-
-    pb_record_id = None
-    pb_session_id = None
-    pb_status = "pending"
-    try:
-        pb_record_id, _ = await pb_service.get_or_create_client(
-            ClientProfile(first_name=request.first_name, last_name=request.last_name,
-                          email=request.email, phone=request.phone, timezone=request.timezone),
-            correlation_id=correlation_id,
-        )
-        note_parts = []
-        if request.notes:
-            note_parts.append(request.notes)
-        if meet_link:
-            note_parts.append(f"Google Meet: {meet_link}")
-        session = await pb_service.book_session(
-            client_record_id=pb_record_id, consultant_id=shared_pb_id,
-            session_date=request.slot_start_time, timezone=request.timezone,
-            notes="\n\n".join(note_parts) or None, correlation_id=correlation_id,
-            include_telehealth=False, notify=False, service_id=(pb_service_id or None),
-            duration_seconds=int(booking.get("duration_minutes") or 30) * 60,
-        )
-        pb_session_id = session.get("id")
-        pb_status = "synced"
-    except Exception as e:
-        logger.warning(f"[{correlation_id}] PB mirror failed (booking still valid): {e}")
+    if shared_pb_id:
+        pb_session_id = None
         pb_status = "pending"
+        try:
+            pb_record_id, _ = await pb_service.get_or_create_client(
+                ClientProfile(first_name=request.first_name, last_name=request.last_name,
+                              email=request.email, phone=request.phone, timezone=request.timezone),
+                correlation_id=correlation_id,
+            )
+            note_parts = []
+            if request.notes:
+                note_parts.append(request.notes)
+            if meet_link:
+                note_parts.append(f"Google Meet: {meet_link}")
+            session = await pb_service.book_session(
+                client_record_id=pb_record_id, consultant_id=shared_pb_id,
+                session_date=request.slot_start_time, timezone=request.timezone,
+                notes="\n\n".join(note_parts) or None, correlation_id=correlation_id,
+                include_telehealth=False, notify=False, service_id=(pb_service_id or None),
+                duration_seconds=int(booking.get("duration_minutes") or 30) * 60,
+            )
+            pb_session_id = session.get("id")
+            pb_status = "synced"
+        except Exception as e:
+            logger.warning(f"[{correlation_id}] PB mirror failed (booking still valid): {e}")
+            pb_status = "pending"
 
-    try:
-        await db.bookings.update_one(
-            {"booking_id": booking_id},
-            {"$set": {"pb_client_record_id": pb_record_id, "pb_session_id": pb_session_id,
-                      "pb_status": pb_status, "updated_at": _now_iso()}})
-    except Exception as e:
-        logger.warning(f"[{correlation_id}] PB status write failed: {e}")
-    logger.info(f"[{correlation_id}] PB mirror finished for {booking_id}: pb_status={pb_status}")
+        try:
+            await db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": {"pb_client_record_id": pb_record_id, "pb_session_id": pb_session_id,
+                          "pb_status": pb_status, "updated_at": _now_iso()}})
+        except Exception as e:
+            logger.warning(f"[{correlation_id}] PB status write failed: {e}")
+        logger.info(f"[{correlation_id}] PB mirror finished for {booking_id}: pb_status={pb_status}")
+    else:
+        logger.info(f"[{correlation_id}] shared_pb_consultant_id not configured; skipping PB mirror")
+
+    # Confirmation email LAST (exactly once) — after the mirror, so pb_record_id yields the
+    # per-patient 'Activate my account' deep link; None (skipped/failed) uses the generic PB login.
+    await _send_confirmation_once(booking, request, booking.get("session_title") or "",
+                                  meet_link, pb_record_id, correlation_id)
 
 
 async def _book_local(request: "BookSessionRequest", authorization: Optional[str],
@@ -867,16 +874,9 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
     #    synchronous so the portal reflects the booking on the next call).
     await _advance_journey_and_mirror_local(booking, request, jwt_user_id, correlation_id)
 
-    # 4. Confirmation email (exactly once). Include the patient's PB record id when we already have
-    #    one (from the client sync) so the "Activate my account" link is the per-patient deep link;
-    #    a brand-new PB client (record id created later by the background mirror) falls back to the
-    #    generic PB login. We don't hold the email for PB either way.
-    _puser = await db.users.find_one({"id": jwt_user_id}, {"_id": 0, "pb_client_record_id": 1})
-    await _send_confirmation_once(booking, request, session_title, meet_link,
-                                  (_puser or {}).get("pb_client_record_id"), correlation_id)
-
-    # 5. Coordinator add + Practice Better mirror run in the BACKGROUND so the patient isn't held
-    #    on a slow or rate-limited PB call. pb_status stays "pending" until the mirror patches it.
+    # 4. Coordinator add, the Practice Better mirror, AND the confirmation email all run in the
+    #    BACKGROUND sidecar so the patient isn't held on a slow/rate-limited PB call. The email is
+    #    sent LAST (after the mirror) so its "Activate my account" link is the per-patient deep link.
     _spawn_bg(_book_local_sidecar(booking, request, director_tz, meet_link,
                                   effective_pb_id, pb_service_id, pb_service, correlation_id))
 
