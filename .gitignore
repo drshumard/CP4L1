@@ -436,3 +436,6 @@ frontend/node_modules/.cache/default-development/18.pack
 *.env
 *.env.*
 client_cache.db
+
+# Railway CLI link dirs
+.railway/
