@@ -40,7 +40,7 @@ export function ConfirmRoot() {
   const danger = state.danger !== false;
 
   return (
-    <div className="admin-shell fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="admin-shell pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={() => close(false)} />
       <div
         className="relative bg-white w-full max-w-sm"
