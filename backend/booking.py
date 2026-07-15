@@ -1589,6 +1589,7 @@ async def create_manual_booking(*, session_id: str, director_id: str, slot_start
             timezone=director_tz, attendee_email=(patient.get("email") or None),
             director_email=director_email,
             request_id=f"cadence-{booking_id}",
+            subject=booking.get("gcal_subject"),
         )
     except Exception as e:
         logger.error(f"[{correlation_id}] Manual booking Google event failed: {e}; cancelling {booking_id}")
@@ -1699,7 +1700,8 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
 
     if booking.get("gcal_event_id") and booking.get("gcal_calendar_id"):
         try:
-            await gcal.delete_event(calendar_id=booking["gcal_calendar_id"], event_id=booking["gcal_event_id"])
+            await gcal.delete_event(calendar_id=booking["gcal_calendar_id"], event_id=booking["gcal_event_id"],
+                                    subject=booking.get("gcal_subject"))
         except Exception as e:
             logger.warning(f"[{correlation_id}] Google event delete failed (continuing): {e}")
 
@@ -1935,6 +1937,7 @@ async def _reschedule_booking(booking: dict, new_start_iso: str,
             await gcal.update_event_time(
                 calendar_id=old_calendar_id, event_id=old_event_id,
                 start_utc=new_start, end_utc=new_end, timezone=new_director_tz,
+                subject=booking.get("gcal_subject"),
             )
         except Exception as e:
             logger.warning(f"[{correlation_id}] Google reschedule failed (continuing): {e}")

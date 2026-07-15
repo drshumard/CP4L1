@@ -109,8 +109,11 @@ async def assign_and_hold(
             "patient_timezone": patient_timezone,
             "patient": {k: patient.get(k) for k in ("first_name", "last_name", "email", "phone")},
             # Fall back to the host's email (their PRIMARY calendar) when no group calendar is set —
-            # a PCC/HC/VA without a dedicated calendar hosts on their own email calendar.
+            # a PCC/HC/VA without a dedicated calendar hosts on their own email calendar. In that case
+            # gcal_subject impersonates them so the event lands on their calendar as themselves (no
+            # sharing needed); group-calendar hosts use the default shared subject (None).
             "gcal_calendar_id": director.get("google_calendar_id") or director.get("email"),
+            "gcal_subject": None if director.get("google_calendar_id") else director.get("email"),
             "gcal_event_id": None,
             "gcal_status": "pending",
             "meet_link": None,

@@ -57,10 +57,12 @@ def is_configured() -> bool:
     return os.path.exists(_key_path())
 
 
-def _service():
-    """Build a Calendar v3 client. Blocking — call via asyncio.to_thread."""
+def _service(subject: Optional[str] = None):
+    """Build a Calendar v3 client. Blocking — call via asyncio.to_thread. ``subject`` overrides the
+    impersonated Workspace user (used to host on a host's OWN primary calendar); defaults to the
+    shared subject that manages the group calendars."""
     creds = service_account.Credentials.from_service_account_file(
-        _key_path(), scopes=SCOPES, subject=_subject_email()
+        _key_path(), scopes=SCOPES, subject=(subject or _subject_email())
     )
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
@@ -169,19 +171,19 @@ async def is_busy(*, calendar_id: Optional[str], start_iso: str, end_iso: str) -
 MEET_API = "https://meet.googleapis.com"
 
 
-def _meet_session() -> AuthorizedSession:
+def _meet_session(subject: Optional[str] = None) -> AuthorizedSession:
     creds = service_account.Credentials.from_service_account_file(
-        _key_path(), scopes=MEET_SCOPES, subject=_subject_email()
+        _key_path(), scopes=MEET_SCOPES, subject=(subject or _subject_email())
     )
     return AuthorizedSession(creds)
 
 
 def _sync_create_event_with_meet(calendar_id, summary, description, start_iso, end_iso, tz,
-                                 attendee_email, director_email, request_id):
+                                 attendee_email, director_email, request_id, subject=None):
     # 1) Meet space via the Meet API — app-created, so it's configurable + member-manageable
     #    (Calendar-minted conferences 403 on member management). Owner = the impersonated
     #    subject, so recordings land in their Drive.
-    meet = _meet_session()
+    meet = _meet_session(subject)
     resp = meet.post(f"{MEET_API}/v2/spaces", json={"config": {
         "moderation": "ON",
         "artifactConfig": {"recordingConfig": {"autoRecordingGeneration": "ON"}},
@@ -227,7 +229,7 @@ def _sync_create_event_with_meet(calendar_id, summary, description, start_iso, e
         body["attendees"] = attendees
 
     event = (
-        _service().events()
+        _service(subject).events()
         .insert(calendarId=calendar_id, body=body, conferenceDataVersion=1, sendUpdates="none")
         .execute()
     )
@@ -245,6 +247,7 @@ async def create_event_with_meet(
     attendee_email: Optional[str] = None,
     director_email: Optional[str] = None,
     request_id: Optional[str] = None,
+    subject: Optional[str] = None,
 ) -> tuple[str, Optional[str]]:
     """Create a Meet space (Host Management ON, auto-recording ON) + a calendar event with it
     attached; return (event_id, meet_link). Raises on failure (the caller compensates by
@@ -257,7 +260,7 @@ async def create_event_with_meet(
     return await asyncio.to_thread(
         _sync_create_event_with_meet,
         calendar_id, summary, description, start_utc.isoformat(), end_utc.isoformat(),
-        timezone, attendee_email, director_email, req_id,
+        timezone, attendee_email, director_email, req_id, subject,
     )
 
 
@@ -306,8 +309,8 @@ async def add_meet_cohost(*, meet_link: Optional[str], email: Optional[str]) -> 
 
 # --------------------------------------------------------------------------- update / delete
 
-def _sync_update_event_time(calendar_id, event_id, start_iso, end_iso, tz):
-    service = _service()
+def _sync_update_event_time(calendar_id, event_id, start_iso, end_iso, tz, subject=None):
+    service = _service(subject)
     body = {"start": {"dateTime": start_iso, "timeZone": tz}, "end": {"dateTime": end_iso, "timeZone": tz}}
     event = (
         service.events()
@@ -317,15 +320,16 @@ def _sync_update_event_time(calendar_id, event_id, start_iso, end_iso, tz):
     return event.get("id"), _extract_meet_url(event)
 
 
-async def update_event_time(*, calendar_id, event_id, start_utc, end_utc, timezone) -> tuple[str, Optional[str]]:
-    """Move an existing event; Meet link is preserved. Returns (event_id, meet_link)."""
+async def update_event_time(*, calendar_id, event_id, start_utc, end_utc, timezone, subject: Optional[str] = None) -> tuple[str, Optional[str]]:
+    """Move an existing event; Meet link is preserved. Returns (event_id, meet_link). ``subject``
+    impersonates the event's owner (a host on their own primary calendar)."""
     return await asyncio.to_thread(
-        _sync_update_event_time, calendar_id, event_id, start_utc.isoformat(), end_utc.isoformat(), timezone
+        _sync_update_event_time, calendar_id, event_id, start_utc.isoformat(), end_utc.isoformat(), timezone, subject
     )
 
 
-def _sync_delete_event(calendar_id, event_id):
-    service = _service()
+def _sync_delete_event(calendar_id, event_id, subject=None):
+    service = _service(subject)
     try:
         service.events().delete(calendarId=calendar_id, eventId=event_id, sendUpdates="none").execute()
     except HttpError as e:
@@ -336,8 +340,8 @@ def _sync_delete_event(calendar_id, event_id):
         raise
 
 
-async def delete_event(*, calendar_id, event_id) -> None:
-    await asyncio.to_thread(_sync_delete_event, calendar_id, event_id)
+async def delete_event(*, calendar_id, event_id, subject: Optional[str] = None) -> None:
+    await asyncio.to_thread(_sync_delete_event, calendar_id, event_id, subject)
 
 
 # --------------------------------------------------------------------------- attendees
