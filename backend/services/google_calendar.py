@@ -74,6 +74,96 @@ def _extract_meet_url(event: dict) -> Optional[str]:
     return None
 
 
+# --------------------------------------------------------------------------- busy (read)
+#
+# Busy time is derived from the EVENTS API, not freebusy.query: free/busy returns only opaque
+# intervals with no titles, and we must NEVER treat an event titled "Availability" as busy (it is a
+# director's availability marker) even if it's mis-marked opaque. So we read events and classify
+# each — busy iff confirmed, marked busy (opaque), and not an "Availability" marker. events.list
+# works with the calendar.events scope, so no extra free/busy scope is needed.
+
+READ_SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+
+
+def _busy_service():
+    creds = service_account.Credentials.from_service_account_file(
+        _key_path(), scopes=READ_SCOPES, subject=_subject_email()
+    )
+    return build("calendar", "v3", credentials=creds, cache_discovery=False)
+
+
+def _event_is_busy(ev: dict) -> bool:
+    """True if the event actually occupies the director: confirmed, marked busy (opaque), and NOT
+    an "Availability" marker. Availability blocks never count as busy, whatever their transparency."""
+    if ev.get("status") == "cancelled":
+        return False
+    if ev.get("transparency") == "transparent":          # owner explicitly marked it "free"
+        return False
+    if (ev.get("summary") or "").strip().lower() == "availability":
+        return False
+    return True
+
+
+def _event_interval(ev: dict):
+    """(start_iso, end_iso) for a timed event; None for all-day/date-only events (ignored, so a
+    single all-day 'busy' event can't wipe out a whole day of bookable slots)."""
+    start = (ev.get("start") or {}).get("dateTime")
+    end = (ev.get("end") or {}).get("dateTime")
+    return (start, end) if (start and end) else None
+
+
+def _sync_list_busy(calendar_id, time_min_iso, time_max_iso):
+    svc = _busy_service()
+    out, page = [], None
+    while True:
+        resp = svc.events().list(
+            calendarId=calendar_id, timeMin=time_min_iso, timeMax=time_max_iso,
+            singleEvents=True, orderBy="startTime", maxResults=250, pageToken=page,
+        ).execute()
+        for ev in resp.get("items", []):
+            if _event_is_busy(ev):
+                iv = _event_interval(ev)
+                if iv:
+                    out.append(iv)
+        page = resp.get("nextPageToken")
+        if not page:
+            break
+    return out
+
+
+async def get_busy_intervals(*, calendar_ids, time_min_iso, time_max_iso) -> dict:
+    """Busy intervals per calendar from the events API, honoring transparency + the "Availability"
+    exclusion. Returns {calendar_id: {"errors": <str|None>, "busy": [(start_iso, end_iso), ...]}}.
+    Intervals are per-event (unmerged — the availability engine subtracts overlaps fine); all-day
+    events are ignored. One events.list per calendar (paginated); a bad calendar => its "errors"."""
+    out = {}
+    for cal in [c for c in (calendar_ids or []) if c]:
+        try:
+            out[cal] = {"errors": None,
+                        "busy": await asyncio.to_thread(_sync_list_busy, cal, time_min_iso, time_max_iso)}
+        except Exception as e:
+            out[cal] = {"errors": str(e), "busy": []}
+    return out
+
+
+async def is_busy(*, calendar_id: Optional[str], start_iso: str, end_iso: str) -> Optional[bool]:
+    """Live guard for the commit path: True if a real busy event (not transparent, not an
+    "Availability" marker) overlaps [start, end); False if clear; None if the check couldn't run
+    (caller should FAIL-OPEN so a Google outage can't halt bookings). One events.list for the slot."""
+    if not calendar_id:
+        return None
+    try:
+        res = await get_busy_intervals(calendar_ids=[calendar_id], time_min_iso=start_iso, time_max_iso=end_iso)
+        info = res.get(calendar_id) or {}
+        if info.get("errors"):
+            logger.warning("busy check: calendar %s error %s", calendar_id, info["errors"])
+            return None
+        return len(info.get("busy") or []) > 0
+    except Exception as e:
+        logger.warning("busy check failed for %s (%s) — failing open", calendar_id, e)
+        return None
+
+
 # --------------------------------------------------------------------------- create
 
 MEET_API = "https://meet.googleapis.com"

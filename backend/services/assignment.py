@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 from pymongo.errors import DuplicateKeyError
 
 from services import availability as availability_engine
+from services import google_calendar as gcal
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +58,16 @@ async def assign_and_hold(
     the caller after Google/PB steps). Raises SlotFull if nothing can be held.
     """
     if forced_director_id:
-        # Admin override: book the chosen director even outside the normal free check;
-        # the unique index still prevents an actual double-book.
+        # Admin override: book the chosen host even outside the normal free check; the unique index
+        # still prevents an actual double-book. HC/VA are directors (role field); a PCC host lives in
+        # the pccs collection, so normalize it to a director-shaped doc for the same hold path.
         director = await db.directors.find_one({"director_id": forced_director_id}, {"_id": 0})
         if not director:
-            raise SlotFull("forced director not found")
+            pcc = await db.pccs.find_one({"pcc_id": forced_director_id}, {"_id": 0})
+            if not pcc:
+                raise SlotFull("forced host not found")
+            director = {"director_id": forced_director_id, "name": pcc.get("name"),
+                        "email": pcc.get("email"), "google_calendar_id": pcc.get("google_calendar_id")}
         order = [director]
     else:
         eligible = await availability_engine.directors_free_at(db, slot_start_utc)
@@ -75,6 +81,22 @@ async def assign_and_hold(
 
     now_iso = datetime.now(timezone.utc).isoformat()
     for director in order:
+        # Live calendar busy guard. The periodic sweep that mirrors Google busy time into
+        # director.calendar_busy can be up to a few hours stale, so before actually holding
+        # a director we re-check their real calendar for this exact slot (same rules: opaque,
+        # non-"Availability" events only). Fail-OPEN: is_busy returns None on any error/timeout,
+        # and we only skip on an explicit True — a Google outage must never halt bookings.
+        # Skipped for a forced (admin-chosen) director.
+        if not forced_director_id and director.get("google_calendar_id"):
+            busy = await gcal.is_busy(
+                calendar_id=director["google_calendar_id"],
+                start_iso=slot_start_utc.isoformat(),
+                end_iso=slot_end_utc.isoformat(),
+            )
+            if busy is True:
+                logger.info("Director %s busy on Google calendar at %s; trying next",
+                            director["director_id"], slot_start_utc)
+                continue
         booking_id = str(uuid.uuid4())
         doc = {
             "booking_id": booking_id,

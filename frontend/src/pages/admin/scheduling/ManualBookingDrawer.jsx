@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
   Command, CommandEmpty, CommandInput, CommandItem, CommandList,
@@ -80,6 +80,7 @@ function PatientCombobox({ email, onSelect }) {
 export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
   const [sessions, setSessions] = useState([]);
   const [directors, setDirectors] = useState([]);
+  const [pccs, setPccs] = useState([]);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const tzOptions = useSortedTimezones();
@@ -88,7 +89,23 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
     if (!open) return;
     adminApi.get('/admin/settings').then((r) => setSessions(r.data.sessions || [])).catch(() => {});
     adminApi.get('/admin/directors').then((r) => setDirectors((r.data.directors || []).filter((d) => d.active !== false))).catch(() => {});
+    adminApi.get('/admin/pccs').then((r) => setPccs((r.data.pccs || []).filter((p) => p.active !== false))).catch(() => {});
   }, [open]);
+
+  // Any host with a Google calendar can host a manual session; grouped by role. Only "Directors"
+  // are shown to patients on the portal — the others are manual-book-only. The chosen id is sent as
+  // director_id; the backend resolves it from either the directors or pccs collection.
+  const hostGroups = (() => {
+    const hasCal = (h) => (h.google_calendar_id || '').trim();
+    const dirs = directors.filter(hasCal);
+    const groups = [
+      { key: 'director', label: 'Directors', items: dirs.filter((d) => (d.role || 'director') === 'director').map((d) => ({ id: d.director_id, name: d.name })) },
+      { key: 'pcc', label: 'PCCs', items: pccs.filter(hasCal).map((p) => ({ id: p.pcc_id, name: p.name })) },
+      { key: 'hc', label: 'Health Coaches', items: dirs.filter((d) => d.role === 'hc').map((d) => ({ id: d.director_id, name: d.name })) },
+      { key: 'va', label: 'VAs', items: dirs.filter((d) => d.role === 'va').map((d) => ({ id: d.director_id, name: d.name })) },
+    ];
+    return groups.filter((g) => g.items.length);
+  })();
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -102,7 +119,7 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
 
   const submit = async () => {
     if (!form.session_id) return toast.error('Choose a session');
-    if (!form.director_id) return toast.error('Choose a director');
+    if (!form.director_id) return toast.error('Choose a host');
     if (!form.date) return toast.error('Pick a date');
     if (!form.email) return toast.error('Select a patient');
     const slotIso = zonedWallTimeToUtcIso(form.date, form.time || '09:00', form.timezone);
@@ -132,7 +149,7 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
         <div className="mx-auto flex w-full max-w-2xl flex-col">
           <DrawerHeader className="text-left">
             <DrawerTitle>New booking</DrawerTitle>
-            <DrawerDescription>Manually book a patient into a session. Creates the director&apos;s calendar event + Meet link, mirrors to Practice Better, and (if enabled) emails the patient.</DrawerDescription>
+            <DrawerDescription>Manually book a patient into a session with any host. Creates the host&apos;s calendar event + Meet link, mirrors directors to Practice Better, and (if enabled) emails the patient.</DrawerDescription>
           </DrawerHeader>
 
           <div className="max-h-[66vh] space-y-4 overflow-y-auto px-4 pb-2">
@@ -149,11 +166,16 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>Director</Label>
+                <Label>Host</Label>
                 <Select value={form.director_id || undefined} onValueChange={(v) => set('director_id', v)}>
-                  <SelectTrigger className="w-full"><SelectValue placeholder="Choose director" /></SelectTrigger>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Choose host" /></SelectTrigger>
                   <SelectContent>
-                    {directors.map((d) => <SelectItem key={d.director_id} value={d.director_id}>{d.name}</SelectItem>)}
+                    {hostGroups.map((g) => (
+                      <SelectGroup key={g.key}>
+                        <SelectLabel>{g.label}</SelectLabel>
+                        {g.items.map((h) => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
+                      </SelectGroup>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

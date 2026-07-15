@@ -295,7 +295,10 @@ async def _legacy_consultant_ids() -> list:
     engine, so the Directors admin controls who's bookable in BOTH engines. Directors
     without a pb_consultant_id simply don't appear."""
     ids = set()
-    async for d in db.directors.find({"active": True}, {"_id": 0, "pb_consultant_id": 1}):
+    # role filter matches the local engine: HC/VA hosts must never surface on the patient portal,
+    # even under the legacy PB engine (a converted director could still carry a pb_consultant_id).
+    async for d in db.directors.find({"active": True, "role": {"$nin": ["hc", "va"]}},
+                                     {"_id": 0, "pb_consultant_id": 1}):
         pid = (d.get("pb_consultant_id") or "").strip()
         if pid:
             ids.add(pid)
@@ -584,6 +587,25 @@ async def _director_email(director_id: str) -> Optional[str]:
     configured."""
     d = await db.directors.find_one({"director_id": director_id}, {"_id": 0, "email": 1})
     return ((d or {}).get("email") or "").strip() or None
+
+
+async def _load_host(host_id: str) -> Optional[dict]:
+    """Resolve a manual-booking host from either collection into a normalized shape:
+    directors (role director/hc/va) OR the pccs collection (role 'pcc'). Returns None if neither.
+    Used by create_manual_booking so any host type can own the Google event on their own calendar."""
+    d = await db.directors.find_one({"director_id": host_id}, {"_id": 0})
+    if d:
+        return {"id": host_id, "name": d.get("name"),
+                "email": (d.get("email") or "").strip() or None,
+                "google_calendar_id": d.get("google_calendar_id"),
+                "timezone": d.get("timezone") or "UTC", "role": d.get("role") or "director"}
+    p = await db.pccs.find_one({"pcc_id": host_id}, {"_id": 0})
+    if p:
+        return {"id": host_id, "name": p.get("name"),
+                "email": (p.get("email") or "").strip() or None,
+                "google_calendar_id": p.get("google_calendar_id"),
+                "timezone": p.get("timezone") or "UTC", "role": "pcc"}
+    return None
 
 
 async def _resolve_session_title(template: str, first: str, last: str, user_id: Optional[str]) -> str:
@@ -1385,6 +1407,102 @@ def start_reminder_sweep(interval_seconds: int = 600) -> None:
     logger.info(f"SMS reminder sweep started (every {interval_seconds}s)")
 
 
+# ---- Google Calendar busy -> ledger sync -----------------------------------------------------
+# Directors' real calendars carry sessions the portal didn't create (legacy GHL/PB bookings,
+# personal holds). The local availability engine only knows the portal's own ledger, so without
+# this it would happily double-book over them. This sweep mirrors each active director's Google
+# busy time — every opaque event EXCEPT ones titled "Availability" (see gcal._event_is_busy) —
+# into director.calendar_busy (FULL REPLACE each run, so a freed slot reappears next sweep);
+# availability.compute_free_at_pure subtracts it like time_off. A live per-slot re-check at
+# commit (assignment.assign_and_hold) closes the gap between sweeps.
+
+CAL_SWEEP_HOURS_PT = (8, 12, 16)  # 8am / noon / 4pm Pacific
+
+
+async def run_calendar_busy_sweep(correlation_id: str = "cal-busy-sweep") -> dict:
+    """One pass: mirror every active director's Google free/busy into director.calendar_busy over
+    the booking window. Best-effort; never raises. A per-director free/busy error LEAVES that
+    director's last-known-good calendar_busy untouched (never wipes it), so a transient Google
+    problem can't silently unblock their real appointments."""
+    if not gcal.is_configured():
+        return {"skipped": "gcal_not_configured"}
+    settings = await availability_engine.load_engine_settings(db)
+    max_advance_days = int(settings.get("max_advance_days") or 90)
+    now = datetime.now(tz.utc)
+    time_min, time_max = now.isoformat(), (now + timedelta(days=max_advance_days)).isoformat()
+
+    directors = [d async for d in db.directors.find(
+        {"active": True, "role": {"$nin": ["hc", "va"]}},
+        {"_id": 0, "director_id": 1, "google_calendar_id": 1, "name": 1})]
+    cal_ids = [d["google_calendar_id"] for d in directors if d.get("google_calendar_id")]
+    if not cal_ids:
+        return {"skipped": "no_director_calendars"}
+
+    try:
+        fb = await gcal.get_busy_intervals(calendar_ids=cal_ids, time_min_iso=time_min, time_max_iso=time_max)
+    except Exception as e:
+        logger.warning(f"[{correlation_id}] calendar busy query failed, keeping prior calendar_busy: {e}")
+        return {"error": str(e)}
+
+    result = {}
+    for d in directors:
+        cal = d.get("google_calendar_id")
+        if not cal:
+            continue
+        info = fb.get(cal) or {}
+        if info.get("errors"):
+            result[d.get("name")] = f"error: {info['errors']}"
+            logger.warning(f"[{correlation_id}] free/busy error for {d.get('name')} ({cal}); "
+                           f"leaving prior calendar_busy: {info['errors']}")
+            continue
+        busy = [{"start_utc": s, "end_utc": e} for (s, e) in info.get("busy", [])]
+        await db.directors.update_one(
+            {"director_id": d["director_id"]},
+            {"$set": {"calendar_busy": busy, "calendar_busy_synced_at": now.isoformat()}},
+        )
+        result[d.get("name")] = len(busy)
+    logger.info(f"[{correlation_id}] calendar busy sweep ({max_advance_days}d window): {result}")
+    return result
+
+
+def _seconds_until_next_cal_sweep() -> float:
+    """Seconds until the next 8am/noon/4pm America/Los_Angeles boundary."""
+    pt = ZoneInfo("America/Los_Angeles")
+    now = datetime.now(pt)
+    upcoming = []
+    for day_offset in (0, 1):
+        d = (now + timedelta(days=day_offset)).date()
+        for h in CAL_SWEEP_HOURS_PT:
+            t = datetime(d.year, d.month, d.day, h, 0, 0, tzinfo=pt)
+            if t > now:
+                upcoming.append(t)
+    return (min(upcoming) - now).total_seconds()
+
+
+def start_calendar_busy_sweep() -> None:
+    """Start the periodic Google free/busy -> director.calendar_busy sync (called once at startup):
+    once shortly after boot, then at 8am/noon/4pm PT. No-ops if the Google SA isn't configured."""
+    if not gcal.is_configured():
+        logger.info("Calendar busy sweep disabled (Google service account not configured)")
+        return
+
+    async def _loop():
+        await asyncio.sleep(100)  # let startup settle
+        try:
+            await run_calendar_busy_sweep("cal-busy-startup")
+        except Exception as e:
+            logger.warning(f"Initial calendar busy sweep failed: {e}")
+        while True:
+            await asyncio.sleep(_seconds_until_next_cal_sweep())
+            try:
+                await run_calendar_busy_sweep()
+            except Exception as e:
+                logger.warning(f"Calendar busy sweep iteration failed: {e}")
+
+    _spawn_bg(_loop())
+    logger.info("Calendar busy sweep started (8am/noon/4pm PT)")
+
+
 class ReminderTestRequest(BaseModel):
     key: str
     to: str
@@ -1427,7 +1545,12 @@ async def create_manual_booking(*, session_id: str, director_id: str, slot_start
     session = _session_by_id(settings, session_id) or _portal_session(settings)
     duration = int(session.get("duration_minutes") or 30)
     title = session.get("title") or "Session"
-    effective_pb_id = await _effective_pb_consultant_id(settings, director_id, correlation_id)
+    host = await _load_host(director_id)
+    if not host:
+        raise HTTPException(status_code=404, detail="Host not found")
+    # Practice Better mirroring is a directors-only clinical concern; HC/VA/PCC hosts skip PB.
+    effective_pb_id = (await _effective_pb_consultant_id(settings, director_id, correlation_id)
+                       if host["role"] == "director" else "")
     pb_service_id = (session.get("pb_service_id") or "").strip()
     initial_pb_status = "pending" if effective_pb_id else "skipped"
 
@@ -1449,15 +1572,16 @@ async def create_manual_booking(*, session_id: str, director_id: str, slot_start
         raise HTTPException(status_code=409, detail="That director already has a booking at this time.")
 
     booking_id = booking["booking_id"]
-    director_tz = await _director_timezone(director_id)
+    director_tz = host["timezone"]
     sid = session.get("id") or session_id
     await db.bookings.update_one(
         {"booking_id": booking_id},
         {"$set": {"session_id": sid, "session_title": title, "pb_status": initial_pb_status,
-                  "updated_at": _now_iso()}})
-    booking.update({"session_id": sid, "session_title": title, "pb_status": initial_pb_status})
+                  "host_role": host["role"], "host_name": host["name"], "updated_at": _now_iso()}})
+    booking.update({"session_id": sid, "session_title": title, "pb_status": initial_pb_status,
+                    "host_role": host["role"], "host_name": host["name"]})
 
-    director_email = await _director_email(director_id)
+    director_email = host["email"]
     try:
         event_id, meet_link = await gcal.create_event_with_meet(
             calendar_id=booking.get("gcal_calendar_id"),
@@ -1726,23 +1850,37 @@ async def _reschedule_booking(booking: dict, new_start_iso: str,
         logger.info(f"[{correlation_id}] Legacy booking {booking_id} rescheduled to {new_start.isoformat()} by {actor}")
         return booking
 
-    # Which active directors are free at the new slot? Keep the same one if possible, else reassign.
-    free = await availability_engine.directors_free_at(db, new_start, exclude_booking_id=booking_id)
-    if not free:
-        raise RescheduleError(409, "No director is available at that time. Please pick another slot.")
-    new_director = next((d for d in free if d["director_id"] == old_director_id), None) or free[0]
-    new_director_id = new_director["director_id"]
-    director_changed = new_director_id != old_director_id
+    # A non-director host (manual HC/VA/PCC booking) is never in the director availability set, so
+    # KEEP the same host and just move their event — never reassign them to a real director. Only
+    # director-hosted bookings go through the availability/round-robin re-pick.
+    if (booking.get("host_role") or "director") != "director":
+        host = await _load_host(old_director_id)
+        if not host:
+            raise RescheduleError(404, "Host not found.")
+        new_director_id = old_director_id
+        director_changed = False
+        new_director_doc = host
+        new_director_tz = host["timezone"]
+        new_calendar_id = (host.get("google_calendar_id") or "").strip()
+    else:
+        # Which active directors are free at the new slot? Keep the same one if possible, else reassign.
+        free = await availability_engine.directors_free_at(db, new_start, exclude_booking_id=booking_id)
+        if not free:
+            raise RescheduleError(409, "No director is available at that time. Please pick another slot.")
+        new_director = next((d for d in free if d["director_id"] == old_director_id), None) or free[0]
+        new_director_id = new_director["director_id"]
+        director_changed = new_director_id != old_director_id
 
-    new_director_doc = await db.directors.find_one({"director_id": new_director_id}, {"_id": 0}) or {}
-    new_director_tz = new_director_doc.get("timezone") or "UTC"
-    new_calendar_id = (new_director_doc.get("google_calendar_id") or "").strip()
+        new_director_doc = await db.directors.find_one({"director_id": new_director_id}, {"_id": 0}) or {}
+        new_director_tz = new_director_doc.get("timezone") or "UTC"
+        new_calendar_id = (new_director_doc.get("google_calendar_id") or "").strip()
 
     # Atomically move the ledger row (slot + director/calendar if it changed).
     set_fields = {"slot_start_utc": new_start, "slot_end_utc": new_end, "updated_at": _now_iso()}
     if director_changed:
         set_fields["director_id"] = new_director_id
         set_fields["gcal_calendar_id"] = new_calendar_id
+        set_fields["host_name"] = new_director_doc.get("name")
     try:
         res = await db.bookings.update_one(
             {"booking_id": booking_id, "status": "confirmed"}, {"$set": set_fields})

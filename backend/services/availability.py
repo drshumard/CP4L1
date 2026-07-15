@@ -1,11 +1,15 @@
 """
 Local availability engine.
 
-Availability is a pure function of portal state in MongoDB — NO external API calls
-(Practice Better is never polled; Google free/busy is not consulted):
+Availability is a pure function of portal state in MongoDB — the engine itself makes NO
+external API calls (Practice Better is never polled). Google Calendar busy time IS honored,
+but through director.calendar_busy, which a periodic sweep mirrors from Google Calendar (every
+opaque event except "Availability" markers) into the ledger (see booking.run_calendar_busy_sweep),
+so this core stays pure and unit-testable:
 
     available = directors' weekly_rules
                 − director time_off
+                − director calendar_busy   (synced Google busy: legacy/other sessions, not "Availability")
                 − org clinic_closures
                 − that director's confirmed bookings (+ buffer)
                 clamped to [now + min_notice, now + max_advance]
@@ -213,8 +217,9 @@ def compute_free_at_pure(
     """Pure availability core. Returns {slot_start_utc: [director_id, ...]} for every
     grid slot in [window_start, window_end) where at least one director is free.
 
-    Subtraction per director: weekly slots − time_off − clinic_closures − that
-    director's confirmed bookings (each booking blocks [start, end + buffer))."""
+    Subtraction per director: weekly slots − time_off − calendar_busy (synced Google
+    free/busy) − clinic_closures − that director's confirmed bookings (each booking
+    blocks [start, end + buffer))."""
     closures = _collect_ranges(clinic_closures)
 
     # Pre-bucket confirmed bookings per director as buffered [start, end+buffer) intervals.
@@ -233,11 +238,18 @@ def compute_free_at_pure(
             continue
         director_id = director.get("director_id")
         time_off = _collect_ranges(director.get("time_off"))
+        # Google-calendar busy time mirrored into the ledger by the periodic calendar-busy sweep
+        # (booking.run_calendar_busy_sweep). Blocks slots the director is busy for on their real
+        # calendar — legacy GHL/PB sessions, personal holds, etc. — that the portal never created.
+        # ("Availability" markers and transparent events are excluded at sweep time, never here.)
+        calendar_busy = _collect_ranges(director.get("calendar_busy"))
         booked = booked_by_dir.get(director_id, [])
         for slot_start, slot_end in generate_director_slots(
             director, window_start, window_end, slot_minutes
         ).items():
             if any(_ranges_overlap(slot_start, slot_end, r0, r1) for r0, r1 in time_off):
+                continue
+            if any(_ranges_overlap(slot_start, slot_end, r0, r1) for r0, r1 in calendar_busy):
                 continue
             if any(_ranges_overlap(slot_start, slot_end, r0, r1) for r0, r1 in closures):
                 continue
@@ -291,7 +303,9 @@ async def load_engine_settings(db) -> dict:
 
 
 async def _load_active_directors(db) -> list[dict]:
-    cursor = db.directors.find({"active": True}, {"_id": 0})
+    # Only role="director" (or legacy docs with no role) drive portal availability; "hc"/"va" are
+    # manual-book-only hosts living in the same collection that must never appear on the portal.
+    cursor = db.directors.find({"active": True, "role": {"$nin": ["hc", "va"]}}, {"_id": 0})
     return [d async for d in cursor]
 
 

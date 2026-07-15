@@ -149,6 +149,21 @@ def test_time_off_removes_overlapping_slots():
     assert len(free) == 6
 
 
+def test_calendar_busy_removes_overlapping_slots():
+    # Google free/busy mirrored into director.calendar_busy blocks those slots, like time_off.
+    # Uses a "Z"-suffixed interval to also exercise the RFC3339 parsing from the free/busy sweep.
+    d = _director()
+    d["calendar_busy"] = [{"start_utc": "2026-06-22T14:00:00Z", "end_utc": "2026-06-22T15:00:00Z"}]
+    ws, we = _window()
+    free = compute_free_at_pure([d], [], [], ws, we, 30)
+    # 14:00 and 14:30 (10:00/10:30 EDT) removed; 09:00 and 11:00 EDT still free; 6 remain.
+    assert datetime(2026, 6, 22, 14, 0, tzinfo=UTC) not in free
+    assert datetime(2026, 6, 22, 14, 30, tzinfo=UTC) not in free
+    assert datetime(2026, 6, 22, 13, 0, tzinfo=UTC) in free
+    assert datetime(2026, 6, 22, 15, 0, tzinfo=UTC) in free
+    assert len(free) == 6
+
+
 def test_clinic_closure_removes_slots():
     d = _director()
     ws, we = _window()

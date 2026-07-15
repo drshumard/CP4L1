@@ -53,7 +53,7 @@ export default function DirectorEditor() {
   const [saving, setSaving] = useState(false);
   const tzOptions = useSortedTimezones();
 
-  const backToList = useCallback(() => navigate('/admin/scheduling/directors'), [navigate]);
+  const backToList = useCallback(() => navigate('/admin/scheduling/hosts'), [navigate]);
 
   useEffect(() => {
     if (isNew) return;
@@ -103,7 +103,7 @@ export default function DirectorEditor() {
       }
     }
     const payload = {
-      name: form.name.trim(), email: (form.email || '').trim(), timezone: form.timezone.trim(),
+      name: form.name.trim(), role: 'director', email: (form.email || '').trim(), timezone: form.timezone.trim(),
       google_calendar_id: form.google_calendar_id.trim(),
       pb_consultant_id: (form.pb_consultant_id || '').trim(),
       active: form.active,

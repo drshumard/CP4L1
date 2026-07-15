@@ -5149,9 +5149,25 @@ class DateOverride(BaseModel):
         return v.strip()
 
 
+# A "host" is anyone who can host a booked session (owns a Google calendar). role gates the
+# portal: only role="director" appears in patient-facing availability; "hc"/"va" are manual-book-
+# only hosts (no availability rules). PCCs are hosts too but live in their own collection (below).
+HOST_ROLES = {"director", "hc", "va"}
+
+
+def _valid_host_role(v):
+    if v is None:
+        return v
+    v = (v or "").strip().lower()
+    if v not in HOST_ROLES:
+        raise ValueError(f"role must be one of {sorted(HOST_ROLES)}")
+    return v
+
+
 class DirectorCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
     name: str
+    role: str = "director"                   # director (on portal) | hc | va (manual-book-only hosts)
     email: Optional[str] = ""               # Workspace email — added as a Meet attendee / co-host on the call
     google_calendar_id: Optional[str] = ""
     pb_consultant_id: Optional[str] = ""   # this director's own Practice Better consultant (per_director mode)
@@ -5170,10 +5186,16 @@ class DirectorCreate(BaseModel):
             raise ValueError(f"Invalid IANA timezone: {v}")
         return v
 
+    @field_validator("role")
+    @classmethod
+    def _role_valid(cls, v):
+        return _valid_host_role(v) or "director"
+
 
 class DirectorUpdate(BaseModel):
     model_config = ConfigDict(extra="ignore")
     name: Optional[str] = None
+    role: Optional[str] = None
     email: Optional[str] = None
     google_calendar_id: Optional[str] = None
     pb_consultant_id: Optional[str] = None
@@ -5193,6 +5215,8 @@ class DirectorUpdate(BaseModel):
         except Exception:
             raise ValueError(f"Invalid IANA timezone: {v}")
         return v
+
+    _role_valid = field_validator("role")(classmethod(lambda cls, v: _valid_host_role(v)))
 
 
 def _validate_time_off(time_off: list) -> list:
@@ -5238,6 +5262,7 @@ async def create_director(payload: DirectorCreate, admin_user: dict = Depends(ge
     doc = {
         "director_id": str(uuid.uuid4()),
         "name": payload.name.strip(),
+        "role": payload.role or "director",
         "active": payload.active,
         "email": (payload.email or "").strip().lower(),
         "google_calendar_id": (payload.google_calendar_id or "").strip(),
@@ -5263,6 +5288,8 @@ async def update_director(director_id: str, payload: DirectorUpdate, admin_user:
     updates: dict = {}
     if payload.name is not None:
         updates["name"] = payload.name.strip()
+    if payload.role is not None:
+        updates["role"] = payload.role
     if payload.email is not None:
         updates["email"] = payload.email.strip().lower()
     if payload.google_calendar_id is not None:
@@ -5293,17 +5320,43 @@ async def update_director(director_id: str, payload: DirectorUpdate, admin_user:
 # ---------------------------------------------------------------------------
 
 class PccCreate(BaseModel):
+    # A PCC is an attendee-only rota coordinator AND (role "pcc") a manual-book host, so it now
+    # carries a Google calendar + timezone like any other host.
     model_config = ConfigDict(extra="ignore")
     name: str
     email: EmailStr
+    google_calendar_id: Optional[str] = ""
+    timezone: str = "America/Los_Angeles"
     active: bool = True
+
+    @field_validator("timezone")
+    @classmethod
+    def _tz_valid(cls, v: str) -> str:
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError(f"Invalid IANA timezone: {v}")
+        return v
 
 
 class PccUpdate(BaseModel):
     model_config = ConfigDict(extra="ignore")
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+    google_calendar_id: Optional[str] = None
+    timezone: Optional[str] = None
     active: Optional[bool] = None
+
+    @field_validator("timezone")
+    @classmethod
+    def _tz_valid(cls, v):
+        if v is None:
+            return v
+        try:
+            ZoneInfo(v)
+        except Exception:
+            raise ValueError(f"Invalid IANA timezone: {v}")
+        return v
 
 
 class PccAssignmentUpsert(BaseModel):
@@ -5331,6 +5384,7 @@ async def list_pccs(admin_user: dict = Depends(get_admin_user)):
 async def create_pcc(payload: PccCreate, admin_user: dict = Depends(get_admin_user)):
     now = datetime.now(timezone.utc).isoformat()
     doc = {"pcc_id": str(uuid.uuid4()), "name": payload.name.strip(), "email": payload.email.lower(),
+           "google_calendar_id": (payload.google_calendar_id or "").strip(), "timezone": payload.timezone,
            "active": payload.active, "created_at": now, "updated_at": now}
     await db.pccs.insert_one(dict(doc))
     await log_admin_action("ADMIN_COORDINATOR_CREATED", admin_user=admin_user,
@@ -5347,6 +5401,10 @@ async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends
         updates["name"] = payload.name.strip()
     if payload.email is not None:
         updates["email"] = payload.email.lower()
+    if payload.google_calendar_id is not None:
+        updates["google_calendar_id"] = payload.google_calendar_id.strip()
+    if payload.timezone is not None:
+        updates["timezone"] = payload.timezone
     if payload.active is not None:
         updates["active"] = payload.active
     if not updates:
@@ -5606,7 +5664,9 @@ async def list_bookings(
         async for d in db.directors.find({"director_id": {"$in": dir_ids}}, {"_id": 0, "director_id": 1, "name": 1}):
             dir_names[d["director_id"]] = d.get("name")
     for b in rows:
-        b["director_name"] = dir_names.get(b.get("director_id"))
+        # Fall back to host_name for non-director hosts (HC/VA carry their name in directors;
+        # a PCC host's id isn't in the directors collection, so its name comes off the booking).
+        b["director_name"] = dir_names.get(b.get("director_id")) or b.get("host_name")
 
     return {
         "bookings": rows,
@@ -5853,6 +5913,14 @@ async def startup_event():
         start_reminder_sweep()
     except Exception as e:
         logger.warning(f"Could not start SMS reminder sweep: {e}")
+
+    # Google Calendar free/busy -> director.calendar_busy sync at 8am/noon/4pm PT, so the local
+    # availability engine won't double-book over sessions the portal didn't create.
+    try:
+        from booking import start_calendar_busy_sweep
+        start_calendar_busy_sweep()
+    except Exception as e:
+        logger.warning(f"Could not start calendar busy sweep: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

@@ -26,7 +26,8 @@ export default function Directors() {
     setLoading(true);
     try {
       const res = await adminApi.get('/admin/directors');
-      setDirectors(res.data.directors || []);
+      // Directors tab shows role="director" only; HCs/VA live in the same collection under other tabs.
+      setDirectors((res.data.directors || []).filter((d) => (d.role || 'director') === 'director'));
     } catch (e) {
       toast.error(e?.response?.status === 403 ? 'Admin access required' : 'Failed to load directors');
     } finally {
@@ -38,8 +39,8 @@ export default function Directors() {
     adminApi.get('/admin/settings').then((r) => setEngine(r.data?.booking_engine || 'pb')).catch(() => {});
   }, []);
 
-  const openNew = () => navigate('/admin/scheduling/directors/new');
-  const openEdit = (d) => navigate(`/admin/scheduling/directors/${d.director_id}`);
+  const openNew = () => navigate('/admin/scheduling/hosts/new');
+  const openEdit = (d) => navigate(`/admin/scheduling/hosts/${d.director_id}`);
 
   const deactivate = async (d) => {
     if (!(await confirmDialog({ title: `Deactivate ${d.name}?`, message: 'Existing bookings keep this director; they just stop receiving new ones.', confirmLabel: 'Deactivate' }))) return;
