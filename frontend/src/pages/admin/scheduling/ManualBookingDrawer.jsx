@@ -96,11 +96,12 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
   // are shown to patients on the portal — the others are manual-book-only. The chosen id is sent as
   // director_id; the backend resolves it from either the directors or pccs collection.
   const hostGroups = (() => {
-    const hasCal = (h) => (h.google_calendar_id || '').trim();
-    const dirs = directors.filter(hasCal);
+    // Hostable if they have a group calendar OR an email (email = their primary calendar).
+    const canHost = (h) => (h.google_calendar_id || '').trim() || (h.email || '').trim();
+    const dirs = directors.filter(canHost);
     const groups = [
       { key: 'director', label: 'Directors', items: dirs.filter((d) => (d.role || 'director') === 'director').map((d) => ({ id: d.director_id, name: d.name })) },
-      { key: 'pcc', label: 'PCCs', items: pccs.filter(hasCal).map((p) => ({ id: p.pcc_id, name: p.name })) },
+      { key: 'pcc', label: 'PCCs', items: pccs.filter(canHost).map((p) => ({ id: p.pcc_id, name: p.name })) },
       { key: 'hc', label: 'Health Coaches', items: dirs.filter((d) => d.role === 'hc').map((d) => ({ id: d.director_id, name: d.name })) },
       { key: 'va', label: 'VAs', items: dirs.filter((d) => d.role === 'va').map((d) => ({ id: d.director_id, name: d.name })) },
     ];

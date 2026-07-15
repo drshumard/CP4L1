@@ -108,7 +108,9 @@ async def assign_and_hold(
             "duration_minutes": duration_minutes,
             "patient_timezone": patient_timezone,
             "patient": {k: patient.get(k) for k in ("first_name", "last_name", "email", "phone")},
-            "gcal_calendar_id": director.get("google_calendar_id"),
+            # Fall back to the host's email (their PRIMARY calendar) when no group calendar is set —
+            # a PCC/HC/VA without a dedicated calendar hosts on their own email calendar.
+            "gcal_calendar_id": director.get("google_calendar_id") or director.get("email"),
             "gcal_event_id": None,
             "gcal_status": "pending",
             "meet_link": None,
