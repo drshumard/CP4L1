@@ -47,6 +47,10 @@ resend.api_key = os.environ.get('RESEND_API_KEY', '')
 # Webhook Secret
 WEBHOOK_SECRET = os.environ.get('WEBHOOK_SECRET', '')
 
+# API key for service-to-service endpoints, e.g. the supplement protocol manager's
+# PB client lookup (unset = those endpoints disabled)
+SERVICE_API_KEY = os.environ.get('SERVICE_API_KEY', '')
+
 # Turnstile Secret Key (for server-side validation)
 TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
 
@@ -5608,6 +5612,24 @@ async def search_pb_clients(
     """Search the local Practice Better client cache (kept fresh by ClientSyncService) by
     name or email — backs the manual-booking patient picker, so admins book against the PB
     client list rather than portal accounts."""
+    from services.client_cache import get_client_cache
+    clients = await asyncio.to_thread(get_client_cache().search_clients, search, limit)
+    return {"clients": clients}
+
+
+@api_router.get("/service/pb-clients")
+async def service_search_pb_clients(
+    x_api_key: str = Header(None, alias="X-API-Key"),
+    search: str = Query("", max_length=200),
+    limit: int = Query(20, ge=1, le=50),
+):
+    """Same PB client-cache search as /admin/pb-clients, but for sibling apps (e.g. the
+    supplement protocol manager's patient picker) authenticating with SERVICE_API_KEY
+    instead of an admin session."""
+    if not SERVICE_API_KEY or not x_api_key or not secrets.compare_digest(
+        str(x_api_key).encode('utf-8'), str(SERVICE_API_KEY).encode('utf-8')
+    ):
+        raise HTTPException(status_code=403, detail="Forbidden")
     from services.client_cache import get_client_cache
     clients = await asyncio.to_thread(get_client_cache().search_clients, search, limit)
     return {"clients": clients}
