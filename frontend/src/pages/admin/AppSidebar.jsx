@@ -21,6 +21,7 @@ const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
 
 const SCHEDULING_SUB = [
   { to: '/admin/scheduling/bookings', label: 'Bookings' },
+  { to: '/admin/scheduling/calendar', label: 'Calendar' },
   { to: '/admin/scheduling/hosts', label: 'Hosts' },
   { to: '/admin/scheduling/coordinators', label: 'Coordinators' },
   { to: '/admin/scheduling/events', label: 'Events' },

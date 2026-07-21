@@ -18,6 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import useSortedTimezones from './useSortedTimezones';
 
 const HEADER_GRADIENT = 'linear-gradient(to top, #F8F8F8, #F8F8F899, #00000000)';
@@ -34,7 +35,7 @@ const KINDS = {
          blurb: 'Patient Care Coordinators — rota coordinators AND manual-book hosts. Give each a Google calendar to host a session; assign them to directors’ days on the Coordinators tab.' },
 };
 
-const emptyForm = () => ({ id: null, name: '', email: '', google_calendar_id: '', timezone: 'America/Los_Angeles', active: true });
+const emptyForm = () => ({ id: null, name: '', email: '', google_calendar_id: '', use_primary_calendar: false, pb_consultant_id: '', timezone: 'America/Los_Angeles', active: true });
 
 export default function SimpleHostTab({ kind }) {
   const cfg = KINDS[kind];
@@ -64,7 +65,9 @@ export default function SimpleHostTab({ kind }) {
   const openNew = () => { setForm(emptyForm()); setOpen(true); };
   const openEdit = (r) => {
     setForm({ id: r[cfg.idKey], name: r.name || '', email: r.email || '',
-      google_calendar_id: r.google_calendar_id || '', timezone: r.timezone || 'America/Los_Angeles', active: r.active !== false });
+      google_calendar_id: r.google_calendar_id || '', use_primary_calendar: r.use_primary_calendar === true,
+      pb_consultant_id: r.pb_consultant_id || '',
+      timezone: r.timezone || 'America/Los_Angeles', active: r.active !== false });
     setOpen(true);
   };
 
@@ -73,7 +76,9 @@ export default function SimpleHostTab({ kind }) {
     if (!form.email.trim()) return toast.error('Email is required');
     const payload = {
       name: form.name.trim(), email: form.email.trim(),
-      google_calendar_id: form.google_calendar_id.trim(), timezone: form.timezone, active: form.active,
+      google_calendar_id: form.google_calendar_id.trim(), use_primary_calendar: form.use_primary_calendar,
+      pb_consultant_id: form.pb_consultant_id.trim(),
+      timezone: form.timezone, active: form.active,
     };
     if (kind !== 'pcc') payload.role = cfg.role;
     setSaving(true);
@@ -168,6 +173,22 @@ export default function SimpleHostTab({ kind }) {
               <div className="space-y-1.5"><Label htmlFor="h-name">Name</Label><Input id="h-name" value={form.name} onChange={(e) => set('name', e.target.value)} /></div>
               <div className="space-y-1.5"><Label htmlFor="h-email">Email</Label><Input id="h-email" type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="name@drshumard.com" /></div>
               <div className="space-y-1.5"><Label htmlFor="h-cal">Google calendar ID</Label><Input id="h-cal" value={form.google_calendar_id} onChange={(e) => set('google_calendar_id', e.target.value)} placeholder="…@group.calendar.google.com" /></div>
+              <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="h-primary">Use primary calendar</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {form.google_calendar_id.trim()
+                      ? 'Ignored while a shared calendar ID is set above.'
+                      : 'No shared calendar? Bookings land on their own email calendar and it shows on the Team Calendar.'}
+                  </p>
+                </div>
+                <Switch id="h-primary" checked={form.use_primary_calendar} onCheckedChange={(v) => set('use_primary_calendar', v)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="h-pbid">Practice Better consultant ID</Label>
+                <Input id="h-pbid" value={form.pb_consultant_id} onChange={(e) => set('pb_consultant_id', e.target.value)} placeholder="asConsultantId from Practice Better" />
+                <p className="text-xs text-muted-foreground">Set this and their manual bookings mirror into Practice Better under this consultant. Leave empty to skip PB for this host.</p>
+              </div>
               <div className="space-y-1.5">
                 <Label>Timezone</Label>
                 <Select value={form.timezone} onValueChange={(v) => set('timezone', v)}>

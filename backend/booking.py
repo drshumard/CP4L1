@@ -573,9 +573,11 @@ async def _effective_pb_consultant_id(settings: dict, director_id: str, correlat
     mode = (settings.get("pb_booking_mode") or "one_director").strip()
     if mode == "per_director":
         d = await db.directors.find_one({"director_id": director_id}, {"_id": 0, "pb_consultant_id": 1})
+        if d is None:  # non-director host — a PCC's consultant id lives on the pcc doc
+            d = await db.pccs.find_one({"pcc_id": director_id}, {"_id": 0, "pb_consultant_id": 1})
         pid = ((d or {}).get("pb_consultant_id") or "").strip()
         if not pid:
-            logger.warning(f"[{correlation_id}] per_director mode: director {director_id} has no "
+            logger.warning(f"[{correlation_id}] per_director mode: host {director_id} has no "
                            f"pb_consultant_id; PB mirror skipped")
         return pid
     return (settings.get("shared_pb_consultant_id") or "").strip()
@@ -598,12 +600,14 @@ async def _load_host(host_id: str) -> Optional[dict]:
         return {"id": host_id, "name": d.get("name"),
                 "email": (d.get("email") or "").strip() or None,
                 "google_calendar_id": d.get("google_calendar_id"),
+                "use_primary_calendar": bool(d.get("use_primary_calendar")),
                 "timezone": d.get("timezone") or "UTC", "role": d.get("role") or "director"}
     p = await db.pccs.find_one({"pcc_id": host_id}, {"_id": 0})
     if p:
         return {"id": host_id, "name": p.get("name"),
                 "email": (p.get("email") or "").strip() or None,
                 "google_calendar_id": p.get("google_calendar_id"),
+                "use_primary_calendar": bool(p.get("use_primary_calendar")),
                 "timezone": p.get("timezone") or "UTC", "role": "pcc"}
     return None
 
@@ -758,6 +762,44 @@ def _spawn_bg(coro) -> None:
     task.add_done_callback(_bg_tasks.discard)
 
 
+async def _pb_client_and_session(pb_service: "PracticeBetterService", *, profile: ClientProfile,
+                                 consultant_id: str, session_date: str, timezone_str: str,
+                                 notes: Optional[str], service_id: Optional[str],
+                                 duration_seconds: int, correlation_id: str) -> tuple:
+    """get_or_create the PB client (local cache first) then book the session — HEALING a stale
+    cache hit: the cache sync only ever upserts, so a client deleted inside PB leaves a row that
+    404s ("ClientRecord not found") on every booking forever. On that exact failure we purge the
+    cache row, resolve the client fresh (create or find by email), and retry the booking once.
+    Returns (record_id, session). Any other failure raises unchanged."""
+    record_id, _ = await pb_service.get_or_create_client(profile, correlation_id=correlation_id)
+
+    async def _book(rid: str) -> dict:
+        return await pb_service.book_session(
+            client_record_id=rid, consultant_id=consultant_id, session_date=session_date,
+            timezone=timezone_str, notes=notes, correlation_id=correlation_id,
+            include_telehealth=False, notify=False, service_id=(service_id or None),
+            duration_seconds=duration_seconds)
+
+    try:
+        return record_id, await _book(record_id)
+    except httpx.HTTPStatusError as e:
+        body = ""
+        try:
+            body = e.response.text or ""
+        except Exception:
+            pass
+        if e.response is None or e.response.status_code != 404 or "ClientRecord" not in body:
+            raise
+        logger.warning(f"[{correlation_id}] PB client {record_id} no longer exists in PB (stale "
+                       f"local cache); purging cache row for {profile.email} and rebooking fresh")
+        try:
+            get_client_cache().delete_by_email(profile.email)
+        except Exception as ce:
+            logger.warning(f"[{correlation_id}] client-cache purge failed ({ce}); continuing")
+        record_id, _ = await pb_service.get_or_create_client(profile, correlation_id=correlation_id)
+        return record_id, await _book(record_id)
+
+
 async def _book_local_sidecar(booking: dict, request: "BookSessionRequest", director_tz: str,
                               meet_link: Optional[str], shared_pb_id: str, pb_service_id: str,
                               pb_service: PracticeBetterService, correlation_id: str) -> None:
@@ -781,22 +823,20 @@ async def _book_local_sidecar(booking: dict, request: "BookSessionRequest", dire
         pb_session_id = None
         pb_status = "pending"
         try:
-            pb_record_id, _ = await pb_service.get_or_create_client(
-                ClientProfile(first_name=request.first_name, last_name=request.last_name,
-                              email=request.email, phone=request.phone, timezone=request.timezone),
-                correlation_id=correlation_id,
-            )
             note_parts = []
             if request.notes:
                 note_parts.append(request.notes)
             if meet_link:
                 note_parts.append(f"Google Meet: {meet_link}")
-            session = await pb_service.book_session(
-                client_record_id=pb_record_id, consultant_id=shared_pb_id,
-                session_date=request.slot_start_time, timezone=request.timezone,
-                notes="\n\n".join(note_parts) or None, correlation_id=correlation_id,
-                include_telehealth=False, notify=False, service_id=(pb_service_id or None),
+            pb_record_id, session = await _pb_client_and_session(
+                pb_service,
+                profile=ClientProfile(first_name=request.first_name, last_name=request.last_name,
+                                      email=request.email, phone=request.phone, timezone=request.timezone),
+                consultant_id=shared_pb_id, session_date=request.slot_start_time,
+                timezone_str=request.timezone, notes="\n\n".join(note_parts) or None,
+                service_id=pb_service_id,
                 duration_seconds=int(booking.get("duration_minutes") or 30) * 60,
+                correlation_id=correlation_id,
             )
             pb_session_id = session.get("id")
             pb_status = "synced"
@@ -830,7 +870,10 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
     session_id = portal_session.get("id") or "strategy"
     session_title = portal_session.get("title") or "Strategy Session"
     slot_minutes = int(portal_session.get("duration_minutes") or settings.get("slot_minutes") or 30)
-    pb_service_id = (settings.get("pb_service_id") or "").strip()
+    # The Events-tab per-session PB service is authoritative (manual/sweep/reschedule already
+    # read it); the legacy top-level setting is the fallback, then the PB client's env default.
+    pb_service_id = ((portal_session.get("pb_service_id") or "").strip()
+                     or (settings.get("pb_service_id") or "").strip())
 
     start_dt = datetime.fromisoformat(request.slot_start_time.replace("Z", "+00:00")).astimezone(tz.utc)
     end_dt = start_dt + timedelta(minutes=slot_minutes)
@@ -918,22 +961,20 @@ async def _manual_pb_mirror(booking_id: str, patient: dict, patient_timezone: st
     pb_session_id = None
     pb_status = "pending"
     try:
-        pb_record_id, _ = await pb_service.get_or_create_client(
-            ClientProfile(first_name=patient.get("first_name") or "", last_name=patient.get("last_name") or "",
-                          email=patient.get("email") or "", phone=patient.get("phone"), timezone=patient_timezone),
-            correlation_id=correlation_id,
-        )
         note_parts = []
         if notes:
             note_parts.append(notes)
         if meet_link:
             note_parts.append(f"Google Meet: {meet_link}")
-        session = await pb_service.book_session(
-            client_record_id=pb_record_id, consultant_id=shared_pb_id,
-            session_date=slot_start_iso, timezone=patient_timezone,
-            notes="\n\n".join(note_parts) or None, correlation_id=correlation_id,
-            include_telehealth=False, notify=False, service_id=(pb_service_id or None),
-            duration_seconds=int(duration_minutes or 30) * 60,
+        pb_record_id, session = await _pb_client_and_session(
+            pb_service,
+            profile=ClientProfile(first_name=patient.get("first_name") or "", last_name=patient.get("last_name") or "",
+                                  email=patient.get("email") or "", phone=patient.get("phone"),
+                                  timezone=patient_timezone),
+            consultant_id=shared_pb_id, session_date=slot_start_iso,
+            timezone_str=patient_timezone, notes="\n\n".join(note_parts) or None,
+            service_id=pb_service_id, duration_seconds=int(duration_minutes or 30) * 60,
+            correlation_id=correlation_id,
         )
         pb_session_id = session.get("id")
         pb_status = "synced"
@@ -1034,19 +1075,18 @@ async def retry_pending_pb_mirrors(correlation_id: str = "pb-sweep") -> dict:
                 note_parts.append(booking["notes"])
             if booking.get("meet_link"):
                 note_parts.append(f"Google Meet: {booking['meet_link']}")
-            record_id, _ = await pb_service.get_or_create_client(
-                ClientProfile(first_name=patient.get("first_name") or "", last_name=patient.get("last_name") or "",
-                              email=patient.get("email") or "", phone=patient.get("phone"),
-                              timezone=booking.get("patient_timezone")),
+            record_id, pb_session = await _pb_client_and_session(
+                pb_service,
+                profile=ClientProfile(first_name=patient.get("first_name") or "", last_name=patient.get("last_name") or "",
+                                      email=patient.get("email") or "", phone=patient.get("phone"),
+                                      timezone=booking.get("patient_timezone")),
+                consultant_id=effective_pb_id, session_date=_iso(booking["slot_start_utc"]),
+                timezone_str=booking.get("patient_timezone") or "UTC",
+                notes="\n\n".join(note_parts) or None,
+                service_id=((session.get("pb_service_id") or "").strip()
+                            or (settings.get("pb_service_id") or "").strip()),
+                duration_seconds=int(booking.get("duration_minutes") or 30) * 60,
                 correlation_id=correlation_id)
-            pb_session = await pb_service.book_session(
-                client_record_id=record_id, consultant_id=effective_pb_id,
-                session_date=_iso(booking["slot_start_utc"]),
-                timezone=booking.get("patient_timezone") or "UTC",
-                notes="\n\n".join(note_parts) or None, correlation_id=correlation_id,
-                include_telehealth=False, notify=False,
-                service_id=((session.get("pb_service_id") or "").strip() or None),
-                duration_seconds=int(booking.get("duration_minutes") or 30) * 60)
             await db.bookings.update_one({"booking_id": bid},
                 {"$set": {"pb_client_record_id": record_id, "pb_session_id": pb_session.get("id"),
                           "pb_status": "synced", "updated_at": _now_iso()}})
@@ -1548,10 +1588,15 @@ async def create_manual_booking(*, session_id: str, director_id: str, slot_start
     host = await _load_host(director_id)
     if not host:
         raise HTTPException(status_code=404, detail="Host not found")
-    # Practice Better mirroring is a directors-only clinical concern; HC/VA/PCC hosts skip PB.
-    effective_pb_id = (await _effective_pb_consultant_id(settings, director_id, correlation_id)
-                       if host["role"] == "director" else "")
-    pb_service_id = (session.get("pb_service_id") or "").strip()
+    if not (host.get("google_calendar_id") or (host.get("use_primary_calendar") and host.get("email"))):
+        raise HTTPException(status_code=400,
+                            detail="This host has no calendar wired up. Add a shared calendar ID or "
+                                   "turn on “Use primary calendar” on the host.")
+    # Any host with a PB consultant id mirrors to PB — directors always did; PCC/HC/VA sync
+    # too once their pb_consultant_id is filled in. No id -> pb_status 'skipped', as before.
+    effective_pb_id = await _effective_pb_consultant_id(settings, director_id, correlation_id)
+    pb_service_id = ((session.get("pb_service_id") or "").strip()
+                     or (settings.get("pb_service_id") or "").strip())
     initial_pb_status = "pending" if effective_pb_id else "skipped"
 
     start_dt = datetime.fromisoformat(slot_start_iso.replace("Z", "+00:00")).astimezone(tz.utc)
@@ -1765,17 +1810,16 @@ async def _pb_reassign_session(booking: dict, old_pb_session_id: Optional[str], 
     if booking.get("meet_link"):
         note_parts.append(f"Google Meet: {booking['meet_link']}")
     try:
-        record_id, _ = await pb_service.get_or_create_client(
-            ClientProfile(first_name=patient.get("first_name") or "", last_name=patient.get("last_name") or "",
-                          email=patient.get("email") or "", phone=patient.get("phone"),
-                          timezone=booking.get("patient_timezone")),
+        record_id, new_session = await _pb_client_and_session(
+            pb_service,
+            profile=ClientProfile(first_name=patient.get("first_name") or "", last_name=patient.get("last_name") or "",
+                                  email=patient.get("email") or "", phone=patient.get("phone"),
+                                  timezone=booking.get("patient_timezone")),
+            consultant_id=new_pb_id, session_date=new_start_iso,
+            timezone_str=booking.get("patient_timezone") or "UTC",
+            notes="\n\n".join(note_parts) or None, service_id=pb_service_id,
+            duration_seconds=int(booking.get("duration_minutes") or 30) * 60,
             correlation_id=correlation_id)
-        new_session = await pb_service.book_session(
-            client_record_id=record_id, consultant_id=new_pb_id, session_date=new_start_iso,
-            timezone=booking.get("patient_timezone") or "UTC",
-            notes="\n\n".join(note_parts) or None, correlation_id=correlation_id,
-            include_telehealth=False, notify=False, service_id=(pb_service_id or None),
-            duration_seconds=int(booking.get("duration_minutes") or 30) * 60)
         await db.bookings.update_one({"booking_id": booking_id},
             {"$set": {"pb_client_record_id": record_id, "pb_session_id": new_session.get("id"),
                       "pb_status": "synced", "updated_at": _now_iso()}})

@@ -67,7 +67,8 @@ async def assign_and_hold(
             if not pcc:
                 raise SlotFull("forced host not found")
             director = {"director_id": forced_director_id, "name": pcc.get("name"),
-                        "email": pcc.get("email"), "google_calendar_id": pcc.get("google_calendar_id")}
+                        "email": pcc.get("email"), "google_calendar_id": pcc.get("google_calendar_id"),
+                        "use_primary_calendar": pcc.get("use_primary_calendar")}
         order = [director]
     else:
         eligible = await availability_engine.directors_free_at(db, slot_start_utc)
@@ -108,12 +109,16 @@ async def assign_and_hold(
             "duration_minutes": duration_minutes,
             "patient_timezone": patient_timezone,
             "patient": {k: patient.get(k) for k in ("first_name", "last_name", "email", "phone")},
-            # Fall back to the host's email (their PRIMARY calendar) when no group calendar is set —
-            # a PCC/HC/VA without a dedicated calendar hosts on their own email calendar. In that case
+            # A host without a group calendar uses their email (PRIMARY) calendar only when they
+            # explicitly opted in via use_primary_calendar — never silently. In that case
             # gcal_subject impersonates them so the event lands on their calendar as themselves (no
-            # sharing needed); group-calendar hosts use the default shared subject (None).
-            "gcal_calendar_id": director.get("google_calendar_id") or director.get("email"),
-            "gcal_subject": None if director.get("google_calendar_id") else director.get("email"),
+            # sharing needed); group-calendar hosts use the default shared subject (None). Neither
+            # configured => gcal_calendar_id None and the Google-event step fails loudly.
+            "gcal_calendar_id": director.get("google_calendar_id")
+                                or (director.get("email") if director.get("use_primary_calendar") else None),
+            "gcal_subject": (director.get("email")
+                             if (not director.get("google_calendar_id") and director.get("use_primary_calendar"))
+                             else None),
             "gcal_event_id": None,
             "gcal_status": "pending",
             "meet_link": None,

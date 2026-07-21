@@ -5174,6 +5174,7 @@ class DirectorCreate(BaseModel):
     role: str = "director"                   # director (on portal) | hc | va (manual-book-only hosts)
     email: Optional[str] = ""               # Workspace email — added as a Meet attendee / co-host on the call
     google_calendar_id: Optional[str] = ""
+    use_primary_calendar: bool = False     # no shared calendar? opt IN to booking/reading their email calendar
     pb_consultant_id: Optional[str] = ""   # this director's own Practice Better consultant (per_director mode)
     timezone: str = "America/Los_Angeles"
     active: bool = True
@@ -5202,6 +5203,7 @@ class DirectorUpdate(BaseModel):
     role: Optional[str] = None
     email: Optional[str] = None
     google_calendar_id: Optional[str] = None
+    use_primary_calendar: Optional[bool] = None
     pb_consultant_id: Optional[str] = None
     timezone: Optional[str] = None
     active: Optional[bool] = None
@@ -5270,6 +5272,7 @@ async def create_director(payload: DirectorCreate, admin_user: dict = Depends(ge
         "active": payload.active,
         "email": (payload.email or "").strip().lower(),
         "google_calendar_id": (payload.google_calendar_id or "").strip(),
+        "use_primary_calendar": bool(payload.use_primary_calendar),
         "pb_consultant_id": (payload.pb_consultant_id or "").strip(),
         "timezone": payload.timezone,
         "weekly_rules": [r.model_dump() for r in payload.weekly_rules],
@@ -5298,6 +5301,8 @@ async def update_director(director_id: str, payload: DirectorUpdate, admin_user:
         updates["email"] = payload.email.strip().lower()
     if payload.google_calendar_id is not None:
         updates["google_calendar_id"] = payload.google_calendar_id.strip()
+    if payload.use_primary_calendar is not None:
+        updates["use_primary_calendar"] = payload.use_primary_calendar
     if payload.pb_consultant_id is not None:
         updates["pb_consultant_id"] = payload.pb_consultant_id.strip()
     if payload.timezone is not None:
@@ -5330,6 +5335,8 @@ class PccCreate(BaseModel):
     name: str
     email: EmailStr
     google_calendar_id: Optional[str] = ""
+    use_primary_calendar: bool = False
+    pb_consultant_id: Optional[str] = ""   # lets a PCC's manual bookings mirror to PB (per_director)
     timezone: str = "America/Los_Angeles"
     active: bool = True
 
@@ -5348,6 +5355,8 @@ class PccUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     google_calendar_id: Optional[str] = None
+    use_primary_calendar: Optional[bool] = None
+    pb_consultant_id: Optional[str] = None
     timezone: Optional[str] = None
     active: Optional[bool] = None
 
@@ -5388,7 +5397,9 @@ async def list_pccs(admin_user: dict = Depends(get_admin_user)):
 async def create_pcc(payload: PccCreate, admin_user: dict = Depends(get_admin_user)):
     now = datetime.now(timezone.utc).isoformat()
     doc = {"pcc_id": str(uuid.uuid4()), "name": payload.name.strip(), "email": payload.email.lower(),
-           "google_calendar_id": (payload.google_calendar_id or "").strip(), "timezone": payload.timezone,
+           "google_calendar_id": (payload.google_calendar_id or "").strip(),
+           "use_primary_calendar": bool(payload.use_primary_calendar),
+           "pb_consultant_id": (payload.pb_consultant_id or "").strip(), "timezone": payload.timezone,
            "active": payload.active, "created_at": now, "updated_at": now}
     await db.pccs.insert_one(dict(doc))
     await log_admin_action("ADMIN_COORDINATOR_CREATED", admin_user=admin_user,
@@ -5407,6 +5418,10 @@ async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends
         updates["email"] = payload.email.lower()
     if payload.google_calendar_id is not None:
         updates["google_calendar_id"] = payload.google_calendar_id.strip()
+    if payload.use_primary_calendar is not None:
+        updates["use_primary_calendar"] = payload.use_primary_calendar
+    if payload.pb_consultant_id is not None:
+        updates["pb_consultant_id"] = payload.pb_consultant_id.strip()
     if payload.timezone is not None:
         updates["timezone"] = payload.timezone
     if payload.active is not None:
@@ -5633,6 +5648,212 @@ async def service_search_pb_clients(
     from services.client_cache import get_client_cache
     clients = await asyncio.to_thread(get_client_cache().search_clients, search, limit)
     return {"clients": clients}
+
+
+# ---------------------------------------------------------------- Team Calendar (admin)
+#
+# Live, read-only feed for the admin Team Calendar view. Deliberately NOT served from the
+# busy ledger (director.calendar_busy): the sweep strips titles and refreshes 3×/day. This
+# reads events.list per host calendar on demand behind a short TTL cache and merges in our
+# own bookings ledger, deduping the Google copy of each booking by its stored gcal_event_id.
+
+TEAM_CAL_MAX_WINDOW_DAYS = 31
+TEAM_CAL_CACHE_TTL_SECONDS = 60
+TEAM_CAL_CONCURRENCY = 8
+_team_cal_cache: dict = {}  # (calendar_id, start_iso, end_iso) -> (fetched_ts, [raw events])
+
+# Per-host display palette (600-level hues, tuned to the admin's --st-* tints). Assigned by
+# (created_at, host_id) over the FULL host set, so filtering or adding hosts never re-colors
+# existing ones; wraps past 10 hosts.
+HOST_COLOR_PALETTE = [
+    "#2563eb", "#7c3aed", "#059669", "#d97706", "#0e7490",
+    "#e11d48", "#4f46e5", "#c026d3", "#0d9488", "#ea580c",
+]
+
+
+@api_router.get("/admin/calendar/events")
+async def admin_calendar_events(
+    start: str,
+    end: str,
+    hosts: Optional[str] = None,
+    refresh: int = 0,
+    admin_user: dict = Depends(get_admin_user),
+):
+    """Every active host's real Google events over [start, end) merged with our confirmed
+    bookings. Bookings win the dedup (richer: patient/session/Meet link). Events the owner
+    marked private render busy-only (no title/link). A per-host Google failure sets that
+    host's ``error`` and drops only their events — the rest of the view still renders."""
+    from services import google_calendar as gcal
+
+    start_dt = _parse_utc_iso(start)
+    end_dt = _parse_utc_iso(end)
+    if not start_dt or not end_dt or end_dt <= start_dt:
+        raise HTTPException(status_code=400, detail="start and end must be ISO-8601 with start < end")
+    if (end_dt - start_dt) > timedelta(days=TEAM_CAL_MAX_WINDOW_DAYS):
+        raise HTTPException(status_code=400, detail=f"window too large (max {TEAM_CAL_MAX_WINDOW_DAYS} days)")
+
+    all_hosts = []
+    async for d in db.directors.find({}, {"_id": 0}):
+        all_hosts.append({
+            "host_id": d["director_id"], "name": d.get("name"), "role": d.get("role") or "director",
+            "email": (d.get("email") or "").strip(),
+            "google_calendar_id": (d.get("google_calendar_id") or "").strip(),
+            "use_primary_calendar": bool(d.get("use_primary_calendar")),
+            "active": d.get("active") is not False,
+            "timezone": d.get("timezone") or "America/Los_Angeles",
+            "weekly_rules": d.get("weekly_rules") or [], "created_at": d.get("created_at") or "",
+        })
+    async for p in db.pccs.find({}, {"_id": 0}):
+        all_hosts.append({
+            "host_id": p["pcc_id"], "name": p.get("name"), "role": "pcc",
+            "email": (p.get("email") or "").strip(),
+            "google_calendar_id": (p.get("google_calendar_id") or "").strip(),
+            "use_primary_calendar": bool(p.get("use_primary_calendar")),
+            "active": p.get("active") is not False,
+            "timezone": p.get("timezone") or "America/Los_Angeles",
+            "weekly_rules": [], "created_at": p.get("created_at") or "",
+        })
+    all_hosts.sort(key=lambda h: (h["created_at"], h["host_id"]))
+    for i, h in enumerate(all_hosts):
+        h["color"] = HOST_COLOR_PALETTE[i % len(HOST_COLOR_PALETTE)]
+        # Calendar wiring is explicit: group calendar, opted-in primary (email), or none.
+        h["calendar_id"] = h["google_calendar_id"] or (h["email"] if h["use_primary_calendar"] else "")
+        h["calendar_kind"] = "group" if h["google_calendar_id"] else ("primary" if h["calendar_id"] else "none")
+        h["error"] = None
+
+    # The full roster (active AND inactive) always returns so the host picker can offer
+    # everyone; calendars are read only for the selected set — default: active directors.
+    wanted = {s.strip() for s in (hosts or "").split(",") if s.strip()}
+    if wanted:
+        selected = [h for h in all_hosts if h["host_id"] in wanted]
+    else:
+        selected = [h for h in all_hosts if h["active"] and h["role"] == "director"]
+
+    start_iso, end_iso = start_dt.isoformat(), end_dt.isoformat()
+    now_ts = datetime.now(timezone.utc).timestamp()
+    sem = asyncio.Semaphore(TEAM_CAL_CONCURRENCY)
+
+    async def read_calendar(h: dict):
+        """-> (host_id, raw_events|None, error|None), degrading per-host."""
+        cal_id = h["calendar_id"]
+        if not cal_id:
+            return h["host_id"], None, "no calendar — add a shared calendar or enable “Use primary calendar”"
+        key = (cal_id, start_iso, end_iso)
+        if not refresh:
+            hit = _team_cal_cache.get(key)
+            if hit and (now_ts - hit[0]) < TEAM_CAL_CACHE_TTL_SECONDS:
+                return h["host_id"], hit[1], None
+        subject = None if h["google_calendar_id"] else h["email"]
+        try:
+            async with sem:
+                raw = await asyncio.wait_for(
+                    gcal.list_events(calendar_id=cal_id, time_min_iso=start_iso,
+                                     time_max_iso=end_iso, subject=subject),
+                    timeout=10,
+                )
+        except Exception as e:
+            logger.warning(f"[team-cal] events read failed for {h.get('name')} ({cal_id}): {e}")
+            return h["host_id"], None, str(e)
+        _team_cal_cache[key] = (datetime.now(timezone.utc).timestamp(), raw)
+        return h["host_id"], raw, None
+
+    reads = []
+    if gcal.is_configured():
+        reads = await asyncio.gather(*(read_calendar(h) for h in selected))
+    else:
+        reads = [(h["host_id"], None, "google service account not configured") for h in selected]
+    if len(_team_cal_cache) > 256:  # bounded: drop expired entries between requests
+        cutoff = datetime.now(timezone.utc).timestamp() - TEAM_CAL_CACHE_TTL_SECONDS
+        for k in [k for k, v in _team_cal_cache.items() if v[0] < cutoff]:
+            _team_cal_cache.pop(k, None)
+
+    raw_by_host = {}
+    for host_id, raw, err in reads:
+        raw_by_host[host_id] = raw or []
+        for h in selected:
+            if h["host_id"] == host_id:
+                h["error"] = err
+
+    # Our ledger is authoritative for bookings; remember each booking's Google copy so the
+    # external read of the same event is dropped, and borrow that copy's resolved summary
+    # (portal bookings don't carry session_title on the doc).
+    summary_by_event_id = {}
+    for raw in raw_by_host.values():
+        for ev in raw:
+            if ev.get("id") and ev.get("summary"):
+                summary_by_event_id[ev["id"]] = ev["summary"]
+
+    events = []
+    booked_event_ids = set()
+    sel_ids = [h["host_id"] for h in selected]
+    async for b in db.bookings.find(
+        {"status": "confirmed", "director_id": {"$in": sel_ids},
+         "slot_start_utc": {"$lt": end_dt}, "slot_end_utc": {"$gt": start_dt}},
+        {"_id": 0, "booking_id": 1, "director_id": 1, "slot_start_utc": 1, "slot_end_utc": 1,
+         "patient": 1, "session_title": 1, "source": 1, "status": 1,
+         "gcal_event_id": 1, "meet_link": 1},
+    ):
+        if b.get("gcal_event_id"):
+            booked_event_ids.add(b["gcal_event_id"])
+        pat = b.get("patient") or {}
+        patient_name = " ".join(x for x in [pat.get("first_name"), pat.get("last_name")] if x).strip()
+        title = (b.get("session_title")
+                 or summary_by_event_id.get(b.get("gcal_event_id"))
+                 or (f"Session — {patient_name}" if patient_name else "Booked session"))
+        events.append({
+            "id": b["booking_id"], "host_id": b.get("director_id"), "kind": "booking",
+            "start_utc": _parse_utc_iso(b.get("slot_start_utc")).isoformat(),
+            "end_utc": _parse_utc_iso(b.get("slot_end_utc")).isoformat(),
+            "all_day": False, "title": title, "busy_only": False,
+            "booking": {
+                "booking_id": b["booking_id"], "patient_name": patient_name or None,
+                "patient_email": pat.get("email"), "session_title": b.get("session_title"),
+                "status": b.get("status"), "source": b.get("source"),
+                "meet_link": b.get("meet_link"),
+            },
+        })
+
+    for h in selected:
+        for ev in raw_by_host.get(h["host_id"]) or []:
+            if ev.get("status") == "cancelled" or ev.get("transparency") == "transparent":
+                continue
+            summary = (ev.get("summary") or "").strip()
+            if summary.lower() == "availability":  # availability markers mirror weekly_rules
+                continue
+            if ev.get("id") in booked_event_ids:   # our booking's calendar copy — ledger wins
+                continue
+            ev_start, ev_end = ev.get("start") or {}, ev.get("end") or {}
+            all_day = "date" in ev_start
+            s = ev_start.get("date") if all_day else ev_start.get("dateTime")
+            e = ev_end.get("date") if all_day else ev_end.get("dateTime")
+            if not s or not e:
+                continue
+            private = ev.get("visibility") in ("private", "confidential")
+            location = (ev.get("location") or "").strip() or None
+            meet_link = gcal.extract_meet_url(ev)
+            if not meet_link and location and location.lower().startswith(("http://", "https://")):
+                meet_link = location  # PB-created appointments carry their Zoom join URL in location
+            events.append({
+                "id": ev.get("id"), "host_id": h["host_id"], "kind": "gcal",
+                "start_utc": s, "end_utc": e, "all_day": all_day,
+                "title": None if private else (summary or "(no title)"),
+                "busy_only": private,
+                "html_link": None if private else ev.get("htmlLink"),
+                "meet_link": None if private else meet_link,
+                "location": None if private else location,
+            })
+
+    events.sort(key=lambda ev: (ev.get("start_utc") or "", ev.get("end_utc") or ""))
+    return {
+        "window": {"start_utc": start_iso, "end_utc": end_iso},
+        "hosts": [{"host_id": h["host_id"], "name": h["name"], "role": h["role"],
+                   "active": h["active"], "timezone": h["timezone"], "color": h["color"],
+                   "calendar_kind": h["calendar_kind"],
+                   "weekly_rules": h["weekly_rules"], "error": h.get("error")}
+                  for h in all_hosts],
+        "events": events,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @api_router.get("/admin/bookings")

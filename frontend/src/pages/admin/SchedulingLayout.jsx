@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { CalendarDays, Users, Headset, Clock, Settings2 } from 'lucide-react';
+import { CalendarDays, CalendarRange, Users, Headset, Clock, Settings2 } from 'lucide-react';
 
 const TABS = [
   { to: '/admin/scheduling/bookings', label: 'Bookings', icon: CalendarDays },
+  { to: '/admin/scheduling/calendar', label: 'Calendar', icon: CalendarRange },
   { to: '/admin/scheduling/hosts', label: 'Hosts', icon: Users },
   { to: '/admin/scheduling/coordinators', label: 'Coordinators', icon: Headset },
   { to: '/admin/scheduling/events', label: 'Events', icon: Clock },

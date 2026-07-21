@@ -35,11 +35,12 @@ const combineDateTime = (dateObj, timeStr) => {
   return d.toISOString();
 };
 
-const EMPTY = { director_id: null, name: '', email: '', timezone: 'America/Los_Angeles', google_calendar_id: '', pb_consultant_id: '', active: true, weekly_rules: [], time_off: [], date_overrides: [] };
+const EMPTY = { director_id: null, name: '', email: '', timezone: 'America/Los_Angeles', google_calendar_id: '', use_primary_calendar: false, pb_consultant_id: '', active: true, weekly_rules: [], time_off: [], date_overrides: [] };
 
 const toForm = (d) => ({
   director_id: d.director_id, name: d.name || '', email: d.email || '', timezone: d.timezone || 'America/Los_Angeles',
-  google_calendar_id: d.google_calendar_id || '', pb_consultant_id: d.pb_consultant_id || '', active: d.active !== false,
+  google_calendar_id: d.google_calendar_id || '', use_primary_calendar: d.use_primary_calendar === true,
+  pb_consultant_id: d.pb_consultant_id || '', active: d.active !== false,
   weekly_rules: (d.weekly_rules || []).map((r) => ({ ...r })),
   time_off: (d.time_off || []).map((t) => ({ ...t })),
   date_overrides: (d.date_overrides || []).map((o) => ({ date: o.date || '', windows: (o.windows || []).map((w) => ({ ...w })) })),
@@ -105,6 +106,7 @@ export default function DirectorEditor() {
     const payload = {
       name: form.name.trim(), role: 'director', email: (form.email || '').trim(), timezone: form.timezone.trim(),
       google_calendar_id: form.google_calendar_id.trim(),
+      use_primary_calendar: form.use_primary_calendar,
       pb_consultant_id: (form.pb_consultant_id || '').trim(),
       active: form.active,
       weekly_rules: form.weekly_rules.map((r) => ({ day_of_week: Number(r.day_of_week), start: r.start, end: r.end })),
@@ -172,6 +174,17 @@ export default function DirectorEditor() {
               <Label htmlFor="d-cal">Google calendar ID</Label>
               <Input id="d-cal" value={form.google_calendar_id} onChange={(e) => setField('google_calendar_id', e.target.value)} placeholder="address@group.calendar.google.com" />
               <p className="text-xs text-muted-foreground">The dedicated calendar bookings + holidays write to. Paste it here when ready.</p>
+            </div>
+            <div className="flex items-start justify-between gap-3 rounded-lg border p-3 md:col-span-2">
+              <div className="space-y-0.5">
+                <Label htmlFor="d-primary">Use primary calendar</Label>
+                <p className="text-xs text-muted-foreground">
+                  {form.google_calendar_id.trim()
+                    ? 'Ignored while a shared calendar ID is set above.'
+                    : 'No shared calendar? Bookings land on their own email calendar and it shows on the Team Calendar.'}
+                </p>
+              </div>
+              <Switch id="d-primary" checked={form.use_primary_calendar} onCheckedChange={(v) => setField('use_primary_calendar', v)} />
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="d-pbid">Practice Better consultant ID</Label>

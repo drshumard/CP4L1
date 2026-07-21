@@ -166,6 +166,48 @@ async def is_busy(*, calendar_id: Optional[str], start_iso: str, end_iso: str) -
         return None
 
 
+# --------------------------------------------------------------------------- events (read)
+#
+# Team Calendar read path. Unlike the busy sweep (which strips titles down to intervals),
+# this returns lean event resources — title, times, visibility, link — for on-demand
+# rendering in the admin portal. Never persisted.
+
+_EVENT_LIST_FIELDS = ("nextPageToken,items(id,status,transparency,visibility,summary,location,"
+                      "start(dateTime,date),end(dateTime,date),htmlLink,hangoutLink,"
+                      "conferenceData(entryPoints(entryPointType,uri)))")
+
+
+def extract_meet_url(event: dict) -> Optional[str]:
+    """Video-entry URL of an event resource (hangoutLink or a conference video entryPoint) —
+    lets the Team Calendar offer Join on events we didn't create. None when the event has none."""
+    return _extract_meet_url(event)
+
+
+def _sync_list_events(calendar_id, time_min_iso, time_max_iso, subject=None):
+    svc = _service(subject)
+    out, page = [], None
+    while True:
+        resp = svc.events().list(
+            calendarId=calendar_id, timeMin=time_min_iso, timeMax=time_max_iso,
+            singleEvents=True, orderBy="startTime", maxResults=250, pageToken=page,
+            fields=_EVENT_LIST_FIELDS,
+        ).execute()
+        out.extend(resp.get("items", []))
+        page = resp.get("nextPageToken")
+        if not page:
+            break
+    return out
+
+
+async def list_events(*, calendar_id: str, time_min_iso: str, time_max_iso: str,
+                      subject: Optional[str] = None) -> list:
+    """Raw (lean) event resources for one calendar over [time_min, time_max), recurring
+    events expanded. ``subject`` impersonates the host to read their own primary (email)
+    calendar; None uses the shared subject that can see the group calendars. Raises on
+    Google errors — the caller degrades per-host, never per-view."""
+    return await asyncio.to_thread(_sync_list_events, calendar_id, time_min_iso, time_max_iso, subject)
+
+
 # --------------------------------------------------------------------------- create
 
 MEET_API = "https://meet.googleapis.com"

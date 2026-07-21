@@ -16,6 +16,7 @@ import AutomationsPage from './pages/AutomationsPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import SchedulingLayout from './pages/admin/SchedulingLayout';
 import SchedulingBookings from './pages/admin/scheduling/Bookings';
+import SchedulingTeamCalendar from './pages/admin/scheduling/TeamCalendar';
 import SchedulingHosts from './pages/admin/scheduling/Hosts';
 import DirectorEditor from './pages/admin/scheduling/DirectorEditor';
 import SchedulingCoordinators from './pages/admin/scheduling/Coordinators';
@@ -289,6 +290,7 @@ function App() {
               <Route path="scheduling" element={<SchedulingLayout />}>
                 <Route index element={<Navigate to="bookings" replace />} />
                 <Route path="bookings" element={<SchedulingBookings />} />
+                <Route path="calendar" element={<SchedulingTeamCalendar />} />
                 <Route path="hosts">
                   <Route index element={<SchedulingHosts />} />
                   <Route path="new" element={<DirectorEditor />} />

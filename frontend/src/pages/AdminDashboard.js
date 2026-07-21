@@ -21,6 +21,8 @@ import {
 import { toast } from 'sonner';
 import { fmtDateTime } from './admin/format';
 import { confirmDialog } from './admin/confirm';
+import { US_TIMEZONES, safeTz, utcToZonedWallTime, tzAbbrev } from './admin/usTimezones';
+import { zonedWallTimeToUtcIso } from './admin/scheduling/useSortedTimezones';
 import {
   Home, Users, BarChart3, RefreshCw, Trash2, Activity,
   Search, Phone, Calendar,
@@ -319,35 +321,28 @@ const AdminDashboard = () => {
   };
 
   const openBookingModal = () => {
-    // Pre-fill with existing booking info if available
+    // Pre-fill from the existing booking, decomposed in ITS OWN timezone — never the
+    // browser's. Falls back: booking tz → user signup tz → Pacific.
     const existingBooking = selectedUser?.booking_info;
-    const userTimezone = selectedUser?.signup_location?.timezone || 
+    const userTimezone = selectedUser?.signup_location?.timezone ||
                          selectedUser?.location_info?.timezone || '';
-    
-    if (existingBooking) {
-      // Handle both session_start (from online booking) and booking_datetime (from manual entry)
-      const bookingDateStr = existingBooking.session_start || existingBooking.booking_datetime;
-      if (bookingDateStr) {
-        const dt = new Date(bookingDateStr);
-        setBookingFormData({
-          date: dt.toISOString().split('T')[0],
-          time: dt.toTimeString().slice(0, 5),
-          timezone: existingBooking.timezone || existingBooking.booking_timezone || userTimezone,
-          notes: existingBooking.update_notes || ''
-        });
-      } else {
-        setBookingFormData({
-          date: '',
-          time: '',
-          timezone: userTimezone,
-          notes: ''
-        });
-      }
+    const tz = safeTz(existingBooking?.timezone || existingBooking?.booking_timezone || userTimezone);
+    // Handle both session_start (from online booking) and booking_datetime (from manual entry)
+    const bookingDateStr = existingBooking?.session_start || existingBooking?.booking_datetime;
+
+    if (existingBooking && bookingDateStr) {
+      const wall = utcToZonedWallTime(bookingDateStr, tz);
+      setBookingFormData({
+        date: wall.date,
+        time: wall.time,
+        timezone: tz,
+        notes: existingBooking.update_notes || ''
+      });
     } else {
       setBookingFormData({
         date: '',
         time: '',
-        timezone: userTimezone,
+        timezone: tz,
         notes: ''
       });
     }
@@ -363,8 +358,12 @@ const AdminDashboard = () => {
     setActionLoading(true);
     try {
       const token = localStorage.getItem('access_token');
-      const bookingDatetime = `${bookingFormData.date}T${bookingFormData.time}:00`;
-      
+      // Wall time entered in the SELECTED timezone → a real UTC instant (same format the
+      // online booking flow stores), so every display converts unambiguously.
+      const bookingDatetime = zonedWallTimeToUtcIso(
+        bookingFormData.date, bookingFormData.time, safeTz(bookingFormData.timezone),
+      );
+
       await axios.post(
         `${API}/admin/user/${selectedUser.id}/update-booking`,
         {
@@ -753,9 +752,18 @@ const AdminDashboard = () => {
                           </div>
                           <div className="space-y-1.5">
                             <label className="text-sm font-medium text-foreground">Timezone</label>
-                            <Input type="text" value={bookingFormData.timezone} onChange={(e) => setBookingFormData({ ...bookingFormData, timezone: e.target.value })} placeholder="America/New_York" />
+                            <Select value={bookingFormData.timezone} onValueChange={(v) => setBookingFormData({ ...bookingFormData, timezone: v })}>
+                              <SelectTrigger className="w-full"><SelectValue placeholder="Timezone" /></SelectTrigger>
+                              <SelectContent>
+                                {US_TIMEZONES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                {bookingFormData.timezone && !US_TIMEZONES.some((o) => o.value === bookingFormData.timezone) && (
+                                  <SelectItem value={bookingFormData.timezone}>{bookingFormData.timezone}</SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
+                        <p className="text-xs text-muted-foreground">Date &amp; time are in the selected timezone.</p>
                         <div className="space-y-1.5">
                           <label className="text-sm font-medium text-foreground">Notes (optional)</label>
                           <Textarea rows={2} value={bookingFormData.notes} onChange={(e) => setBookingFormData({ ...bookingFormData, notes: e.target.value })} placeholder="e.g., Rescheduled via phone call" />
@@ -775,7 +783,12 @@ const AdminDashboard = () => {
                       </div>
                     ) : selectedUser.booking_info ? (
                       <div className="rounded-lg border bg-muted/30 p-3">
-                        <div className="font-medium text-foreground">{formatDate(selectedUser.booking_info.session_start || selectedUser.booking_info.booking_datetime)}</div>
+                        <div className="font-medium text-foreground">{(() => {
+                          const bi = selectedUser.booking_info;
+                          const btz = safeTz(bi.timezone || bi.booking_timezone);
+                          const v = bi.session_start || bi.booking_datetime;
+                          return `${fmtDateTime(v, { tz: btz })} ${tzAbbrev(v, btz)}`;
+                        })()}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{selectedUser.booking_info.timezone || selectedUser.booking_info.booking_timezone || 'Timezone not set'}{selectedUser.booking_info.source ? ` · ${selectedUser.booking_info.source === 'online_booking' ? 'Online booking' : 'Manual entry'}` : ''}</div>
                         {selectedUser.booking_info.update_notes && <div className="mt-1 text-xs italic text-muted-foreground">{selectedUser.booking_info.update_notes}</div>}
                       </div>

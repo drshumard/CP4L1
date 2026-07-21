@@ -19,12 +19,12 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import useSortedTimezones, { zonedWallTimeToUtcIso } from './useSortedTimezones';
+import { zonedWallTimeToUtcIso } from './useSortedTimezones';
+import { US_TIMEZONES, DEFAULT_US_TZ } from '../usTimezones';
 
 const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const fmtDateLabel = (s) => (s ? new Date(`${s}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '');
-const BROWSER_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } })();
-const emptyForm = () => ({ session_id: '', director_id: '', date: '', time: '09:00', timezone: BROWSER_TZ, user_id: '', first_name: '', last_name: '', email: '', phone: '', notes: '', send_email: true });
+const emptyForm = () => ({ session_id: '', director_id: '', date: '', time: '09:00', timezone: DEFAULT_US_TZ, user_id: '', first_name: '', last_name: '', email: '', phone: '', notes: '', send_email: true });
 
 // Searchable patient picker backed by the Practice Better client cache (server-side search).
 function PatientCombobox({ email, onSelect }) {
@@ -83,7 +83,6 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
   const [pccs, setPccs] = useState([]);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
-  const tzOptions = useSortedTimezones();
 
   useEffect(() => {
     if (!open) return;
@@ -187,10 +186,10 @@ export default function ManualBookingDrawer({ open, onOpenChange, onCreated }) {
               <Select value={form.timezone} onValueChange={(v) => set('timezone', v)}>
                 <SelectTrigger className="w-full"><SelectValue placeholder="Select timezone" /></SelectTrigger>
                 <SelectContent>
-                  {tzOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  {US_TIMEZONES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Defaults to your timezone — change it to the patient&apos;s. The date and time below are in this zone.</p>
+              <p className="text-xs text-muted-foreground">Defaults to Pacific — set it to the patient&apos;s zone. The date and time below are in this zone.</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
