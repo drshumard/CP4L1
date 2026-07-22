@@ -479,7 +479,7 @@ const AdminDashboard = () => {
       {/* Header replaced by the unified AdminLayout shell (sidebar + topbar). Kept hidden
           so its handlers stay referenced; the overlapping centered-title bug is gone. */}
       <div className="hidden" data-testid="admin-header">
-        <div className="max-w-7xl 2xl:max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl 2xl:max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-3">
             <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
               <img 
@@ -554,7 +554,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto">
+      <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto">
         {/* Settings Panel */}
         {showSettings && (
           <Card className="bg-white border border-slate-200 shadow-sm mb-6" data-testid="settings-panel">

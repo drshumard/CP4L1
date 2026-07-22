@@ -126,7 +126,7 @@ const ActivityLogs = () => {
   };
 
   return (
-    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto w-full">
+    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto w-full">
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{pagination.total_count.toLocaleString()} total log{pagination.total_count === 1 ? '' : 's'}</p>

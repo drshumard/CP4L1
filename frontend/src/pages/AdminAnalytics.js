@@ -159,7 +159,7 @@ const AdminAnalytics = () => {
   ];
 
   return (
-    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto w-full space-y-6">
+    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto w-full space-y-6">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
