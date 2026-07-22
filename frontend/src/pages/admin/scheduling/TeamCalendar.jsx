@@ -625,7 +625,7 @@ export default function TeamCalendar() {
                             key={`${item.ev.host_id}-${item.ev.id}-${item.colIdx}`}
                             type="button"
                             onClick={(e) => openAllDay(e, item)}
-                            className="absolute overflow-hidden truncate rounded-md px-2 py-0.5 text-left text-[11px] font-semibold"
+                            className="absolute overflow-hidden truncate rounded-md px-2 py-0.5 text-left text-[11px] font-semibold hover:translate-y-0"
                             style={{
                               top: item.lane * 26 + 3,
                               left: `calc(100% / ${nCols} * ${item.colIdx} + 3px)`,
@@ -681,12 +681,16 @@ export default function TeamCalendar() {
                           const selCovered = selSeg && col.segs.some((o) => o.depth > selSeg.depth && overlapsSeg(o, selSeg));
                           const covered = !split && col.segs.some((o) => o.depth > seg.depth && overlapsSeg(o, seg));
                           const pushed = selCovered && !selected && seg.depth > selSeg.depth && overlapsSeg(seg, selSeg);
+                          // Earlier (lower-depth) cards in the selected stack clip to their own strip —
+                          // otherwise they run underneath and peek through the gaps like a phantom event.
+                          const clipStack = selCovered && !selected && seg.depth < selSeg.depth && overlapsSeg(seg, selSeg);
                           const selIndent = selSeg ? Math.min(selSeg.depth * STEP, 70) : 0;
                           const indent = split ? 0
                             : pushed ? Math.min(selIndent + EXPANDED + (seg.depth - selSeg.depth - 1) * STEP, 85)
                             : Math.min(seg.depth * STEP, 70);
                           const width = split ? 100 / seg.cols
                             : selected && covered ? Math.min(100 - indent, EXPANDED)
+                            : clipStack ? STEP
                             : 100 - indent;
                           const leftPct = split ? seg.col * width : indent;
                           const style = {
@@ -710,7 +714,7 @@ export default function TeamCalendar() {
                               key={`${seg.ev.id}-${i}`}
                               type="button"
                               onClick={(e) => openSeg(e, seg)}
-                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3] transition-[width,left] duration-150 ease-out"
+                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3] hover:translate-y-0"
                               style={style}
                             >
                               <span className="block truncate text-[11px] font-semibold">
