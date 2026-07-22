@@ -633,7 +633,6 @@ export default function TeamCalendar() {
                               background: busy ? BUSY_BG : pal.card,
                               color: busy ? '#475569' : pal.text,
                             }}
-                            title={item.ev.title || 'Busy'}
                           >
                             {item.clipStart && '‹ '}{busy ? 'Busy' : item.ev.title}{item.clipEnd && ' ›'}
                           </button>
@@ -674,14 +673,20 @@ export default function TeamCalendar() {
                           // Day view (per-host columns) splits same-host overlaps side-by-side;
                           // week view cascades — DOM order (sorted by start) keeps later events on top.
                           const split = seg.cols !== undefined;
-                          const indent = split ? 0 : Math.min(seg.depth * 14, 70);
-                          // A selected card that's buried under later strips lifts to the front but
-                          // only doubles its visible strip — never full width, so the strips to its
-                          // right stay visible and clickable (details live in the popover).
-                          const covered = !split && col.segs.some((o) =>
-                            o !== seg && o.depth > seg.depth && o.startMin < seg.endMin && o.endMin > seg.startMin);
+                          const STEP = 14, EXPANDED = 28;
+                          const overlapsSeg = (a, b) => a.startMin < b.endMin && a.endMin > b.startMin;
+                          // Selecting a buried card lifts it at ~2 strips wide and pushes the strips
+                          // stacked on it further right, so every card in the stack stays fully visible.
+                          const selSeg = !split && sel?.kind === 'timed' && col.segs.includes(sel.seg) ? sel.seg : null;
+                          const selCovered = selSeg && col.segs.some((o) => o.depth > selSeg.depth && overlapsSeg(o, selSeg));
+                          const covered = !split && col.segs.some((o) => o.depth > seg.depth && overlapsSeg(o, seg));
+                          const pushed = selCovered && !selected && seg.depth > selSeg.depth && overlapsSeg(seg, selSeg);
+                          const selIndent = selSeg ? Math.min(selSeg.depth * STEP, 70) : 0;
+                          const indent = split ? 0
+                            : pushed ? Math.min(selIndent + EXPANDED + (seg.depth - selSeg.depth - 1) * STEP, 85)
+                            : Math.min(seg.depth * STEP, 70);
                           const width = split ? 100 / seg.cols
-                            : selected && covered ? Math.min(100 - indent, 28)
+                            : selected && covered ? Math.min(100 - indent, EXPANDED)
                             : 100 - indent;
                           const leftPct = split ? seg.col * width : indent;
                           const style = {
@@ -696,7 +701,7 @@ export default function TeamCalendar() {
                                 : { background: pal.card, color: pal.text }),
                             ...(selected
                               // Ring drawn INSET so it never bleeds onto back-to-back events above/below.
-                              ? { boxShadow: 'inset 0 0 0 2px #fff, inset 0 0 0 3.5px hsl(0 0% 9%), 0 0 0 1px #fff' }
+                              ? { boxShadow: 'inset 0 0 0 1px #fff, inset 0 0 0 2px hsl(0 0% 9%), 0 0 0 1px #fff' }
                               : { boxShadow: '0 0 0 1px #fff' }), // hairline so stacked cards read as separate
                           };
                           const label = busy ? 'Busy' : seg.ev.title || '(no title)';
@@ -705,9 +710,8 @@ export default function TeamCalendar() {
                               key={`${seg.ev.id}-${i}`}
                               type="button"
                               onClick={(e) => openSeg(e, seg)}
-                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3] transition-[width] duration-150 ease-out"
+                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3] transition-[width,left] duration-150 ease-out"
                               style={style}
-                              title={label}
                             >
                               <span className="block truncate text-[11px] font-semibold">
                                 {seg.clipStart && '‹ '}{label}{seg.clipEnd && ' ›'}
