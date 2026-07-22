@@ -14,7 +14,7 @@ const TABS = [
 export default function SchedulingLayout() {
   const { pathname } = useLocation();
   return (
-    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-[1680px] mx-auto w-full">
+    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto w-full">
       <div className="mb-6 overflow-x-auto">
         <div className="cad-tabs">
           {TABS.map(({ to, label, icon: Icon }) => (
