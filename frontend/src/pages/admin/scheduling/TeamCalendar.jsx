@@ -136,10 +136,8 @@ function offBandsFromRules(rules, wd) {
 }
 
 // ---------------------------------------------------------------- overlap layout
-// Google-style column packing (both views): overlapping segments split the column
-// side-by-side in equal shares — 2 concurrent → 50/50, 3 → thirds; a freed column
-// is reused by later events in the same cluster.
-function layoutSplit(segments) {
+// Google-style column packing: overlapping segments in a column split it side-by-side.
+function layoutDay(segments) {
   const evs = [...segments].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
   const clusters = [];
   let cluster = null;
@@ -164,6 +162,22 @@ function layoutSplit(segments) {
       ev.col = c;
     }
     for (const ev of cl) ev.cols = colEnds.length;
+  }
+  return evs;
+}
+
+// Google-overlay style for the merged week view: overlapping events are NOT split into
+// sub-columns — the later event stacks ON TOP, indented from the left, so the earlier one
+// keeps (near) full width underneath with its title visible at the left edge.
+function layoutCascade(segments) {
+  const evs = [...segments].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
+  const active = [];
+  for (const ev of evs) {
+    for (let i = active.length - 1; i >= 0; i--) {
+      if (active[i].endMin <= ev.startMin) active.splice(i, 1);
+    }
+    ev.depth = active.length;
+    active.push(ev);
   }
   return evs;
 }
@@ -355,7 +369,7 @@ export default function TeamCalendar() {
     if (view === 'week') {
       out = displayDays.map((ymd, i) => ({
         key: ymd, colIdx: i, ymd, kind: 'day',
-        segs: layoutSplit(rawByYmd[ymd] || []),
+        segs: layoutCascade(rawByYmd[ymd] || []),
         offBands: shadingEnabled
           ? offBandsFromRules(visibleHosts.flatMap((h) => h.weekly_rules || []), weekdayIdx(ymd))
           : [],
@@ -364,7 +378,7 @@ export default function TeamCalendar() {
       const daySegs = rawByYmd[anchor] || [];
       out = visibleHosts.map((h, i) => ({
         key: h.host_id, colIdx: i, ymd: anchor, kind: 'host', host: h,
-        segs: layoutSplit(daySegs.filter((s) => s.ev.host_id === h.host_id)),
+        segs: layoutDay(daySegs.filter((s) => s.ev.host_id === h.host_id)),
         offBands: (h.weekly_rules || []).length ? offBandsFromRules(h.weekly_rules, weekdayIdx(anchor)) : [],
       }));
     }
@@ -656,8 +670,12 @@ export default function TeamCalendar() {
                           const top = (seg.startMin / 60) * HOUR_PX;
                           const height = Math.max(20, ((seg.endMin - seg.startMin) / 60) * HOUR_PX - 2);
                           const selected = sel?.seg === seg;
-                          const width = 100 / seg.cols;
-                          const leftPct = seg.col * width;
+                          // Day view (per-host columns) splits same-host overlaps side-by-side;
+                          // week view cascades — DOM order (sorted by start) keeps later events on top.
+                          const split = seg.cols !== undefined;
+                          const indent = split ? 0 : Math.min(seg.depth * 14, 70);
+                          const width = split ? 100 / seg.cols : 100 - indent;
+                          const leftPct = split ? seg.col * width : indent;
                           const style = {
                             top, height,
                             left: `calc(${leftPct}% + 3px)`,
@@ -668,8 +686,10 @@ export default function TeamCalendar() {
                                 ? { background: BUSY_BG, color: '#475569' }
                                 : { background: pal.card, color: pal.text }),
                             ...(selected
+                              // No z-lift: raising the card would bury the strips stacked on it,
+                              // forcing a deselect before the next event is clickable (details live in the popover).
                               ? { boxShadow: '0 0 0 2px #fff, 0 0 0 3.5px hsl(0 0% 9%)' }
-                              : { boxShadow: '0 0 0 1px #fff' }), // hairline separates adjacent cards
+                              : { boxShadow: '0 0 0 1px #fff' }), // hairline so stacked cards read as separate
                           };
                           const label = busy ? 'Busy' : seg.ev.title || '(no title)';
                           return (
