@@ -686,7 +686,9 @@ export default function TeamCalendar() {
                                 ? { background: BUSY_BG, color: '#475569' }
                                 : { background: pal.card, color: pal.text }),
                             ...(selected
-                              ? { boxShadow: '0 0 0 2px #fff, 0 0 0 3.5px hsl(0 0% 9%)', zIndex: 6 }
+                              // No z-lift: raising the card would bury the strips stacked on it,
+                              // forcing a deselect before the next event is clickable (details live in the popover).
+                              ? { boxShadow: '0 0 0 2px #fff, 0 0 0 3.5px hsl(0 0% 9%)' }
                               : { boxShadow: '0 0 0 1px #fff' }), // hairline so stacked cards read as separate
                           };
                           const label = busy ? 'Busy' : seg.ev.title || '(no title)';
