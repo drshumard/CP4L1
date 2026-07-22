@@ -23,6 +23,7 @@ const TG_ON = 'data-[state=on]:bg-primary data-[state=on]:text-primary-foregroun
 
 const CLINIC_TZ = 'America/Los_Angeles';
 const HOUR_PX = 56;
+const GUTTER_PX = 76;
 const LS_KEY = 'teamcal.prefs.v1';
 const REFETCH_MS = 120_000;
 
@@ -440,8 +441,8 @@ export default function TeamCalendar() {
 
   const shift = (n) => { setAnchor(addDaysYmd(anchor, n)); setSel(null); };
   const nCols = Math.max(1, cols.length);
-  const gridCols = { gridTemplateColumns: `56px repeat(${nCols}, minmax(0, 1fr))` };
-  const minWidth = view === 'week' ? 940 : Math.max(560, 56 + nCols * 150);
+  const gridCols = { gridTemplateColumns: `${GUTTER_PX}px repeat(${nCols}, minmax(0, 1fr))` };
+  const minWidth = view === 'week' ? 960 : Math.max(560, GUTTER_PX + nCols * 150);
 
   const openSeg = (e, seg) => { e.stopPropagation(); setSel({ kind: 'timed', seg }); };
   const openAllDay = (e, item) => { e.stopPropagation(); setSel({ kind: 'allday', seg: { ev: item.ev, colIdx: item.colIdx, startMin: 0 } }); };
@@ -451,10 +452,10 @@ export default function TeamCalendar() {
     if (!sel) return null;
     const ci = sel.seg.colIdx;
     const top = sel.kind === 'allday' ? 8 : Math.min(Math.max((sel.seg.startMin / 60) * HOUR_PX - 6, 6), 24 * HOUR_PX - 260);
-    if (nCols === 1) return { left: 76, top };
+    if (nCols === 1) return { left: GUTTER_PX + 20, top };
     return ci <= nCols - 3
-      ? { left: `calc(56px + (100% - 56px) / ${nCols} * ${ci + 1} + 6px)`, top }
-      : { left: `calc(56px + (100% - 56px) / ${nCols} * ${ci} - 290px)`, top };
+      ? { left: `calc(${GUTTER_PX}px + (100% - ${GUTTER_PX}px) / ${nCols} * ${ci + 1} + 6px)`, top }
+      : { left: `calc(${GUTTER_PX}px + (100% - ${GUTTER_PX}px) / ${nCols} * ${ci} - 290px)`, top };
   }, [sel, nCols]);
 
   const selHost = sel ? hostById.get(sel.seg.ev.host_id) : null;
@@ -674,21 +675,28 @@ export default function TeamCalendar() {
                           // week view cascades — DOM order (sorted by start) keeps later events on top.
                           const split = seg.cols !== undefined;
                           const indent = split ? 0 : Math.min(seg.depth * 14, 70);
-                          const width = split ? 100 / seg.cols : 100 - indent;
+                          // A selected card that's buried under later strips lifts to the front but
+                          // only doubles its visible strip — never full width, so the strips to its
+                          // right stay visible and clickable (details live in the popover).
+                          const covered = !split && col.segs.some((o) =>
+                            o !== seg && o.depth > seg.depth && o.startMin < seg.endMin && o.endMin > seg.startMin);
+                          const width = split ? 100 / seg.cols
+                            : selected && covered ? Math.min(100 - indent, 28)
+                            : 100 - indent;
                           const leftPct = split ? seg.col * width : indent;
                           const style = {
                             top, height,
                             left: `calc(${leftPct}% + 3px)`,
                             width: `calc(${width}% - 6px)`,
+                            ...(selected && covered ? { zIndex: 6 } : {}),
                             ...(isBooking
                               ? { background: h?.color || '#525252', color: '#fff' }
                               : busy
                                 ? { background: BUSY_BG, color: '#475569' }
                                 : { background: pal.card, color: pal.text }),
                             ...(selected
-                              // No z-lift: raising the card would bury the strips stacked on it,
-                              // forcing a deselect before the next event is clickable (details live in the popover).
-                              ? { boxShadow: '0 0 0 2px #fff, 0 0 0 3.5px hsl(0 0% 9%)' }
+                              // Ring drawn INSET so it never bleeds onto back-to-back events above/below.
+                              ? { boxShadow: 'inset 0 0 0 2px #fff, inset 0 0 0 3.5px hsl(0 0% 9%), 0 0 0 1px #fff' }
                               : { boxShadow: '0 0 0 1px #fff' }), // hairline so stacked cards read as separate
                           };
                           const label = busy ? 'Busy' : seg.ev.title || '(no title)';
@@ -697,7 +705,7 @@ export default function TeamCalendar() {
                               key={`${seg.ev.id}-${i}`}
                               type="button"
                               onClick={(e) => openSeg(e, seg)}
-                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3]"
+                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3] transition-[width] duration-150 ease-out"
                               style={style}
                               title={label}
                             >
