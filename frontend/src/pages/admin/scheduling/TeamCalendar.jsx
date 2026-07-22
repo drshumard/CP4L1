@@ -643,7 +643,7 @@ export default function TeamCalendar() {
                 )}
 
                 {/* Time grid */}
-                <div ref={scrollRef} className="max-h-[640px] overflow-y-auto">
+                <div ref={scrollRef} className="max-h-[max(640px,calc(100dvh-360px))] overflow-y-auto">
                   <div className="relative grid" style={gridCols} onClick={() => setSel(null)}>
                     {/* Hour gutter */}
                     <div className="relative" style={{ height: 24 * HOUR_PX }}>
