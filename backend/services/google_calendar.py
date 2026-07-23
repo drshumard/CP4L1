@@ -386,6 +386,39 @@ async def delete_event(*, calendar_id, event_id, subject: Optional[str] = None) 
     await asyncio.to_thread(_sync_delete_event, calendar_id, event_id, subject)
 
 
+# Practice Better's calendar sync stamps its events with shared extendedProperties;
+# vnd.followup.id carries the PB session id. PB's async job normally removes its event
+# within ~a minute of a session DELETE, but is observably flaky (3 of 8 cancels over
+# 2026-07-22/23 left the event behind as a confirmed "ghost"), so our cancel path
+# sweeps by this marker as a backstop.
+PB_SYNC_SESSION_PROP = "vnd.followup.id"
+
+
+def _sync_delete_pb_synced_events(calendar_id, pb_session_id, subject=None):
+    svc = _service(subject)
+    resp = svc.events().list(
+        calendarId=calendar_id,
+        sharedExtendedProperty=f"{PB_SYNC_SESSION_PROP}={pb_session_id}",
+        singleEvents=True, maxResults=50,
+    ).execute()
+    deleted = 0
+    for ev in resp.get("items", []):
+        if ev.get("status") == "cancelled":
+            continue
+        _sync_delete_event(calendar_id, ev["id"], subject)
+        deleted += 1
+    return deleted
+
+
+async def delete_pb_synced_events(*, calendar_id: str, pb_session_id: str,
+                                  subject: Optional[str] = None) -> int:
+    """Delete Practice Better's synced copies of a PB session from ``calendar_id`` (events
+    stamped sharedExtendedProperty vnd.followup.id=<session id>). Returns how many were
+    deleted — normally 1, or 0 when PB's own cleanup got there first (or never synced).
+    Call ONLY after the PB session itself is deleted, else PB and the calendar disagree."""
+    return await asyncio.to_thread(_sync_delete_pb_synced_events, calendar_id, pb_session_id, subject)
+
+
 # --------------------------------------------------------------------------- attendees
 
 def _sync_get_event(calendar_id, event_id):

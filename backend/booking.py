@@ -1728,6 +1728,22 @@ async def _sync_user_booking_info(booking: dict, *, clear: bool) -> None:
         logger.warning(f"Failed to sync user booking_info (clear={clear}): {e}")
 
 
+async def _sweep_pb_ghost_event(calendar_id: Optional[str], pb_session_id: str,
+                                subject: Optional[str], correlation_id: str) -> None:
+    """PB's sync usually removes its own calendar copy of a deleted session within a minute,
+    but sometimes never does, leaving a confirmed "ghost" on the host's calendar. Remove it
+    ourselves right away; PB's own cleanup (if it runs) then just no-ops on a missing event."""
+    if not calendar_id:
+        return
+    try:
+        n = await gcal.delete_pb_synced_events(calendar_id=calendar_id, pb_session_id=pb_session_id,
+                                               subject=subject)
+        if n:
+            logger.info(f"[{correlation_id}] Removed {n} PB-synced calendar event(s) for session {pb_session_id}")
+    except Exception as e:
+        logger.warning(f"[{correlation_id}] PB ghost sweep failed (continuing): {e}")
+
+
 async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterService],
                           correlation_id: str, *, actor: str = "admin",
                           reason: Optional[str] = None) -> dict:
@@ -1742,6 +1758,9 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
             await pb_service.cancel_session(booking["pb_session_id"], correlation_id=correlation_id)
         except Exception as e:
             logger.warning(f"[{correlation_id}] PB cancel failed (continuing): {e}")
+        else:
+            await _sweep_pb_ghost_event(booking.get("gcal_calendar_id"), booking["pb_session_id"],
+                                        booking.get("gcal_subject"), correlation_id)
 
     if booking.get("gcal_event_id") and booking.get("gcal_calendar_id"):
         try:
@@ -1784,17 +1803,23 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
 
 async def _pb_reassign_session(booking: dict, old_pb_session_id: Optional[str], new_director_id: str,
                                new_start_iso: str, session: dict, settings: dict,
-                               pb_service: PracticeBetterService, correlation_id: str) -> None:
+                               pb_service: PracticeBetterService, correlation_id: str,
+                               old_calendar_id: Optional[str] = None) -> None:
     """Per-director reschedule that CHANGED director: the PB consultant changes with the director,
     so cancel the old session (under the old consultant) and recreate it under the new director's
     own consultant. Best-effort — patches pb_session_id/pb_status. If the new director has no PB
-    consultant the session is left without a PB record (pb_status='skipped')."""
+    consultant the session is left without a PB record (pb_status='skipped'). ``old_calendar_id``
+    is the OLD director's calendar (the booking row already points at the new one) so the ghost
+    sweep can clear PB's synced copy of the cancelled session."""
     booking_id = booking["booking_id"]
     if old_pb_session_id:
         try:
             await pb_service.cancel_session(old_pb_session_id, correlation_id=correlation_id)
         except Exception as e:
             logger.warning(f"[{correlation_id}] PB cancel of old session failed (continuing): {e}")
+        else:
+            await _sweep_pb_ghost_event(old_calendar_id, old_pb_session_id,
+                                        booking.get("gcal_subject"), correlation_id)
 
     new_pb_id = await _effective_pb_consultant_id(settings, new_director_id, correlation_id)
     if not new_pb_id:
@@ -1993,7 +2018,8 @@ async def _reschedule_booking(booking: dict, new_start_iso: str,
         if director_changed and pb_mode == "per_director":
             # Consultant changes with the director: cancel the old session, recreate under the new one.
             await _pb_reassign_session(booking, old_pb_session_id, new_director_id, new_start_iso,
-                                       session, settings, pb_service, correlation_id)
+                                       session, settings, pb_service, correlation_id,
+                                       old_calendar_id=old_calendar_id)
         elif old_pb_session_id:
             # Same consultant (same director, or one_director shared consultant): just move the date.
             try:
