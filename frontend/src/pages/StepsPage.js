@@ -1304,7 +1304,7 @@ const StepsPage = () => {
                         return recordId;
                       }
                     };
-                    const activationUrl = `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}?portal_rid=${clientRecordId}`;
+                    const activationUrl = `${portalBaseUrl}/#/u/activate/${calculateActivationId(clientRecordId)}`;
                     window.open(activationUrl, '_blank');
                   } else {
                     window.open('https://drshumard.practicebetter.io', '_blank');

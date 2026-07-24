@@ -37,7 +37,7 @@ def _portal_base_url() -> str:
 def _pb_activation_url(pb_record_id: Optional[str]) -> str:
     """Per-patient Practice Better activation deep-link — the same computation Step 3 (PortalReady)
     used: activationId = (record id as hex) + 4, back to hex, zero-padded to the record id's
-    length; then {portal}/#/u/activate/{activationId}?portal_rid={recordId}. Falls back to the
+    length; then {portal}/#/u/activate/{activationId} (no query params). Falls back to the
     generic PB portal login when we don't have a record id yet (brand-new PB client)."""
     rid = (pb_record_id or "").strip()
     if not rid:
@@ -46,7 +46,7 @@ def _pb_activation_url(pb_record_id: Optional[str]) -> str:
         activation_id = format(int(rid, 16) + 4, "x").zfill(len(rid))
     except ValueError:
         return PB_ACTIVATE_URL
-    return f"{_portal_base_url()}/#/u/activate/{activation_id}?portal_rid={rid}"
+    return f"{_portal_base_url()}/#/u/activate/{activation_id}"
 
 
 def _logo_url() -> str:

@@ -20,7 +20,7 @@ function pbActivateUrl(recordId) {
   if (!recordId) return PB_PORTAL_BASE;
   try {
     const activationId = (BigInt('0x' + recordId) + 4n).toString(16).padStart(recordId.length, '0');
-    return `${PB_PORTAL_BASE}/#/u/activate/${activationId}?portal_rid=${recordId}`;
+    return `${PB_PORTAL_BASE}/#/u/activate/${activationId}`;
   } catch {
     return PB_PORTAL_BASE;
   }
