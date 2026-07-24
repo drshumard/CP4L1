@@ -9,19 +9,20 @@ import './prototype/proto.css';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
-const PB_PORTAL = 'https://my.practicebetter.io';
 const PB_PORTAL_BASE = 'https://drshumard.practicebetter.io';
 
 // Per-patient Practice Better activation deep-link — the same computation the booking email uses:
 // activationId = (record id as hex) + 4, hex, zero-padded to the record id's length. Falls back to
-// the generic PB login when we don't have the patient's record id yet.
+// the PRACTICE's patient portal login when we don't have the patient's record id yet — NEVER
+// my.practicebetter.io, which is PB's practitioner-side entry (patients end up creating a
+// practitioner account).
 function pbActivateUrl(recordId) {
-  if (!recordId) return PB_PORTAL;
+  if (!recordId) return PB_PORTAL_BASE;
   try {
     const activationId = (BigInt('0x' + recordId) + 4n).toString(16).padStart(recordId.length, '0');
     return `${PB_PORTAL_BASE}/#/u/activate/${activationId}?portal_rid=${recordId}`;
   } catch {
-    return PB_PORTAL;
+    return PB_PORTAL_BASE;
   }
 }
 

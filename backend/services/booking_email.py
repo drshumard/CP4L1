@@ -24,7 +24,10 @@ REPLY_TO = ["concierge@drshumard.com"]
 SUPPORT_PHONE = "858-564-7081"
 
 # Same Practice Better portal link the patient sees on Step 3 (PortalReady).
-PB_ACTIVATE_URL = os.environ.get("PB_ACTIVATE_URL", "https://my.practicebetter.io")
+# Fallback when we have no PB record id: the PRACTICE's patient portal login — NEVER
+# my.practicebetter.io, which is Practice Better's practitioner-side entry and walks
+# patients into creating a practitioner account.
+PB_ACTIVATE_URL = os.environ.get("PB_ACTIVATE_URL", "https://drshumard.practicebetter.io")
 
 
 def _portal_base_url() -> str:
