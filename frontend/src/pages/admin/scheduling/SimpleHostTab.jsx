@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { Plus, MoreHorizontalIcon } from 'lucide-react';
 import { adminApi } from '../api';
 import { confirmDialog } from '../confirm';
+import { HostColorPicker } from './hostColors';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -35,7 +36,7 @@ const KINDS = {
          blurb: 'Patient Care Coordinators — rota coordinators AND manual-book hosts. Give each a Google calendar to host a session; assign them to directors’ days on the Coordinators tab.' },
 };
 
-const emptyForm = () => ({ id: null, name: '', email: '', google_calendar_id: '', use_primary_calendar: false, pb_consultant_id: '', timezone: 'America/Los_Angeles', active: true });
+const emptyForm = () => ({ id: null, name: '', email: '', google_calendar_id: '', use_primary_calendar: false, pb_consultant_id: '', timezone: 'America/Los_Angeles', active: true, color: '' });
 
 export default function SimpleHostTab({ kind }) {
   const cfg = KINDS[kind];
@@ -67,7 +68,7 @@ export default function SimpleHostTab({ kind }) {
     setForm({ id: r[cfg.idKey], name: r.name || '', email: r.email || '',
       google_calendar_id: r.google_calendar_id || '', use_primary_calendar: r.use_primary_calendar === true,
       pb_consultant_id: r.pb_consultant_id || '',
-      timezone: r.timezone || 'America/Los_Angeles', active: r.active !== false });
+      timezone: r.timezone || 'America/Los_Angeles', active: r.active !== false, color: r.color || '' });
     setOpen(true);
   };
 
@@ -78,7 +79,7 @@ export default function SimpleHostTab({ kind }) {
       name: form.name.trim(), email: form.email.trim(),
       google_calendar_id: form.google_calendar_id.trim(), use_primary_calendar: form.use_primary_calendar,
       pb_consultant_id: form.pb_consultant_id.trim(),
-      timezone: form.timezone, active: form.active,
+      timezone: form.timezone, active: form.active, color: form.color || '',
     };
     if (kind !== 'pcc') payload.role = cfg.role;
     setSaving(true);
@@ -195,6 +196,11 @@ export default function SimpleHostTab({ kind }) {
                   <SelectTrigger className="w-full"><SelectValue placeholder="Select timezone" /></SelectTrigger>
                   <SelectContent>{tzOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Calendar color</Label>
+                <HostColorPicker value={form.color} onChange={(v) => set('color', v)} />
+                <p className="text-xs text-muted-foreground">Their events on the Team Calendar. Auto picks an unused color.</p>
               </div>
             </div>
             <DrawerFooter className="flex-row justify-end gap-2">

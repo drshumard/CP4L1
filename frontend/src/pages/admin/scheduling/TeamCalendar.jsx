@@ -110,8 +110,8 @@ const hhmmToMin = (s) => {
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 };
 
-// Complement of a host-rule set over [0, 1440) for one weekday → shaded "off" bands.
-function offBandsFromRules(rules, wd) {
+// Merged availability windows for one weekday from a host-rule set.
+function workBands(rules, wd) {
   const work = [];
   for (const r of rules || []) {
     if (r.day_of_week !== wd) continue;
@@ -126,9 +126,14 @@ function offBandsFromRules(rules, wd) {
       merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], b);
     } else merged.push([a, b]);
   }
+  return merged;
+}
+
+// Complement of a host-rule set over [0, 1440) for one weekday → shaded "off" bands.
+function offBandsFromRules(rules, wd) {
   const off = [];
   let cursor = 0;
-  for (const [a, b] of merged) {
+  for (const [a, b] of workBands(rules, wd)) {
     if (a > cursor) off.push([cursor, a]);
     cursor = Math.max(cursor, b);
   }
@@ -167,21 +172,6 @@ function layoutDay(segments) {
   return evs;
 }
 
-// Google-overlay style for the merged week view: overlapping events are NOT split into
-// sub-columns — the later event stacks ON TOP, indented from the left, so the earlier one
-// keeps (near) full width underneath with its title visible at the left edge.
-function layoutCascade(segments) {
-  const evs = [...segments].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin);
-  const active = [];
-  for (const ev of evs) {
-    for (let i = active.length - 1; i >= 0; i--) {
-      if (active[i].endMin <= ev.startMin) active.splice(i, 1);
-    }
-    ev.depth = active.length;
-    active.push(ev);
-  }
-  return evs;
-}
 
 function DatePicker({ value, onChange, className }) {
   return (
@@ -368,19 +358,36 @@ export default function TeamCalendar() {
   const { cols, allDayItems, allDayLaneCount } = useMemo(() => {
     let out;
     if (view === 'week') {
-      out = displayDays.map((ymd, i) => ({
-        key: ymd, colIdx: i, ymd, kind: 'day',
-        segs: layoutCascade(rawByYmd[ymd] || []),
-        offBands: shadingEnabled
-          ? offBandsFromRules(visibleHosts.flatMap((h) => h.weekly_rules || []), weekdayIdx(ymd))
-          : [],
-      }));
+      out = displayDays.map((ymd, i) => {
+        const wd = weekdayIdx(ymd);
+        // Availability windows join the cascade as synthetic segments, so they lay out
+        // exactly like the hand-made "Availability" calendar events the team is used to.
+        const availSegs = visibleHosts.flatMap((h) =>
+          ((h.weekly_rules || []).length ? workBands(h.weekly_rules, wd) : []).map(([a, b]) => ({
+            ev: { id: `avail-${h.host_id}-${ymd}-${a}`, host_id: h.host_id, kind: 'availability' },
+            startMin: a, endMin: b,
+          })));
+        return {
+          key: ymd, colIdx: i, ymd, kind: 'day',
+          segs: layoutDay([...availSegs, ...(rawByYmd[ymd] || [])]),
+          offBands: shadingEnabled
+            ? offBandsFromRules(visibleHosts.flatMap((h) => h.weekly_rules || []), wd)
+            : [],
+        };
+      });
     } else {
       const daySegs = rawByYmd[anchor] || [];
+      const wd = weekdayIdx(anchor);
       out = visibleHosts.map((h, i) => ({
         key: h.host_id, colIdx: i, ymd: anchor, kind: 'host', host: h,
-        segs: layoutDay(daySegs.filter((s) => s.ev.host_id === h.host_id)),
-        offBands: (h.weekly_rules || []).length ? offBandsFromRules(h.weekly_rules, weekdayIdx(anchor)) : [],
+        segs: layoutDay([
+          ...((h.weekly_rules || []).length ? workBands(h.weekly_rules, wd) : []).map(([a, b]) => ({
+            ev: { id: `avail-${h.host_id}-${anchor}-${a}`, host_id: h.host_id, kind: 'availability' },
+            startMin: a, endMin: b,
+          })),
+          ...daySegs.filter((s) => s.ev.host_id === h.host_id),
+        ]),
+        offBands: (h.weekly_rules || []).length ? offBandsFromRules(h.weekly_rules, wd) : [],
       }));
     }
     for (const col of out) for (const s of col.segs) s.colIdx = col.colIdx;
@@ -670,34 +677,41 @@ export default function TeamCalendar() {
                           const top = (seg.startMin / 60) * HOUR_PX;
                           const height = Math.max(20, ((seg.endMin - seg.startMin) / 60) * HOUR_PX - 2);
                           const selected = sel?.seg === seg;
-                          // Day view (per-host columns) splits same-host overlaps side-by-side;
-                          // week view cascades — DOM order (sorted by start) keeps later events on top.
-                          const split = seg.cols !== undefined;
-                          const STEP = 14, EXPANDED = 28;
-                          const overlapsSeg = (a, b) => a.startMin < b.endMin && a.endMin > b.startMin;
-                          // Selecting a buried card lifts it at ~2 strips wide and pushes the strips
-                          // stacked on it further right, so every card in the stack stays fully visible.
-                          const selSeg = !split && sel?.kind === 'timed' && col.segs.includes(sel.seg) ? sel.seg : null;
-                          const selCovered = selSeg && col.segs.some((o) => o.depth > selSeg.depth && overlapsSeg(o, selSeg));
-                          const covered = !split && col.segs.some((o) => o.depth > seg.depth && overlapsSeg(o, seg));
-                          const pushed = selCovered && !selected && seg.depth > selSeg.depth && overlapsSeg(seg, selSeg);
-                          // Earlier (lower-depth) cards in the selected stack clip to their own strip —
-                          // otherwise they run underneath and peek through the gaps like a phantom event.
-                          const clipStack = selCovered && !selected && seg.depth < selSeg.depth && overlapsSeg(seg, selSeg);
-                          const selIndent = selSeg ? Math.min(selSeg.depth * STEP, 70) : 0;
-                          const indent = split ? 0
-                            : pushed ? Math.min(selIndent + EXPANDED + (seg.depth - selSeg.depth - 1) * STEP, 85)
-                            : Math.min(seg.depth * STEP, 70);
-                          const width = split ? 100 / seg.cols
-                            : selected && covered ? Math.min(100 - indent, EXPANDED)
-                            : clipStack ? STEP
-                            : 100 - indent;
-                          const leftPct = split ? seg.col * width : indent;
+                          // Both views share the cluster/column packing. Week view renders it the
+                          // way Google Calendar does (measured from their live DOM): step = 100/n,
+                          // each card 1.7 steps wide so it tucks under only its right neighbor
+                          // (never the whole stack), z rises left→right, and selection is a pure
+                          // z-lift — a fronted card can never blanket the cards to its right.
+                          // Day view (per-host columns) keeps the exact side-by-side split.
+                          const step = 100 / seg.cols;
+                          const gcalOverlap = col.kind === 'day';
+                          const width = gcalOverlap ? Math.min(step * 1.7, 100 - seg.col * step) : step;
+                          const leftPct = seg.col * step;
+                          // Availability pseudo-events: same cascade geometry as real events,
+                          // solid tint + dashed border, never clickable (clicks fall through).
+                          if (seg.ev.kind === 'availability') {
+                            return (
+                              <div
+                                key={`${seg.ev.id}-${i}`}
+                                className="pointer-events-none absolute overflow-hidden rounded-lg px-2 py-[3px] leading-[1.3]"
+                                style={{
+                                  top, height, zIndex: 1 + seg.col,
+                                  left: `calc(${leftPct}% + 3px)`, width: `calc(${width}% - 6px)`,
+                                  background: pal.tint, color: pal.text,
+                                  border: `1.5px dashed ${(h?.color || '#525252')}66`,
+                                  boxShadow: '0 0 0 1px #fff',
+                                }}
+                              >
+                                <span className="block truncate text-[11px] font-semibold">{h?.name}</span>
+                                {height >= 38 && <span className="block truncate text-[10px] font-medium opacity-75">Availability</span>}
+                              </div>
+                            );
+                          }
                           const style = {
                             top, height,
                             left: `calc(${leftPct}% + 3px)`,
                             width: `calc(${width}% - 6px)`,
-                            ...(selected && covered ? { zIndex: 6 } : {}),
+                            zIndex: selected ? 15 : 1 + seg.col,
                             ...(isBooking
                               ? { background: h?.color || '#525252', color: '#fff' }
                               : busy
@@ -731,7 +745,7 @@ export default function TeamCalendar() {
 
                         {/* Now line */}
                         {col.ymd === today && (
-                          <div className="pointer-events-none absolute inset-x-0 z-[5]" style={{ top: (now.minutes / 60) * HOUR_PX }}>
+                          <div className="pointer-events-none absolute inset-x-0 z-[12]" style={{ top: (now.minutes / 60) * HOUR_PX }}>
                             <div className="relative h-[2px] bg-[#e11d48]">
                               <span className="absolute -left-[3px] -top-[3px] size-2 rounded-full bg-[#e11d48]" />
                             </div>

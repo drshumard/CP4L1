@@ -11,6 +11,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import useSortedTimezones from './useSortedTimezones';
+import { HostColorPicker } from './hostColors';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -35,12 +36,12 @@ const combineDateTime = (dateObj, timeStr) => {
   return d.toISOString();
 };
 
-const EMPTY = { director_id: null, name: '', email: '', timezone: 'America/Los_Angeles', google_calendar_id: '', use_primary_calendar: false, pb_consultant_id: '', active: true, weekly_rules: [], time_off: [], date_overrides: [] };
+const EMPTY = { director_id: null, name: '', email: '', timezone: 'America/Los_Angeles', google_calendar_id: '', use_primary_calendar: false, pb_consultant_id: '', active: true, color: '', weekly_rules: [], time_off: [], date_overrides: [] };
 
 const toForm = (d) => ({
   director_id: d.director_id, name: d.name || '', email: d.email || '', timezone: d.timezone || 'America/Los_Angeles',
   google_calendar_id: d.google_calendar_id || '', use_primary_calendar: d.use_primary_calendar === true,
-  pb_consultant_id: d.pb_consultant_id || '', active: d.active !== false,
+  pb_consultant_id: d.pb_consultant_id || '', active: d.active !== false, color: d.color || '',
   weekly_rules: (d.weekly_rules || []).map((r) => ({ ...r })),
   time_off: (d.time_off || []).map((t) => ({ ...t })),
   date_overrides: (d.date_overrides || []).map((o) => ({ date: o.date || '', windows: (o.windows || []).map((w) => ({ ...w })) })),
@@ -109,6 +110,7 @@ export default function DirectorEditor() {
       use_primary_calendar: form.use_primary_calendar,
       pb_consultant_id: (form.pb_consultant_id || '').trim(),
       active: form.active,
+      color: form.color || '',
       weekly_rules: form.weekly_rules.map((r) => ({ day_of_week: Number(r.day_of_week), start: r.start, end: r.end })),
       time_off: form.time_off.filter((t) => t.start_utc && t.end_utc).map((t) => ({ start_utc: t.start_utc, end_utc: t.end_utc, reason: t.reason || '' })),
       date_overrides: form.date_overrides.filter((o) => o.date).map((o) => ({ date: o.date, windows: (o.windows || []).map((w) => ({ start: w.start, end: w.end })) })),
@@ -164,6 +166,11 @@ export default function DirectorEditor() {
                   {tzOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Calendar color</Label>
+              <HostColorPicker value={form.color} onChange={(v) => setField('color', v)} />
+              <p className="text-xs text-muted-foreground">Their events and availability on the Team Calendar. Auto picks an unused color.</p>
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label htmlFor="d-email">Email</Label>

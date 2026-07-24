@@ -5207,6 +5207,7 @@ class DirectorUpdate(BaseModel):
     pb_consultant_id: Optional[str] = None
     timezone: Optional[str] = None
     active: Optional[bool] = None
+    color: Optional[str] = None            # "" clears; else one of HOST_COLOR_PALETTE
     weekly_rules: Optional[List[WeeklyRule]] = None
     time_off: Optional[List[TimeOff]] = None
     date_overrides: Optional[List[DateOverride]] = None
@@ -5287,6 +5288,15 @@ async def create_director(payload: DirectorCreate, admin_user: dict = Depends(ge
     return doc
 
 
+def _validate_host_color(v: str) -> str:
+    """'' clears the override; anything else must be one of HOST_COLOR_PALETTE — the
+    frontend's tint/text companion map is keyed by these exact hexes."""
+    v = (v or "").strip().lower()
+    if v and v not in HOST_COLOR_PALETTE:
+        raise HTTPException(status_code=400, detail="color must be one of the host palette hexes")
+    return v
+
+
 @api_router.put("/admin/directors/{director_id}")
 async def update_director(director_id: str, payload: DirectorUpdate, admin_user: dict = Depends(get_admin_user)):
     existing = await db.directors.find_one({"director_id": director_id}, {"_id": 0})
@@ -5309,6 +5319,8 @@ async def update_director(director_id: str, payload: DirectorUpdate, admin_user:
         updates["timezone"] = payload.timezone
     if payload.active is not None:
         updates["active"] = payload.active
+    if payload.color is not None:
+        updates["color"] = _validate_host_color(payload.color)
     if payload.weekly_rules is not None:
         updates["weekly_rules"] = [r.model_dump() for r in payload.weekly_rules]
     if payload.time_off is not None:
@@ -5359,6 +5371,7 @@ class PccUpdate(BaseModel):
     pb_consultant_id: Optional[str] = None
     timezone: Optional[str] = None
     active: Optional[bool] = None
+    color: Optional[str] = None            # "" clears; else one of HOST_COLOR_PALETTE
 
     @field_validator("timezone")
     @classmethod
@@ -5426,6 +5439,8 @@ async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends
         updates["timezone"] = payload.timezone
     if payload.active is not None:
         updates["active"] = payload.active
+    if payload.color is not None:
+        updates["color"] = _validate_host_color(payload.color)
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
@@ -5702,6 +5717,7 @@ async def admin_calendar_events(
             "active": d.get("active") is not False,
             "timezone": d.get("timezone") or "America/Los_Angeles",
             "weekly_rules": d.get("weekly_rules") or [], "created_at": d.get("created_at") or "",
+            "color_override": (d.get("color") or "").strip() or None,
         })
     async for p in db.pccs.find({}, {"_id": 0}):
         all_hosts.append({
@@ -5712,10 +5728,21 @@ async def admin_calendar_events(
             "active": p.get("active") is not False,
             "timezone": p.get("timezone") or "America/Los_Angeles",
             "weekly_rules": [], "created_at": p.get("created_at") or "",
+            "color_override": (p.get("color") or "").strip() or None,
         })
     all_hosts.sort(key=lambda h: (h["created_at"], h["host_id"]))
-    for i, h in enumerate(all_hosts):
-        h["color"] = HOST_COLOR_PALETTE[i % len(HOST_COLOR_PALETTE)]
+    # Admin-chosen colors win; everyone else cycles the remaining palette in stable
+    # (created_at, host_id) order so auto colors don't churn between requests.
+    overridden = {h["color_override"] for h in all_hosts if h["color_override"]}
+    auto_pool = [c for c in HOST_COLOR_PALETTE if c not in overridden] or HOST_COLOR_PALETTE
+    auto_i = 0
+    for h in all_hosts:
+        override = h.pop("color_override")
+        if override:
+            h["color"] = override
+        else:
+            h["color"] = auto_pool[auto_i % len(auto_pool)]
+            auto_i += 1
         # Calendar wiring is explicit: group calendar, opted-in primary (email), or none.
         h["calendar_id"] = h["google_calendar_id"] or (h["email"] if h["use_primary_calendar"] else "")
         h["calendar_kind"] = "group" if h["google_calendar_id"] else ("primary" if h["calendar_id"] else "none")
