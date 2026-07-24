@@ -195,3 +195,9 @@
 .cad-tag { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500; }
 .cad-tag--solid { background: var(--ink-900); color: #fff; }
 .cad-tag--outline { background: #fff; color: var(--ink-700); border: 1px solid var(--ink-200); }
+
+/* Team Calendar event cards: perfectly still on hover — App.css's global button lift
+   (translateY(-1px) + transform transition) is fully opted out, because even a zero
+   transform re-rasterizes the card and makes fractional-position cards shimmer.
+   Interactivity is signalled by the cursor alone, shadcn-style. */
+.cad-event, .cad-event:hover, .cad-event:active { transform: none; transition: none; cursor: pointer; }

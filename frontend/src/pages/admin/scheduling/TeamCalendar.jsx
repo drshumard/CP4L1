@@ -160,14 +160,27 @@ function layoutDay(segments) {
     clusterEnd = Math.max(clusterEnd, ev.endMin);
   }
   for (const cl of clusters) {
+    // Availability lanes pack first and own the leftmost columns exclusively — real
+    // bookings start to their right and never reuse an availability column, so an
+    // availability block can never end up sandwiched between bookings.
+    const avails = cl.filter((s) => s.ev?.kind === 'availability');
+    const rest = cl.filter((s) => s.ev?.kind !== 'availability');
+    const availEnds = [];
+    for (const ev of avails) {
+      let c = availEnds.findIndex((end) => end <= ev.startMin);
+      if (c === -1) { c = availEnds.length; availEnds.push(0); }
+      availEnds[c] = ev.endMin;
+      ev.col = c;
+    }
+    const base = availEnds.length;
     const colEnds = [];
-    for (const ev of cl) {
+    for (const ev of rest) {
       let c = colEnds.findIndex((end) => end <= ev.startMin);
       if (c === -1) { c = colEnds.length; colEnds.push(0); }
       colEnds[c] = ev.endMin;
-      ev.col = c;
+      ev.col = base + c;
     }
-    for (const ev of cl) ev.cols = colEnds.length;
+    for (const ev of cl) ev.cols = base + colEnds.length;
   }
   return evs;
 }
@@ -632,7 +645,7 @@ export default function TeamCalendar() {
                             key={`${item.ev.host_id}-${item.ev.id}-${item.colIdx}`}
                             type="button"
                             onClick={(e) => openAllDay(e, item)}
-                            className="absolute overflow-hidden truncate rounded-md px-2 py-0.5 text-left text-[11px] font-semibold hover:translate-y-0"
+                            className="cad-event absolute overflow-hidden truncate rounded-md px-2 py-0.5 text-left text-[11px] font-semibold"
                             style={{
                               top: item.lane * 26 + 3,
                               left: `calc(100% / ${nCols} * ${item.colIdx} + 3px)`,
@@ -728,7 +741,7 @@ export default function TeamCalendar() {
                               key={`${seg.ev.id}-${i}`}
                               type="button"
                               onClick={(e) => openSeg(e, seg)}
-                              className="absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3] hover:translate-y-0"
+                              className="cad-event absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3]"
                               style={style}
                             >
                               <span className="block truncate text-[11px] font-semibold">
