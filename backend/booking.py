@@ -851,6 +851,9 @@ async def _book_local_sidecar(booking: dict, request: "BookSessionRequest", dire
                           "pb_status": pb_status, "updated_at": _now_iso()}})
         except Exception as e:
             logger.warning(f"[{correlation_id}] PB status write failed: {e}")
+        if pb_session_id:
+            _schedule_pb_twin_sweep(booking.get("gcal_calendar_id"), pb_session_id,
+                                    booking.get("gcal_subject"), correlation_id)
         logger.info(f"[{correlation_id}] PB mirror finished for {booking_id}: pb_status={pb_status}")
     else:
         logger.info(f"[{correlation_id}] shared_pb_consultant_id not configured; skipping PB mirror")
@@ -988,6 +991,13 @@ async def _manual_pb_mirror(booking_id: str, patient: dict, patient_timezone: st
                       "pb_status": pb_status, "updated_at": _now_iso()}})
     except Exception as e:
         logger.warning(f"[{correlation_id}] Manual PB status write failed: {e}")
+    if pb_session_id:
+        row = await db.bookings.find_one(
+            {"booking_id": booking_id},
+            {"_id": 0, "gcal_calendar_id": 1, "gcal_subject": 1, "gcal_event_id": 1})
+        if row and row.get("gcal_event_id"):
+            _schedule_pb_twin_sweep(row.get("gcal_calendar_id"), pb_session_id,
+                                    row.get("gcal_subject"), correlation_id)
 
 
 async def _record_legacy_booking(request: "BookSessionRequest", result, consultant_id: str,
@@ -1090,6 +1100,9 @@ async def retry_pending_pb_mirrors(correlation_id: str = "pb-sweep") -> dict:
             await db.bookings.update_one({"booking_id": bid},
                 {"$set": {"pb_client_record_id": record_id, "pb_session_id": pb_session.get("id"),
                           "pb_status": "synced", "updated_at": _now_iso()}})
+            if booking.get("gcal_event_id"):
+                _schedule_pb_twin_sweep(booking.get("gcal_calendar_id"), pb_session.get("id"),
+                                        booking.get("gcal_subject"), correlation_id)
             synced += 1
             logger.info(f"[{correlation_id}] PB mirror retried OK for booking {bid}")
         except Exception as e:
@@ -1735,6 +1748,9 @@ async def _sweep_pb_ghost_event(calendar_id: Optional[str], pb_session_id: str,
     ourselves right away; PB's own cleanup (if it runs) then just no-ops on a missing event."""
     if not calendar_id:
         return
+    if _pb_sweeps_disabled():
+        logger.info(f"[{correlation_id}] PB ghost sweep skipped (PB_CALENDAR_SWEEPS_DISABLED)")
+        return
     try:
         n = await gcal.delete_pb_synced_events(calendar_id=calendar_id, pb_session_id=pb_session_id,
                                                subject=subject)
@@ -1742,6 +1758,47 @@ async def _sweep_pb_ghost_event(calendar_id: Optional[str], pb_session_id: str,
             logger.info(f"[{correlation_id}] Removed {n} PB-synced calendar event(s) for session {pb_session_id}")
     except Exception as e:
         logger.warning(f"[{correlation_id}] PB ghost sweep failed (continuing): {e}")
+
+
+def _pb_sweeps_disabled() -> bool:
+    """Kill-switch for BOTH PB calendar sweeps (booking-time twin sweep + cancel-time ghost
+    sweep). Set PB_CALENDAR_SWEEPS_DISABLED=1 to observe PB's native calendar-sync behavior
+    or to stop the sweeps in prod without a deploy."""
+    return os.environ.get("PB_CALENDAR_SWEEPS_DISABLED", "").lower() in ("1", "true", "yes")
+
+
+def _schedule_pb_twin_sweep(calendar_id: Optional[str], pb_session_id: Optional[str],
+                            subject: Optional[str], correlation_id: str,
+                            delays_s: tuple = (30, 180)) -> None:
+    """PB's calendar sync writes its own copy of every session onto the practitioner's
+    calendar a few seconds after the session is created. For bookings that carry OUR
+    Google event that copy is pure duplication — two events per booking — and it's the
+    one that ghosts when PB's cleanup flakes. Remove it once PB has had time to write it
+    (retrying once in case PB is slow). Fire-and-forget: never blocks or fails a booking.
+    NOT for legacy engine='pb' rows — there PB's event is the only calendar presence."""
+    if not calendar_id or not pb_session_id:
+        return
+    if _pb_sweeps_disabled():
+        logger.info(f"[{correlation_id}] PB twin sweep skipped (PB_CALENDAR_SWEEPS_DISABLED)")
+        return
+
+    async def _run():
+        waited = 0
+        for delay in delays_s:
+            try:
+                await asyncio.sleep(delay - waited)
+                waited = delay
+                n = await gcal.delete_pb_synced_events(calendar_id=calendar_id,
+                                                       pb_session_id=pb_session_id, subject=subject)
+                if n:
+                    logger.info(f"[{correlation_id}] PB twin sweep: removed {n} synced event(s) for session {pb_session_id}")
+                    return
+            except Exception as e:
+                logger.warning(f"[{correlation_id}] PB twin sweep failed: {e}")
+                return
+        logger.info(f"[{correlation_id}] PB twin sweep: nothing to remove for session {pb_session_id} (PB sync off or already gone)")
+
+    asyncio.create_task(_run())
 
 
 async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterService],
@@ -1755,7 +1812,10 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
 
     if booking.get("pb_session_id") and pb_service is not None:
         try:
-            await pb_service.cancel_session(booking["pb_session_id"], correlation_id=correlation_id)
+            # Legacy engine='pb' rows: PB owns all patient comms, so it must send the notice.
+            # Local-engine rows: we email the patient ourselves below — keep PB quiet.
+            await pb_service.cancel_session(booking["pb_session_id"], correlation_id=correlation_id,
+                                            notify=booking.get("engine") == "pb")
         except Exception as e:
             logger.warning(f"[{correlation_id}] PB cancel failed (continuing): {e}")
         else:
@@ -1814,7 +1874,10 @@ async def _pb_reassign_session(booking: dict, old_pb_session_id: Optional[str], 
     booking_id = booking["booking_id"]
     if old_pb_session_id:
         try:
-            await pb_service.cancel_session(old_pb_session_id, correlation_id=correlation_id)
+            # This cancel is one half of a reschedule — the patient gets OUR reschedule
+            # email; a PB "cancelled" notice here would read as a cancelled appointment.
+            await pb_service.cancel_session(old_pb_session_id, correlation_id=correlation_id,
+                                            notify=False)
         except Exception as e:
             logger.warning(f"[{correlation_id}] PB cancel of old session failed (continuing): {e}")
         else:
@@ -1848,6 +1911,8 @@ async def _pb_reassign_session(booking: dict, old_pb_session_id: Optional[str], 
         await db.bookings.update_one({"booking_id": booking_id},
             {"$set": {"pb_client_record_id": record_id, "pb_session_id": new_session.get("id"),
                       "pb_status": "synced", "updated_at": _now_iso()}})
+        _schedule_pb_twin_sweep(booking.get("gcal_calendar_id"), new_session.get("id"),
+                                booking.get("gcal_subject"), correlation_id)
     except Exception as e:
         logger.warning(f"[{correlation_id}] PB recreate under new director failed: {e}")
         await db.bookings.update_one({"booking_id": booking_id},

@@ -946,11 +946,22 @@ class PracticeBetterService:
         await self._availability_cache.clear()
         return result
 
-    async def cancel_session(self, session_id: str, correlation_id: str = None) -> None:
-        """Delete an existing PB session. DELETE /consultant/sessions/{sessionId}."""
+    async def cancel_session(self, session_id: str, correlation_id: str = None, *,
+                             notify: bool = False, notes: Optional[str] = None) -> None:
+        """Cancel an existing PB session. POST /consultant/sessions/{sessionId}/cancel — PB's
+        documented cancellation: the session stays in PB marked cancelled (a proper record,
+        same as a UI cancel) and PB's calendar sync removes its synced Google event. We
+        previously hard-DELETEd the session, whose calendar cleanup proved flaky (ghost
+        events, 2026-07-23). ``notify`` controls PB's cancellation email to the client.
+        cancelPendingBookings / cancelRecurringAutomations are deliberately never sent —
+        we cancel exactly one session, never other bookings or payment plans."""
         cid = correlation_id or str(uuid.uuid4())[:8]
-        logger.info(f"[{cid}] Cancelling PB session {session_id}")
-        await self._request("DELETE", f"/consultant/sessions/{session_id}", correlation_id=cid)
+        logger.info(f"[{cid}] Cancelling PB session {session_id} (notify={notify})")
+        body = {"notify": notify}
+        if notes:
+            body["notes"] = notes
+        await self._request("POST", f"/consultant/sessions/{session_id}/cancel",
+                            json=body, correlation_id=cid)
         await self._availability_cache.clear()
 
     async def complete_booking(
