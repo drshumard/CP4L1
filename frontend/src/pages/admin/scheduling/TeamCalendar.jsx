@@ -180,7 +180,17 @@ function layoutDay(segments) {
       colEnds[c] = ev.endMin;
       ev.col = base + c;
     }
-    for (const ev of cl) ev.cols = base + colEnds.length;
+    const total = base + colEnds.length;
+    for (const ev of cl) {
+      ev.cols = total;
+      // GCal's expansion step: grow rightward across columns with no overlapping event,
+      // so a card whose time row is otherwise empty isn't stuck at its cluster's lane
+      // width (the cluster's column count comes from its busiest hour, not this row).
+      let span = 1;
+      while (ev.col + span < total && !cl.some((o) =>
+        o !== ev && o.col === ev.col + span && o.startMin < ev.endMin && o.endMin > ev.startMin)) span++;
+      ev.span = span;
+    }
   }
   return evs;
 }
@@ -698,7 +708,13 @@ export default function TeamCalendar() {
                           // Day view (per-host columns) keeps the exact side-by-side split.
                           const step = 100 / seg.cols;
                           const gcalOverlap = col.kind === 'day';
-                          const width = gcalOverlap ? Math.min(step * 1.7, 100 - seg.col * step) : step;
+                          const span = seg.span || 1;
+                          // span-1 whole free columns, plus the GCal 1.7 overhang into the next
+                          // occupied one (capped at the column edge — a row with nothing to the
+                          // right stretches to the edge).
+                          const width = gcalOverlap
+                            ? Math.min((span - 1 + 1.7) * step, 100 - seg.col * step)
+                            : step * span;
                           const leftPct = seg.col * step;
                           // Availability pseudo-events: same cascade geometry as real events,
                           // solid tint + dashed border, never clickable (clicks fall through).
