@@ -63,7 +63,11 @@
   letter-spacing: -0.01em;
 }
 
-/* Quiet motion only — no decorative button lift inside admin. */
+/* Quiet motion only — no decorative button lift while admin is mounted. Scoped via
+   body:has() rather than the .admin-geist wrapper because drawers, dropdowns, and
+   popovers portal to <body> and would otherwise keep App.css's global hover lift. */
+body:has(.admin-geist) button:hover,
+body:has(.admin-geist) button:active,
 .admin-shell button:hover { transform: none; }
 
 /* Sidebar nav hover (inactive items only; active items carry inline slate bg). */
