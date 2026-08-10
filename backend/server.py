@@ -5665,6 +5665,48 @@ async def service_search_pb_clients(
     return {"clients": clients}
 
 
+@api_router.get("/service/patient-profile")
+async def service_patient_profile(
+    x_api_key: str = Header(None, alias="X-API-Key"),
+    email: str = Query(..., max_length=200),
+):
+    """Keyed (by portal email) lookup of avatar-relevant demographics pulled from the
+    diabetes intake form, for sibling apps (e.g. the supplement protocol manager)
+    authenticating with SERVICE_API_KEY instead of an admin session. Deliberately narrow:
+    returns only gender/DOB/age/city/state, never the full intake form."""
+    if not SERVICE_API_KEY or not x_api_key or not secrets.compare_digest(
+        str(x_api_key).encode('utf-8'), str(SERVICE_API_KEY).encode('utf-8')
+    ):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    user = await db.users.find_one({"email": email.strip().lower()}, {"_id": 0, "id": 1})
+    if not user:
+        raise HTTPException(status_code=404, detail="No patient found for that email")
+
+    form = await db.intake_forms.find_one(
+        {"user_id": user["id"]}, {"_id": 0, "form_data.profileData": 1}
+    )
+    profile = ((form or {}).get("form_data") or {}).get("profileData") or {}
+
+    dob_raw = profile.get("dateOfBirth")
+    age = None
+    if dob_raw:
+        try:
+            dob_date = datetime.fromisoformat(str(dob_raw).replace("Z", "+00:00")).date()
+            today = datetime.now(timezone.utc).date()
+            age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+        except (ValueError, TypeError):
+            age = None
+
+    return {
+        "gender": profile.get("gender") or None,
+        "date_of_birth": dob_raw or None,
+        "age": age,
+        "city": profile.get("town") or None,
+        "state": profile.get("state") or None,
+    }
+
+
 # ---------------------------------------------------------------- Team Calendar (admin)
 #
 # Live, read-only feed for the admin Team Calendar view. Deliberately NOT served from the
