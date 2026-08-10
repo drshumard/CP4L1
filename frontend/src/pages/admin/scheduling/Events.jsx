@@ -1,14 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Plus, Trash2, Eye, Globe, Lock } from 'lucide-react';
+import { Plus, Trash2, Eye, Globe, Lock, MoreHorizontalIcon } from 'lucide-react';
 import { adminApi, authHeaders } from '../api';
+import { confirmDialog } from '../confirm';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle,
+} from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 
+const HEADER_GRADIENT = 'linear-gradient(to top, #F8F8F8, #F8F8F899, #00000000)';
+const HEAD = 'h-14 px-6 text-center align-middle text-[13px] font-semibold text-foreground';
+const CELL = 'px-6 py-2 text-sm text-center';
 const EYEBROW = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 const newId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
 
@@ -38,11 +51,23 @@ function NumField({ label, value, onChange, min, max, suffix, help }) {
   );
 }
 
+const normalizeSessions = (list) => list.map((x) => ({
+  id: x.id, title: (x.title || '').trim(), description: x.description || '',
+  duration_minutes: Number(x.duration_minutes) || 30, portal_visible: !!x.portal_visible,
+  pb_service_id: (x.pb_service_id || '').trim(),
+}));
+
 export default function Events() {
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
+
+  // Session edit drawer
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(null);      // draft session being edited
+  const [editIndex, setEditIndex] = useState(null); // null = adding new
+  const [savingSession, setSavingSession] = useState(false);
 
   useEffect(() => {
     adminApi.get('/admin/settings').then((res) => setS(res.data))
@@ -55,23 +80,53 @@ export default function Events() {
   const closures = s.clinic_closures || [];
   const setClosures = (next) => set('clinic_closures', next);
   const sessions = s.sessions || [];
-  const setSessions = (next) => set('sessions', next);
-  const updateSession = (i, k, v) => setSessions(sessions.map((x, idx) => (idx === i ? { ...x, [k]: v } : x)));
-  const addSession = () => setSessions([...sessions, { id: newId(), title: '', description: '', duration_minutes: 30, portal_visible: false, pb_service_id: '' }]);
-  const removeSession = (i) => setSessions(sessions.filter((_, idx) => idx !== i));
+
+  const openNew = () => {
+    setEditIndex(null);
+    setForm({ id: newId(), title: '', description: '', duration_minutes: 30, portal_visible: false, pb_service_id: '' });
+    setOpen(true);
+  };
+  const openEdit = (i) => { setEditIndex(i); setForm({ ...sessions[i] }); setOpen(true); };
+  const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Sessions persist on their own (drawer save / delete); rules + closures use the page button.
+  const persistSessions = async (next, okMsg) => {
+    const res = await adminApi.put('/admin/settings', { sessions: normalizeSessions(next) });
+    setS(res.data);
+    toast.success(okMsg);
+  };
+
+  const saveSession = async () => {
+    if (!(form.title || '').trim()) { toast.error('The event needs a name'); return; }
+    setSavingSession(true);
+    try {
+      const next = editIndex == null ? [...sessions, form] : sessions.map((x, i) => (i === editIndex ? form : x));
+      await persistSessions(next, editIndex == null ? 'Event added' : 'Event saved');
+      setOpen(false);
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Save failed');
+    } finally { setSavingSession(false); }
+  };
+
+  const deleteSession = async (i) => {
+    const sess = sessions[i];
+    const ok = await confirmDialog({
+      title: `Delete “${sess.title || 'this event'}”?`,
+      message: 'It disappears from the portal and manual booking. Existing bookings are not touched.',
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    try {
+      await persistSessions(sessions.filter((_, idx) => idx !== i), 'Event deleted');
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Delete failed');
+    }
+  };
 
   const save = async () => {
-    for (const sess of sessions) {
-      if (!(sess.title || '').trim()) { toast.error('Each session needs a name'); return; }
-    }
     setSaving(true);
     try {
       const payload = {
-        sessions: sessions.map((x) => ({
-          id: x.id, title: (x.title || '').trim(), description: x.description || '',
-          duration_minutes: Number(x.duration_minutes) || 30, portal_visible: !!x.portal_visible,
-          pb_service_id: (x.pb_service_id || '').trim(),
-        })),
         slot_minutes: Number(s.slot_minutes), min_notice_minutes: Number(s.min_notice_minutes),
         max_advance_days: Number(s.max_advance_days), buffer_minutes: Number(s.buffer_minutes),
         availability_days: Number(s.availability_days),
@@ -80,7 +135,7 @@ export default function Events() {
       };
       const res = await adminApi.put('/admin/settings', payload);
       setS(res.data);
-      toast.success('Events & availability saved');
+      toast.success('Availability saved');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Save failed');
     } finally { setSaving(false); }
@@ -98,50 +153,62 @@ export default function Events() {
 
   return (
     <div className="space-y-6">
-      {/* Sessions */}
-      <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <p className={EYEBROW}>Sessions</p>
-          <Button size="sm" onClick={addSession}><Plus className="size-4" /> Add session</Button>
+      {/* Events list */}
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <p className={EYEBROW}>Events</p>
+          <Button size="sm" onClick={openNew}><Plus className="size-4" /> Add event</Button>
         </div>
-        <div className="mt-4 space-y-3">
-          {sessions.length === 0 && <p className="text-sm text-muted-foreground">No sessions yet. Add one to start taking bookings.</p>}
-          {sessions.map((sess, i) => (
-            <div key={sess.id || i} className="rounded-lg border p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${sess.portal_visible ? 'text-emerald-700' : 'text-muted-foreground'}`}>
-                  {sess.portal_visible ? <Globe className="size-3.5" /> : <Lock className="size-3.5" />}
-                  {sess.portal_visible ? 'Bookable on portal' : 'Manual only'}
-                </span>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Switch id={`pv-${i}`} checked={!!sess.portal_visible} onCheckedChange={(v) => updateSession(i, 'portal_visible', v)} />
-                    <Label htmlFor={`pv-${i}`} className="cursor-pointer text-xs font-normal text-muted-foreground">Show on portal</Label>
-                  </div>
-                  <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label="Remove session" onClick={() => removeSession(i)}><Trash2 className="size-4" /></Button>
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label htmlFor={`title-${i}`}>Name</Label>
-                  <Input id={`title-${i}`} value={sess.title || ''} onChange={(e) => updateSession(i, 'title', e.target.value)} placeholder="Strategy Session" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`dur-${i}`}>Duration (minutes)</Label>
-                  <Input id={`dur-${i}`} type="number" min={5} max={240} value={sess.duration_minutes ?? 30} onChange={(e) => updateSession(i, 'duration_minutes', e.target.value)} />
-                </div>
-                <div className="space-y-1.5 md:col-span-2">
-                  <Label htmlFor={`desc-${i}`}>Description</Label>
-                  <Textarea id={`desc-${i}`} rows={2} value={sess.description || ''} onChange={(e) => updateSession(i, 'description', e.target.value)} placeholder="Shown on the Google event and in patient emails" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`svc-${i}`}>Practice Better service ID</Label>
-                  <Input id={`svc-${i}`} value={sess.pb_service_id || ''} onChange={(e) => updateSession(i, 'pb_service_id', e.target.value)} placeholder="Optional" />
-                  <p className="text-xs text-muted-foreground">PB service this session records under.</p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b hover:bg-transparent" style={{ backgroundImage: HEADER_GRADIENT }}>
+                <TableHead className={`${HEAD} text-left`}>Name</TableHead>
+                <TableHead className={HEAD}>Duration</TableHead>
+                <TableHead className={HEAD}>Booking</TableHead>
+                <TableHead className={HEAD}>PB service</TableHead>
+                <TableHead className={HEAD}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sessions.length === 0 ? (
+                <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No events yet. Add one to start taking bookings.</TableCell></TableRow>
+              ) : sessions.map((sess, i) => (
+                <TableRow key={sess.id || i} className="cursor-pointer" onClick={() => openEdit(i)}>
+                  <TableCell className={`${CELL} max-w-[320px] text-left`}>
+                    <div className="truncate font-medium text-foreground">{sess.title || <span className="text-muted-foreground">Untitled</span>}</div>
+                    {sess.description && <div className="truncate text-xs text-muted-foreground">{sess.description}</div>}
+                  </TableCell>
+                  <TableCell className={`${CELL} whitespace-nowrap text-muted-foreground`}>{sess.duration_minutes ?? 30} min</TableCell>
+                  <TableCell className={CELL}>
+                    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${sess.portal_visible ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                      {sess.portal_visible ? <Globe className="size-3.5" /> : <Lock className="size-3.5" />}
+                      {sess.portal_visible ? 'Portal' : 'Manual only'}
+                    </span>
+                  </TableCell>
+                  <TableCell className={CELL}>
+                    {sess.pb_service_id
+                      ? <span className="mx-auto block max-w-[160px] truncate text-xs text-muted-foreground">{sess.pb_service_id}</span>
+                      : <span className="text-xs text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className={`${CELL} text-center`} onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-8">
+                          <MoreHorizontalIcon />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(i)}>Edit</DropdownMenuItem>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteSession(i)}>Delete</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       </section>
 
@@ -187,7 +254,7 @@ export default function Events() {
       </section>
 
       <div className="flex items-center gap-2">
-        <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save events & availability'}</Button>
+        <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save availability'}</Button>
         <Button variant="outline" onClick={runPreview} disabled={previewing}><Eye className="size-4" /> {previewing ? 'Loading...' : 'Preview next 14 days'}</Button>
       </div>
 
@@ -215,6 +282,51 @@ export default function Events() {
           )}
         </section>
       )}
+
+      {/* Add / edit event drawer */}
+      <Drawer open={open} onOpenChange={(o) => { if (!savingSession) setOpen(o); }}>
+        <DrawerContent>
+          <div className="mx-auto flex w-full max-w-lg flex-col">
+            <DrawerHeader className="text-left">
+              <DrawerTitle>{editIndex == null ? 'Add event' : 'Edit event'}</DrawerTitle>
+              <DrawerDescription>Events are the session types patients (or admins) can book.</DrawerDescription>
+            </DrawerHeader>
+            {form && (
+              <div className="space-y-4 px-4 pb-2">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="ev-title">Name</Label>
+                    <Input id="ev-title" value={form.title || ''} onChange={(e) => setF('title', e.target.value)} placeholder="Strategy Session" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-dur">Duration (min)</Label>
+                    <Input id="ev-dur" type="number" min={5} max={240} value={form.duration_minutes ?? 30} onChange={(e) => setF('duration_minutes', e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ev-desc">Description</Label>
+                  <Textarea id="ev-desc" rows={2} value={form.description || ''} onChange={(e) => setF('description', e.target.value)} placeholder="Shown on the Google event and in patient emails" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ev-svc">Practice Better service ID</Label>
+                  <Input id="ev-svc" value={form.pb_service_id || ''} onChange={(e) => setF('pb_service_id', e.target.value)} placeholder="Optional" />
+                  <p className="text-xs text-muted-foreground">PB service this event records under.</p>
+                </div>
+                <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                  <Switch id="ev-pv" checked={!!form.portal_visible} onCheckedChange={(v) => setF('portal_visible', v)} />
+                  <Label htmlFor="ev-pv" className="cursor-pointer font-normal">
+                    {form.portal_visible ? 'Bookable on the patient portal' : 'Manual booking only (hidden from the portal)'}
+                  </Label>
+                </div>
+              </div>
+            )}
+            <DrawerFooter className="flex-row justify-end gap-2">
+              <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
+              <Button onClick={saveSession} disabled={savingSession}>{savingSession ? 'Saving...' : 'Save event'}</Button>
+            </DrawerFooter>
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
