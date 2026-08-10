@@ -5925,6 +5925,15 @@ async def admin_calendar_events(
     }
 
 
+# Whitelisted sort orders for the admin bookings list. booking_id tiebreaker keeps
+# pagination stable when many bookings share a slot time (parallel hosts).
+_BOOKING_SORTS = {
+    "soonest": [("slot_start_utc", 1), ("booking_id", 1)],
+    "latest": [("slot_start_utc", -1), ("booking_id", 1)],
+    "booked": [("created_at", -1), ("booking_id", 1)],  # most recently created first
+}
+
+
 @api_router.get("/admin/bookings")
 async def list_bookings(
     admin_user: dict = Depends(get_admin_user),
@@ -5937,6 +5946,7 @@ async def list_bookings(
     user_id: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None,
+    sort: Optional[str] = None,
 ):
     """List/search the authoritative bookings ledger across all directors."""
     query: dict = {}
@@ -5964,7 +5974,7 @@ async def list_bookings(
     total = await db.bookings.count_documents(query)
     cursor = (
         db.bookings.find(query, {"_id": 0})
-        .sort("slot_start_utc", -1)
+        .sort(_BOOKING_SORTS.get(sort or "latest", _BOOKING_SORTS["latest"]))
         .skip((page - 1) * page_size)
         .limit(page_size)
     )
@@ -5987,6 +5997,44 @@ async def list_bookings(
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size if page_size else 1,
     }
+
+
+# Per-admin UI preferences (saved view settings). Keyed by the admin's user id so every
+# admin keeps their own filters/sort across sessions and machines.
+_BOOKINGS_VIEW_ENUMS = {"time": {"upcoming", "past", "all"}, "sort": set(_BOOKING_SORTS)}
+_BOOKINGS_VIEW_STR_KEYS = ("status", "pb_status", "director_id")
+
+
+@api_router.get("/admin/prefs")
+async def get_admin_prefs(admin_user: dict = Depends(get_admin_user)):
+    doc = await db.admin_prefs.find_one({"_id": admin_user["id"]}, {"_id": 0})
+    return doc or {}
+
+
+@api_router.put("/admin/prefs")
+async def update_admin_prefs(request: Request, admin_user: dict = Depends(get_admin_user)):
+    """Merge-save preference sections; unknown sections/keys are dropped, values whitelisted."""
+    body = await request.json()
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Expected an object")
+    updates = {}
+    bv = body.get("bookings_view")
+    if isinstance(bv, dict):
+        clean = {}
+        for key, allowed in _BOOKINGS_VIEW_ENUMS.items():
+            val = bv.get(key)
+            if isinstance(val, str) and val in allowed:
+                clean[key] = val
+        for key in _BOOKINGS_VIEW_STR_KEYS:
+            val = bv.get(key)
+            if isinstance(val, str):
+                clean[key] = val.strip()[:64]
+        updates["bookings_view"] = clean
+    if not updates:
+        raise HTTPException(status_code=400, detail="No valid preferences provided")
+    await db.admin_prefs.update_one({"_id": admin_user["id"]}, {"$set": updates}, upsert=True)
+    doc = await db.admin_prefs.find_one({"_id": admin_user["id"]}, {"_id": 0})
+    return doc or {}
 
 
 @api_router.post("/admin/bookings")
