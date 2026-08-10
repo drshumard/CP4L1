@@ -529,7 +529,16 @@ def _now_iso() -> str:
 def _iso(value) -> Optional[str]:
     if value is None:
         return None
-    return value.isoformat() if isinstance(value, datetime) else str(value)
+    if isinstance(value, datetime):
+        # Every stored *_utc field is a UTC instant by construction, but Motor deserializes
+        # BSON dates as naive (tzinfo stripped) — without this, a naive round-trip value
+        # reads as "no timezone" downstream (e.g. to_pb_session_date treats a naive input as
+        # already-converted and skips the UTC->Eastern conversion, corrupting PB session times
+        # for anything re-read from Mongo, like the pending/cancel retry sweeps).
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=tz.utc)
+        return value.isoformat()
+    return str(value)
 
 
 async def _load_app_settings() -> dict:
@@ -1111,8 +1120,42 @@ async def retry_pending_pb_mirrors(correlation_id: str = "pb-sweep") -> dict:
     return {"retried": len(rows), "synced": synced, "skipped": skipped, "failed": failed}
 
 
+async def retry_failed_pb_cancels(correlation_id: str = "pb-cancel-sweep") -> dict:
+    """Retry the PB cancel call for bookings we already cancelled locally but whose PB cancel
+    failed (pb_status='cancel_pending') — PB 5xx at cancel time is transient (seen live) and PB
+    sometimes half-applies the cancellation despite erroring, so a plain retry is safe (PB's
+    cancel is idempotent). Oldest first, small batch, only rows quiet for 10+ minutes so an
+    in-flight cancel is never raced. Failures stay 'cancel_pending' for the next sweep."""
+    pb_service = get_pb_service_optional()
+    if pb_service is None:
+        return {"retried": 0, "reason": "pb not configured"}
+    cutoff = (datetime.now(tz.utc) - timedelta(minutes=10)).isoformat()
+    rows = await db.bookings.find(
+        {"status": "cancelled", "pb_status": "cancel_pending", "updated_at": {"$lt": cutoff}},
+        {"_id": 0},
+    ).sort("updated_at", 1).to_list(5)
+
+    synced = failed = 0
+    for booking in rows:
+        bid = booking["booking_id"]
+        try:
+            await pb_service.cancel_session(booking["pb_session_id"], correlation_id=correlation_id,
+                                            notify=booking.get("engine") == "pb")
+            await db.bookings.update_one({"booking_id": bid},
+                {"$set": {"pb_status": "cancelled", "updated_at": _now_iso()}})
+            await _sweep_pb_ghost_event(booking.get("gcal_calendar_id"), booking["pb_session_id"],
+                                        booking.get("gcal_subject"), correlation_id)
+            synced += 1
+            logger.info(f"[{correlation_id}] PB cancel retried OK for booking {bid}")
+        except Exception as e:
+            failed += 1
+            logger.warning(f"[{correlation_id}] PB cancel retry failed for booking {bid} (stays cancel_pending): {e}")
+    return {"retried": len(rows), "synced": synced, "failed": failed}
+
+
 def start_pb_pending_sweep(interval_seconds: int = 900) -> None:
-    """Start the periodic pending-mirror retry loop (called once from server startup)."""
+    """Start the periodic PB reconciliation loop (called once from server startup): retries
+    both stuck booking mirrors (pb_status='pending') and failed cancels (pb_status='cancel_pending')."""
     async def _loop():
         await asyncio.sleep(120)  # let startup + rate-limit-sensitive warmup go first
         while True:
@@ -1122,6 +1165,12 @@ def start_pb_pending_sweep(interval_seconds: int = 900) -> None:
                     logger.info(f"PB pending sweep: {result}")
             except Exception as e:
                 logger.warning(f"PB pending sweep iteration failed: {e}")
+            try:
+                result = await retry_failed_pb_cancels()
+                if result.get("retried"):
+                    logger.info(f"PB cancel sweep: {result}")
+            except Exception as e:
+                logger.warning(f"PB cancel sweep iteration failed: {e}")
             await asyncio.sleep(interval_seconds)
     _spawn_bg(_loop())
 
@@ -1810,6 +1859,7 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
     if booking.get("status") == "cancelled":
         return booking
 
+    pb_cancel_ok = True
     if booking.get("pb_session_id") and pb_service is not None:
         try:
             # Legacy engine='pb' rows: PB owns all patient comms, so it must send the notice.
@@ -1817,7 +1867,10 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
             await pb_service.cancel_session(booking["pb_session_id"], correlation_id=correlation_id,
                                             notify=booking.get("engine") == "pb")
         except Exception as e:
-            logger.warning(f"[{correlation_id}] PB cancel failed (continuing): {e}")
+            # PB 5xx here is transient (seen live) and PB sometimes half-applies the
+            # cancellation despite erroring — don't claim success, leave it for the retry sweep.
+            pb_cancel_ok = False
+            logger.warning(f"[{correlation_id}] PB cancel failed, will retry via sweep: {e}")
         else:
             await _sweep_pb_ghost_event(booking.get("gcal_calendar_id"), booking["pb_session_id"],
                                         booking.get("gcal_subject"), correlation_id)
@@ -1830,10 +1883,12 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
             logger.warning(f"[{correlation_id}] Google event delete failed (continuing): {e}")
 
     now = _now_iso()
+    if booking.get("pb_session_id"):
+        pb_status = "cancelled" if pb_cancel_ok else "cancel_pending"
+    else:
+        pb_status = "skipped"  # nothing was ever mirrored to PB
     update = {"status": "cancelled", "updated_at": now, "cancelled_at": now, "cancelled_by": actor,
-              # PB sync is moot once cancelled: "cancelled" if a real session existed (we just
-              # deleted it), else "skipped" (nothing was ever mirrored) — never leave it "pending".
-              "pb_status": "cancelled" if booking.get("pb_session_id") else "skipped"}
+              "pb_status": pb_status}
     if reason:
         update["cancel_reason"] = reason
     await db.bookings.update_one({"booking_id": booking_id}, {"$set": update})
