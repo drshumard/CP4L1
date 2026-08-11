@@ -41,15 +41,16 @@ export async function fetchActiveBookingForUser(user) {
 
 /** Confirm + cancel a booking. Returns true on success (caller refreshes). */
 export async function cancelBooking(booking, { onDone } = {}) {
-  const ok = await confirmDialog({
+  const res = await confirmDialog({
     title: 'Cancel booking?',
-    message: `Cancel ${patientName(booking)}'s session on ${fmtDateTime(booking.slot_start_utc)}? This frees the slot, removes the calendar event, and emails the patient.`,
+    message: `Cancel ${patientName(booking)}'s session on ${fmtDateTime(booking.slot_start_utc)}? This frees the slot and removes the calendar event.`,
     confirmLabel: 'Cancel booking',
+    checkbox: { label: 'Email the patient a cancellation notice', checked: true },
   });
-  if (!ok) return false;
+  if (!res) return false;
   try {
-    await adminApi.post(`/admin/bookings/${booking.booking_id}/cancel`);
-    toast.success('Booking cancelled');
+    await adminApi.post(`/admin/bookings/${booking.booking_id}/cancel`, { notify: !!res.checked });
+    toast.success(res.checked ? 'Booking cancelled — patient emailed' : 'Booking cancelled quietly');
     onDone?.();
     return true;
   } catch (e) {
@@ -65,6 +66,7 @@ export function RescheduleModal({ booking, onClose, onDone }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [notify, setNotify] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -93,8 +95,8 @@ export function RescheduleModal({ booking, onClose, onDone }) {
     if (!selected) return;
     setSubmitting(true);
     try {
-      await adminApi.post(`/admin/bookings/${booking.booking_id}/reschedule`, { slot_start_time: selected });
-      toast.success('Booking rescheduled');
+      await adminApi.post(`/admin/bookings/${booking.booking_id}/reschedule`, { slot_start_time: selected, notify });
+      toast.success(notify ? 'Booking rescheduled — patient emailed' : 'Booking rescheduled quietly');
       onDone?.();
       onClose();
     } catch (e) {
@@ -146,9 +148,15 @@ export function RescheduleModal({ booking, onClose, onDone }) {
             ))
           )}
         </div>
-        <div className="flex justify-end gap-2 p-4 border-t">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={submit} disabled={!selected || submitting}>{submitting ? 'Rescheduling…' : 'Reschedule'}</Button>
+        <div className="flex items-center justify-between gap-3 p-4 border-t">
+          <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} className="size-4 accent-slate-900" />
+            Email the patient the new time
+          </label>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={submit} disabled={!selected || submitting}>{submitting ? 'Rescheduling…' : 'Reschedule'}</Button>
+          </div>
         </div>
       </div>
     </div>

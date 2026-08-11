@@ -3,13 +3,15 @@ import { AlertTriangle } from 'lucide-react';
 
 // Imperative, Cadence-styled confirm — replaces browser-default window.confirm.
 // Usage: if (!(await confirmDialog({ title, message, confirmLabel, danger }))) return;
+// With checkbox: { label, checked } the promise resolves { checked } on confirm (still
+// false on cancel, so `if (!res) return` keeps working) — plain boolean otherwise.
 // Mount <ConfirmRoot/> once inside the admin shell.
 
 let _open = null;
 
 export function confirmDialog(opts = {}) {
   return new Promise((resolve) => {
-    if (_open) _open({ ...opts, resolve });
+    if (_open) _open({ ...opts, checked: opts.checkbox ? opts.checkbox.checked !== false : undefined, resolve });
     else resolve(typeof window !== 'undefined' ? window.confirm(opts.message || opts.title || 'Are you sure?') : false);
   });
 }
@@ -17,8 +19,11 @@ export function confirmDialog(opts = {}) {
 export function ConfirmRoot() {
   const [state, setState] = useState(null);
 
-  const close = (val) => {
-    setState((s) => { if (s) s.resolve(val); return null; });
+  const close = (ok) => {
+    setState((s) => {
+      if (s) s.resolve(ok ? (s.checkbox ? { checked: !!s.checked } : true) : false);
+      return null;
+    });
   };
 
   useEffect(() => {
@@ -56,6 +61,17 @@ export function ConfirmRoot() {
             <h3 className="text-base font-semibold text-slate-900">{state.title || 'Are you sure?'}</h3>
             {state.message && (
               <p className="text-sm text-slate-600 mt-1 whitespace-pre-line">{state.message}</p>
+            )}
+            {state.checkbox && (
+              <label className="mt-3 flex cursor-pointer select-none items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={!!state.checked}
+                  onChange={(e) => { const v = e.target.checked; setState((s) => (s ? { ...s, checked: v } : s)); }}
+                  className="size-4 accent-slate-900"
+                />
+                {state.checkbox.label}
+              </label>
             )}
           </div>
         </div>
