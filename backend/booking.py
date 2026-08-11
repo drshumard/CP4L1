@@ -1852,9 +1852,10 @@ def _schedule_pb_twin_sweep(calendar_id: Optional[str], pb_session_id: Optional[
 
 async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterService],
                           correlation_id: str, *, actor: str = "admin",
-                          reason: Optional[str] = None) -> dict:
+                          reason: Optional[str] = None, notify_patient: bool = True) -> dict:
     """Cancel a booking end-to-end: PB delete + Google delete (best-effort) -> mark cancelled in
-    Mongo (frees the slot) -> clear the patient's booking_info -> email the patient. Idempotent."""
+    Mongo (frees the slot) -> clear the patient's booking_info -> email the patient. Idempotent.
+    ``notify_patient=False`` keeps every channel quiet (our email AND PB's notice)."""
     booking_id = booking["booking_id"]
     if booking.get("status") == "cancelled":
         return booking
@@ -1865,7 +1866,7 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
             # Legacy engine='pb' rows: PB owns all patient comms, so it must send the notice.
             # Local-engine rows: we email the patient ourselves below — keep PB quiet.
             await pb_service.cancel_session(booking["pb_session_id"], correlation_id=correlation_id,
-                                            notify=booking.get("engine") == "pb")
+                                            notify=(booking.get("engine") == "pb" and notify_patient))
         except Exception as e:
             # PB 5xx here is transient (seen live) and PB sometimes half-applies the
             # cancellation despite erroring — don't claim success, leave it for the retry sweep.
@@ -1901,7 +1902,7 @@ async def _cancel_booking(booking: dict, pb_service: Optional[PracticeBetterServ
     # Zoom link we never see, so our notices would only confuse. Portal bookings keep ours.
     settings = await _load_app_settings()
     patient = booking.get("patient") or {}
-    if patient.get("email") and booking.get("engine") != "pb":
+    if notify_patient and patient.get("email") and booking.get("engine") != "pb":
         try:
             await booking_email.send_cancellation_notice(
                 to_email=patient["email"], first_name=patient.get("first_name") or "there",
@@ -1976,11 +1977,11 @@ async def _pb_reassign_session(booking: dict, old_pb_session_id: Optional[str], 
 
 async def _reschedule_booking(booking: dict, new_start_iso: str,
                               pb_service: Optional[PracticeBetterService], correlation_id: str,
-                              *, actor: str = "admin") -> dict:
+                              *, actor: str = "admin", notify_patient: bool = True) -> dict:
     """Move a confirmed booking to a new time. Prefers keeping the same director; if that director
     isn't free at the new slot it REASSIGNS to an available one (so any offered slot can be booked).
     Atomically re-claims the slot (the partial unique index guards a double-book), moves/recreates the
-    Google event + PB session (best-effort), and emails the new time."""
+    Google event + PB session (best-effort), and emails the new time (unless notify_patient=False)."""
     if booking.get("status") != "confirmed":
         raise RescheduleError(409, "Only confirmed bookings can be rescheduled.")
 
@@ -2153,7 +2154,7 @@ async def _reschedule_booking(booking: dict, new_start_iso: str,
 
     # ---- Email (new time + possibly a new Meet link) ----
     patient = booking.get("patient") or {}
-    if patient.get("email"):
+    if notify_patient and patient.get("email"):
         try:
             await booking_email.send_reschedule_notice(
                 to_email=patient["email"], first_name=patient.get("first_name") or "there",

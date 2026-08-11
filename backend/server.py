@@ -6074,23 +6074,31 @@ async def admin_create_booking(request: Request, admin_user: dict = Depends(get_
 
 class AdminReschedulePayload(BaseModel):
     slot_start_time: str
+    notify: bool = True
+
+
+class AdminCancelPayload(BaseModel):
+    notify: bool = True
 
 
 @api_router.post("/admin/bookings/{booking_id}/cancel")
-async def admin_cancel_booking(booking_id: str, admin_user: dict = Depends(get_admin_user)):
-    """Cancel a booking (PB delete + Google delete + ledger + patient email)."""
+async def admin_cancel_booking(booking_id: str, payload: Optional[AdminCancelPayload] = None,
+                               admin_user: dict = Depends(get_admin_user)):
+    """Cancel a booking (PB delete + Google delete + ledger + optional patient email)."""
     import booking as booking_module
     b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
     if not b:
         raise HTTPException(status_code=404, detail="Booking not found")
+    notify = payload.notify if payload is not None else True
     pb = booking_module.get_pb_service_optional()
     await booking_module._cancel_booking(
-        b, pb, f"admin-{booking_id[:8]}", actor=(admin_user.get("email") or "admin")
+        b, pb, f"admin-{booking_id[:8]}", actor=(admin_user.get("email") or "admin"),
+        notify_patient=notify,
     )
     await log_activity(event_type="BOOKING_CANCELLED", user_email=admin_user.get("email"),
-                       details={"booking_id": booking_id}, status="success")
+                       details={"booking_id": booking_id, "patient_notified": notify}, status="success")
     await log_admin_action("ADMIN_BOOKING_CANCELLED", admin_user=admin_user,
-                           details={"booking_id": booking_id},
+                           details={"booking_id": booking_id, "patient_notified": notify},
                            target_email=(b.get("patient") or {}).get("email"),
                            target_user_id=b.get("user_id"))
     return {"success": True}
@@ -6108,14 +6116,16 @@ async def admin_reschedule_booking(booking_id: str, payload: AdminReschedulePayl
     try:
         b = await booking_module._reschedule_booking(
             b, payload.slot_start_time, pb, f"admin-{booking_id[:8]}",
-            actor=(admin_user.get("email") or "admin"),
+            actor=(admin_user.get("email") or "admin"), notify_patient=payload.notify,
         )
     except booking_module.RescheduleError as e:
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     await log_activity(event_type="BOOKING_RESCHEDULED", user_email=admin_user.get("email"),
-                       details={"booking_id": booking_id, "new_start": payload.slot_start_time}, status="success")
+                       details={"booking_id": booking_id, "new_start": payload.slot_start_time,
+                                "patient_notified": payload.notify}, status="success")
     await log_admin_action("ADMIN_BOOKING_RESCHEDULED", admin_user=admin_user,
-                           details={"booking_id": booking_id, "new_start": payload.slot_start_time},
+                           details={"booking_id": booking_id, "new_start": payload.slot_start_time,
+                                    "patient_notified": payload.notify},
                            target_email=(b.get("patient") or {}).get("email"),
                            target_user_id=b.get("user_id"))
     return {"success": True, "booking": booking_module._booking_public(b)}
