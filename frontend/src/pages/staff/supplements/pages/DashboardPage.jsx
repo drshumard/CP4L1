@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   const handleDuplicate = async (e, planId) => {
     e.stopPropagation();
-    try { const result = await duplicatePlan(planId, { target: 'same' }); toast.success('Plan duplicated'); navigate(`/plans/${result._id}`); }
+    try { const result = await duplicatePlan(planId, { target: 'same' }); toast.success('Plan duplicated'); navigate(`/staff/supplements/plans/${result._id}`); }
     catch (err) { toast.error('Duplicate failed'); }
   };
 
@@ -175,7 +175,7 @@ export default function DashboardPage() {
             plans.map(plan => (
               <div
                 key={plan._id}
-                onClick={() => navigate(`/plans/${plan._id}`)}
+                onClick={() => navigate(`/staff/supplements/plans/${plan._id}`)}
                 className="grid items-center min-h-[44px] px-5 py-1.5 border-b border-[color:var(--hairline)] last:border-b-0 row-hover cursor-pointer transition-colors group"
                 style={{ gridTemplateColumns: 'minmax(180px,1.4fr) 1fr 100px 72px 110px 110px 140px 90px' }}
               >

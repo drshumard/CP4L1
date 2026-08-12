@@ -84,7 +84,7 @@ export default function PatientsPage() {
       toast.success('Patient added');
       setAddOpen(false);
       setNewPatient({ name: '', email: '', phone: '', notes: '' });
-      navigate(`/patients/${result._id}`);
+      navigate(`/staff/supplements/patients/${result._id}`);
     } catch (err) { toast.error(err.message || 'Failed to add patient'); }
     finally { setSaving(false); }
   };
@@ -158,7 +158,7 @@ export default function PatientsPage() {
             patients.map(p => (
               <div
                 key={p._id}
-                onClick={() => navigate(`/patients/${p._id}`)}
+                onClick={() => navigate(`/staff/supplements/patients/${p._id}`)}
                 className="grid items-center min-h-[48px] px-5 py-1.5 border-b border-[color:var(--hairline)] last:border-b-0 row-hover cursor-pointer transition-colors group"
                 style={{ gridTemplateColumns: 'minmax(200px,1.5fr) 1fr 160px 80px 60px' }}
               >

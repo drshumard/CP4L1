@@ -663,7 +663,7 @@ export default function PlanEditorPage() {
   };
 
   const goBack = () => {
-    if (plan?.patient_id) navigate(`/patients/${plan.patient_id}`);
+    if (plan?.patient_id) navigate(`/staff/supplements/patients/${plan.patient_id}`);
     else if (window.history.length > 2) navigate(-1);
     else navigate('/staff/supplements');
   };
@@ -727,7 +727,7 @@ export default function PlanEditorPage() {
       if (dupTarget === 'existing') body.patient_id = dupSelectedPatientId;
       if (dupTarget === 'new') body.new_patient_name = dupNewName;
       const r = await duplicatePlan(planId, body);
-      toast.success('Plan duplicated'); setDupOpen(false); navigate(`/plans/${r._id}`);
+      toast.success('Plan duplicated'); setDupOpen(false); navigate(`/staff/supplements/plans/${r._id}`);
     } catch (err) { toast.error(err.message || 'Failed to duplicate'); }
     finally { setDupLoading(false); }
   };
@@ -858,7 +858,7 @@ export default function PlanEditorPage() {
             <span className="text-ink-faint">/</span>
             {plan?.patient_id && (
               <>
-                <button onClick={() => navigate(`/patients/${plan.patient_id}`)} className="hover:text-ink-3 transition-colors">
+                <button onClick={() => navigate(`/staff/supplements/patients/${plan.patient_id}`)} className="hover:text-ink-3 transition-colors">
                   {plan.patient_name}
                 </button>
                 <span className="text-ink-faint">/</span>
@@ -879,7 +879,7 @@ export default function PlanEditorPage() {
 
             {plan.patient_id ? (
               <button
-                onClick={() => navigate(`/patients/${plan.patient_id}`)}
+                onClick={() => navigate(`/staff/supplements/patients/${plan.patient_id}`)}
                 className="text-[20px] font-semibold text-ink tracking-[-0.02em] hover:text-[color:var(--accent-teal)] transition-colors truncate"
                 data-testid="plan-editor-patient-name"
               >

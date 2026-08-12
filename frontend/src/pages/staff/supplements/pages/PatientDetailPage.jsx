@@ -63,7 +63,7 @@ export default function PatientDetailPage() {
 
   const handleDuplicate = async (e, planId) => {
     e.stopPropagation();
-    try { const r = await duplicatePlan(planId); toast.success('Plan duplicated'); navigate(`/plans/${r._id}`); }
+    try { const r = await duplicatePlan(planId); toast.success('Plan duplicated'); navigate(`/staff/supplements/plans/${r._id}`); }
     catch (err) { toast.error('Duplicate failed'); }
   };
 
@@ -107,7 +107,7 @@ export default function PatientDetailPage() {
           </button>
         )}
         <button
-          onClick={() => navigate(`/plans/new?patient_id=${patientId}&patient_name=${encodeURIComponent(patient.name)}`)}
+          onClick={() => navigate(`/staff/supplements/plans/new?patient_id=${patientId}&patient_name=${encodeURIComponent(patient.name)}`)}
           data-testid="new-plan-for-patient"
           className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md text-[13px] font-medium bg-[color:var(--accent-teal)] text-white hover:bg-[color:var(--accent-teal-hover)] shadow-[var(--shadow-xs)]"
         >
@@ -222,7 +222,7 @@ export default function PatientDetailPage() {
             plans.map(plan => (
               <div
                 key={plan._id}
-                onClick={() => navigate(`/plans/${plan._id}`)}
+                onClick={() => navigate(`/staff/supplements/plans/${plan._id}`)}
                 className="grid items-center min-h-[44px] px-5 py-1.5 border-b border-[color:var(--hairline)] last:border-b-0 row-hover cursor-pointer transition-colors group"
                 style={{ gridTemplateColumns: 'minmax(160px,1.4fr) 100px 72px 110px 110px 140px 80px' }}
               >

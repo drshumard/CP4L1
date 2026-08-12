@@ -173,7 +173,7 @@ export default function NewPlanPage() {
       };
       const result = await createPlan(data);
       toast.success('Plan created');
-      navigate(`/plans/${result._id}`);
+      navigate(`/staff/supplements/plans/${result._id}`);
     } catch (err) {
       const msg = typeof err === 'string' ? err : (err?.message || JSON.stringify(err?.detail || 'Failed to create plan'));
       toast.error(msg);
