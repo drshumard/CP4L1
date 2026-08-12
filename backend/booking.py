@@ -1718,6 +1718,9 @@ async def create_manual_booking(*, session_id: str, director_id: str, slot_start
                 to_email=patient["email"], first_name=patient.get("first_name") or "there",
                 session_title=title, session_start_iso=_iso(start_dt),
                 patient_timezone=patient_timezone, meet_link=meet_link, pb_record_id=None,
+                # Portal activation is onboarding — only the portal-visible session(s)
+                # (Diabetes Reversal) include it; manual-only events go to existing patients.
+                include_activation=bool(session.get("portal_visible")),
             )
         except Exception as e:
             logger.warning(f"[{correlation_id}] Manual booking confirmation email failed: {e}")

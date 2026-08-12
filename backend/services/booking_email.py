@@ -147,17 +147,16 @@ async def send_booking_confirmation(
     patient_timezone: Optional[str],
     meet_link: Optional[str],
     pb_record_id: Optional[str] = None,  # accepted for back-compat; activation now uses the shared portal link
+    include_activation: bool = True,  # onboarding (portal-visible) sessions only — manual-only
+                                      # events go to existing patients who already have accounts
 ) -> dict:
     date_line, time_line = _format_when(session_start_iso, patient_timezone)
     when_label = f"{date_line} @ {time_line}" if date_line and time_line else "your upcoming session"
-    activate_url = _pb_activation_url(pb_record_id)
-    inner = f"""
-    {_h1("Your session is booked")}
-    <p style="font-size:18px; margin:20px 0;">Hello {first_name},</p>
-    <p style="margin:20px 0;">Here are the details for your upcoming session:</p>
-    {_session_card(session_title, when_label)}
-    {_join_block(meet_link)}
-    <p style="margin:25px 0; padding:15px; background-color:#f5f5f5;">Please complete your paperwork &mdash; <strong>step 2 in the portal</strong> &mdash; within the next 48 hours so our Director of Admissions can prepare for your session. Questions? Call <strong>{SUPPORT_PHONE}</strong>, and please log on <strong>10 minutes before</strong> the start time.</p>
+    activation_html = ""
+    activation_text = ""
+    if include_activation:
+        activate_url = _pb_activation_url(pb_record_id)
+        activation_html = f"""
     {_hr()}
     <h2 style="font-size:18px; color:#000000; margin:0 0 12px 0; border-bottom:1px solid #cccccc; padding-bottom:10px;">Activate your patient portal</h2>
     <p style="margin:15px 0;">Set up your secure Practice Better account to access your plan, messages, and resources any time, from any device.</p>
@@ -166,13 +165,21 @@ async def send_booking_confirmation(
     </p>
     <p style="margin:20px 0; font-size:14px;">If the button doesn't work, copy and paste this link:<br>
       <span style="word-break:break-all;">{activate_url}</span></p>"""
+        activation_text = f"\nActivate your account: {activate_url}\n"
+    inner = f"""
+    {_h1("Your session is booked")}
+    <p style="font-size:18px; margin:20px 0;">Hello {first_name},</p>
+    <p style="margin:20px 0;">Here are the details for your upcoming session:</p>
+    {_session_card(session_title, when_label)}
+    {_join_block(meet_link)}
+    <p style="margin:25px 0; padding:15px; background-color:#f5f5f5;">Please complete your paperwork &mdash; <strong>step 2 in the portal</strong> &mdash; within the next 48 hours so our Director of Admissions can prepare for your session. Questions? Call <strong>{SUPPORT_PHONE}</strong>, and please log on <strong>10 minutes before</strong> the start time.</p>{activation_html}"""
     text = (
         f"Your session is booked.\n\nHello {first_name},\n\n"
         f"{session_title}\n{when_label}\n"
         + (f"\nJoin the call: {meet_link}\n" if meet_link else "")
         + f"\nPlease complete your paperwork (step 2 in the portal) within 48 hours.\n"
         f"Questions? Call {SUPPORT_PHONE}. Log on 10 minutes before.\n"
-        f"\nActivate your account: {activate_url}\n"
+        + activation_text
     )
     return await _send(to_email, f"Your session is booked — {date_line}" if date_line else "Your session is booked",
                        _shell(inner), text)
