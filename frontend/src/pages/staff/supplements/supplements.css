@@ -1,0 +1,84 @@
+/* Design tokens + hand-rolled utilities from the standalone supplementor app, SCOPED to
+   .supp-app so nothing leaks into the rest of the portal (their index.css applied these
+   to :root/body). shadcn token overrides were deliberately NOT ported — the portal's
+   theme wins, so the module inherits the admin look. Fonts inherit the portal's too. */
+
+.supp-app {
+  /* Surfaces — calm, layered */
+  --canvas: #FAFBFB;
+  --surface: #FFFFFF;
+  --surface-hover: #F5F7F8;
+  --surface-subtle: #F1F4F5;
+
+  /* Ink scale */
+  --ink: #0A0C0E;
+  --ink-2: #1E2528;
+  --ink-3: #3B4448;
+  --ink-muted: #6A757A;
+  --ink-subtle: #98A1A5;
+  --ink-faint: #C5CBCD;
+
+  /* Hairlines */
+  --hairline: rgba(14, 24, 28, 0.08);
+  --hairline-strong: rgba(14, 24, 28, 0.14);
+
+  /* Accent */
+  --accent-teal: #0D5F68;
+  --accent-teal-hover: #0A4E55;
+  --accent-teal-wash: #EAF4F3;
+  --accent-teal-wash-hover: #DCEDEB;
+
+  /* Elevation — restrained */
+  --shadow-xs: 0 1px 0 rgba(14, 24, 28, 0.04);
+  --shadow-sm: 0 1px 2px rgba(14, 24, 28, 0.05), 0 1px 3px rgba(14, 24, 28, 0.04);
+  --shadow-md: 0 4px 12px rgba(14, 24, 28, 0.06), 0 1px 3px rgba(14, 24, 28, 0.04);
+  --shadow-lg: 0 16px 40px rgba(14, 24, 28, 0.10), 0 2px 6px rgba(14, 24, 28, 0.04);
+  --shadow-inspector: -8px 0 24px rgba(14, 24, 28, 0.04);
+
+  /* Focus */
+  --focus: 0 0 0 3px rgba(13, 95, 104, 0.22);
+  --focus-subtle: 0 0 0 2px rgba(13, 95, 104, 0.18);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.supp-app .font-mono { font-family: var(--font-mono); }
+
+.supp-app .hairline { border-color: var(--hairline); }
+.supp-app .hairline-b { border-bottom: 1px solid var(--hairline); }
+.supp-app .hairline-t { border-top: 1px solid var(--hairline); }
+.supp-app .hairline-r { border-right: 1px solid var(--hairline); }
+.supp-app .hairline-l { border-left: 1px solid var(--hairline); }
+
+.supp-app .surface { background: var(--surface); }
+.supp-app .surface-2 { background: var(--surface-hover); }
+.supp-app .canvas { background: var(--canvas); }
+
+.supp-app .text-ink { color: var(--ink); }
+.supp-app .text-ink-2 { color: var(--ink-2); }
+.supp-app .text-ink-3 { color: var(--ink-3); }
+.supp-app .text-ink-muted { color: var(--ink-muted); }
+.supp-app .text-ink-subtle { color: var(--ink-subtle); }
+
+.supp-app .chrome-blur {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.supp-app .ring-focus { box-shadow: var(--focus); }
+
+.supp-app .row-hover:hover { background: var(--surface-hover); }
+
+@keyframes supp-fade-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.supp-app .animate-fade-up { animation: supp-fade-up 220ms var(--ease-out); }

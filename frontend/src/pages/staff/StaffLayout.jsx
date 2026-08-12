@@ -144,7 +144,7 @@ export default function StaffLayout() {
             {userMenuContent('bottom', 'end')}
           </DropdownMenu>
         </header>
-        <div className="flex-1 overflow-y-auto min-w-0 p-6 [scrollbar-gutter:stable] animate-in fade-in-0 duration-200">
+        <div className={`flex-1 overflow-y-auto min-w-0 [scrollbar-gutter:stable] animate-in fade-in-0 duration-200 ${pathname.startsWith('/staff/supplements') ? '' : 'p-6'}`}>
           <Outlet context={{ profile, role, apps }} />
         </div>
       </SidebarInset>
