@@ -23,6 +23,9 @@ export default function SupplementsApp() {
   const user = useMemo(() => {
     if (!['hc', ...ADMIN_ROLES].includes(role)) return null;
     return {
+      // _id = portal user id: backend stamps it as created_by on new plans, and the
+      // dashboard's "My plans" filter matches on it.
+      _id: profile.id,
       name: profile.name || profile.email,
       role: ADMIN_ROLES.includes(role) ? 'admin' : 'hc',
     };
@@ -33,7 +36,7 @@ export default function SupplementsApp() {
   const adminOnly = (el) => (isAdmin ? el : <Navigate to="/staff/supplements" replace />);
 
   return (
-    <SuppAuthContext.Provider value={{ user, loading: false }}>
+    <SuppAuthContext.Provider value={{ user, profile, loading: false }}>
       <AppShell>
         <Routes>
           <Route index element={<DashboardPage />} />

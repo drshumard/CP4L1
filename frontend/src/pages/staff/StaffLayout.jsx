@@ -46,6 +46,17 @@ export default function StaffLayout() {
 
   const role = profile.role;
   const apps = appsForRole(role);
+
+  // Supplements brings its OWN rail + top bar (ported app) — render it full-bleed with no
+  // staff sidebar/navbar. It still gets the outlet context (profile/role) for auth.
+  if (pathname.startsWith('/staff/supplements')) {
+    return (
+      <div className="admin-geist h-screen overflow-hidden">
+        <Outlet context={{ profile, role, apps }} />
+      </div>
+    );
+  }
+
   const name = profile.name || 'Team member';
   const initials = (name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
 

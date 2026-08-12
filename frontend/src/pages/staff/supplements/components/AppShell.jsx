@@ -3,7 +3,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
 import {
   LayoutDashboard, FilePlus, Pill, Layers, Users, UserRound, Building2, Search,
+  ArrowLeft, Settings, LogOut,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
@@ -50,10 +56,19 @@ function RailItem({ item, active, onClick }) {
 }
 
 export default function AppShell({ children }) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const displayName = profile?.name || user?.name || 'Team member';
+  const initials = (displayName.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
+  const logout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
+    navigate('/login');
+  };
 
   const role = user?.role;
   const primary = navItems.filter(n => n.roles.includes(role));
@@ -118,6 +133,49 @@ export default function AppShell({ children }) {
             </>
           )}
 
+          {/* ── Rail bottom: back to portal + user menu (was Clerk's UserButton) ── */}
+          <div className="mt-auto flex flex-col items-center gap-2 pb-1">
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => navigate('/staff')}
+                  className="w-10 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors"
+                  aria-label="Back to portal"
+                >
+                  <ArrowLeft size={17} strokeWidth={1.9} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={10} className="text-xs font-medium px-2.5 py-1.5">
+                Back to portal
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label="Account menu"
+                  className="rounded-full outline-none transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="size-8">
+                    <AvatarImage src={profile?.avatar_url || undefined} alt={displayName} />
+                    <AvatarFallback className="bg-[color:var(--accent-teal)] text-white text-xs font-semibold">{initials}</AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="end" sideOffset={10} className="min-w-56 rounded-lg">
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="grid px-2 py-1.5 text-sm leading-tight">
+                    <span className="truncate font-semibold">{displayName}</span>
+                    <span className="truncate text-xs text-muted-foreground">{profile?.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/staff/settings')}>
+                  <Settings /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-destructive focus:text-destructive [&_svg]:text-destructive" onClick={logout}>
+                  <LogOut /> Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </aside>
 
         {/* ── Main column ── */}
