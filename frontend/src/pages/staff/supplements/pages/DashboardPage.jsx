@@ -57,7 +57,7 @@ export default function DashboardPage() {
   const otherCreators = creators.filter(c => c.user_id !== user?._id);
 
   const creatorTab = (active) =>
-    `h-7 px-3 rounded-md text-[12px] font-medium transition-colors flex items-center gap-1.5 ${
+    `h-7 px-3 rounded-md text-[12px] font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap ${
       active
         ? 'bg-[color:var(--accent-teal)] text-white shadow-[var(--shadow-xs)]'
         : 'text-ink-muted hover:text-ink hover:bg-[color:var(--surface-hover)]'
@@ -82,7 +82,7 @@ export default function DashboardPage() {
 
       <div className="px-8 py-6">
         {/* Creator tabs */}
-        <div className="flex items-center gap-1 mb-4 p-1 rounded-lg bg-[color:var(--surface-hover)] hairline border w-fit">
+        <div className="flex flex-wrap items-center gap-1 mb-4 p-1 rounded-lg bg-[color:var(--surface-hover)] hairline border w-fit">
           <button onClick={() => setSelectedCreator('mine')} className={creatorTab(selectedCreator === 'mine')}>
             My plans
           </button>
@@ -93,7 +93,8 @@ export default function DashboardPage() {
               }`}>
                 {c.name?.charAt(0) || '?'}
               </span>
-              {c.name}
+              {/* First name only — full names wrap mid-name on 13" screens and break the pill */}
+              {(c.name || '').trim().split(/\s+/)[0] || '?'}
               <span className={`text-[10px] ${selectedCreator === c.user_id ? 'text-white/70' : 'text-ink-subtle'}`}>
                 {c.plan_count}
               </span>
