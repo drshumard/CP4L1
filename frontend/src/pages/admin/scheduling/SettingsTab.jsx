@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { AlertTriangle, Upload, Info, ChevronRight, Send } from 'lucide-react';
+import { AlertTriangle, Info, ChevronRight, Send } from 'lucide-react';
 import { adminApi } from '../api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -77,36 +76,26 @@ function renderPreview(msg, allow) {
   });
 }
 
-function initialsOf(name, email) {
-  const n = (name || '').trim();
-  if (n) return n.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
-  return (email || '?').slice(0, 2).toUpperCase();
-}
-
+// Personal profile settings moved to the staff workspace home (pages/staff/ProfileCard.jsx)
+// — this tab is org configuration only.
 export default function SettingsTab() {
-  const [profile, setProfile] = useState(null);
   const [s, setS] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
-  const [dirtyProfile, setDirtyProfile] = useState(false);
   const [dirtySettings, setDirtySettings] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [openMap, setOpenMap] = useState({});
   const [testNums, setTestNums] = useState({});
   const [testing, setTesting] = useState({});
-  const fileRef = useRef(null);
   const taRefs = useRef({});          // reminder key -> textarea DOM node (for caret insertion)
   const focusedKeyRef = useRef(null); // which reminder message box last had focus
 
   useEffect(() => {
-    adminApi.get('/user/me').then((r) => setProfile(r.data)).catch(() => toast.error('Failed to load your profile'));
     adminApi.get('/admin/settings').then((r) => setS(r.data))
       .catch((e) => toast.error(e?.response?.status === 403 ? 'Admin access required' : 'Failed to load settings'));
   }, []);
 
-  if (!profile || !s) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
+  if (!s) return <div className="py-12 text-center text-muted-foreground">Loading...</div>;
 
-  const setP = (k, v) => { setProfile((p) => ({ ...p, [k]: v })); setDirtyProfile(true); };
   const set = (k, v) => { setS((p) => ({ ...p, [k]: v })); setDirtySettings(true); };
   const isLocal = s.booking_engine === 'local';
 
@@ -136,26 +125,6 @@ export default function SettingsTab() {
     });
   };
 
-  const onFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 8 * 1024 * 1024) { toast.error('Image too large (max 8MB)'); e.target.value = ''; return; }
-    setUploadingPhoto(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const r = await adminApi.post('/user/me/avatar', fd);
-      setProfile((p) => ({ ...p, avatar_url: r.data.avatar_url || '' }));
-      window.dispatchEvent(new Event('profile-updated'));
-      toast.success('Photo updated');
-    } catch (err) {
-      toast.error(err?.response?.data?.detail || 'Could not upload that photo');
-    } finally {
-      setUploadingPhoto(false);
-      e.target.value = '';
-    }
-  };
-
   const sendTest = async (key) => {
     const to = (testNums[key] || '').trim();
     if (!to) { toast.error('Enter a phone number to send a test to.'); return; }
@@ -173,22 +142,12 @@ export default function SettingsTab() {
   const saveAll = async () => {
     setSaving(true);
     try {
-      if (dirtyProfile) {
-        const r = await adminApi.put('/user/me', {
-          first_name: profile.first_name || '', last_name: profile.last_name || '',
-          phone: profile.phone || '', avatar_url: profile.avatar_url || '',
-        });
-        setProfile(r.data);
-        window.dispatchEvent(new Event('profile-updated'));
-      }
-      if (dirtySettings) {
-        const r = await adminApi.put('/admin/settings', {
-          booking_engine: s.booking_engine, shared_pb_consultant_id: s.shared_pb_consultant_id || '',
-          pb_booking_mode: s.pb_booking_mode || 'one_director', sms_reminders: s.sms_reminders,
-        });
-        setS(r.data);
-      }
-      setDirtyProfile(false); setDirtySettings(false); setSavedOnce(true);
+      const r = await adminApi.put('/admin/settings', {
+        booking_engine: s.booking_engine, shared_pb_consultant_id: s.shared_pb_consultant_id || '',
+        pb_booking_mode: s.pb_booking_mode || 'one_director', sms_reminders: s.sms_reminders,
+      });
+      setS(r.data);
+      setDirtySettings(false); setSavedOnce(true);
       toast.success('All changes saved');
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Save failed');
@@ -197,44 +156,16 @@ export default function SettingsTab() {
     }
   };
 
-  const dirty = dirtyProfile || dirtySettings;
+  const dirty = dirtySettings;
   const statusLabel = dirty ? 'Unsaved changes' : (savedOnce ? 'All changes saved' : 'No unsaved changes');
 
   return (
     <div className="max-w-4xl">
-      <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile">Profile</TabsTrigger>
+      <Tabs defaultValue="engine">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="engine">Booking engine</TabsTrigger>
           <TabsTrigger value="sms">SMS reminders</TabsTrigger>
         </TabsList>
-
-        {/* ---------------- Profile ---------------- */}
-        <TabsContent value="profile" className="mt-4">
-          <section className="rounded-xl border bg-card p-5 shadow-sm">
-            <p className={EYEBROW}>Your profile</p>
-            <p className="mt-1 text-sm text-muted-foreground">Your name and photo appear across the admin. Visible to staff only.</p>
-            <div className="mt-4 flex items-center gap-4">
-              <Avatar className="size-16">
-                <AvatarImage src={profile.avatar_url || undefined} alt={profile.name} />
-                <AvatarFallback className="text-lg">{initialsOf(profile.name, profile.email)}</AvatarFallback>
-              </Avatar>
-              <div className="flex items-center gap-2">
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
-                <Button variant="outline" size="sm" disabled={uploadingPhoto} onClick={() => fileRef.current?.click()}><Upload className="size-4" /> {uploadingPhoto ? 'Uploading...' : 'Upload photo'}</Button>
-                {profile.avatar_url && (
-                  <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setP('avatar_url', '')}>Remove</Button>
-                )}
-              </div>
-            </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5"><Label htmlFor="p-fn">First name</Label><Input id="p-fn" value={profile.first_name || ''} onChange={(e) => setP('first_name', e.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="p-ln">Last name</Label><Input id="p-ln" value={profile.last_name || ''} onChange={(e) => setP('last_name', e.target.value)} /></div>
-              <div className="space-y-1.5"><Label htmlFor="p-ph">Phone</Label><Input id="p-ph" value={profile.phone || ''} onChange={(e) => setP('phone', e.target.value)} placeholder="Optional" /></div>
-              <div className="space-y-1.5"><Label htmlFor="p-em">Email</Label><Input id="p-em" value={profile.email} disabled /></div>
-            </div>
-          </section>
-        </TabsContent>
 
         {/* ---------------- Booking engine ---------------- */}
         <TabsContent value="engine" className="mt-4 space-y-6">

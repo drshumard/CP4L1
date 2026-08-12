@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users, CalendarClock, BarChart3, Activity, Zap, Settings,
-  ChevronRight, ChevronsUpDown, LogOut, ExternalLink,
+  ChevronRight, ChevronsUpDown, LogOut, ExternalLink, UserCog, LayoutGrid,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -68,7 +68,8 @@ export default function AppSidebar() {
   return (
     <Sidebar variant="floating" collapsible="icon">
       <SidebarHeader>
-        <Link to="/admin" className="flex h-10 items-center px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        {/* Logo always returns to the staff workspace — the team's home base. */}
+        <Link to="/staff" className="flex h-10 items-center px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <img src={LOGO} alt="Dr. Shumard" className="h-7 w-auto object-contain group-data-[collapsible=icon]:hidden" />
         </Link>
       </SidebarHeader>
@@ -120,6 +121,14 @@ export default function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
+
+            {profile?.role === 'super_admin' && (
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/admin/team')} tooltip="Team">
+                  <Link to="/admin/team"><UserCog /><span>Team</span></Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
@@ -153,8 +162,11 @@ export default function AppSidebar() {
                 <DropdownMenuItem onClick={() => navigate('/admin/scheduling/settings')}>
                   <Settings /> Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/')}>
-                  <ExternalLink /> View portal
+                <DropdownMenuItem onClick={() => navigate('/staff')}>
+                  <LayoutGrid /> Staff workspace
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/?preview=1')}>
+                  <ExternalLink /> View patient portal
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={logout}>
                   <LogOut /> Log out

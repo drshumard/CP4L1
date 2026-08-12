@@ -22,6 +22,12 @@ import DirectorEditor from './pages/admin/scheduling/DirectorEditor';
 import SchedulingCoordinators from './pages/admin/scheduling/Coordinators';
 import SchedulingEvents from './pages/admin/scheduling/Events';
 import SchedulingSettings from './pages/admin/scheduling/SettingsTab';
+import AdminTeam from './pages/admin/Team';
+import StaffLayout from './pages/staff/StaffLayout';
+import StaffHome from './pages/staff/StaffHome';
+import StaffAppPage from './pages/staff/StaffAppPage';
+import StaffSettings from './pages/staff/StaffSettings';
+import { homeForRole } from './lib/staffApps';
 import ProtoLayout from './pages/prototype/ProtoLayout';
 import ProtoDashboard from './pages/prototype/ProtoDashboard';
 import ProtoBooking from './pages/prototype/ProtoBooking';
@@ -70,6 +76,7 @@ const STEP_PATHS = { 1: '/book', 2: '/forms', 3: '/ready', 4: '/outcome' };
 function JourneyRoute({ children, step = null }) {
   const [checking, setChecking] = useState(true);
   const [currentStep, setCurrentStep] = useState(null);
+  const [role, setRole] = useState(null);
   const token = localStorage.getItem('access_token');
   const location = useLocation();
 
@@ -91,10 +98,14 @@ function JourneyRoute({ children, step = null }) {
       if (!token) return;
       setChecking(true);
       try {
-        const res = await axios.get(`${API}/user/progress`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (alive) setCurrentStep(res.data?.current_step ?? null);
+        const [progressRes, meRes] = await Promise.all([
+          axios.get(`${API}/user/progress`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API}/user/me`, { headers: { Authorization: `Bearer ${token}` } }),
+        ]);
+        if (alive) {
+          setCurrentStep(progressRes.data?.current_step ?? null);
+          setRole(meRes.data?.role ?? null);
+        }
       } catch {
         // Fail open (currentStep stays null): page-level handlers own API errors, and the
         // 401 interceptor owns expired sessions.
@@ -114,6 +125,13 @@ function JourneyRoute({ children, step = null }) {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
       </div>
     );
+  }
+
+  // Team members don't have a patient journey — route them to their own workspace.
+  // ?preview lets admins deliberately look at the patient portal (sidebar "View portal").
+  const teamHome = homeForRole(role);
+  if (teamHome && !new URLSearchParams(location.search).has('preview')) {
+    return <Navigate to={teamHome} replace />;
   }
 
   if (currentStep === 0) {
@@ -282,8 +300,15 @@ function App() {
             <Route path="/ready" element={<JourneyRoute step={3}><PortalReady /></JourneyRoute>} />
             <Route path="/steps" element={<StepsRedirect />} />
             <Route path="/outcome" element={<JourneyRoute step={4}><OutcomePage /></JourneyRoute>} />
+            <Route path="/staff" element={<StaffLayout />}>
+              <Route index element={<StaffHome />} />
+              <Route path="settings" element={<StaffSettings />} />
+              <Route path="learn" element={<StaffAppPage appKey="learn" />} />
+              <Route path="supplements" element={<StaffAppPage appKey="supplements" />} />
+            </Route>
             <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
               <Route index element={<AdminDashboard />} />
+              <Route path="team" element={<AdminTeam />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="logs" element={<ActivityLogs />} />
               <Route path="automations" element={<AutomationsPage />} />

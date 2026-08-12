@@ -1,6 +1,8 @@
-import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { adminApi } from './api';
+import { ADMIN_ROLES, homeForRole } from '@/lib/staffApps';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmRoot } from './confirm';
@@ -12,11 +14,21 @@ function pageTitle(pathname) {
   if (pathname.startsWith('/admin/analytics')) return 'Analytics';
   if (pathname.startsWith('/admin/logs')) return 'Activity log';
   if (pathname.startsWith('/admin/automations')) return 'Automations';
+  if (pathname.startsWith('/admin/team')) return 'Team';
   return 'Users';
 }
 
 export default function AdminLayout() {
   const { pathname } = useLocation();
+  // Staff (and patients) never see the admin shell — the API would 403 them anyway,
+  // but bouncing to their own home avoids a shell full of failed requests.
+  const [role, setRole] = useState(undefined); // undefined = still checking
+  useEffect(() => {
+    adminApi.get('/user/me').then((r) => setRole(r.data?.role || 'user')).catch(() => setRole(null));
+  }, []);
+  if (role !== undefined && role !== null && !ADMIN_ROLES.includes(role)) {
+    return <Navigate to={homeForRole(role) || '/'} replace />;
+  }
   return (
     <SidebarProvider className="admin-geist" style={{ background: 'hsl(40 6% 91%)' }}>
       <AppSidebar />
