@@ -729,7 +729,10 @@ const AdminDashboard = () => {
                             <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={async () => { const ok = await cancelBooking(sessionBooking); if (ok) { setSessionBooking(null); setSelectedUser((u) => (u ? { ...u, booking_info: null } : u)); fetchData(); } }}><Ban className="size-3.5" /> Cancel</Button>
                           </>
                         )}
-                        {!showBookingModal && (
+                        {/* Legacy stamp editor (writes users.booking_info only). Hidden whenever a real
+                            ledger booking exists — its Save/Remove don't touch the actual booking, so
+                            offering it next to the real Reschedule/Cancel reads as a broken remove. */}
+                        {!showBookingModal && !sessionBooking && (
                           <Button variant="outline" size="sm" onClick={openBookingModal}>{selectedUser.booking_info ? 'Edit booking' : 'Set booking'}</Button>
                         )}
                       </div>
