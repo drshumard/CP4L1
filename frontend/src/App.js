@@ -26,6 +26,7 @@ import AdminTeam from './pages/admin/Team';
 import StaffLayout from './pages/staff/StaffLayout';
 import StaffHome from './pages/staff/StaffHome';
 import StaffAppPage from './pages/staff/StaffAppPage';
+import LearnLauncher from './pages/staff/LearnLauncher';
 import StaffSettings from './pages/staff/StaffSettings';
 import SupplementsApp from './pages/staff/supplements/SupplementsApp';
 import { homeForRole, loginPath } from './lib/staffApps';
@@ -321,7 +322,7 @@ function App() {
               <Route index element={<StaffHome />} />
               <Route path="settings" element={<StaffSettings />} />
               <Route path="team" element={<AdminTeam />} />
-              <Route path="learn" element={<StaffAppPage appKey="learn" />} />
+              <Route path="learn" element={<LearnLauncher />} />
               <Route path="supplements/*" element={<SupplementsApp />} />
             </Route>
             <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>

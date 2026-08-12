@@ -2526,6 +2526,7 @@ async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
         raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
     clerk_id = claims["sub"]
 
+    resolved_email = None
     user = await db.users.find_one({"clerk_user_id": clerk_id}, {"_id": 0})
     if not user:
         # First Clerk sign-in: resolve the VERIFIED primary email server-side from Clerk's
@@ -2546,14 +2547,18 @@ async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
             raise HTTPException(status_code=502, detail="Could not verify your account. Try again.")
         if not email:
             raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
-        user = await db.users.find_one({"email": email.lower()}, {"_id": 0})
+        resolved_email = email.lower()
+        user = await db.users.find_one({"email": resolved_email}, {"_id": 0})
         if user and user.get("role") in TEAM_ROLES:
             await db.users.update_one({"id": user["id"]}, {"$set": {"clerk_user_id": clerk_id}})
 
     if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
+        logging.warning(f"Clerk staff login rejected: clerk_id={clerk_id} resolved_email={resolved_email} "
+                        f"matched_user={(user or {}).get('email')} role={(user or {}).get('role')}")
         await log_activity(event_type="CLERK_STAFF_LOGIN_REJECTED",
                            user_email=(user or {}).get("email"), ip_address=ip_address,
-                           details={"clerk_user_id": clerk_id}, status="failure")
+                           details={"clerk_user_id": clerk_id, "resolved_email": resolved_email},
+                           status="failure")
         raise HTTPException(status_code=403,
                             detail="This sign-in is for the team. Ask an admin to add you on the Team page.")
 
@@ -2564,6 +2569,52 @@ async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
                        user_id=user["id"], ip_address=ip_address, status="success")
     return {"access_token": access_token, "refresh_token": refresh_token,
             "token_type": "bearer", "user": _user_response(user)}
+
+
+# ---------------------------------------------------------------- Learn SSO handoff
+# The workspace's Learn tab mints a 2-minute single-use token; the Learn app's server
+# (Neuro93Saturn, federated at /learn) redeems it here and mints its own Supabase session.
+# The Team roster stays the sole authority: only active team members can mint or redeem.
+
+@api_router.post("/auth/learn-token")
+async def learn_sso_token(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") not in TEAM_ROLES:
+        raise HTTPException(status_code=403, detail="Learn is for the team")
+    token = await create_auto_login_token(current_user["id"], current_user["email"],
+                                          purpose="learn_sso", ttl_minutes=2)
+    return {"token": token}
+
+
+class LearnRedeemRequest(BaseModel):
+    token: str
+
+
+@api_router.post("/auth/learn-redeem")
+async def learn_sso_redeem(payload: LearnRedeemRequest):
+    """Server-to-server: exchange a handoff token for the team member's identity.
+    Atomic single-use claim + 2-minute expiry; fails closed for non-team users."""
+    now = datetime.now(timezone.utc)
+    doc = await db.auto_login_tokens.find_one_and_update(
+        {"token": payload.token, "purpose": "learn_sso", "used": {"$ne": True}},
+        {"$set": {"used": True, "used_at": now.isoformat()}},
+    )
+    if not doc:
+        raise HTTPException(status_code=401, detail="Invalid or already-used token")
+    exp = doc.get("expires_at")
+    if isinstance(exp, str):
+        exp = _parse_utc_iso(exp)
+    elif isinstance(exp, datetime) and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if not exp or exp < now:
+        raise HTTPException(status_code=401, detail="Token expired")
+    user = await db.users.find_one({"id": doc["user_id"]},
+                                   {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1, "active": 1})
+    if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
+        raise HTTPException(status_code=403, detail="Not a team member")
+    await log_activity(event_type="LEARN_SSO_REDEEMED", user_email=user["email"],
+                       user_id=user["id"], status="success")
+    return {"id": user["id"], "email": user["email"], "name": user.get("name", ""),
+            "role": user["role"]}
 
 
 @api_router.get("/user/me", response_model=UserResponse)
