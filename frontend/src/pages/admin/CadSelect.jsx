@@ -107,6 +107,9 @@ export default function CadSelect({
             position: 'fixed',
             left: rect.left,
             width: rect.width,
+            // Portaled to <body>: a vaul drawer sets pointer-events:none on the body while
+            // open, which would make this menu unclickable inside drawers without this.
+            pointerEvents: 'auto',
             ...(rect.dropUp ? { bottom: rect.bottom } : { top: rect.top }),
           }}
         >

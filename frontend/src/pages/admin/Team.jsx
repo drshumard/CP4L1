@@ -192,7 +192,10 @@ export default function Team() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Role</Label>
-                  <CadSelect value={form.role} onChange={(v) => setF('role', v)} options={ROLE_OPTIONS} ariaLabel="Role" style={{ width: 240 }} />
+                  <CadSelect value={form.role} onChange={(v) => setF('role', v)} ariaLabel="Role" style={{ width: 240 }}
+                    options={form.role === 'staff'
+                      ? [{ value: 'staff', label: 'Staff (legacy — pick a real role)', disabled: true }, ...ROLE_OPTIONS]
+                      : ROLE_OPTIONS} />
                   <p className="text-xs text-muted-foreground">
                     Staff roles land in the staff workspace; Admin gets the full admin area.
                   </p>
