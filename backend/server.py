@@ -6292,6 +6292,21 @@ app.include_router(api_router)
 from booking import router as booking_router
 app.include_router(booking_router)
 
+# Supplement Protocol Manager (absorbed sibling app) — staff-only, own database.
+import supplements
+from bson.errors import InvalidId as _BsonInvalidId
+supplements.init(secret_key=SECRET_KEY, users_collection=db.users,
+                 database=client["supplements"])
+app.include_router(supplements.router, prefix="/api/supplements")
+
+
+@app.exception_handler(_BsonInvalidId)
+async def _invalid_objectid_handler(request, exc):
+    # Supplements routes take Mongo ObjectId path params; a malformed id should be a
+    # client error, not a 500. Portal routes use uuid strings and never raise this.
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=400, content={"detail": "Invalid ID format"})
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -6309,6 +6324,11 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     """Pre-populate availability cache on startup for instant loading"""
+    # Supplements module: indexes + first-boot seed (own database, isolated failures)
+    try:
+        await supplements.ensure_indexes_and_seed()
+    except Exception as e:
+        logging.warning(f"Supplements startup skipped: {e}")
     # Ensure indexes for pagination performance
     try:
         await db.users.create_index([("created_at", -1)])
