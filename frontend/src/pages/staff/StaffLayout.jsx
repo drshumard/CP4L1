@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { adminApi } from '../admin/api';
-import { appsForRole, TEAM_ROLES, ROLE_LABELS } from '@/lib/staffApps';
+import { appsForRole, TEAM_ROLES, ROLE_LABELS, loginPath } from '@/lib/staffApps';
 import '../admin/admin.css';
 
 const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
@@ -37,7 +37,7 @@ export default function StaffLayout() {
     return () => window.removeEventListener('profile-updated', load);
   }, []);
 
-  if (!localStorage.getItem('access_token')) return <Navigate to="/login" replace />;
+  if (!localStorage.getItem('access_token')) return <Navigate to={loginPath()} replace />;
   if (failed) return <Navigate to="/" replace />;
   if (!profile) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading...</div>;
@@ -64,7 +64,7 @@ export default function StaffLayout() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
-    navigate('/login');
+    navigate(loginPath());
   };
 
   // One menu, two triggers: the sidebar-footer chip and the navbar avatar share it.

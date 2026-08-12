@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
+import { loginPath } from '@/lib/staffApps';
 import {
   LayoutDashboard, FilePlus, Pill, Layers, Users, UserRound, Building2, Search,
   ArrowLeft, Settings, LogOut,
@@ -67,7 +68,7 @@ export default function AppShell({ children }) {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
-    navigate('/login');
+    navigate(loginPath());
   };
 
   const role = user?.role;

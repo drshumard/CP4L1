@@ -2459,6 +2459,113 @@ def _user_response(u: dict) -> UserResponse:
     )
 
 
+# ---------------------------------------------------------------- Clerk staff SSO
+# Second front door for TEAM MEMBERS ONLY (staff.drshumard.com): they sign in with the
+# existing fm.drshumard.com Clerk instance (same credentials as the old supplementor app)
+# and exchange the Clerk session for a normal portal JWT. Clerk only proves the email —
+# the Team page (users collection) remains the sole authority on who is staff and their
+# role. Never creates users, never elevates patients; fails closed.
+
+CLERK_SECRET_KEY = os.environ.get("CLERK_SECRET_KEY", "")
+CLERK_PUBLISHABLE_KEY = os.environ.get("CLERK_PUBLISHABLE_KEY", "")
+
+_clerk_jwks_client = None
+
+
+def _get_clerk_jwks_client():
+    """PyJWT JWKS client for the Clerk instance, derived from the publishable key
+    (pk_live_<base64 domain>) exactly like the standalone supplementor did."""
+    global _clerk_jwks_client
+    if _clerk_jwks_client is not None:
+        return _clerk_jwks_client
+    parts = CLERK_PUBLISHABLE_KEY.split("_")
+    if len(parts) < 3:
+        return None
+    try:
+        import base64 as _b64
+        raw = parts[-1]
+        raw += "=" * (4 - len(raw) % 4) if len(raw) % 4 else ""
+        domain = _b64.b64decode(raw).decode().rstrip("$")
+        from jwt import PyJWKClient
+        _clerk_jwks_client = PyJWKClient(f"https://{domain}/.well-known/jwks.json")
+        return _clerk_jwks_client
+    except Exception as e:
+        logging.warning(f"Clerk JWKS setup failed: {e}")
+        return None
+
+
+def _verify_clerk_token_sync(token: str):
+    """Verify a Clerk JWT signature via JWKS; returns the payload or None. Blocking."""
+    client = _get_clerk_jwks_client()
+    if client is None:
+        return None
+    try:
+        import jwt as _pyjwt
+        signing_key = client.get_signing_key_from_jwt(token)
+        return _pyjwt.decode(token, signing_key.key, algorithms=["RS256"],
+                             options={"verify_aud": False})
+    except Exception:
+        return None
+
+
+class ClerkExchangeRequest(BaseModel):
+    token: str
+
+
+@api_router.post("/auth/clerk-exchange")
+async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
+    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+    if not await check_ip_rate_limit(ip_address, scope="clerk_exchange", limit=30, window_minutes=15):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts. Please try again shortly.")
+
+    claims = await asyncio.to_thread(_verify_clerk_token_sync, payload.token)
+    if not claims or not claims.get("sub"):
+        raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
+    clerk_id = claims["sub"]
+
+    user = await db.users.find_one({"clerk_user_id": clerk_id}, {"_id": 0})
+    if not user:
+        # First Clerk sign-in: resolve the VERIFIED primary email server-side from Clerk's
+        # Backend API (never trust a client-supplied email), then link by exact match.
+        if not CLERK_SECRET_KEY:
+            raise HTTPException(status_code=503, detail="Staff sign-in not configured")
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=10) as hc:
+                resp = await hc.get(f"https://api.clerk.com/v1/users/{clerk_id}",
+                                    headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"})
+            resp.raise_for_status()
+            cu = resp.json()
+            primary_id = cu.get("primary_email_address_id")
+            email = next((e.get("email_address") for e in cu.get("email_addresses", [])
+                          if e.get("id") == primary_id), None)
+        except Exception:
+            raise HTTPException(status_code=502, detail="Could not verify your account. Try again.")
+        if not email:
+            raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
+        user = await db.users.find_one({"email": email.lower()}, {"_id": 0})
+        if user and user.get("role") in TEAM_ROLES:
+            await db.users.update_one({"id": user["id"]}, {"$set": {"clerk_user_id": clerk_id}})
+
+    if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
+        await log_activity(event_type="CLERK_STAFF_LOGIN_REJECTED",
+                           user_email=(user or {}).get("email"), ip_address=ip_address,
+                           details={"clerk_user_id": clerk_id}, status="failure")
+        raise HTTPException(status_code=403,
+                            detail="This sign-in is for the team. Ask an admin to add you on the Team page.")
+
+    access_token = create_access_token(data={"sub": user["id"]},
+                                       expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    refresh_token = create_refresh_token(data={"sub": user["id"]})
+    await log_activity(event_type="CLERK_STAFF_LOGIN", user_email=user.get("email"),
+                       user_id=user["id"], ip_address=ip_address, status="success")
+    return {"access_token": access_token, "refresh_token": refresh_token,
+            "token_type": "bearer", "user": _user_response(user)}
+
+
 @api_router.get("/user/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
     return _user_response(current_user)

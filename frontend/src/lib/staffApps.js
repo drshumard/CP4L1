@@ -61,3 +61,9 @@ export const appsForRole = (role) => STAFF_APPS.filter((a) => a.roles.includes(r
 /** Where a signed-in user belongs after login: the whole team (staff AND admins) lands in
  *  the workspace — admins reach the admin portal via its "Portal" tab. Patients → null. */
 export const homeForRole = (role) => (TEAM_ROLES.includes(role) ? '/staff' : null);
+
+/** On staff.drshumard.com the sign-in surface is the Clerk staff login, not the
+ *  patient email-code page. Both issue the same portal session. */
+export const isStaffHost = () =>
+  typeof window !== 'undefined' && window.location.hostname.startsWith('staff.');
+export const loginPath = () => (isStaffHost() ? '/staff-login' : '/login');

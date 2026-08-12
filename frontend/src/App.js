@@ -28,7 +28,8 @@ import StaffHome from './pages/staff/StaffHome';
 import StaffAppPage from './pages/staff/StaffAppPage';
 import StaffSettings from './pages/staff/StaffSettings';
 import SupplementsApp from './pages/staff/supplements/SupplementsApp';
-import { homeForRole } from './lib/staffApps';
+import { homeForRole, loginPath } from './lib/staffApps';
+import StaffLogin from './pages/StaffLogin';
 import ProtoLayout from './pages/prototype/ProtoLayout';
 import ProtoDashboard from './pages/prototype/ProtoDashboard';
 import ProtoBooking from './pages/prototype/ProtoBooking';
@@ -63,7 +64,7 @@ if (typeof window !== 'undefined') {
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('access_token');
-  return token ? children : <Navigate to="/login" />;
+  return token ? children : <Navigate to={loginPath()} />;
 }
 
 const STEP_PATHS = { 1: '/book', 2: '/forms', 3: '/ready', 4: '/outcome' };
@@ -117,7 +118,7 @@ function JourneyRoute({ children, step = null }) {
   }, [token, location.pathname]);
 
   if (!token) {
-    return <Navigate to="/login" />;
+    return <Navigate to={loginPath()} />;
   }
 
   if (checking) {
@@ -281,6 +282,7 @@ function App() {
           <Routes>
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/staff-login" element={<StaffLogin />} />
             {/* Prototype patient portal (non-production design preview) */}
             <Route path="/prototype" element={<ProtoLayout />}>
               <Route index element={<ProtoDashboard />} />
