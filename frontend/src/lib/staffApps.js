@@ -30,14 +30,6 @@ export const STAFF_APPS = [
     blurb: 'The admin portal — patients, scheduling, analytics, team.',
   },
   {
-    key: 'team',
-    label: 'Team',
-    path: '/staff/team',
-    icon: UserCog,
-    roles: ['super_admin'],
-    blurb: 'Create team members and assign their roles.',
-  },
-  {
     key: 'learn',
     label: 'Learn',
     path: '/staff/learn',
@@ -52,6 +44,14 @@ export const STAFF_APPS = [
     icon: Pill,
     roles: ['hc', ...ADMIN_ROLES],
     blurb: 'The supplement protocol manager for health coaches.',
+  },
+  {
+    key: 'team',
+    label: 'Team',
+    path: '/staff/team',
+    icon: UserCog,
+    roles: ['super_admin'],
+    blurb: 'Create team members and assign their roles.',
   },
 ];
 
