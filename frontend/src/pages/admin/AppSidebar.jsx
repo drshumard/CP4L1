@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Users, CalendarClock, BarChart3, Activity, Zap, Settings,
-  ChevronRight, ChevronsUpDown, LogOut, ExternalLink, UserCog, LayoutGrid,
+  ChevronRight, ChevronsUpDown, LogOut, ExternalLink, LayoutGrid,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarGroup,
@@ -122,13 +122,6 @@ export default function AppSidebar() {
               </SidebarMenuItem>
             ))}
 
-            {profile?.role === 'super_admin' && (
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={isActive('/admin/team')} tooltip="Team">
-                  <Link to="/admin/team"><UserCog /><span>Team</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

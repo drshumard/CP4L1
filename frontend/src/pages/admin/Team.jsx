@@ -98,7 +98,8 @@ export default function Team() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    // Rendered inside the staff workspace shell (which provides the page padding).
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
           Team members sign in with their email (they get a one-time code) and land in the workspace their role allows.

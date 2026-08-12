@@ -1,4 +1,4 @@
-import { GraduationCap, Pill, ShieldCheck } from 'lucide-react';
+import { GraduationCap, Pill, ShieldCheck, UserCog } from 'lucide-react';
 
 // Central registry of the team role model and the staff apps. The staff sidebar, the
 // staff-home tiles, and the per-app route guards are ALL derived from this file — to
@@ -28,6 +28,14 @@ export const STAFF_APPS = [
     icon: ShieldCheck,
     roles: ADMIN_ROLES,
     blurb: 'The admin portal — patients, scheduling, analytics, team.',
+  },
+  {
+    key: 'team',
+    label: 'Team',
+    path: '/staff/team',
+    icon: UserCog,
+    roles: ['super_admin'],
+    blurb: 'Create team members and assign their roles.',
   },
   {
     key: 'learn',

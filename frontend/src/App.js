@@ -304,12 +304,12 @@ function App() {
             <Route path="/staff" element={<StaffLayout />}>
               <Route index element={<StaffHome />} />
               <Route path="settings" element={<StaffSettings />} />
+              <Route path="team" element={<AdminTeam />} />
               <Route path="learn" element={<StaffAppPage appKey="learn" />} />
               <Route path="supplements/*" element={<SupplementsApp />} />
             </Route>
             <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
               <Route index element={<AdminDashboard />} />
-              <Route path="team" element={<AdminTeam />} />
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="logs" element={<ActivityLogs />} />
               <Route path="automations" element={<AutomationsPage />} />
