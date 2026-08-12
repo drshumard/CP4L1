@@ -268,7 +268,21 @@ function AxiosInterceptor() {
 // Hide the floating support chat inside the admin area.
 function GlobalSupport() {
   const { pathname } = useLocation();
-  if (pathname.startsWith('/admin')) return null;
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)');
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  // The help box is a PATIENT affordance: never on admin/staff surfaces or the
+  // prototype preview ('/staff' also covers /staff-login).
+  if (['/admin', '/staff', '/prototype'].some((p) => pathname.startsWith(p))) return null;
+  // On phones it crowds the UI — only the login page and the dashboard keep it.
+  if (isMobile && !['/', '/dashboard', '/login'].includes(pathname)) return null;
   return <SupportPopup />;
 }
 
