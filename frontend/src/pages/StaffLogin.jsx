@@ -15,7 +15,13 @@ const CLERK_PK = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || '';
 function StaffLoginInner() {
   const { isLoaded, isSignedIn, getToken, signOut } = useClerkAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState('');
+  // A failed exchange signs the Clerk session out, which reloads this page — the message
+  // rides sessionStorage across that reload so the person actually gets to read it.
+  const [error, setError] = useState(() => {
+    const stored = sessionStorage.getItem('staff_login_error') || '';
+    sessionStorage.removeItem('staff_login_error');
+    return stored;
+  });
   const exchanging = useRef(false);
 
   useEffect(() => {
@@ -31,6 +37,7 @@ function StaffLoginInner() {
         navigate('/staff', { replace: true });
       } catch (e) {
         const detail = e?.response?.data?.detail || 'Sign-in failed. Please try again.';
+        sessionStorage.setItem('staff_login_error', detail);
         setError(detail);
         exchanging.current = false;
         try { await signOut(); } catch { /* stay on page with the error */ }
