@@ -133,22 +133,8 @@ export default function AppShell({ children }) {
             </>
           )}
 
-          {/* ── Rail bottom: back to portal + user menu (was Clerk's UserButton) ── */}
+          {/* ── Rail bottom: user menu (was Clerk's UserButton) ── */}
           <div className="mt-auto flex flex-col items-center gap-2 pb-1">
-            <Tooltip delayDuration={200}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => navigate('/staff')}
-                  className="w-10 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors"
-                  aria-label="Back to portal"
-                >
-                  <ArrowLeft size={17} strokeWidth={1.9} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={10} className="text-xs font-medium px-2.5 py-1.5">
-                Back to portal
-              </TooltipContent>
-            </Tooltip>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" aria-label="Account menu"
@@ -202,7 +188,7 @@ export default function AppShell({ children }) {
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {user && (
                 <span className="text-[11px] font-medium text-ink-muted hidden md:inline">
                   {user.name}
@@ -210,6 +196,13 @@ export default function AppShell({ children }) {
                   <span className="uppercase tracking-[0.08em]">{user.role}</span>
                 </span>
               )}
+              <button
+                onClick={() => navigate('/staff')}
+                className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-[12px] font-medium text-background transition-colors hover:bg-foreground/90"
+              >
+                <ArrowLeft size={13} />
+                <span>Back to portal</span>
+              </button>
             </div>
           </header>
 
