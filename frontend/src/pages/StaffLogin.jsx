@@ -24,6 +24,25 @@ function StaffLoginInner() {
   });
   const exchanging = useRef(false);
 
+  // Email-LINK verification completes in a second tab; the Clerk widget in this tab
+  // doesn't always notice. When the person comes back to this tab still signed out,
+  // reload once so clerk-js re-reads the session it already has.
+  useEffect(() => {
+    if (!isLoaded || isSignedIn) return undefined;
+    const onFocus = () => {
+      if (!sessionStorage.getItem('staff_login_refocused')) {
+        sessionStorage.setItem('staff_login_refocused', '1');
+        window.location.reload();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    if (isSignedIn) sessionStorage.removeItem('staff_login_refocused');
+  }, [isSignedIn]);
+
   useEffect(() => {
     if (!isLoaded || !isSignedIn || exchanging.current) return;
     exchanging.current = true;
@@ -67,7 +86,13 @@ function StaffLoginInner() {
           // Force the return to THIS page — the Clerk instance's dashboard-configured
           // after-sign-in URL points at the old supplementor root, which would skip the
           // exchange and strand people on the patient portal.
-          <SignIn routing="hash" forceRedirectUrl="/staff-login" fallbackRedirectUrl="/staff-login" />
+          <>
+            <SignIn routing="hash" forceRedirectUrl="/staff-login" fallbackRedirectUrl="/staff-login" />
+            <button type="button" onClick={() => window.location.reload()}
+              className="text-xs text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline">
+              Verified by email in another tab? Click here to continue
+            </button>
+          </>
         )}
       </div>
     </div>
