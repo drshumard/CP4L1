@@ -57,7 +57,10 @@ function StaffLoginInner() {
             Signing you in…
           </div>
         ) : (
-          <SignIn routing="hash" />
+          // Force the return to THIS page — the Clerk instance's dashboard-configured
+          // after-sign-in URL points at the old supplementor root, which would skip the
+          // exchange and strand people on the patient portal.
+          <SignIn routing="hash" forceRedirectUrl="/staff-login" fallbackRedirectUrl="/staff-login" />
         )}
       </div>
     </div>
