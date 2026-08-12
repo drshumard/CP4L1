@@ -490,13 +490,35 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if user is None:
         raise credentials_exception
+    if user.get("active") is False:  # deactivated team member — block immediately
+        raise credentials_exception
     return user
 
+# Role model. Patients are role='user' (the default). Team members hold exactly one of:
+#   pcc / doa / hc  — staff (Patient Care Coordinator, Director of Admissions, Health Coach)
+#   admin           — full admin area
+#   super_admin     — admin + team management (create members, assign roles)
+# 'staff' is a legacy value from the old promote endpoint; treated as team but unassignable.
+STAFF_ROLES = {"pcc", "doa", "hc", "staff"}
+ADMIN_ROLES = {"admin", "super_admin"}
+TEAM_ROLES = STAFF_ROLES | ADMIN_ROLES
+ASSIGNABLE_TEAM_ROLES = {"pcc", "doa", "hc", "admin"}
+
+
 async def get_admin_user(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") != "admin":
+    if current_user.get("role") not in ADMIN_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this resource"
+        )
+    return current_user
+
+
+async def get_super_admin_user(current_user: dict = Depends(get_current_user)):
+    if current_user.get("role") != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Super admin access required"
         )
     return current_user
 
@@ -1990,7 +2012,7 @@ async def email_signin_start(request: MagicLinkRequest, req: Request):
                             detail="Too many requests from this network. Please try again shortly.")
 
     user = await db.users.find_one({"email": email_lower}, {"_id": 0})
-    if not user:
+    if not user or user.get("active") is False:  # deactivated team members can't request codes
         await log_activity(event_type="EMAIL_SIGNIN_UNKNOWN_EMAIL", user_email=email_lower,
                            ip_address=ip_address, status="failure")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
@@ -3482,7 +3504,7 @@ async def get_analytics(
             pass
     
     # Build user query with date filter - EXCLUDE staff and admin from analytics
-    user_query = {"role": {"$nin": ["staff", "admin"]}}
+    user_query = {"role": {"$nin": sorted(TEAM_ROLES)}}
     if date_filter:
         user_query["created_at"] = date_filter
     
@@ -3592,7 +3614,7 @@ async def debug_analytics_filter(
     
     # Get all users (excluding staff/admin) with their created_at
     all_users = await db.users.find(
-        {"role": {"$nin": ["staff", "admin"]}},
+        {"role": {"$nin": sorted(TEAM_ROLES)}},
         {"_id": 0, "email": 1, "created_at": 1, "current_step": 1}
     ).to_list(10000)
     
@@ -4431,19 +4453,27 @@ async def delete_user_booking(user_id: str, admin_user: dict = Depends(get_admin
             detail="User not found"
         )
     
-    # Remove booking info
+    # Remove BOTH legacy stores the patient dashboard can read: the denormalized stamp on
+    # the user doc AND any pre-portal appointments row (written by the old webhook). The
+    # appointments match mirrors /user/appointment's lookup: user_id, then primary and
+    # secondary email — otherwise "removed" bookings kept showing on the patient side.
+    emails = [e for e in (user.get("email"), user.get("secondary_email")) if e]
+    appt_result = await db.appointments.delete_many(
+        {"$or": [{"user_id": user_id}] + [{"email": e} for e in emails]}
+    )
     await db.users.update_one(
         {"id": user_id},
         {"$unset": {"booking_info": ""}}
     )
-    
+
     # Log the action
     await log_activity(
         event_type="ADMIN_BOOKING_DELETED",
         user_email=user.get("email"),
         user_id=user_id,
         details={
-            "deleted_by": admin_user.get("email")
+            "deleted_by": admin_user.get("email"),
+            "legacy_appointments_deleted": appt_result.deleted_count,
         },
         status="success"
     )
@@ -4484,8 +4514,24 @@ async def promote_user_to_admin(email: EmailStr, secret_key: str):
         {"email": email_lower},
         {"$set": {"role": "admin"}}
     )
-    
+
     return {"message": "User promoted to admin successfully", "email": email_lower}
+
+
+@api_router.post("/admin/promote-super-admin")
+async def promote_user_to_super_admin(email: EmailStr, secret_key: str):
+    """Bootstrap/repair path for the super admin role (webhook-secret protected, mirrors
+    /admin/promote-user). Day-to-day role changes go through the Team API instead."""
+    if not WEBHOOK_SECRET or secret_key != WEBHOOK_SECRET:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid secret key")
+    email_lower = email.lower()
+    user = await db.users.find_one({"email": email_lower}, {"_id": 0, "id": 1, "role": 1})
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if user.get("role") == "super_admin":
+        return {"message": "User is already a super admin", "email": email_lower}
+    await db.users.update_one({"email": email_lower}, {"$set": {"role": "super_admin"}})
+    return {"message": "User promoted to super admin successfully", "email": email_lower}
 
 @api_router.post("/admin/migrate-emails")
 async def migrate_emails_to_lowercase(secret_key: str):
@@ -6035,6 +6081,96 @@ async def update_admin_prefs(request: Request, admin_user: dict = Depends(get_ad
     await db.admin_prefs.update_one({"_id": admin_user["id"]}, {"$set": updates}, upsert=True)
     doc = await db.admin_prefs.find_one({"_id": admin_user["id"]}, {"_id": 0})
     return doc or {}
+
+
+# ---------------------------------------------------------------- Team (super admin)
+# Team members are ordinary users docs carrying a team role (pcc/doa/hc/admin/super_admin).
+# They sign in exactly like patients (email code / SMS OTP); the role decides which shell
+# the portal routes them to. Only super admins manage the roster.
+
+class TeamMemberCreate(BaseModel):
+    name: str
+    email: str
+    role: str
+
+
+class TeamMemberUpdate(BaseModel):
+    name: Optional[str] = None
+    role: Optional[str] = None
+    active: Optional[bool] = None
+
+
+_TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active": 1, "created_at": 1}
+
+
+@api_router.get("/admin/team")
+async def list_team_members(admin_user: dict = Depends(get_super_admin_user)):
+    rows = await db.users.find({"role": {"$in": sorted(TEAM_ROLES)}}, _TEAM_PROJECTION) \
+        .sort("created_at", 1).to_list(200)
+    return {"members": rows}
+
+
+@api_router.post("/admin/team")
+async def create_team_member(payload: TeamMemberCreate, request: Request,
+                             admin_user: dict = Depends(get_super_admin_user)):
+    role = (payload.role or "").strip()
+    if role not in ASSIGNABLE_TEAM_ROLES:
+        raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
+    name = (payload.name or "").strip()
+    email_lower = (payload.email or "").strip().lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
+    if "@" not in email_lower or "." not in email_lower.split("@")[-1]:
+        raise HTTPException(status_code=400, detail="A valid email is required")
+    if await db.users.find_one({"email": email_lower}, {"_id": 0, "id": 1}):
+        raise HTTPException(status_code=409, detail="A user with that email already exists (patients can't be converted here)")
+
+    user = User(email=email_lower, name=name)
+    doc = user.model_dump()
+    doc["created_at"] = doc["created_at"].isoformat()
+    doc.pop("password_hash", None)
+    doc["role"] = role
+    await db.users.insert_one(doc)
+    await log_admin_action("ADMIN_TEAM_MEMBER_CREATED", admin_user=admin_user,
+                           details={"role": role}, target_email=email_lower,
+                           target_user_id=doc["id"], request=request)
+    return {k: doc.get(k) for k in ("id", "name", "email", "role", "active", "created_at")}
+
+
+@api_router.put("/admin/team/{user_id}")
+async def update_team_member(user_id: str, payload: TeamMemberUpdate,
+                             admin_user: dict = Depends(get_super_admin_user)):
+    target = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "role": 1, "email": 1})
+    if not target or target.get("role") not in TEAM_ROLES:
+        raise HTTPException(status_code=404, detail="Team member not found")
+
+    updates: dict = {}
+    if payload.role is not None:
+        role = payload.role.strip()
+        if role not in ASSIGNABLE_TEAM_ROLES:
+            raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
+        if target["id"] == admin_user["id"]:
+            raise HTTPException(status_code=400, detail="You can't change your own role")
+        if target.get("role") == "super_admin":
+            raise HTTPException(status_code=400, detail="A super admin's role can't be changed here")
+        updates["role"] = role
+    if payload.name is not None and payload.name.strip():
+        updates["name"] = payload.name.strip()
+    if payload.active is not None:
+        if target["id"] == admin_user["id"]:
+            raise HTTPException(status_code=400, detail="You can't deactivate yourself")
+        if target.get("role") == "super_admin" and payload.active is False:
+            raise HTTPException(status_code=400, detail="A super admin can't be deactivated here")
+        updates["active"] = bool(payload.active)
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+
+    await db.users.update_one({"id": user_id}, {"$set": updates})
+    await log_admin_action("ADMIN_TEAM_MEMBER_UPDATED", admin_user=admin_user,
+                           details={"changes": updates, "previous_role": target.get("role")},
+                           target_email=target.get("email"), target_user_id=user_id)
+    fresh = await db.users.find_one({"id": user_id}, _TEAM_PROJECTION)
+    return fresh
 
 
 @api_router.post("/admin/bookings")
