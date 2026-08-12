@@ -71,7 +71,7 @@ export default function UsersDataTable({
       cell: ({ row }) => (
         <div className="flex items-center justify-center gap-1.5">
           <Badge variant="outline" className={cn('w-24 justify-center', stepBadgeClass?.(row.original.current_step))}>{getStepLabel(row.original.current_step)}</Badge>
-          {row.original.role === 'admin' && <Badge className="justify-center">Admin</Badge>}
+          {['admin', 'super_admin'].includes(row.original.role) && <Badge className="justify-center">{row.original.role === 'super_admin' ? 'Super Admin' : 'Admin'}</Badge>}
         </div>
       ),
     },

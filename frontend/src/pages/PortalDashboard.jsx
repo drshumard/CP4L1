@@ -57,7 +57,7 @@ export default function PortalDashboard() {
     toast.success('Logged out successfully', { id: 'logout-success' });
   };
 
-  const isStaff = user?.role === 'admin' || user?.role === 'staff';
+  const isStaff = ['admin', 'super_admin', 'staff', 'pcc', 'doa', 'hc'].includes(user?.role);
   const step = progress?.current_step ?? 1;
   const isComplete = step >= 4;
   const pct = Math.min(Math.round((step / 4) * 100), 100);

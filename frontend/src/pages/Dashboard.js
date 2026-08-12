@@ -98,7 +98,7 @@ const Dashboard = () => {
               />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              {(userData?.role === 'admin' || userData?.role === 'staff') && (
+              {['admin', 'super_admin', 'staff', 'pcc', 'doa', 'hc'].includes(userData?.role) && (
                 <>
                   <Button 
                     variant="outline" 
