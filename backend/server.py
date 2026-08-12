@@ -264,6 +264,9 @@ class UserResponse(BaseModel):
     current_step: int
     role: str
     avatar_url: Optional[str] = None
+    # Step 3's "Activate Practice Better Portal" button derives the per-patient activation
+    # deep-link from this — without it the button silently falls back to the generic portal.
+    pb_client_record_id: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -2439,6 +2442,7 @@ def _user_response(u: dict) -> UserResponse:
         first_name=u.get("first_name"), last_name=u.get("last_name"),
         phone=u.get("phone"), current_step=u["current_step"],
         role=u.get("role", "user"), avatar_url=u.get("avatar_url"),
+        pb_client_record_id=u.get("pb_client_record_id"),
     )
 
 
