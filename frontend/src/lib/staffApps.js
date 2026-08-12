@@ -26,7 +26,8 @@ export const STAFF_APPS = [
     label: 'Portal',
     path: '/admin',
     icon: ShieldCheck,
-    roles: ADMIN_ROLES,
+    // Bookings/admin portal: coordinators and directors work in it; HCs do not.
+    roles: ['pcc', 'doa', ...ADMIN_ROLES],
     blurb: 'The admin portal — patients, scheduling, analytics, team.',
   },
   {
@@ -50,7 +51,7 @@ export const STAFF_APPS = [
     label: 'Team',
     path: '/staff/team',
     icon: UserCog,
-    roles: ['super_admin'],
+    roles: ADMIN_ROLES,
     blurb: 'Create team members and assign their roles.',
   },
 ];

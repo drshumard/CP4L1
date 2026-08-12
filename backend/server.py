@@ -506,13 +506,26 @@ STAFF_ROLES = {"pcc", "doa", "hc", "staff"}
 ADMIN_ROLES = {"admin", "super_admin"}
 TEAM_ROLES = STAFF_ROLES | ADMIN_ROLES
 ASSIGNABLE_TEAM_ROLES = {"pcc", "doa", "hc", "admin"}
+# Who may use the admin (bookings) portal and its APIs: admins, plus the staff roles
+# whose job lives there — coordinators and directors. HCs work in Supplements/Learn only.
+PORTAL_ROLES = ADMIN_ROLES | {"pcc", "doa"}
 
 
 async def get_admin_user(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") not in ADMIN_ROLES:
+    if current_user.get("role") not in PORTAL_ROLES:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access this resource"
+        )
+    return current_user
+
+
+async def get_team_manager(current_user: dict = Depends(get_current_user)):
+    """Team roster management (create members, assign roles): admins + super admins."""
+    if current_user.get("role") not in ADMIN_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
         )
     return current_user
 
@@ -6108,7 +6121,7 @@ _TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active
 
 
 @api_router.get("/admin/team")
-async def list_team_members(admin_user: dict = Depends(get_super_admin_user)):
+async def list_team_members(admin_user: dict = Depends(get_team_manager)):
     rows = await db.users.find({"role": {"$in": sorted(TEAM_ROLES)}}, _TEAM_PROJECTION) \
         .sort("created_at", 1).to_list(200)
     return {"members": rows}
@@ -6116,7 +6129,7 @@ async def list_team_members(admin_user: dict = Depends(get_super_admin_user)):
 
 @api_router.post("/admin/team")
 async def create_team_member(payload: TeamMemberCreate, request: Request,
-                             admin_user: dict = Depends(get_super_admin_user)):
+                             admin_user: dict = Depends(get_team_manager)):
     role = (payload.role or "").strip()
     if role not in ASSIGNABLE_TEAM_ROLES:
         raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
@@ -6143,7 +6156,7 @@ async def create_team_member(payload: TeamMemberCreate, request: Request,
 
 @api_router.put("/admin/team/{user_id}")
 async def update_team_member(user_id: str, payload: TeamMemberUpdate,
-                             admin_user: dict = Depends(get_super_admin_user)):
+                             admin_user: dict = Depends(get_team_manager)):
     target = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "role": 1, "email": 1})
     if not target or target.get("role") not in TEAM_ROLES:
         raise HTTPException(status_code=404, detail="Team member not found")

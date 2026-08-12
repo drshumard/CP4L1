@@ -94,7 +94,7 @@ export default function Team() {
   };
 
   if (forbidden) {
-    return <div className="p-6 py-12 text-center text-muted-foreground">Only a super admin can manage the team.</div>;
+    return <div className="p-6 py-12 text-center text-muted-foreground">Only admins can manage the team.</div>;
   }
 
   return (

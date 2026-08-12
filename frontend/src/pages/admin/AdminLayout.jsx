@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { adminApi } from './api';
-import { ADMIN_ROLES, homeForRole } from '@/lib/staffApps';
+import { appsForRole, homeForRole } from '@/lib/staffApps';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmRoot } from './confirm';
@@ -26,7 +26,8 @@ export default function AdminLayout() {
   useEffect(() => {
     adminApi.get('/user/me').then((r) => setRole(r.data?.role || 'user')).catch(() => setRole(null));
   }, []);
-  if (role !== undefined && role !== null && !ADMIN_ROLES.includes(role)) {
+  // Portal access is registry-driven: whoever's role includes the 'portal' app may enter.
+  if (role !== undefined && role !== null && !appsForRole(role).some((a) => a.key === 'portal')) {
     return <Navigate to={homeForRole(role) || '/'} replace />;
   }
   return (
