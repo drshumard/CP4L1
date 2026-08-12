@@ -395,7 +395,7 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteBooking = async () => {
-    if (!(await confirmDialog({ title: 'Remove booking?', message: 'This removes the booking from this user.', confirmLabel: 'Remove' }))) return;
+    if (!(await confirmDialog({ title: 'Remove legacy booking?', message: 'Clears the old (pre-portal) booking record this patient still sees on their dashboard — both the profile stamp and any webhook-era appointment row. Real scheduled bookings are not touched.', confirmLabel: 'Remove' }))) return;
 
     setActionLoading(true);
     try {
@@ -773,8 +773,11 @@ const AdminDashboard = () => {
                         </div>
                         <div className="flex gap-2 pt-1">
                           <Button onClick={handleUpdateBooking} disabled={actionLoading || !bookingFormData.date || !bookingFormData.time} className="flex-1">{actionLoading ? 'Saving...' : 'Save booking'}</Button>
-                          {selectedUser.booking_info && (
-                            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleDeleteBooking} disabled={actionLoading}>Remove</Button>
+                          {/* Always offered here (the editor only opens when there's no ledger booking):
+                              a stale pre-portal appointment row can exist with NO visible stamp, and
+                              Remove is the only way to clear what the patient still sees. */}
+                          {!sessionBooking && (
+                            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleDeleteBooking} disabled={actionLoading}>Remove legacy booking</Button>
                           )}
                           <Button variant="outline" onClick={() => setShowBookingModal(false)} disabled={actionLoading}>Cancel</Button>
                         </div>
