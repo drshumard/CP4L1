@@ -1,19 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ClerkProvider, SignIn, useAuth as useClerkAuth } from '@clerk/react';
+import { ClerkProvider, SignIn, useAuth as useClerkAuth, useUser } from '@clerk/react';
 
 // Staff sign-in (staff.drshumard.com, also reachable at /staff-login): authenticates
-// against the existing fm.drshumard.com Clerk instance — the same credentials the team
-// has always used — then exchanges the Clerk session for a normal portal JWT.
-// Clerk proves identity; the Team page decides membership and role (exchange fails
-// closed for anyone not on the roster).
+// against the existing fm.drshumard.com Clerk instance, then exchanges the Clerk session
+// for a normal portal JWT. Clerk proves identity; the Team page decides membership/role.
+//
+// A Clerk session that ALREADY exists when this page opens (e.g. after a portal logout —
+// the two sessions are separate) is offered as an explicit "Continue as …" choice rather
+// than silently signing back in. A fresh sign-in through the widget continues automatically.
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const CLERK_PK = process.env.REACT_APP_CLERK_PUBLISHABLE_KEY || '';
 
 function StaffLoginInner() {
   const { isLoaded, isSignedIn, getToken, signOut } = useClerkAuth();
+  const { user: clerkUser } = useUser();
   const navigate = useNavigate();
   // A failed exchange signs the Clerk session out, which reloads this page — the message
   // rides sessionStorage across that reload so the person actually gets to read it.
@@ -22,47 +25,47 @@ function StaffLoginInner() {
     sessionStorage.removeItem('staff_login_error');
     return stored;
   });
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
   const exchanging = useRef(false);
+  const initialSession = useRef(null);
 
-  // Email-LINK verification completes in a second tab; the Clerk widget in this tab
-  // doesn't always notice. When the person comes back to this tab still signed out,
-  // reload once so clerk-js re-reads the session it already has.
-  useEffect(() => {
-    if (!isLoaded || isSignedIn) return undefined;
-    const onFocus = () => {
-      if (!sessionStorage.getItem('staff_login_refocused')) {
-        sessionStorage.setItem('staff_login_refocused', '1');
-        window.location.reload();
-      }
-    };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [isLoaded, isSignedIn]);
-
-  useEffect(() => {
-    if (isSignedIn) sessionStorage.removeItem('staff_login_refocused');
-  }, [isSignedIn]);
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn || exchanging.current) return;
+  const runExchange = useCallback(async () => {
+    if (exchanging.current) return;
     exchanging.current = true;
-    (async () => {
-      try {
-        const clerkToken = await getToken();
-        const res = await axios.post(`${API}/auth/clerk-exchange`, { token: clerkToken });
-        localStorage.setItem('access_token', res.data.access_token);
-        if (res.data.refresh_token) localStorage.setItem('refresh_token', res.data.refresh_token);
-        localStorage.setItem('user_data', JSON.stringify(res.data.user || {}));
-        navigate('/staff', { replace: true });
-      } catch (e) {
-        const detail = e?.response?.data?.detail || 'Sign-in failed. Please try again.';
-        sessionStorage.setItem('staff_login_error', detail);
-        setError(detail);
-        exchanging.current = false;
-        try { await signOut(); } catch { /* stay on page with the error */ }
-      }
-    })();
-  }, [isLoaded, isSignedIn, getToken, navigate, signOut]);
+    setBusy(true);
+    try {
+      const clerkToken = await getToken();
+      const res = await axios.post(`${API}/auth/clerk-exchange`, { token: clerkToken });
+      localStorage.setItem('access_token', res.data.access_token);
+      if (res.data.refresh_token) localStorage.setItem('refresh_token', res.data.refresh_token);
+      localStorage.setItem('user_data', JSON.stringify(res.data.user || {}));
+      navigate('/staff', { replace: true });
+    } catch (e) {
+      const detail = e?.response?.data?.detail || 'Sign-in failed. Please try again.';
+      sessionStorage.setItem('staff_login_error', detail);
+      setError(detail);
+      exchanging.current = false;
+      setBusy(false);
+      try { await signOut(); } catch { /* stay on page with the error */ }
+    }
+  }, [getToken, navigate, signOut]);
+
+  // Record whether a Clerk session already existed when the page opened.
+  useEffect(() => {
+    if (isLoaded && initialSession.current === null) {
+      initialSession.current = isSignedIn;
+      if (isSignedIn && !error) setNeedsConfirm(true);
+    }
+  }, [isLoaded, isSignedIn, error]);
+
+  // Fresh sign-ins (session appears after mount) continue automatically.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || needsConfirm || error) return;
+    if (initialSession.current === false) runExchange();
+  }, [isLoaded, isSignedIn, needsConfirm, error, runExchange]);
+
+  const clerkEmail = clerkUser?.primaryEmailAddress?.emailAddress || clerkUser?.emailAddresses?.[0]?.emailAddress || '';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA] p-4">
@@ -77,15 +80,25 @@ function StaffLoginInner() {
         )}
         {!isLoaded ? (
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-800 border-t-transparent" />
+        ) : isSignedIn && needsConfirm && !error ? (
+          <div className="flex w-72 flex-col items-stretch gap-2 rounded-xl border bg-white p-5 text-center shadow-sm">
+            <p className="text-sm text-slate-600">You're signed in as</p>
+            <p className="truncate text-sm font-semibold text-slate-900">{clerkEmail || 'your team account'}</p>
+            <button type="button" disabled={busy} onClick={() => { setNeedsConfirm(false); runExchange(); }}
+              className="mt-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+              {busy ? 'Signing you in…' : 'Continue to workspace'}
+            </button>
+            <button type="button" disabled={busy} onClick={() => signOut()}
+              className="text-xs text-slate-400 underline-offset-2 hover:text-slate-600 hover:underline">
+              Use a different account
+            </button>
+          </div>
         ) : isSignedIn && !error ? (
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-800 border-t-transparent" />
             Signing you in…
           </div>
         ) : (
-          // Force the return to THIS page — the Clerk instance's dashboard-configured
-          // after-sign-in URL points at the old supplementor root, which would skip the
-          // exchange and strand people on the patient portal.
           <>
             <SignIn routing="hash" forceRedirectUrl="/staff-login" fallbackRedirectUrl="/staff-login" />
             <button type="button" onClick={() => window.location.reload()}
