@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { adminApi } from '../admin/api';
 import { GraduationCap } from 'lucide-react';
 
@@ -10,8 +10,13 @@ const LEARN_URL = process.env.REACT_APP_LEARN_URL || '/learn';
 
 export default function LearnLauncher() {
   const [error, setError] = useState('');
+  const launched = useRef(false);
 
   useEffect(() => {
+    // StrictMode double-mounts effects in dev; two parallel handoffs make Supabase
+    // invalidate the first magic-link hash — exactly one launch per visit.
+    if (launched.current) return;
+    launched.current = true;
     adminApi.post('/auth/learn-token')
       .then((r) => {
         window.location.href = `${LEARN_URL}/api/auth/portal?token=${encodeURIComponent(r.data.token)}`;
