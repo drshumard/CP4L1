@@ -2571,6 +2571,21 @@ async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
             "token_type": "bearer", "user": _user_response(user)}
 
 
+# Staff role registry — the portal is the source of truth for team taxonomy. Learn's
+# course-targeting UI pulls this so new roles appear there without code changes.
+STAFF_ROLE_LABELS = [
+    {"id": "hc", "name": "Health Coach"},
+    {"id": "pcc", "name": "Care Coordinator"},
+    {"id": "doa", "name": "Director of Admissions"},
+]
+
+
+@api_router.get("/service/team-roles")
+async def service_team_roles():
+    """Public, non-sensitive: the assignable staff roles + display names."""
+    return {"roles": STAFF_ROLE_LABELS}
+
+
 # ---------------------------------------------------------------- Learn SSO handoff
 # The workspace's Learn tab mints a 2-minute single-use token; the Learn app's server
 # (Neuro93Saturn, federated at /learn) redeems it here and mints its own Supabase session.
