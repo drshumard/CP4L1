@@ -38,6 +38,8 @@ async def get_current_user(authorization: str = Header(None)):
         payload = jwt.decode(token, _secret, algorithms=["HS256"])
     except JWTError:
         return None
+    if payload.get("type") == "refresh":  # refresh tokens are for /auth/refresh only
+        return None
     user_id = payload.get("sub")
     if not user_id:
         return None
@@ -48,7 +50,10 @@ async def get_current_user(authorization: str = Header(None)):
         return None
     role = _ROLE_MAP.get(u.get("role"))
     if role is None:
-        return None  # patients / non-HC staff: not authenticated *for this module*
+        # Valid session, real active user, but a role with no supplements access
+        # (patient / pcc / doa). This is FORBIDDEN, not unauthenticated — a 401
+        # here would send the client into a pointless refresh/logout loop.
+        raise HTTPException(status_code=403, detail="Your role does not have access to Supplements")
     return {"sub": u["id"], "email": u.get("email", ""), "name": u.get("name", ""), "role": role}
 
 

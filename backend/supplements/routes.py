@@ -699,15 +699,13 @@ async def get_plan(plan_id: str, user=Depends(require_auth)):
 
 
 @router.post("/plans")
-async def create_plan(data: PlanCreate, authorization: str = Header(None)):
+async def create_plan(data: PlanCreate, user=Depends(require_auth)):
     doc = data.model_dump()
-    
+
     # Associate plan with the creating user
-    user = await get_current_user(authorization)
-    if user:
-        doc["created_by"] = user.get("sub")
-        doc["created_by_name"] = user.get("name", "")
-    
+    doc["created_by"] = user.get("sub")
+    doc["created_by_name"] = user.get("name", "")
+
     # Ensure patient_id is stored
     if data.patient_id:
         doc["patient_id"] = data.patient_id

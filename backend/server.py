@@ -32,7 +32,11 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # JWT Configuration
-SECRET_KEY = os.environ.get('JWT_SECRET_KEY', secrets.token_urlsafe(32))
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY', '')
+if not SECRET_KEY:
+    # A per-process random fallback silently invalidates every session on restart and
+    # makes multi-worker deploys mint mutually-invalid tokens. Fail loudly instead.
+    raise RuntimeError("JWT_SECRET_KEY is not set — refusing to start")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 REFRESH_TOKEN_EXPIRE_DAYS = 7
@@ -378,6 +382,17 @@ def create_refresh_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+def ensure_account_active(user):
+    """Central pre-mint guard for EVERY login path (password, email code, SMS,
+    magic link, refresh) — checked immediately before tokens are issued so no
+    path can mint first and get rejected on the next request. One stable
+    message clients can rely on."""
+    if not user or user.get("active") is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account isn't active. Please contact support if you believe this is an error.")
+
 async def create_auto_login_token(
     user_id: str,
     email: str,
@@ -484,6 +499,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     try:
         token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") == "refresh":  # refresh tokens are for /auth/refresh only
+            raise credentials_exception
         user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -1599,7 +1616,8 @@ async def login(request: LoginRequest, req: Request):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
-    
+
+    ensure_account_active(user)
     access_token = create_access_token(
         data={"sub": user["id"]},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -1675,14 +1693,23 @@ async def login(request: LoginRequest, req: Request):
         user_id=user["id"]
     )
 
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
 @api_router.post("/auth/refresh", response_model=TokenResponse)
-async def refresh_token(refresh_token: str):
+async def refresh_token(payload_in: RefreshRequest):
+    # Token arrives in the JSON body (never the query string — those end up in
+    # access logs). Re-checks `active` so a deactivated user can't keep re-minting
+    # access tokens for the refresh token's 7-day life.
     try:
-        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(payload_in.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        
+
         user_id = payload.get("sub")
+        user = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "active": 1})
+        ensure_account_active(user)
         access_token = create_access_token(
             data={"sub": user_id},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -1701,10 +1728,16 @@ async def auto_login(token: str):
     """Auto-login user using a one-time token from email"""
     # Find the token
     token_doc = await db.auto_login_tokens.find_one({"token": token}, {"_id": 0})
-    
+
     if not token_doc:
         raise HTTPException(status_code=401, detail="Invalid or expired login link")
-    
+
+    # Purpose allowlist: this endpoint only serves patient email links. Tokens minted
+    # for other flows (e.g. the single-use 2-minute learn_sso handoff) must never be
+    # exchangeable here for full portal credentials.
+    if token_doc.get("purpose") not in (None, "welcome", "magic_link"):
+        raise HTTPException(status_code=401, detail="Invalid or expired login link")
+
     # Check if token is expired
     expires_at = datetime.fromisoformat(token_doc["expires_at"])
     if datetime.now(timezone.utc) > expires_at:
@@ -1724,7 +1757,8 @@ async def auto_login(token: str):
         update_set["used"] = True
         update_set["used_at"] = now_iso
     await db.auto_login_tokens.update_one({"token": token}, {"$set": update_set})
-    
+
+    ensure_account_active(user)
     # Generate access tokens
     access_token = create_access_token(
         data={"sub": user["id"]},
@@ -2111,6 +2145,7 @@ async def email_signin_verify(request: EmailCodeVerify, req: Request):
     user = await db.users.find_one({"email": email_lower}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
+    ensure_account_active(user)
 
     access_token = create_access_token(data={"sub": user["id"]},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
@@ -2320,6 +2355,7 @@ async def verify_sms_otp(request: SmsVerifyRequest, req: Request):
         )
         raise HTTPException(status_code=400, detail="Invalid or expired code.")
 
+    ensure_account_active(user)
     access_token = create_access_token(
         data={"sub": user["id"]},
         expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -2494,14 +2530,27 @@ def _get_clerk_jwks_client():
         return None
 
 
+class ClerkVerifierUnavailable(Exception):
+    """JWKS/verifier infrastructure failure — retryable, NOT an invalid token."""
+
+
 def _verify_clerk_token_sync(token: str):
-    """Verify a Clerk JWT signature via JWKS; returns the payload or None. Blocking."""
+    """Verify a Clerk JWT signature via JWKS; returns the payload, or None for an
+    invalid token. Raises ClerkVerifierUnavailable when the verifier itself can't
+    run (JWKS unreachable / not configured) so callers answer 503 rather than 401 —
+    a transient outage must not get staff signed out of Clerk. Blocking."""
     client = _get_clerk_jwks_client()
     if client is None:
-        return None
+        raise ClerkVerifierUnavailable("Clerk JWKS client not configured")
+    import jwt as _pyjwt
+    from jwt.exceptions import PyJWKClientConnectionError
     try:
-        import jwt as _pyjwt
         signing_key = client.get_signing_key_from_jwt(token)
+    except PyJWKClientConnectionError as e:
+        raise ClerkVerifierUnavailable(str(e))
+    except Exception:
+        return None  # malformed token / unknown key id
+    try:
         return _pyjwt.decode(token, signing_key.key, algorithms=["RS256"],
                              options={"verify_aud": False})
     except Exception:
@@ -2521,7 +2570,12 @@ async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many attempts. Please try again shortly.")
 
-    claims = await asyncio.to_thread(_verify_clerk_token_sync, payload.token)
+    try:
+        claims = await asyncio.to_thread(_verify_clerk_token_sync, payload.token)
+    except ClerkVerifierUnavailable as e:
+        logging.warning(f"Clerk verifier unavailable: {e}")
+        raise HTTPException(status_code=503,
+                            detail="Staff sign-in is temporarily unavailable — please try again.")
     if not claims or not claims.get("sub"):
         raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
     clerk_id = claims["sub"]
@@ -2586,6 +2640,64 @@ async def service_team_roles():
     return {"roles": STAFF_ROLE_LABELS}
 
 
+# ------------------------------------------------- Portal → Learn status push
+# When a team member's active flag changes, Learn must find out NOW — not at the
+# next opportunistic roster sync. Pushes are queued in Mongo first (durable),
+# then drained immediately and re-drained every minute with backoff, so a Learn
+# outage delays delivery instead of losing it.
+
+LEARN_SERVICE_URL = os.environ.get('LEARN_SERVICE_URL', '').rstrip('/')
+LEARN_SERVICE_KEY = os.environ.get('LEARN_SERVICE_KEY', '')
+
+_learn_drain_lock = asyncio.Lock()
+
+
+async def _send_learn_push(doc) -> bool:
+    if not LEARN_SERVICE_URL or not LEARN_SERVICE_KEY:
+        return False
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=8) as hc:
+            r = await hc.post(f"{LEARN_SERVICE_URL}/api/service/member-status",
+                              headers={"X-Service-Key": LEARN_SERVICE_KEY},
+                              json={"portalUserId": doc["user_id"], "email": doc.get("email"),
+                                    "active": doc["active"], "ts": doc["ts"]})
+            return r.status_code == 200
+    except Exception as e:
+        logging.warning(f"[learn-push] delivery failed (will retry): {e}")
+        return False
+
+
+async def drain_learn_push_queue():
+    async with _learn_drain_lock:
+        now = datetime.now(timezone.utc)
+        docs = await db.learn_push_queue.find(
+            {"next_at": {"$lte": now.isoformat()}}
+        ).sort("created_at", 1).to_list(50)
+        for doc in docs:
+            if await _send_learn_push(doc):
+                await db.learn_push_queue.delete_one({"id": doc["id"]})
+                logging.info(f"[learn-push] delivered active={doc['active']} for {doc.get('email')}")
+            else:
+                attempts = doc.get("attempts", 0) + 1
+                delay = min(3600, 30 * (2 ** min(attempts, 7)))
+                await db.learn_push_queue.update_one(
+                    {"id": doc["id"]},
+                    {"$set": {"attempts": attempts,
+                              "next_at": (now + timedelta(seconds=delay)).isoformat()}})
+
+
+async def push_learn_member_status(user_doc, active: bool):
+    """Queue a status push (durable) and kick an immediate drain."""
+    now = datetime.now(timezone.utc)
+    await db.learn_push_queue.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user_doc["id"], "email": user_doc.get("email"),
+        "active": active, "ts": now.isoformat(), "attempts": 0,
+        "next_at": now.isoformat(), "created_at": now.isoformat(),
+    })
+    asyncio.create_task(drain_learn_push_queue())
+
+
 # ---------------------------------------------------------------- Learn SSO handoff
 # The workspace's Learn tab mints a 2-minute single-use token; the Learn app's server
 # (Neuro93Saturn, federated at /learn) redeems it here and mints its own Supabase session.
@@ -2623,13 +2735,23 @@ async def learn_sso_redeem(payload: LearnRedeemRequest):
     if not exp or exp < now:
         raise HTTPException(status_code=401, detail="Token expired")
     user = await db.users.find_one({"id": doc["user_id"]},
-                                   {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1, "active": 1})
+                                   {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1, "active": 1,
+                                    "avatar_url": 1})
     if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
         raise HTTPException(status_code=403, detail="Not a team member")
     await log_activity(event_type="LEARN_SSO_REDEEMED", user_email=user["email"],
                        user_id=user["id"], status="success")
+    # Ship the full active roster with every redeem so Learn can provision the
+    # whole team up front — the portal stays the sole source of accounts/roles.
+    # team_ts stamps the snapshot: Learn's writes are guarded by it so an older
+    # in-flight sync can never overwrite a newer member-status push.
+    team = await db.users.find(
+        {"role": {"$in": list(TEAM_ROLES)}, "active": {"$ne": False}},
+        {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1, "avatar_url": 1},
+    ).to_list(500)
     return {"id": user["id"], "email": user["email"], "name": user.get("name", ""),
-            "role": user["role"]}
+            "role": user["role"], "avatar_url": user.get("avatar_url"),
+            "team": team, "team_ts": datetime.now(timezone.utc).isoformat()}
 
 
 @api_router.get("/user/me", response_model=UserResponse)
@@ -4265,7 +4387,7 @@ class PromoteUserRequest(BaseModel):
 async def promote_user(
     user_id: str,
     request: PromoteUserRequest,
-    admin_user: dict = Depends(get_admin_user)
+    admin_user: dict = Depends(get_team_manager)  # role changes: admin/super_admin only, never pcc/doa
 ):
     """Promote or demote a user to/from staff role. Only admins can do this."""
     if request.role not in ["staff", "user"]:
@@ -4756,9 +4878,10 @@ async def migrate_emails_to_lowercase(secret_key: str):
     }
 
 @api_router.delete("/admin/user/{user_id}")
-async def delete_user(user_id: str, admin_user: dict = Depends(get_admin_user)):
+async def delete_user(user_id: str, admin_user: dict = Depends(get_team_manager)):
     """
-    Delete a user - Admin only
+    Hard-delete a user — admin/super_admin only (never pcc/doa). Irreversible;
+    see note to reserve for a super-admin-only workflow if desired.
     """
     # Check if user exists
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -6359,6 +6482,9 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
     await log_admin_action("ADMIN_TEAM_MEMBER_UPDATED", admin_user=admin_user,
                            details={"changes": updates, "previous_role": target.get("role")},
                            target_email=target.get("email"), target_user_id=user_id)
+    if "active" in updates:
+        # Learn access must follow the portal's active flag immediately.
+        await push_learn_member_status(target, updates["active"])
     fresh = await db.users.find_one({"id": user_id}, _TEAM_PROJECTION)
     return fresh
 
@@ -6515,6 +6641,17 @@ async def startup_event():
         await supplements.ensure_indexes_and_seed()
     except Exception as e:
         logging.warning(f"Supplements startup skipped: {e}")
+
+    # Portal → Learn status-push retry loop: drain on boot (pushes queued while
+    # Learn or this process was down), then re-drain every minute with backoff.
+    async def learn_push_loop():
+        while True:
+            try:
+                await drain_learn_push_queue()
+            except Exception as e:
+                logging.warning(f"[learn-push] drain loop error: {e}")
+            await asyncio.sleep(60)
+    asyncio.create_task(learn_push_loop())
     # Ensure indexes for pagination performance
     try:
         await db.users.create_index([("created_at", -1)])

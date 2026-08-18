@@ -489,6 +489,8 @@ def _decode_optional_jwt_user_id(authorization: Optional[str]) -> Optional[str]:
         return None
     try:
         payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+        if payload.get("type") == "refresh":  # a refresh token is not an identity hint
+            return None
         return payload.get("sub")
     except jwt.PyJWTError:
         return None
@@ -509,11 +511,15 @@ async def _require_admin(request: Request) -> dict:
         payload = jwt.decode(auth_header[7:], secret_key, algorithms=["HS256"])
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("type") == "refresh":  # refresh tokens are for /auth/refresh only, never a bearer
+        raise HTTPException(status_code=401, detail="Invalid token")
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user or user.get("role") != "admin":
+    # admin AND super_admin (was admin-only, which locked out super admins); and a
+    # deactivated admin must lose access immediately, not at token expiry.
+    if not user or user.get("role") not in {"admin", "super_admin"} or user.get("active") is False:
         raise HTTPException(status_code=403, detail="Admin only")
     return user
 
