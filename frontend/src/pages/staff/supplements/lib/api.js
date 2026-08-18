@@ -1,6 +1,8 @@
 // API client for the absorbed Supplement Protocol Manager. Same call surface as the
 // standalone app's lib/api.js, but pointed at the portal backend's /api/supplements/*
 // mount and authenticated with the portal session token (Clerk removed).
+import { refreshSession, endSession } from '@/lib/session';
+
 const API_BASE = (process.env.REACT_APP_BACKEND_URL || '') + '/api/supplements';
 
 function getHeaders() {
@@ -10,9 +12,32 @@ function getHeaders() {
   return headers;
 }
 
-async function request(path, options = {}) {
+function sessionExpired() {
+  endSession('/staff-login');
+  throw new Error('Your session has expired. Please sign in again.');
+}
+
+async function request(path, options = {}, _retried = false) {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, { headers: getHeaders(), ...options });
+  if (res.status === 401) {
+    // Same shared single-flight refresh the Axios interceptor uses — one
+    // transparent retry, then a real session-expired exit (never a dead screen
+    // with silently failing autosaves).
+    if (!_retried) {
+      try {
+        await refreshSession();
+      } catch (e) {
+        // Only a definitive rejection ends the session; a network/5xx hiccup
+        // during refresh surfaces as a normal request failure instead.
+        const s = e?.response?.status;
+        if (s === 400 || s === 401 || s === 403 || e?.message === 'No refresh token') sessionExpired();
+        throw new Error("Couldn't reach the server — please try again.");
+      }
+      return request(path, options, true);
+    }
+    sessionExpired();
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || 'Request failed');
@@ -84,18 +109,12 @@ export const finalizePlan = (id) =>
 export const reopenPlan = (id) =>
   request(`/plans/${id}/reopen`, { method: 'POST' });
 
-// PDF Export
-export const exportPatientPDF = (planId) =>
-  fetch(`${API_BASE}/plans/${planId}/export/patient`, { headers: getHeaders() }).then((r) => {
-    if (!r.ok) throw new Error('Export failed');
-    return r.blob();
-  });
+// PDF Export — routed through request() so exports get the same 401→refresh→retry
+// and session-expiry handling as everything else (request() returns a blob when the
+// response content-type is application/pdf).
+export const exportPatientPDF = (planId) => request(`/plans/${planId}/export/patient`);
 
-export const exportHCPDF = (planId) =>
-  fetch(`${API_BASE}/plans/${planId}/export/hc`, { headers: getHeaders() }).then((r) => {
-    if (!r.ok) throw new Error('Export failed');
-    return r.blob();
-  });
+export const exportHCPDF = (planId) => request(`/plans/${planId}/export/hc`);
 
 // Cloud save (Dropbox)
 export const saveToDrive = (planId) =>

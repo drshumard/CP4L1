@@ -22,12 +22,35 @@ export default function AdminLayout() {
   const { pathname } = useLocation();
   // Staff (and patients) never see the admin shell — the API would 403 them anyway,
   // but bouncing to their own home avoids a shell full of failed requests.
-  const [role, setRole] = useState(undefined); // undefined = still checking
+  const [role, setRole] = useState(undefined); // undefined = still checking, null = load failed
   useEffect(() => {
-    adminApi.get('/user/me').then((r) => setRole(r.data?.role || 'user')).catch(() => setRole(null));
+    const load = () => {
+      setRole(undefined);
+      adminApi.get('/user/me').then((r) => setRole(r.data?.role || 'user')).catch(() => setRole(null));
+    };
+    load();
+    window.addEventListener('admin-role-retry', load);
+    return () => window.removeEventListener('admin-role-retry', load);
   }, []);
+  // Hold the shell until the check resolves — mounting it early fires a page of
+  // child requests that all fail for unauthorized visitors.
+  if (role === undefined) {
+    return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading...</div>;
+  }
+  // Load failure (network/5xx) is not "unauthorized" — offer a retry instead of bouncing.
+  if (role === null) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <p>Couldn't reach the server.</p>
+        <button type="button" onClick={() => window.dispatchEvent(new Event('admin-role-retry'))}
+          className="rounded-md border px-3 py-1.5 hover:bg-muted">
+          Try again
+        </button>
+      </div>
+    );
+  }
   // Portal access is registry-driven: whoever's role includes the 'portal' app may enter.
-  if (role !== undefined && role !== null && !appsForRole(role).some((a) => a.key === 'portal')) {
+  if (!appsForRole(role).some((a) => a.key === 'portal')) {
     return <Navigate to={homeForRole(role) || '/'} replace />;
   }
   return (

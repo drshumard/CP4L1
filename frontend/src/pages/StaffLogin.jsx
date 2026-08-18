@@ -29,11 +29,19 @@ function StaffLoginInner() {
   const [busy, setBusy] = useState(false);
   const exchanging = useRef(false);
   const initialSession = useRef(null);
+  // Explicit logout (endSession with clearClerk) lands here with ?signout=clerk:
+  // end the Clerk session too so a shared machine can't one-click back in. Stays
+  // true until signOut resolves, so the "Continue as…" recovery is suppressed
+  // only for this deliberate case (automatic expiry keeps the Clerk session).
+  const forceClerkSignout = useRef(
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('signout') === 'clerk'
+  );
 
   const runExchange = useCallback(async () => {
     if (exchanging.current) return;
     exchanging.current = true;
     setBusy(true);
+    setError('');
     try {
       const clerkToken = await getToken();
       const res = await axios.post(`${API}/auth/clerk-exchange`, { token: clerkToken });
@@ -42,18 +50,41 @@ function StaffLoginInner() {
       localStorage.setItem('user_data', JSON.stringify(res.data.user || {}));
       navigate('/staff', { replace: true });
     } catch (e) {
-      const detail = e?.response?.data?.detail || 'Sign-in failed. Please try again.';
-      sessionStorage.setItem('staff_login_error', detail);
-      setError(detail);
+      const status = e?.response?.status;
+      const rejected = status === 401 || status === 403; // identity/membership actually refused
+      const detail = e?.response?.data?.detail ||
+        (rejected ? 'Sign-in failed. Please try again.' : "Couldn't reach the server — your sign-in is fine, just try again.");
       exchanging.current = false;
       setBusy(false);
-      try { await signOut(); } catch { /* stay on page with the error */ }
+      setError(detail);
+      if (rejected) {
+        // The message rides sessionStorage across the reload signOut triggers.
+        sessionStorage.setItem('staff_login_error', detail);
+        try { await signOut(); } catch { /* stay on page with the error */ }
+      } else {
+        // Transient (network / 429 / 5xx): keep the Clerk session so "Continue
+        // to workspace" simply re-runs the exchange — no re-verification loop.
+        setNeedsConfirm(true);
+      }
     }
   }, [getToken, navigate, signOut]);
 
-  // Record whether a Clerk session already existed when the page opened.
+  // On explicit logout, end the Clerk session, then clean the URL so a refresh
+  // doesn't repeat it. initialSession recording (below) is held off until this
+  // finishes, so no "Continue as…" flashes for the account we're signing out.
   useEffect(() => {
-    if (isLoaded && initialSession.current === null) {
+    if (!isLoaded || !forceClerkSignout.current) return;
+    (async () => {
+      try { if (isSignedIn) await signOut(); } catch { /* ignore */ }
+      try { window.history.replaceState({}, '', '/staff-login'); } catch { /* ignore */ }
+      forceClerkSignout.current = false;
+    })();
+  }, [isLoaded, isSignedIn, signOut]);
+
+  // Record whether a Clerk session already existed when the page opened (skipped
+  // while a forced Clerk signout is in flight).
+  useEffect(() => {
+    if (isLoaded && !forceClerkSignout.current && initialSession.current === null) {
       initialSession.current = isSignedIn;
       if (isSignedIn && !error) setNeedsConfirm(true);
     }
@@ -80,7 +111,7 @@ function StaffLoginInner() {
         )}
         {!isLoaded ? (
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-800 border-t-transparent" />
-        ) : isSignedIn && needsConfirm && !error ? (
+        ) : isSignedIn && needsConfirm ? (
           <div className="flex w-72 flex-col items-stretch gap-2 rounded-xl border bg-white p-5 text-center shadow-sm">
             <p className="text-sm text-slate-600">You're signed in as</p>
             <p className="truncate text-sm font-semibold text-slate-900">{clerkEmail || 'your team account'}</p>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth';
 import { loginPath } from '@/lib/staffApps';
+import { endSession } from '@/lib/session';
 import {
   LayoutDashboard, FilePlus, Pill, Layers, Users, UserRound, Building2, Search,
   ArrowLeft, Settings, LogOut,
@@ -64,12 +65,8 @@ export default function AppShell({ children }) {
 
   const displayName = profile?.name || user?.name || 'Team member';
   const initials = (displayName.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_data');
-    navigate(loginPath());
-  };
+  // Explicit logout: kills Portal tokens + Learn cookie + Clerk session, hard-redirects.
+  const logout = () => endSession(loginPath(), { clearClerk: true });
 
   const role = user?.role;
   const primary = navItems.filter(n => n.roles.includes(role));

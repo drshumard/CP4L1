@@ -58,6 +58,12 @@ const fmtTplDate = (d) => {
   return `${t.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}, ${t.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
 };
 
+// These contentEditable cells hold PLAIN text (saved via textContent) but seed their
+// initial value through dangerouslySetInnerHTML — escape it so a stored payload like
+// "<img onerror=…>" renders as literal characters instead of executing. Matches
+// TemplatesPage's identical fields.
+const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 /* ─────────────────── NumberStepper ─────────────────── */
 function NumberStepper({ value, onChange, disabled, min = 0 }) {
   const num = value ?? 0;
@@ -310,7 +316,7 @@ function MonthSection({
                           suppressContentEditableWarning
                           className="text-[12.5px] text-ink-3 outline-none min-h-[18px] break-words cursor-text rounded px-1 -mx-1 leading-tight text-center focus:text-left focus:bg-white focus:shadow-[var(--focus-subtle)]"
                           onBlur={(e) => onUpdateField(month.month_number, idx, 'dosage_display', e.target.textContent)}
-                          dangerouslySetInnerHTML={{ __html: supp.dosage_display || '' }}
+                          dangerouslySetInnerHTML={{ __html: escapeHtml(supp.dosage_display || '') }}
                         />
                       )}
                     </div>
@@ -348,7 +354,7 @@ function MonthSection({
                           suppressContentEditableWarning
                           className="text-[12.5px] text-ink-muted outline-none min-h-[18px] break-words cursor-text rounded px-1.5 -mx-1 leading-tight text-center focus:text-left focus:bg-white focus:shadow-[var(--focus-subtle)] focus:text-ink-3"
                           onBlur={(e) => onUpdateField(month.month_number, idx, 'instructions', e.target.textContent)}
-                          dangerouslySetInnerHTML={{ __html: supp.instructions || '' }}
+                          dangerouslySetInnerHTML={{ __html: escapeHtml(supp.instructions || '') }}
                         />
                       )}
                     </div>

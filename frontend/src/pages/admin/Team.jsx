@@ -79,7 +79,7 @@ export default function Team() {
     if (deactivating) {
       const ok = await confirmDialog({
         title: `Deactivate ${m.name || m.email}?`,
-        message: 'They immediately lose access to the portal and can no longer sign in. Reactivate any time.',
+        message: 'They lose access to the portal right away, and Learn access ends within a minute. Reactivate any time.',
         confirmLabel: 'Deactivate',
       });
       if (!ok) return;

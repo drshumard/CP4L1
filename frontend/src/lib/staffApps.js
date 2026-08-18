@@ -62,8 +62,13 @@ export const appsForRole = (role) => STAFF_APPS.filter((a) => a.roles.includes(r
  *  the workspace — admins reach the admin portal via its "Portal" tab. Patients → null. */
 export const homeForRole = (role) => (TEAM_ROLES.includes(role) ? '/staff' : null);
 
-/** On staff.drshumard.com the sign-in surface is the Clerk staff login, not the
- *  patient email-code page. Both issue the same portal session. */
+/** On staff.drshumard.com — or anywhere inside the staff/admin areas on any host —
+ *  the sign-in surface is the Clerk staff login, not the patient email-code page.
+ *  Both issue the same portal session. */
 export const isStaffHost = () =>
   typeof window !== 'undefined' && window.location.hostname.startsWith('staff.');
-export const loginPath = () => (isStaffHost() ? '/staff-login' : '/login');
+export const loginPath = () => {
+  if (isStaffHost()) return '/staff-login';
+  const path = typeof window !== 'undefined' ? window.location.pathname : '';
+  return path.startsWith('/staff') || path.startsWith('/admin') ? '/staff-login' : '/login';
+};

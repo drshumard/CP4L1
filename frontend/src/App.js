@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { refreshSession, endSession } from './lib/session';
 import Signup from './pages/Signup';
 import Login from './pages/Login';
 import PortalDashboard from './pages/PortalDashboard';
@@ -223,35 +224,64 @@ function AxiosInterceptor() {
   useEffect(() => {
     // Flag to prevent multiple 401 handlers running simultaneously
     let isHandling401 = false;
-    
-    // Response interceptor to handle 401 errors globally
+
+    const expireSession = () => {
+      if (isHandling401) return;
+      // Check if we're already on login/signup to avoid infinite redirects
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/signup' && currentPath !== '/reset-password' && currentPath !== '/staff-login') {
+        isHandling401 = true;
+        sessionStorage.clear();
+
+        // Show toast only once
+        toast.error('Your session has expired. Please login again.', {
+          id: 'session-expired', // Prevents duplicate toasts with same ID
+          duration: 4000
+        });
+
+        // Use setTimeout to ensure state cleanup happens before redirect;
+        // endSession also kills the Learn cookie and clears tokens.
+        setTimeout(() => {
+          isHandling401 = false;
+          endSession(loginPath());
+        }, 100);
+      }
+    };
+
+    // Response interceptor to handle 401 errors globally: try one transparent
+    // refresh (shared/single-flight with the Supplementor fetch client) and
+    // retry the original request; only end the session if the refresh itself is
+    // definitively rejected. Only requests that carried the portal bearer are
+    // eligible — login/exchange/magic-link calls carry none and pass through.
     const interceptor = axios.interceptors.response.use(
       (response) => response,
-      (error) => {
-        if (error.response?.status === 401 && !isHandling401) {
-          // Check if we're already on login/signup to avoid infinite redirects
-          const currentPath = window.location.pathname;
-          if (currentPath !== '/login' && currentPath !== '/signup' && currentPath !== '/reset-password') {
-            isHandling401 = true;
-            
-            // Token expired or invalid - clear all auth data
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            localStorage.removeItem('user_data');
-            sessionStorage.clear();
-            
-            // Show toast only once
-            toast.error('Your session has expired. Please login again.', {
-              id: 'session-expired', // Prevents duplicate toasts with same ID
-              duration: 4000
-            });
-            
-            // Use setTimeout to ensure state cleanup happens before redirect
-            setTimeout(() => {
-              isHandling401 = false;
-              window.location.replace('/login');
-            }, 100);
+      async (error) => {
+        const cfg = error.config || {};
+        if (error.response?.status === 401 && !cfg.skipAuthRefresh && !isHandling401) {
+          const hdrs = cfg.headers || {};
+          const hadBearer = !!(hdrs.Authorization || hdrs.authorization ||
+            (typeof hdrs.get === 'function' && hdrs.get('Authorization')));
+          if (hadBearer && !cfg._authRetried && localStorage.getItem('refresh_token')) {
+            cfg._authRetried = true;
+            let token;
+            try {
+              token = await refreshSession();
+            } catch (refreshErr) {
+              // Scope this catch to the REFRESH only. 400/401/403 = the refresh
+              // token is genuinely dead → end the session. Anything else (network,
+              // 5xx) must not destroy valid credentials. A failure of the RETRIED
+              // request below is deliberately NOT caught here — it surfaces as its
+              // own error instead of being mistaken for a dead session.
+              const s = refreshErr?.response?.status;
+              if (s === 400 || s === 401 || s === 403 || refreshErr?.message === 'No refresh token') {
+                expireSession();
+              }
+              return Promise.reject(error);
+            }
+            cfg.headers = { ...cfg.headers, Authorization: `Bearer ${token}` };
+            return axios(cfg);
           }
+          if (hadBearer) expireSession();
         }
         return Promise.reject(error);
       }

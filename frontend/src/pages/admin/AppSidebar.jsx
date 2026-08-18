@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { adminApi } from './api';
+import { endSession } from '@/lib/session';
+import { loginPath } from '@/lib/staffApps';
 
 const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
 
@@ -56,12 +58,9 @@ export default function AppSidebar() {
   const avatarUrl = profile?.avatar_url || '';
   const initials = ((profile?.name || '').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || (email || 'A').charAt(0)).toUpperCase();
 
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_data');
-    navigate('/login');
-  };
+  // Explicit logout: kills Portal tokens + Learn cookie + Clerk session, hard-redirects
+  // to the staff sign-in (admins are team members — never the patient /login).
+  const logout = () => endSession(loginPath(), { clearClerk: true });
 
   const isActive = (to) => pathname === to || pathname.startsWith(`${to}/`);
 

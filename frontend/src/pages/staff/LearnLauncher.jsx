@@ -12,23 +12,38 @@ export default function LearnLauncher() {
   const [error, setError] = useState('');
   const launched = useRef(false);
 
+  // Each attempt mints a FRESH token — a failed handoff burns its single-use
+  // token, so retrying the old URL can never work.
+  const launch = () => {
+    setError('');
+    adminApi.post('/auth/learn-token')
+      .then((r) => {
+        // replace(): Back must land on /staff, not on a burned token URL that
+        // would relaunch the handoff in a loop.
+        window.location.replace(`${LEARN_URL}/api/auth/portal?token=${encodeURIComponent(r.data.token)}`);
+      })
+      .catch((e) => setError(e?.response?.data?.detail || 'Could not open Learn.'));
+  };
+
   useEffect(() => {
     // StrictMode double-mounts effects in dev; two parallel handoffs make Supabase
     // invalidate the first magic-link hash — exactly one launch per visit.
     if (launched.current) return;
     launched.current = true;
-    adminApi.post('/auth/learn-token')
-      .then((r) => {
-        window.location.href = `${LEARN_URL}/api/auth/portal?token=${encodeURIComponent(r.data.token)}`;
-      })
-      .catch((e) => setError(e?.response?.data?.detail || 'Could not open Learn. Try again.'));
+    launch();
   }, []);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center justify-center rounded-xl border bg-card px-6 py-16 text-center shadow-sm">
       <GraduationCap className="size-10 text-muted-foreground" strokeWidth={1.5} />
       {error ? (
-        <p className="mt-4 text-sm text-red-600">{error}</p>
+        <>
+          <p className="mt-4 text-sm text-red-600">{error}</p>
+          <button type="button" onClick={launch}
+            className="mt-3 rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted">
+            Try again
+          </button>
+        </>
       ) : (
         <p className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-foreground border-t-transparent" />

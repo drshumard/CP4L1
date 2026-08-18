@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { adminApi } from '../admin/api';
 import { appsForRole, TEAM_ROLES, ROLE_LABELS, loginPath } from '@/lib/staffApps';
+import { endSession } from '@/lib/session';
 import '../admin/admin.css';
 
 const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
@@ -28,17 +29,41 @@ export default function StaffLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
-  const [failed, setFailed] = useState(false);
+  // null = fine, 'auth' = rejected (401/403), 'error' = network/server hiccup.
+  // Only genuine rejection may redirect — a flaky backend must never dump staff
+  // into the patient portal.
+  const [failed, setFailed] = useState(null);
 
   useEffect(() => {
-    const load = () => adminApi.get('/user/me').then((r) => setProfile(r.data)).catch(() => setFailed(true));
+    const load = () => {
+      setFailed(null);
+      adminApi.get('/user/me').then((r) => setProfile(r.data)).catch((e) => {
+        const status = e?.response?.status;
+        setFailed(status === 401 || status === 403 ? 'auth' : 'error');
+      });
+    };
     load();
     window.addEventListener('profile-updated', load);
-    return () => window.removeEventListener('profile-updated', load);
+    window.addEventListener('staff-profile-retry', load);
+    return () => {
+      window.removeEventListener('profile-updated', load);
+      window.removeEventListener('staff-profile-retry', load);
+    };
   }, []);
 
   if (!localStorage.getItem('access_token')) return <Navigate to={loginPath()} replace />;
-  if (failed) return <Navigate to="/" replace />;
+  if (failed === 'auth') return <Navigate to={loginPath()} replace />;
+  if (failed === 'error') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <p>Couldn't reach the server.</p>
+        <button type="button" onClick={() => window.dispatchEvent(new Event('staff-profile-retry'))}
+          className="rounded-md border px-3 py-1.5 hover:bg-muted">
+          Try again
+        </button>
+      </div>
+    );
+  }
   if (!profile) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading...</div>;
   }
@@ -60,12 +85,8 @@ export default function StaffLayout() {
   const name = profile.name || 'Team member';
   const initials = (name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
 
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_data');
-    navigate(loginPath());
-  };
+  // Explicit logout: kills Portal tokens + Learn cookie + Clerk session, hard-redirects.
+  const logout = () => endSession(loginPath(), { clearClerk: true });
 
   // One menu, two triggers: the sidebar-footer chip and the navbar avatar share it.
   const userMenuContent = (side, align) => (
