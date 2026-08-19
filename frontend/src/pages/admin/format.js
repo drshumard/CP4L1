@@ -14,10 +14,22 @@ export function setAdminDisplayTz(tz) { displayTz = safeTz(tz); }
 
 export function getAdminDisplayTz() { return displayTz; }
 
+// Ledger instants are UTC, but endpoints returning raw Mongo docs used to serialize them
+// WITHOUT an offset ("...T23:30:00") — and new Date() parses offset-less datetimes as the
+// viewer's LOCAL time, shifting every rendered value by the browser's UTC offset. The
+// backend now stamps +00:00; this keeps any stragglers honest by reading a bare datetime
+// string as the UTC it really is. (Date-only strings already parse as UTC per spec.)
+const NAIVE_DT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/;
+function parseInstant(value) {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' && NAIVE_DT.test(value)) return new Date(`${value}Z`);
+  return new Date(value);
+}
+
 /** "Jun 20, 2026, 01:07 PM" — 2-digit day/hour/minute for consistent width. */
 export function fmtDateTime(value, { tz = displayTz } = {}) {
   if (!value) return '—';
-  const d = value instanceof Date ? value : new Date(value);
+  const d = parseInstant(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleString('en-US', {
     timeZone: tz,
@@ -33,7 +45,7 @@ export function fmtDateTime(value, { tz = displayTz } = {}) {
 /** "1:00 PM" — display-tz time only, for slot chips. */
 export function fmtTime(value, { tz = displayTz } = {}) {
   if (!value) return '—';
-  const d = value instanceof Date ? value : new Date(value);
+  const d = parseInstant(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleTimeString('en-US', {
     timeZone: tz,
@@ -46,7 +58,7 @@ export function fmtTime(value, { tz = displayTz } = {}) {
 /** "Jun 20, 2026" — date only, same width convention. */
 export function fmtDate(value, { tz = displayTz } = {}) {
   if (!value) return '—';
-  const d = value instanceof Date ? value : new Date(value);
+  const d = parseInstant(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-US', {
     timeZone: tz,

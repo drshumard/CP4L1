@@ -12,6 +12,13 @@ describe('fmtDateTime', () => {
     expect(fmtDateTime(new Date(ISO))).toBe('Jun 20, 2026, 01:07 PM');
   });
 
+  test('treats an offset-less datetime string as UTC, not browser-local', () => {
+    // Raw-Mongo endpoints used to emit naive strings; parsed as local they shift
+    // by the viewer's UTC offset (the admin "When" column showed 3:30 for a 4:30 slot).
+    expect(fmtDateTime('2026-06-20T20:07:00')).toBe('Jun 20, 2026, 01:07 PM');
+    expect(fmtDateTime('2026-06-20T20:07:00.123')).toBe('Jun 20, 2026, 01:07 PM');
+  });
+
   test('returns an em dash for empty / invalid input', () => {
     expect(fmtDateTime(null)).toBe('—');
     expect(fmtDateTime('')).toBe('—');

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Response, Header, Query, UploadFile, File
+from fastapi.encoders import ENCODERS_BY_TYPE
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -78,6 +79,16 @@ if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID:
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# BSON datetimes come back from Mongo tz-NAIVE but are always UTC. Stock serialization
+# emits them without an offset ("...T23:30:00"), and browsers parse offset-less datetime
+# strings as LOCAL time — every raw-doc endpoint (e.g. /admin/bookings) then shifts by the
+# viewer's UTC offset (an hour off in London; the admin "When" column bug). Serialize every
+# naive datetime with the +00:00 it really has. Applies to jsonable_encoder (all dict/list
+# returns); response_model paths already normalize via their own validators.
+ENCODERS_BY_TYPE[datetime] = lambda dt: (
+    dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+).isoformat()
 
 # Activity Logging Utility
 async def log_activity(
