@@ -17,11 +17,12 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { getAdminDisplayTz } from '../format';
+import { tzAbbrev } from '../usTimezones';
 
 const EYEBROW = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 const TG_ON = 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground';
 
-const CLINIC_TZ = 'America/Los_Angeles';
 const HOUR_PX = 56;
 const GUTTER_PX = 76;
 const LS_KEY = 'teamcal.prefs.v1';
@@ -222,12 +223,15 @@ export default function TeamCalendar() {
   const navigate = useNavigate();
   const prefs = useRef(loadPrefs());
   const localTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  // The admin-wide display zone (profile-set, Pacific default). AdminLayout re-keys this
+  // page when it changes, so reading it once per mount is safe.
+  const displayTz = useMemo(() => getAdminDisplayTz(), []);
 
   const [view, setView] = useState(prefs.current.view === 'day' ? 'day' : 'week');
   const [showWeekends, setShowWeekends] = useState(prefs.current.weekends !== false);
   const [tzMode, setTzMode] = useState(prefs.current.tz === 'local' ? 'local' : 'clinic');
-  const tz = tzMode === 'local' ? localTz : CLINIC_TZ;
-  const [anchor, setAnchor] = useState(() => todayYmd(tzMode === 'local' ? localTz : CLINIC_TZ));
+  const tz = tzMode === 'local' ? localTz : displayTz;
+  const [anchor, setAnchor] = useState(() => todayYmd(tzMode === 'local' ? localTz : displayTz));
   // Host visibility: explicit map wins; unmapped hosts default to "directors on".
   const [hostSel, setHostSel] = useState(prefs.current.hosts || {});
 
@@ -568,9 +572,9 @@ export default function TeamCalendar() {
               <ToggleGroupItem value="day" className={TG_ON}>Day</ToggleGroupItem>
               <ToggleGroupItem value="week" className={TG_ON}>Week</ToggleGroupItem>
             </ToggleGroup>
-            {localTz !== CLINIC_TZ && (
+            {localTz !== displayTz && (
               <ToggleGroup type="single" value={tzMode} onValueChange={(v) => { if (v) { setTzMode(v); savePrefs({ tz: v }); setSel(null); } }} variant="outline" size="sm">
-                <ToggleGroupItem value="clinic" className={TG_ON}>Clinic (PT)</ToggleGroupItem>
+                <ToggleGroupItem value="clinic" className={TG_ON}>{tzAbbrev(new Date(), displayTz) || 'Clinic'}</ToggleGroupItem>
                 <ToggleGroupItem value="local" className={TG_ON}>My time</ToggleGroupItem>
               </ToggleGroup>
             )}

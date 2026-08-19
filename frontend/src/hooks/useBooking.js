@@ -193,6 +193,17 @@ export function useBookingFlow() {
 // ============================================================================
 
 /**
+ * Wall-clock date (YYYY-MM-DD) of an instant in the browser's timezone.
+ * Slot instants arrive as UTC ISO strings; grouping by their raw date-prefix would file
+ * late-afternoon Pacific slots under the NEXT day (>=5pm PDT / >=4pm PST cross midnight UTC).
+ */
+export function localYmd(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-CA'); // en-CA formats as YYYY-MM-DD
+}
+
+/**
  * Get user's timezone using Intl API
  */
 export function detectTimezone() {
@@ -244,7 +255,9 @@ export function formatTimeRange(startTime, endTime) {
 export function groupSlotsByDate(slots, startDate = null, maxAvailableDays = null) {
   // Group all slots by date first, then take the first N dates with availability
   const grouped = slots.reduce((acc, slot) => {
-    const date = slot.start_time.split('T')[0];
+    // Bucket by the slot's date in the BROWSER's zone — times are displayed browser-local,
+    // so the day column must agree (the raw ISO prefix is the UTC date, not the local one).
+    const date = localYmd(slot.start_time);
     
     // Only include dates from startDate onward
     if (startDate) {
@@ -288,10 +301,12 @@ export function groupSlotsByDate(slots, startDate = null, maxAvailableDays = nul
 }
 
 /**
- * Get today's date in YYYY-MM-DD format
+ * Get today's date in YYYY-MM-DD format, in the browser's timezone.
+ * (toISOString would give the UTC date — after 5pm PDT that's already "tomorrow",
+ * which made evening visitors' availability window start a day late.)
  */
 export function getTodayString() {
-  return new Date().toISOString().split('T')[0];
+  return localYmd(new Date());
 }
 
 /**

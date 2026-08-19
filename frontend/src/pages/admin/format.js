@@ -1,11 +1,21 @@
 // Canonical admin date/time formatting.
 // One format across every admin table/modal so columns align (pair with `cad-mono`).
-// Fixed clinic timezone keeps an internal ops tool unambiguous about "when".
+// One display timezone keeps an internal ops tool unambiguous about "when": clinic
+// Pacific by default, switched to the signed-in team member's profile timezone when
+// AdminLayout loads it (setAdminDisplayTz). Callers can still pass an explicit tz
+// (e.g. a booking's own zone).
 
-const DEFAULT_TZ = 'America/Los_Angeles';
+import { safeTz, DEFAULT_US_TZ } from './usTimezones';
+
+let displayTz = DEFAULT_US_TZ;
+
+/** Set the admin-wide display timezone (validated; invalid/empty falls back to Pacific). */
+export function setAdminDisplayTz(tz) { displayTz = safeTz(tz); }
+
+export function getAdminDisplayTz() { return displayTz; }
 
 /** "Jun 20, 2026, 01:07 PM" — 2-digit day/hour/minute for consistent width. */
-export function fmtDateTime(value, { tz = DEFAULT_TZ } = {}) {
+export function fmtDateTime(value, { tz = displayTz } = {}) {
   if (!value) return '—';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
@@ -20,8 +30,8 @@ export function fmtDateTime(value, { tz = DEFAULT_TZ } = {}) {
   });
 }
 
-/** "1:00 PM" — clinic-tz time only, for slot chips. */
-export function fmtTime(value, { tz = DEFAULT_TZ } = {}) {
+/** "1:00 PM" — display-tz time only, for slot chips. */
+export function fmtTime(value, { tz = displayTz } = {}) {
   if (!value) return '—';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
@@ -34,7 +44,7 @@ export function fmtTime(value, { tz = DEFAULT_TZ } = {}) {
 }
 
 /** "Jun 20, 2026" — date only, same width convention. */
-export function fmtDate(value, { tz = DEFAULT_TZ } = {}) {
+export function fmtDate(value, { tz = displayTz } = {}) {
   if (!value) return '—';
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return '—';

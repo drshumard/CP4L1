@@ -267,6 +267,10 @@ class UserResponse(BaseModel):
     # Step 3's "Activate Practice Better Portal" button derives the per-patient activation
     # deep-link from this — without it the button silently falls back to the generic portal.
     pb_client_record_id: Optional[str] = None
+    # Team members' preferred display timezone for the admin views (IANA id). Absent ->
+    # the admin frontend falls back to the clinic's Pacific. Patients' booking timezone is
+    # a different thing and lives on the booking itself.
+    timezone: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -274,6 +278,7 @@ class ProfileUpdate(BaseModel):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
+    timezone: Optional[str] = None
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -2443,6 +2448,7 @@ def _user_response(u: dict) -> UserResponse:
         phone=u.get("phone"), current_step=u["current_step"],
         role=u.get("role", "user"), avatar_url=u.get("avatar_url"),
         pb_client_record_id=u.get("pb_client_record_id"),
+        timezone=u.get("timezone"),
     )
 
 
@@ -2453,8 +2459,18 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 @api_router.put("/user/me", response_model=UserResponse)
 async def update_me(payload: ProfileUpdate, current_user: dict = Depends(get_current_user)):
-    """Let a signed-in user edit their own profile (name, phone, avatar)."""
+    """Let a signed-in user edit their own profile (name, phone, avatar, timezone)."""
     update: dict = {}
+    if payload.timezone is not None:
+        tz_name = payload.timezone.strip()
+        if tz_name:
+            try:
+                ZoneInfo(tz_name)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Unknown timezone")
+            update["timezone"] = tz_name
+        else:
+            update["timezone"] = None
     if payload.first_name is not None:
         update["first_name"] = payload.first_name.strip()
     if payload.last_name is not None:
@@ -6102,9 +6118,11 @@ class TeamMemberUpdate(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
     active: Optional[bool] = None
+    timezone: Optional[str] = None
 
 
-_TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active": 1, "created_at": 1}
+_TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active": 1, "created_at": 1,
+                    "timezone": 1}
 
 
 @api_router.get("/admin/team")
@@ -6166,6 +6184,16 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
         if target.get("role") == "super_admin" and payload.active is False:
             raise HTTPException(status_code=400, detail="A super admin can't be deactivated here")
         updates["active"] = bool(payload.active)
+    if payload.timezone is not None:
+        tz_name = payload.timezone.strip()
+        if tz_name:
+            try:
+                ZoneInfo(tz_name)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Unknown timezone")
+            updates["timezone"] = tz_name
+        else:
+            updates["timezone"] = None
     if not updates:
         raise HTTPException(status_code=400, detail="Nothing to update")
 
