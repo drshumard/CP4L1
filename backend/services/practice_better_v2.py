@@ -907,6 +907,12 @@ class PracticeBetterService:
             "timeZone": windows_timezone,
             "notify": notify,
             "markConfirmed": True,  # portal is authoritative — auto-confirm on creation (no PB pending state)
+            # Portal owns availability (same rationale as reschedule_session). Without this,
+            # any host whose Google calendar PB watches self-409s: our flow creates the Meet
+            # event first, PB's calendar sync sees it as a busy externalevent at the exact
+            # slot, and the mirror bounces off our own booking (seen live 2026-08-19 on
+            # drjason@drshumard.com, correlation 4147d197).
+            "ignoreConflict": True,
         }
         if include_telehealth and self.config.telehealth_app:
             payload["telehealthSettings"] = {"launchApplication": self.config.telehealth_app}
