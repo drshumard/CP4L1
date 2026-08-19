@@ -12,7 +12,7 @@ Improvements over v1:
 """
 
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Any, Optional, Dict, List, Tuple
 import asyncio
@@ -176,22 +176,27 @@ TIMEZONE_MAP = {
 
 
 def to_pb_session_date(session_date: str) -> str:
-    """Convert an ISO datetime into the wall-time format PB's sessions API actually parses.
+    """Convert an ISO datetime into the documented UTC 'Z' format for PB's sessions API.
 
-    Verified empirically (2026-07-06, POST /consultant/sessions): PB ignores both a trailing
-    'Z' and the request's timeZone field when parsing sessionDate, and reads the naive
-    clock time as US Eastern wall time ('...T21:00:00Z' + timeZone=Central stored as
-    2026-07-10T01:00:00Z; naive '...T16:00:00' + timeZone=Central stored as 20:00Z). Offset
-    forms like '-05:00' make it 500 outright. So: take the real instant and send PB the
-    matching US-Eastern wall clock, naive. Naive inputs are passed through untouched (the
-    caller already speaks PB's convention — e.g. legacy availability round-trips)."""
+    History — PB's parser has changed under us, both directions verified empirically:
+    - 2026-07-06 (POST /consultant/sessions): PB ignored a trailing 'Z' AND the timeZone
+      field, reading the clock digits as US-Eastern wall time; offset forms ('-05:00')
+      500'd. That forced a naive-Eastern dialect here.
+    - 2026-08-19 (probe sessions, POST and PUT /date): PB now stores the documented
+      'YYYY-MM-DDTHH:MM:SSZ' form VERBATIM as UTC, while naive input is still parsed as
+      Eastern (Aug-18 session evidence). Crucially, PB's notification emails always
+      treated the submitted value as UTC (per their docs) — under the naive dialect the
+      practitioner email showed 12:30 PM PDT for a 4:30 PM PDT session. Sending the
+      documented Z form makes PB's storage AND its notification emails agree.
+    Naive inputs are still passed through untouched (the caller already speaks PB's
+    naive-Eastern convention — e.g. legacy availability round-trips)."""
     try:
         dt = datetime.fromisoformat(session_date.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return session_date
     if dt.tzinfo is None:
         return session_date
-    return dt.astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%dT%H:%M:%S")
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def convert_timezone_to_windows(iana_timezone: str) -> str:
