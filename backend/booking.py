@@ -860,6 +860,7 @@ async def _book_local_sidecar(booking: dict, request: "BookSessionRequest", dire
                           "pb_status": pb_status, "updated_at": _now_iso()}})
         except Exception as e:
             logger.warning(f"[{correlation_id}] PB status write failed: {e}")
+        await _stamp_user_pb_record_id(request.email, pb_record_id, correlation_id)
         if pb_session_id:
             _schedule_pb_twin_sweep(booking.get("gcal_calendar_id"), pb_session_id,
                                     booking.get("gcal_subject"), correlation_id)
@@ -963,6 +964,27 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
                                 is_new_client=False)
 
 
+async def _stamp_user_pb_record_id(email: Optional[str], pb_record_id: Optional[str],
+                                   correlation_id: str) -> None:
+    """Copy a freshly-minted PB client record id onto the matching portal user, so Step 3's
+    'Activate Practice Better' deep link (built from /user/me.pb_client_record_id) resolves.
+    The journey-advance write copies the id from the booking at BOOK time, but the PB mirror
+    runs in the background — the id usually doesn't exist yet at that moment, leaving the user
+    doc empty and the button on the generic portal fallback. Fills only a missing/empty field;
+    the rebook stale-clear and the cache backfill own overwrite semantics."""
+    if not (email and pb_record_id):
+        return
+    try:
+        await db.users.update_one(
+            {"email": email.strip().lower(),
+             "$or": [{"pb_client_record_id": {"$exists": False}},
+                     {"pb_client_record_id": None},
+                     {"pb_client_record_id": ""}]},
+            {"$set": {"pb_client_record_id": pb_record_id}})
+    except Exception as e:
+        logger.warning(f"[{correlation_id}] user pb_client_record_id stamp failed: {e}")
+
+
 async def _manual_pb_mirror(booking_id: str, patient: dict, patient_timezone: str, slot_start_iso: str,
                             meet_link: Optional[str], shared_pb_id: str, pb_service_id: str,
                             pb_service: "PracticeBetterService", notes: Optional[str], correlation_id: str,
@@ -1000,6 +1022,7 @@ async def _manual_pb_mirror(booking_id: str, patient: dict, patient_timezone: st
                       "pb_status": pb_status, "updated_at": _now_iso()}})
     except Exception as e:
         logger.warning(f"[{correlation_id}] Manual PB status write failed: {e}")
+    await _stamp_user_pb_record_id(patient.get("email"), pb_record_id, correlation_id)
     if pb_session_id:
         row = await db.bookings.find_one(
             {"booking_id": booking_id},
