@@ -134,6 +134,7 @@ const AdminAnalytics = () => {
     { label: 'Day-1 ready', value: `${analytics?.total_users ? Math.round((analytics?.day1_ready || 0) / analytics.total_users * 100) : 0}%`, sub: `${analytics?.day1_ready || 0} of ${analytics?.total_users || 0}` },
     { label: 'Activation rate', value: `${analytics?.completion_stats?.completion_rate || 0}%`, sub: `${analytics?.completion_stats?.completed || 0} completed`, accent: 'text-emerald-600' },
     { label: 'Refund rate', value: `${analytics?.completion_stats?.refund_rate || 0}%`, sub: `${analytics?.completion_stats?.refunded || 0} refunded`, accent: 'text-rose-600' },
+    { label: 'No-show rate', value: `${analytics?.booking_stats?.no_show_rate || 0}%`, sub: `${analytics?.booking_stats?.no_shows || 0} of ${analytics?.booking_stats?.past_sessions || 0} sessions`, accent: 'text-orange-600' },
     { label: 'Avg time to activate', value: analytics?.step_transition_times?.total_journey?.avg_formatted || '—', sub: 'booking → activation' },
   ];
 
@@ -209,7 +210,7 @@ const AdminAnalytics = () => {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
         {kpis.map((k) => (
           <div key={k.label} className="rounded-xl border bg-card p-5 shadow-sm">
             <p className={EYEBROW}>{k.label}</p>

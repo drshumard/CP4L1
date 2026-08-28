@@ -4,7 +4,7 @@ import { Search, RefreshCw, Video, MoreHorizontalIcon, ChevronLeft, ChevronRight
 import { adminApi } from '../api';
 import { fmtDateTime } from '../format';
 import CadSelect from '../CadSelect';
-import { RescheduleModal, cancelBooking } from '../bookingActions';
+import { RescheduleModal, cancelBooking, markNoShow } from '../bookingActions';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -40,6 +40,7 @@ const statusColor = (s) => {
   const v = String(s || '').toLowerCase();
   if (['confirmed', 'synced', 'complete', 'completed', 'success', 'active', 'sent'].includes(v)) return 'text-emerald-700';
   if (['pending', 'skipped', 'cancel_pending', 'processing', 'queued'].includes(v)) return 'text-amber-700';
+  if (v === 'no_show') return 'text-orange-700';
   if (['cancelled', 'canceled', 'failed', 'error'].includes(v)) return 'text-red-700';
   return 'text-muted-foreground';
 };
@@ -146,7 +147,7 @@ export default function Bookings() {
           <CadSelect value={view.director_id} onChange={(v) => setViewAndSave({ director_id: v })} style={{ width: 170 }} ariaLabel="Filter by host"
             options={[{ value: '', label: 'All hosts' }, ...hosts]} />
           <CadSelect value={view.status} onChange={(v) => setViewAndSave({ status: v })} style={{ width: 150 }} ariaLabel="Filter by status"
-            options={[{ value: '', label: 'All statuses' }, { value: 'confirmed', label: 'Confirmed' }, { value: 'cancelled', label: 'Cancelled' }]} />
+            options={[{ value: '', label: 'All statuses' }, { value: 'confirmed', label: 'Confirmed' }, { value: 'no_show', label: 'No-show' }, { value: 'cancelled', label: 'Cancelled' }]} />
           <CadSelect value={view.pb_status} onChange={(v) => setViewAndSave({ pb_status: v })} style={{ width: 172 }} ariaLabel="Filter by PB sync"
             options={[{ value: '', label: 'Any PB sync' }, { value: 'synced', label: 'PB synced' }, { value: 'pending', label: 'PB pending' }, { value: 'cancel_pending', label: 'PB cancel pending' }]} />
           {filtered && (
@@ -189,7 +190,7 @@ export default function Bookings() {
                   </TableCell>
                   <TableCell className={`${CELL} text-foreground`}>{b.director_name || b.director_id || '—'}</TableCell>
                   <TableCell className={`${CELL} text-center`}>
-                    <span className={`font-semibold capitalize ${statusColor(b.status)}`}>{b.status || '—'}</span>
+                    <span className={`font-semibold capitalize ${statusColor(b.status)}`}>{titleize(b.status)}</span>
                   </TableCell>
                   <TableCell className={`${CELL} text-center`}>
                     <span className={`font-semibold capitalize ${statusColor(b.pb_status)}`}>{titleize(b.pb_status)}</span>
@@ -216,8 +217,23 @@ export default function Bookings() {
                           {b.meet_link && (
                             <DropdownMenuItem onClick={() => { try { navigator.clipboard?.writeText(b.meet_link); toast.success('Meet link copied'); } catch { /* noop */ } }}>Copy meet link</DropdownMenuItem>
                           )}
+                          {new Date(b.slot_start_utc) <= new Date() && (
+                            <DropdownMenuItem onClick={() => markNoShow(b, { onDone: load })}>Mark as no-show</DropdownMenuItem>
+                          )}
                           <DropdownMenuItem className="text-destructive focus:text-destructive"
                             onClick={() => cancelBooking(b, { onDone: load })}>Cancel</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : b.status === 'no_show' ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8">
+                            <MoreHorizontalIcon />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => markNoShow(b, { undo: true, onDone: load })}>Undo no-show</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : <span className="text-muted-foreground">—</span>}

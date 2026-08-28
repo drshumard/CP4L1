@@ -3581,7 +3581,34 @@ async def get_analytics(
     
     # Get completion rate trends (daily completions over time)
     completion_trends = await get_completion_trends(start_date, end_date, user_query)
-    
+
+    # No-show tracking over the selected range, by SESSION date (not booking date).
+    # slot_start_utc is a naive-UTC BSON date, so the range bounds must be naive UTC too;
+    # only sessions that have already started count toward the denominator.
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    slot_range = {"$lte": now_naive}
+    if start_date:
+        try:
+            slot_range["$gte"] = pacific.localize(datetime.strptime(start_date, "%Y-%m-%d")) \
+                .astimezone(pytz.UTC).replace(tzinfo=None)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_naive = pacific.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)) \
+                .astimezone(pytz.UTC).replace(tzinfo=None)
+            slot_range["$lte"] = min(end_naive, now_naive)
+        except ValueError:
+            pass
+    past_sessions = await db.bookings.count_documents(
+        {"status": {"$in": ["confirmed", "no_show"]}, "slot_start_utc": slot_range})
+    no_shows = await db.bookings.count_documents({"status": "no_show", "slot_start_utc": slot_range})
+    booking_stats = {
+        "past_sessions": past_sessions,
+        "no_shows": no_shows,
+        "no_show_rate": round((no_shows / past_sessions) * 100, 1) if past_sessions else 0,
+    }
+
     return {
         "total_users": total_users,
         "day1_ready": day1_ready_count,
@@ -3591,6 +3618,7 @@ async def get_analytics(
         "funnel_data": funnel_data,
         "signup_trends": signup_trends,
         "completion_stats": completion_stats,
+        "booking_stats": booking_stats,
         "realtime_stats": realtime_stats,
         "hourly_activity": hourly_activity,
         "completion_trends": completion_trends,
@@ -6278,6 +6306,49 @@ async def admin_cancel_booking(booking_id: str, payload: Optional[AdminCancelPay
                        details={"booking_id": booking_id, "patient_notified": notify}, status="success")
     await log_admin_action("ADMIN_BOOKING_CANCELLED", admin_user=admin_user,
                            details={"booking_id": booking_id, "patient_notified": notify},
+                           target_email=(b.get("patient") or {}).get("email"),
+                           target_user_id=b.get("user_id"))
+    return {"success": True}
+
+
+class AdminNoShowPayload(BaseModel):
+    no_show: bool = True
+
+
+@api_router.post("/admin/bookings/{booking_id}/no-show")
+async def admin_mark_no_show(booking_id: str, payload: Optional[AdminNoShowPayload] = None,
+                             admin_user: dict = Depends(get_admin_user)):
+    """Mark a past confirmed booking as a no-show, or undo it (no_show=false). Ledger-only:
+    the session already happened, so the Google event and PB session are left untouched and
+    no patient email is sent. Reminder/mirror sweeps only look at status='confirmed', so a
+    no_show row is inert to them."""
+    b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    mark = payload.no_show if payload is not None else True
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if mark:
+        if b.get("status") != "confirmed":
+            raise HTTPException(status_code=400, detail="Only a confirmed booking can be marked as a no-show")
+        start = b.get("slot_start_utc")
+        if isinstance(start, datetime):
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if start > datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="That session hasn't started yet — cancel it instead")
+        await db.bookings.update_one(
+            {"booking_id": booking_id, "status": "confirmed"},
+            {"$set": {"status": "no_show", "no_show_at": now_iso,
+                      "no_show_by": admin_user.get("email"), "updated_at": now_iso}})
+    else:
+        if b.get("status") != "no_show":
+            raise HTTPException(status_code=400, detail="This booking isn't marked as a no-show")
+        await db.bookings.update_one(
+            {"booking_id": booking_id, "status": "no_show"},
+            {"$set": {"status": "confirmed", "updated_at": now_iso},
+             "$unset": {"no_show_at": "", "no_show_by": ""}})
+    await log_admin_action("ADMIN_BOOKING_NO_SHOW" if mark else "ADMIN_BOOKING_NO_SHOW_CLEARED",
+                           admin_user=admin_user, details={"booking_id": booking_id},
                            target_email=(b.get("patient") or {}).get("email"),
                            target_user_id=b.get("user_id"))
     return {"success": True}
