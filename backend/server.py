@@ -6385,6 +6385,50 @@ async def admin_mark_no_show(booking_id: str, payload: Optional[AdminNoShowPaylo
     return {"success": True}
 
 
+@api_router.post("/admin/bookings/{booking_id}/resend-email")
+async def admin_resend_booking_email(booking_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Re-send the booking confirmation email for an upcoming confirmed booking — the same
+    template as the original send (time in the patient's zone, Meet link, activation section
+    for portal-visible sessions). An explicit re-send: the original exactly-once claim
+    (confirmation_email_sent_at) is left untouched."""
+    import booking as booking_module
+    from services import booking_email
+    b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if b.get("status") != "confirmed":
+        raise HTTPException(status_code=400, detail="Only a confirmed booking's email can be re-sent")
+    if b.get("engine") == "pb":
+        raise HTTPException(status_code=400, detail="Practice Better owns emails for legacy (PB-engine) bookings")
+    email = (b.get("patient") or {}).get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="This booking has no patient email")
+    start = b.get("slot_start_utc")
+    if isinstance(start, datetime):
+        aware = start if start.tzinfo else start.replace(tzinfo=timezone.utc)
+        if aware <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="That session is already in the past")
+    settings = await booking_module._load_app_settings()
+    session = booking_module._session_by_id(settings, b.get("session_id") or "") or {}
+    try:
+        await booking_email.send_booking_confirmation(
+            to_email=email,
+            first_name=(b.get("patient") or {}).get("first_name") or "there",
+            session_title=b.get("session_title") or "Session",
+            session_start_iso=booking_module._iso(b.get("slot_start_utc")),
+            patient_timezone=b.get("patient_timezone"),
+            meet_link=b.get("meet_link"),
+            pb_record_id=b.get("pb_client_record_id"),
+            include_activation=bool(session.get("portal_visible")),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Email send failed: {e}")
+    await log_admin_action("ADMIN_BOOKING_EMAIL_RESENT", admin_user=admin_user,
+                           details={"booking_id": booking_id}, target_email=email,
+                           target_user_id=b.get("user_id"))
+    return {"success": True}
+
+
 @api_router.post("/admin/bookings/{booking_id}/reschedule")
 async def admin_reschedule_booking(booking_id: str, payload: AdminReschedulePayload,
                                    admin_user: dict = Depends(get_admin_user)):

@@ -4,7 +4,7 @@ import { Search, RefreshCw, Video, MoreHorizontalIcon, ChevronLeft, ChevronRight
 import { adminApi } from '../api';
 import { fmtDateTime } from '../format';
 import CadSelect from '../CadSelect';
-import { RescheduleModal, cancelBooking, markNoShow } from '../bookingActions';
+import { RescheduleModal, cancelBooking, markNoShow, resendBookingEmail } from '../bookingActions';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -216,6 +216,9 @@ export default function Bookings() {
                           <DropdownMenuItem onClick={() => setRescheduleFor(b)}>Reschedule</DropdownMenuItem>
                           {b.meet_link && (
                             <DropdownMenuItem onClick={() => { try { navigator.clipboard?.writeText(b.meet_link); toast.success('Meet link copied'); } catch { /* noop */ } }}>Copy meet link</DropdownMenuItem>
+                          )}
+                          {new Date(b.slot_start_utc) > new Date() && (
+                            <DropdownMenuItem onClick={() => resendBookingEmail(b, { onDone: load })}>Resend confirmation email</DropdownMenuItem>
                           )}
                           {new Date(b.slot_start_utc) <= new Date() && (
                             <DropdownMenuItem onClick={() => markNoShow(b, { onDone: load })}>Mark as no-show</DropdownMenuItem>
