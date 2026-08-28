@@ -5,7 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { BarChart3, RefreshCw, Calendar, ChevronDown, Users, TrendingUp, Clock } from 'lucide-react';
+import { BarChart3, RefreshCw, Calendar, ChevronDown, Users, TrendingUp, Clock, UserX } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
@@ -284,6 +284,24 @@ const AdminAnalytics = () => {
           </div>
         </section>
       </div>
+
+      {/* No-shows by event type */}
+      {(analytics?.booking_stats?.by_session?.length || 0) > 0 && (
+        <section className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><UserX className="size-4 text-muted-foreground" /> No-shows by event</h3>
+          <div className="mt-4 space-y-1">
+            {analytics.booking_stats.by_session.map((s, i) => (
+              <div key={s.session_id} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
+                <span className="min-w-0 truncate pr-4 text-sm text-foreground">{s.title}</span>
+                <div className="flex flex-shrink-0 items-center gap-3">
+                  <span className="text-xs tabular-nums text-muted-foreground">{s.no_shows} of {s.past_sessions}</span>
+                  <span className={`w-14 text-right text-sm font-semibold tabular-nums ${s.no_shows > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>{s.no_show_rate}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Today */}
       <section>

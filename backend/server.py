@@ -3600,13 +3600,44 @@ async def get_analytics(
             slot_range["$lte"] = min(end_naive, now_naive)
         except ValueError:
             pass
-    past_sessions = await db.bookings.count_documents(
-        {"status": {"$in": ["confirmed", "no_show"]}, "slot_start_utc": slot_range})
-    no_shows = await db.bookings.count_documents({"status": "no_show", "slot_start_utc": slot_range})
+    # Grouped by EVENT TYPE (session_id) — a strategy-session no-show and a lab-findings
+    # no-show are different signals, so the rate is reported per session type as well as
+    # overall. Display titles come from the configured sessions, cleaned of the
+    # personalization token and the "(Online/Video Chat)" suffix.
+    groups = await db.bookings.aggregate([
+        {"$match": {"status": {"$in": ["confirmed", "no_show"]}, "slot_start_utc": slot_range}},
+        {"$group": {"_id": {"$ifNull": ["$session_id", "unknown"]},
+                    "past_sessions": {"$sum": 1},
+                    "no_shows": {"$sum": {"$cond": [{"$eq": ["$status", "no_show"]}, 1, 0]}}}},
+        {"$sort": {"past_sessions": -1}},
+    ]).to_list(100)
+
+    def _clean_session_title(t: str) -> str:
+        t = re.sub(r"\s+with\s+\{\{user\}\}", "", t or "")
+        t = re.sub(r"\s*\(Online/Video Chat\)\s*$", "", t)
+        return re.sub(r"\s{2,}", " ", t).strip()
+
+    settings_doc = await db.settings.find_one({}, {"_id": 0, "sessions": 1}) or {}
+    session_titles = {s.get("id"): _clean_session_title(s.get("title"))
+                      for s in settings_doc.get("sessions", [])}
+    by_session = []
+    total_past = total_no_shows = 0
+    for g in groups:
+        p, n = g["past_sessions"], g["no_shows"]
+        total_past += p
+        total_no_shows += n
+        by_session.append({
+            "session_id": g["_id"],
+            "title": session_titles.get(g["_id"]) or str(g["_id"]),
+            "past_sessions": p,
+            "no_shows": n,
+            "no_show_rate": round((n / p) * 100, 1) if p else 0,
+        })
     booking_stats = {
-        "past_sessions": past_sessions,
-        "no_shows": no_shows,
-        "no_show_rate": round((no_shows / past_sessions) * 100, 1) if past_sessions else 0,
+        "past_sessions": total_past,
+        "no_shows": total_no_shows,
+        "no_show_rate": round((total_no_shows / total_past) * 100, 1) if total_past else 0,
+        "by_session": by_session,
     }
 
     return {
