@@ -15,21 +15,19 @@ let loggedOut = false;
 // Supplementor's expiry path, and the global 401 interceptor all come through
 // here so the Learn cookie dies with the portal session. (Same-origin /learn in
 // prod; dev's cross-port call is CORS-blocked and harmlessly ignored.)
-//
-// clearClerk distinguishes an EXPLICIT "Log out" (also end the Clerk session, so
-// a shared clinic machine can't one-click back in) from AUTOMATIC expiry (leave
-// Clerk alone so the staff-login "Continue as…" recovery still works).
-export function endSession(redirect, { clearClerk = false } = {}) {
+// Note: this does NOT end the viewer's Google account session — that's theirs to
+// manage; the staff sign-in requires an explicit click, so there's no auto re-login.
+export function endSession(redirect) {
   loggedOut = true;
   const learnBase = process.env.REACT_APP_LEARN_URL || '/learn';
   try {
-    fetch(`${learnBase}/api/auth/signout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+    // keepalive: the request must survive the navigation below, or the Learn cookie outlives the portal logout.
+    fetch(`${learnBase}/api/auth/signout`, { method: 'POST', credentials: 'include', keepalive: true }).catch(() => {});
   } catch { /* ignore */ }
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   localStorage.removeItem('user_data');
-  const dest = clearClerk ? redirect + (redirect.includes('?') ? '&' : '?') + 'signout=clerk' : redirect;
-  window.location.replace(dest);
+  window.location.replace(redirect);
 }
 
 let refreshing = null;

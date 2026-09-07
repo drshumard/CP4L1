@@ -17,16 +17,17 @@ from jose import jwt, JWTError
 
 _secret: str = ""
 _users = None  # portal `users` collection (Motor)
+_caps_for = None  # portal capabilities_for(user) resolver, injected at init
 
-# Portal role -> supplementor role. Portal admins get the module's admin powers;
-# everyone else on the team roster besides HCs has no supplements access at all.
+# Legacy fallback if the capability resolver isn't wired: portal role -> module role.
 _ROLE_MAP = {"hc": "hc", "admin": "admin", "super_admin": "admin"}
 
 
-def init(secret_key: str, users_collection) -> None:
-    global _secret, _users
+def init(secret_key: str, users_collection, caps_resolver=None) -> None:
+    global _secret, _users, _caps_for
     _secret = secret_key
     _users = users_collection
+    _caps_for = caps_resolver
 
 
 async def get_current_user(authorization: str = Header(None)):
@@ -48,12 +49,20 @@ async def get_current_user(authorization: str = Header(None)):
     )
     if not u or u.get("active") is False:
         return None
-    role = _ROLE_MAP.get(u.get("role"))
-    if role is None:
-        # Valid session, real active user, but a role with no supplements access
-        # (patient / pcc / doa). This is FORBIDDEN, not unauthenticated — a 401
-        # here would send the client into a pointless refresh/logout loop.
-        raise HTTPException(status_code=403, detail="Your role does not have access to Supplements")
+    # Access derives from the portal capability matrix: "supplements" = coach-level,
+    # "supplements.manage" = catalog/template admin. Fall back to the legacy role map
+    # only if the resolver wasn't injected.
+    if _caps_for is not None:
+        caps = _caps_for(u)
+        if "supplements" not in caps and "supplements.manage" not in caps:
+            # Valid session, real active user, but no supplements access. FORBIDDEN,
+            # not 401 — a 401 would send the client into a pointless refresh/logout loop.
+            raise HTTPException(status_code=403, detail="Your role does not have access to Supplements")
+        role = "admin" if "supplements.manage" in caps else "hc"
+    else:
+        role = _ROLE_MAP.get(u.get("role"))
+        if role is None:
+            raise HTTPException(status_code=403, detail="Your role does not have access to Supplements")
     return {"sub": u["id"], "email": u.get("email", ""), "name": u.get("name", ""), "role": role}
 
 

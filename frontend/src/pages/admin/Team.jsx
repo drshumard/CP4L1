@@ -4,6 +4,7 @@ import { Plus, MoreHorizontalIcon } from 'lucide-react';
 import { adminApi } from './api';
 import { confirmDialog } from './confirm';
 import CadSelect from './CadSelect';
+import RolesAccess from './RolesAccess';
 import { ROLE_LABELS, ASSIGNABLE_ROLES } from '@/lib/staffApps';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -30,6 +31,7 @@ export default function Team() {
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
+  const [tab, setTab] = useState('members'); // 'members' | 'roles'
 
   // Add / edit drawer
   const [open, setOpen] = useState(false);
@@ -52,8 +54,8 @@ export default function Team() {
     load();
   }, [load]);
 
-  const openNew = () => { setForm({ id: null, name: '', email: '', role: 'pcc' }); setOpen(true); };
-  const openEdit = (m) => { setForm({ id: m.id, name: m.name || '', email: m.email, role: m.role }); setOpen(true); };
+  const openNew = () => { setForm({ id: null, name: '', email: '', role: 'pcc', password: '' }); setOpen(true); };
+  const openEdit = (m) => { setForm({ id: m.id, name: m.name || '', email: m.email, role: m.role, password: '' }); setOpen(true); };
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const save = async () => {
@@ -62,11 +64,11 @@ export default function Team() {
     setSaving(true);
     try {
       if (form.id) {
-        await adminApi.put(`/admin/team/${form.id}`, { name: form.name.trim(), role: form.role });
+        await adminApi.put(`/admin/team/${form.id}`, { name: form.name.trim(), role: form.role, ...(form.password ? { password: form.password } : {}) });
         toast.success('Member updated');
       } else {
-        await adminApi.post('/admin/team', { name: form.name.trim(), email: form.email.trim(), role: form.role });
-        toast.success(`${form.name.trim()} added — they can sign in at the portal with their email (a code is sent on login)`);
+        await adminApi.post('/admin/team', { name: form.name.trim(), email: form.email.trim(), role: form.role, ...(form.password ? { password: form.password } : {}) });
+        toast.success(`${form.name.trim()} added — they can sign in with Google${form.password ? ' or the password you set' : ''}`);
       }
       setOpen(false); load();
     } catch (e) {
@@ -100,9 +102,19 @@ export default function Team() {
   return (
     // Rendered inside the staff workspace shell (which provides the page padding).
     <div className="space-y-4">
+      <div className="flex gap-1 border-b">
+        {[['members', 'Members'], ['roles', 'Roles & access']].map(([k, label]) => (
+          <button key={k} type="button" onClick={() => setTab(k)}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'roles' ? <RolesAccess /> : (<>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">
-          Team members sign in with their email (they get a one-time code) and land in the workspace their role allows.
+          Team members sign in with Google or their email and password, and land in the workspace their role allows.
         </p>
         <Button size="sm" onClick={openNew}><Plus className="size-4" /> Add member</Button>
       </div>
@@ -164,6 +176,7 @@ export default function Team() {
           </TableBody>
         </Table>
       </div>
+      </>)}
 
       {/* Add / edit drawer */}
       <Drawer open={open} onOpenChange={(o) => { if (!saving) setOpen(o); }}>
@@ -174,7 +187,7 @@ export default function Team() {
               <DrawerDescription>
                 {form?.id
                   ? 'Change their name or role. Role changes apply on their next page load.'
-                  : 'Creates their portal account. They sign in with this email — a one-time code is emailed on each login.'}
+                  : 'Creates their portal account. They sign in with Google (or an email + password an admin sets).'}
               </DrawerDescription>
             </DrawerHeader>
             {form && (
@@ -198,6 +211,14 @@ export default function Team() {
                       : ROLE_OPTIONS} />
                   <p className="text-xs text-muted-foreground">
                     Staff roles land in the staff workspace; Admin gets the full admin area.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tm-password">{form.id ? 'Reset password (optional)' : 'Temporary password (optional)'}</Label>
+                  <Input id="tm-password" type="password" value={form.password} autoComplete="new-password"
+                    onChange={(e) => setF('password', e.target.value)} placeholder={form.id ? 'Leave blank to keep the current one' : 'At least 8 characters'} />
+                  <p className="text-xs text-muted-foreground">
+                    Google sign-in always works. Set this to enable the email + password alternative.
                   </p>
                 </div>
               </div>

@@ -65,8 +65,8 @@ export default function AppShell({ children }) {
 
   const displayName = profile?.name || user?.name || 'Team member';
   const initials = (displayName.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
-  // Explicit logout: kills Portal tokens + Learn cookie + Clerk session, hard-redirects.
-  const logout = () => endSession(loginPath(), { clearClerk: true });
+  // Explicit logout: clears Portal tokens + Learn cookie, hard-redirects to sign-in.
+  const logout = () => endSession(loginPath());
 
   const role = user?.role;
   const primary = navItems.filter(n => n.roles.includes(role));

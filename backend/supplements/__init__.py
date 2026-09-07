@@ -13,8 +13,9 @@ from . import routes as _routes
 from .routes import router, ensure_indexes_and_seed  # noqa: F401
 
 
-def init(*, secret_key: str, users_collection, database) -> None:
-    """Inject the portal's JWT secret + users collection (auth) and the dedicated
-    `supplements` database (data). Must run before the router serves a request."""
-    _auth.init(secret_key, users_collection)
+def init(*, secret_key: str, users_collection, database, caps_resolver=None) -> None:
+    """Inject the portal's JWT secret + users collection (auth), the dedicated
+    `supplements` database (data), and the portal capability resolver (RBAC).
+    Must run before the router serves a request."""
+    _auth.init(secret_key, users_collection, caps_resolver)
     _routes.db = database

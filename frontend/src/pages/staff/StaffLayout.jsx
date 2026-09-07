@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { adminApi } from '../admin/api';
-import { appsForRole, TEAM_ROLES, ROLE_LABELS, loginPath } from '@/lib/staffApps';
+import { appsForCapabilities, TEAM_ROLES, ROLE_LABELS, loginPath } from '@/lib/staffApps';
 import { endSession } from '@/lib/session';
 import '../admin/admin.css';
 
@@ -70,7 +70,7 @@ export default function StaffLayout() {
   if (!TEAM_ROLES.includes(profile.role)) return <Navigate to="/" replace />;
 
   const role = profile.role;
-  const apps = appsForRole(role);
+  const apps = appsForCapabilities(profile.capabilities);
 
   // Supplements brings its OWN rail + top bar (ported app) — render it full-bleed with no
   // staff sidebar/navbar. It still gets the outlet context (profile/role) for auth.
@@ -85,8 +85,8 @@ export default function StaffLayout() {
   const name = profile.name || 'Team member';
   const initials = (name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
 
-  // Explicit logout: kills Portal tokens + Learn cookie + Clerk session, hard-redirects.
-  const logout = () => endSession(loginPath(), { clearClerk: true });
+  // Explicit logout: clears Portal tokens + Learn cookie, hard-redirects to sign-in.
+  const logout = () => endSession(loginPath());
 
   // One menu, two triggers: the sidebar-footer chip and the navbar avatar share it.
   const userMenuContent = (side, align) => (

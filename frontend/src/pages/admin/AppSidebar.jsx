@@ -31,9 +31,9 @@ const SCHEDULING_SUB = [
 ];
 
 const NAV = [
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/admin/logs', label: 'Activity log', icon: Activity },
-  { to: '/admin/automations', label: 'Automations', icon: Zap },
+  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3, cap: 'analytics.view' },
+  { to: '/admin/logs', label: 'Activity log', icon: Activity, cap: 'analytics.view' },
+  { to: '/admin/automations', label: 'Automations', icon: Zap, cap: 'automations.manage' },
 ];
 
 export default function AppSidebar() {
@@ -51,6 +51,10 @@ export default function AppSidebar() {
     return () => window.removeEventListener('profile-updated', load);
   }, []);
 
+  // Sections follow the RBAC matrix (profile.capabilities); the API enforces the same.
+  const caps = profile?.capabilities || [];
+  const can = (c) => caps.includes(c);
+
   let storedEmail = '';
   try { storedEmail = JSON.parse(localStorage.getItem('user_data') || '{}')?.email || ''; } catch { /* ignore */ }
   const name = profile?.name || 'Admin';
@@ -58,9 +62,9 @@ export default function AppSidebar() {
   const avatarUrl = profile?.avatar_url || '';
   const initials = ((profile?.name || '').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || (email || 'A').charAt(0)).toUpperCase();
 
-  // Explicit logout: kills Portal tokens + Learn cookie + Clerk session, hard-redirects
-  // to the staff sign-in (admins are team members — never the patient /login).
-  const logout = () => endSession(loginPath(), { clearClerk: true });
+  // Explicit logout: clears Portal tokens + Learn cookie, hard-redirects to the staff
+  // sign-in (admins are team members — never the patient /login).
+  const logout = () => endSession(loginPath());
 
   const isActive = (to) => pathname === to || pathname.startsWith(`${to}/`);
 
@@ -76,13 +80,13 @@ export default function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            <SidebarMenuItem>
+            {can('patients.view') && (<SidebarMenuItem>
               <SidebarMenuButton asChild isActive={pathname === '/admin'} tooltip="Users">
                 <Link to="/admin"><Users /><span>Users</span></Link>
               </SidebarMenuButton>
-            </SidebarMenuItem>
+            </SidebarMenuItem>)}
 
-            {collapsed ? (
+            {can('scheduling.view') && (collapsed ? (
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={schedulingActive} tooltip="Scheduling">
                   <Link to="/admin/scheduling/bookings"><CalendarClock /><span>Scheduling</span></Link>
@@ -111,9 +115,9 @@ export default function AppSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
-            )}
+            ))}
 
-            {NAV.map((n) => (
+            {NAV.filter((n) => can(n.cap)).map((n) => (
               <SidebarMenuItem key={n.to}>
                 <SidebarMenuButton asChild isActive={isActive(n.to)} tooltip={n.label}>
                   <Link to={n.to}><n.icon /><span>{n.label}</span></Link>

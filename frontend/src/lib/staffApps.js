@@ -26,8 +26,7 @@ export const STAFF_APPS = [
     label: 'Portal',
     path: '/admin',
     icon: ShieldCheck,
-    // Bookings/admin portal: coordinators and directors work in it; HCs do not.
-    roles: ['pcc', 'doa', ...ADMIN_ROLES],
+    capability: 'portal',
     blurb: 'The admin portal — patients, scheduling, analytics, team.',
   },
   {
@@ -35,7 +34,7 @@ export const STAFF_APPS = [
     label: 'Learn',
     path: '/staff/learn',
     icon: GraduationCap,
-    roles: TEAM_ROLES,
+    capability: 'learn',
     blurb: 'Training, SOPs, and onboarding material for the whole team.',
   },
   {
@@ -43,7 +42,7 @@ export const STAFF_APPS = [
     label: 'Supplements',
     path: '/staff/supplements',
     icon: Pill,
-    roles: ['hc', ...ADMIN_ROLES],
+    capability: 'supplements',
     blurb: 'The supplement protocol manager for health coaches.',
   },
   {
@@ -51,19 +50,21 @@ export const STAFF_APPS = [
     label: 'Team',
     path: '/staff/team',
     icon: UserCog,
-    roles: ADMIN_ROLES,
+    capability: 'team',
     blurb: 'Create team members and assign their roles.',
   },
 ];
 
-export const appsForRole = (role) => STAFF_APPS.filter((a) => a.roles.includes(role));
+// Access is driven by the RBAC matrix (Team → Roles & access), delivered as
+// profile.capabilities from /user/me — never by the role name.
+export const appsForCapabilities = (caps) => STAFF_APPS.filter((a) => (caps || []).includes(a.capability));
 
 /** Where a signed-in user belongs after login: the whole team (staff AND admins) lands in
  *  the workspace — admins reach the admin portal via its "Portal" tab. Patients → null. */
 export const homeForRole = (role) => (TEAM_ROLES.includes(role) ? '/staff' : null);
 
 /** On staff.drshumard.com — or anywhere inside the staff/admin areas on any host —
- *  the sign-in surface is the Clerk staff login, not the patient email-code page.
+ *  the sign-in surface is the staff login (Google / email+password), not the patient page.
  *  Both issue the same portal session. */
 export const isStaffHost = () =>
   typeof window !== 'undefined' && window.location.hostname.startsWith('staff.');

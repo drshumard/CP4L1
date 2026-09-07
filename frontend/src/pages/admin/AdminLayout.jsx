@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { adminApi } from './api';
-import { appsForRole, homeForRole } from '@/lib/staffApps';
+import { homeForRole } from '@/lib/staffApps';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { ConfirmRoot } from './confirm';
@@ -23,10 +23,11 @@ export default function AdminLayout() {
   // Staff (and patients) never see the admin shell — the API would 403 them anyway,
   // but bouncing to their own home avoids a shell full of failed requests.
   const [role, setRole] = useState(undefined); // undefined = still checking, null = load failed
+  const [caps, setCaps] = useState([]);
   useEffect(() => {
     const load = () => {
       setRole(undefined);
-      adminApi.get('/user/me').then((r) => setRole(r.data?.role || 'user')).catch(() => setRole(null));
+      adminApi.get('/user/me').then((r) => { setRole(r.data?.role || 'user'); setCaps(r.data?.capabilities || []); }).catch(() => setRole(null));
     };
     load();
     window.addEventListener('admin-role-retry', load);
@@ -49,8 +50,8 @@ export default function AdminLayout() {
       </div>
     );
   }
-  // Portal access is registry-driven: whoever's role includes the 'portal' app may enter.
-  if (!appsForRole(role).some((a) => a.key === 'portal')) {
+  // Portal access comes from the RBAC matrix: the 'portal' capability.
+  if (!caps.includes('portal')) {
     return <Navigate to={homeForRole(role) || '/'} replace />;
   }
   return (

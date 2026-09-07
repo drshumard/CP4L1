@@ -763,6 +763,8 @@ async def update_plan(plan_id: str, data: PlanUpdate, user=Depends(require_auth)
     existing = await db.plans.find_one({"_id": ObjectId(plan_id)})
     if not existing:
         raise HTTPException(status_code=404, detail="Plan not found")
+    if existing.get("status") == "finalized":
+        raise HTTPException(status_code=403, detail="This plan is finalized. Reopen it before editing.")
     
     updates = {}
     if data.patient_name is not None:
@@ -776,6 +778,8 @@ async def update_plan(plan_id: str, data: PlanUpdate, user=Depends(require_auth)
     if data.step_number is not None:
         updates["step_number"] = data.step_number
     if data.status is not None:
+        if data.status == "finalized":
+            raise HTTPException(status_code=400, detail="Use the finalize action to finalize a plan")
         updates["status"] = data.status
     if data.months is not None:
         months_data = [m.model_dump() for m in data.months]
@@ -787,11 +791,13 @@ async def update_plan(plan_id: str, data: PlanUpdate, user=Depends(require_auth)
         updates["total_program_cost"] = plan_data["total_program_cost"]
     
     updates["updated_at"] = datetime.utcnow()
-    
-    await db.plans.update_one(
-        {"_id": ObjectId(plan_id)},
+
+    result = await db.plans.update_one(
+        {"_id": ObjectId(plan_id), "status": {"$ne": "finalized"}},  # atomic guard
         {"$set": updates}
     )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=409, detail="This plan was finalized meanwhile. Reopen it before editing.")
     doc = await db.plans.find_one({"_id": ObjectId(plan_id)})
     return serialize_doc(doc)
 
@@ -981,9 +987,11 @@ async def save_plan_to_cloud(plan_id: str, authorization: str = Header(None)):
     try:
         from .dropbox_integration import upload_pdf
         
-        patient_pdf = bytes(generate_patient_pdf(plan))
+        # PDF rendering and the sync Dropbox SDK both block; run them in a thread so a
+        # slow upload can't stall every other portal request on the single worker.
+        patient_pdf = bytes(await asyncio.to_thread(generate_patient_pdf, plan))
         patient_filename = f"Patient - {patient_name} - {program} {step}.pdf"
-        patient_result = upload_pdf(practitioner_name, patient_name, patient_filename, patient_pdf)
+        patient_result = await asyncio.to_thread(upload_pdf, practitioner_name, patient_name, patient_filename, patient_pdf)
         
         return {
             "success": True,
@@ -1024,9 +1032,9 @@ async def save_all_plans_to_cloud(patient_id: str, user=Depends(require_auth)):
             program = plan.get("program_name", "Protocol")
             step = plan.get("step_label", "")
             
-            patient_pdf = bytes(generate_patient_pdf(plan))
+            patient_pdf = bytes(await asyncio.to_thread(generate_patient_pdf, plan))
             patient_filename = f"Patient - {patient_name} - {program} {step}.pdf"
-            uploaded.append(upload_pdf(practitioner_name, patient_name, patient_filename, patient_pdf))
+            uploaded.append(await asyncio.to_thread(upload_pdf, practitioner_name, patient_name, patient_filename, patient_pdf))
         
         return {
             "success": True,

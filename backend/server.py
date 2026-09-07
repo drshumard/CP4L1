@@ -271,6 +271,8 @@ class UserResponse(BaseModel):
     # Step 3's "Activate Practice Better Portal" button derives the per-patient activation
     # deep-link from this — without it the button silently falls back to the generic portal.
     pb_client_record_id: Optional[str] = None
+    # Effective RBAC capabilities — drives which apps/sections the staff UI shows.
+    capabilities: Optional[List[str]] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -554,6 +556,112 @@ async def get_super_admin_user(current_user: dict = Depends(get_current_user)):
             detail="Super admin access required"
         )
     return current_user
+
+
+# Actor/target hierarchy for identity mutations (password, role, active, promote,
+# delete): an actor may only modify a target they STRICTLY outrank. Peers can't
+# touch peers, and nobody can touch the super admin — closes the "ordinary admin
+# resets the super-admin's password and signs in as them" escalation.
+_ROLE_RANK = {"super_admin": 3, "admin": 2, "pcc": 1, "doa": 1, "hc": 1, "staff": 1}
+
+
+def _outranks(actor: dict, target: dict) -> bool:
+    return _ROLE_RANK.get((actor or {}).get("role"), 0) > _ROLE_RANK.get((target or {}).get("role"), 0)
+
+
+# ============================================================================
+# Capability-based access control (admin-editable via the Team → Roles tab)
+# ----------------------------------------------------------------------------
+# Every gated endpoint checks a CAPABILITY, not a hardcoded role. A role's
+# capabilities live in db.role_permissions (editable); when a role has no stored
+# doc it falls back to DEFAULT_ROLE_CAPABILITIES, which is seeded to EXACTLY the
+# pre-RBAC behavior so rollout changes nothing. super_admin implicitly holds all.
+# ============================================================================
+CAPABILITIES = [
+    # app entry (which workspace apps a role may open)
+    "portal", "supplements", "learn", "team",
+    # admin portal sections
+    "patients.view", "patients.manage",
+    "scheduling.view", "scheduling.manage",
+    "analytics.view", "automations.manage", "settings.manage",
+    "team.manage", "accounts.destroy",
+    # sub-app powers
+    "supplements.manage", "learn.instruct",
+]
+
+# Capabilities an admin (not super_admin) may NOT grant/edit — anti-escalation.
+SUPER_ADMIN_ONLY_CAPS = {"accounts.destroy"}
+# Roles whose capability set only a super_admin may edit.
+SUPER_ADMIN_ONLY_ROLES = {"admin"}
+# Roles the editor can configure at all (super_admin is implicit-all; patients aren't team).
+EDITABLE_ROLES = ["admin", "pcc", "doa", "hc"]
+ROLE_DISPLAY = {
+    "super_admin": "Super Admin", "admin": "Admin",
+    "pcc": "Care Coordinator", "doa": "Director of Admissions",
+    "hc": "Health Coach", "staff": "Staff",
+}
+
+# Seeded to match the pre-RBAC gates exactly (see the get_admin_user audit):
+#   pcc/doa entered the portal and hit everything under get_admin_user EXCEPT the
+#   team_manager-gated team/destroy ops; hc lived in Supplements + Learn only.
+_PORTAL_STAFF_CAPS = [
+    "portal", "patients.view", "patients.manage",
+    "scheduling.view", "scheduling.manage",
+    "analytics.view", "automations.manage", "settings.manage", "learn",
+]
+DEFAULT_ROLE_CAPABILITIES = {
+    "admin": list(CAPABILITIES),               # admins had everything
+    "pcc": list(_PORTAL_STAFF_CAPS),
+    "doa": list(_PORTAL_STAFF_CAPS),
+    "hc": ["supplements", "learn"],
+    "staff": ["learn"],                        # legacy umbrella role: minimal
+}
+
+_role_caps_overrides = None  # {role: set(caps)} loaded from db.role_permissions; None = not loaded
+
+
+async def load_role_caps_cache():
+    """Refresh the in-process cache of stored per-role capability overrides."""
+    global _role_caps_overrides
+    try:
+        docs = await db.role_permissions.find({}, {"_id": 0}).to_list(50)
+        _role_caps_overrides = {d["role"]: set(d.get("capabilities", []) or []) for d in docs}
+    except Exception as e:
+        logging.warning(f"role_permissions cache load failed: {e}")
+        _role_caps_overrides = _role_caps_overrides or {}
+
+
+def capabilities_for(user: dict) -> set:
+    """The effective capability set for a user. super_admin = all; else the role's
+    stored override, else its seeded default."""
+    role = (user or {}).get("role")
+    if role == "super_admin":
+        return set(CAPABILITIES)
+    overrides = _role_caps_overrides or {}
+    if role in overrides:
+        return set(overrides[role])
+    return set(DEFAULT_ROLE_CAPABILITIES.get(role, []))
+
+
+def stored_or_default_caps(role: str) -> list:
+    """What the Roles tab should show for a role (stored override or seeded default)."""
+    if role == "super_admin":
+        return list(CAPABILITIES)
+    overrides = _role_caps_overrides or {}
+    if role in overrides:
+        return sorted(overrides[role])
+    return list(DEFAULT_ROLE_CAPABILITIES.get(role, []))
+
+
+def require_capability(*needed: str):
+    """Dependency: allow the request only if the user holds ANY of `needed`.
+    Builds on get_current_user (which already enforces active)."""
+    async def _dep(current_user: dict = Depends(get_current_user)):
+        if capabilities_for(current_user).isdisjoint(needed):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="You don't have access to this")
+        return current_user
+    return _dep
 
 # Routes
 @api_router.post("/webhook/ghl")
@@ -2492,137 +2600,112 @@ def _user_response(u: dict) -> UserResponse:
         phone=u.get("phone"), current_step=u["current_step"],
         role=u.get("role", "user"), avatar_url=u.get("avatar_url"),
         pb_client_record_id=u.get("pb_client_record_id"),
+        capabilities=sorted(capabilities_for(u)) if u.get("role") in TEAM_ROLES else None,
     )
 
 
-# ---------------------------------------------------------------- Clerk staff SSO
-# Second front door for TEAM MEMBERS ONLY (staff.drshumard.com): they sign in with the
-# existing fm.drshumard.com Clerk instance (same credentials as the old supplementor app)
-# and exchange the Clerk session for a normal portal JWT. Clerk only proves the email —
-# the Team page (users collection) remains the sole authority on who is staff and their
-# role. Never creates users, never elevates patients; fails closed.
+# ---------------------------------------------------------------- Staff sign-in
+# Front door for TEAM MEMBERS ONLY (staff.drshumard.com): sign in with Google (primary)
+# or email + password (alternative). Either way we only learn the email — the Team page
+# (users collection) stays the sole authority on who is staff and their role. Never
+# creates users, never elevates patients; fails closed. One portal JWT then governs the
+# admin portal, Supplements, and Learn (via SSO handoff).
 
-CLERK_SECRET_KEY = os.environ.get("CLERK_SECRET_KEY", "")
-CLERK_PUBLISHABLE_KEY = os.environ.get("CLERK_PUBLISHABLE_KEY", "")
-
-_clerk_jwks_client = None
+GOOGLE_OAUTH_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "")
 
 
-def _get_clerk_jwks_client():
-    """PyJWT JWKS client for the Clerk instance, derived from the publishable key
-    (pk_live_<base64 domain>) exactly like the standalone supplementor did."""
-    global _clerk_jwks_client
-    if _clerk_jwks_client is not None:
-        return _clerk_jwks_client
-    parts = CLERK_PUBLISHABLE_KEY.split("_")
-    if len(parts) < 3:
+def _verify_google_id_token(token: str) -> Optional[str]:
+    """Verify a Google Identity Services ID token; return the verified email
+    (lowercased) or None. verify_oauth2_token checks signature, expiry, issuer, and
+    audience (== our client id); we additionally require a verified email. Blocking."""
+    if not GOOGLE_OAUTH_CLIENT_ID:
         return None
     try:
-        import base64 as _b64
-        raw = parts[-1]
-        raw += "=" * (4 - len(raw) % 4) if len(raw) % 4 else ""
-        domain = _b64.b64decode(raw).decode().rstrip("$")
-        from jwt import PyJWKClient
-        _clerk_jwks_client = PyJWKClient(f"https://{domain}/.well-known/jwks.json")
-        return _clerk_jwks_client
-    except Exception as e:
-        logging.warning(f"Clerk JWKS setup failed: {e}")
-        return None
-
-
-class ClerkVerifierUnavailable(Exception):
-    """JWKS/verifier infrastructure failure — retryable, NOT an invalid token."""
-
-
-def _verify_clerk_token_sync(token: str):
-    """Verify a Clerk JWT signature via JWKS; returns the payload, or None for an
-    invalid token. Raises ClerkVerifierUnavailable when the verifier itself can't
-    run (JWKS unreachable / not configured) so callers answer 503 rather than 401 —
-    a transient outage must not get staff signed out of Clerk. Blocking."""
-    client = _get_clerk_jwks_client()
-    if client is None:
-        raise ClerkVerifierUnavailable("Clerk JWKS client not configured")
-    import jwt as _pyjwt
-    from jwt.exceptions import PyJWKClientConnectionError
-    try:
-        signing_key = client.get_signing_key_from_jwt(token)
-    except PyJWKClientConnectionError as e:
-        raise ClerkVerifierUnavailable(str(e))
-    except Exception:
-        return None  # malformed token / unknown key id
-    try:
-        return _pyjwt.decode(token, signing_key.key, algorithms=["RS256"],
-                             options={"verify_aud": False})
+        from google.oauth2 import id_token as google_id_token
+        from google.auth.transport import requests as google_requests
+        info = google_id_token.verify_oauth2_token(
+            token, google_requests.Request(), GOOGLE_OAUTH_CLIENT_ID
+        )
     except Exception:
         return None
+    if not info.get("email") or info.get("email_verified") is not True:
+        return None
+    return info["email"].lower()
 
 
-class ClerkExchangeRequest(BaseModel):
-    token: str
-
-
-@api_router.post("/auth/clerk-exchange")
-async def clerk_exchange(payload: ClerkExchangeRequest, request: Request):
-    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
-    if ip_address and "," in ip_address:
-        ip_address = ip_address.split(",")[0].strip()
-    if not await check_ip_rate_limit(ip_address, scope="clerk_exchange", limit=30, window_minutes=15):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail="Too many attempts. Please try again shortly.")
-
-    try:
-        claims = await asyncio.to_thread(_verify_clerk_token_sync, payload.token)
-    except ClerkVerifierUnavailable as e:
-        logging.warning(f"Clerk verifier unavailable: {e}")
-        raise HTTPException(status_code=503,
-                            detail="Staff sign-in is temporarily unavailable — please try again.")
-    if not claims or not claims.get("sub"):
-        raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
-    clerk_id = claims["sub"]
-
-    resolved_email = None
-    user = await db.users.find_one({"clerk_user_id": clerk_id}, {"_id": 0})
-    if not user:
-        # First Clerk sign-in: resolve the VERIFIED primary email server-side from Clerk's
-        # Backend API (never trust a client-supplied email), then link by exact match.
-        if not CLERK_SECRET_KEY:
-            raise HTTPException(status_code=503, detail="Staff sign-in not configured")
-        try:
-            import httpx
-            async with httpx.AsyncClient(timeout=10) as hc:
-                resp = await hc.get(f"https://api.clerk.com/v1/users/{clerk_id}",
-                                    headers={"Authorization": f"Bearer {CLERK_SECRET_KEY}"})
-            resp.raise_for_status()
-            cu = resp.json()
-            primary_id = cu.get("primary_email_address_id")
-            email = next((e.get("email_address") for e in cu.get("email_addresses", [])
-                          if e.get("id") == primary_id), None)
-        except Exception:
-            raise HTTPException(status_code=502, detail="Could not verify your account. Try again.")
-        if not email:
-            raise HTTPException(status_code=401, detail="Invalid staff sign-in session")
-        resolved_email = email.lower()
-        user = await db.users.find_one({"email": resolved_email}, {"_id": 0})
-        if user and user.get("role") in TEAM_ROLES:
-            await db.users.update_one({"id": user["id"]}, {"$set": {"clerk_user_id": clerk_id}})
-
+async def _active_team_member_by_email(email: str):
+    """A user who is an ACTIVE team member, else None."""
+    user = await db.users.find_one({"email": email}, {"_id": 0})
     if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
-        logging.warning(f"Clerk staff login rejected: clerk_id={clerk_id} resolved_email={resolved_email} "
-                        f"matched_user={(user or {}).get('email')} role={(user or {}).get('role')}")
-        await log_activity(event_type="CLERK_STAFF_LOGIN_REJECTED",
-                           user_email=(user or {}).get("email"), ip_address=ip_address,
-                           details={"clerk_user_id": clerk_id, "resolved_email": resolved_email},
-                           status="failure")
-        raise HTTPException(status_code=403,
-                            detail="This sign-in is for the team. Ask an admin to add you on the Team page.")
+        return None
+    return user
 
+
+def _staff_session_response(user: dict) -> dict:
     access_token = create_access_token(data={"sub": user["id"]},
                                        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     refresh_token = create_refresh_token(data={"sub": user["id"]})
-    await log_activity(event_type="CLERK_STAFF_LOGIN", user_email=user.get("email"),
-                       user_id=user["id"], ip_address=ip_address, status="success")
     return {"access_token": access_token, "refresh_token": refresh_token,
             "token_type": "bearer", "user": _user_response(user)}
+
+
+class GoogleExchangeRequest(BaseModel):
+    credential: str  # the Google ID token from the "Sign in with Google" button
+
+
+@api_router.post("/auth/google-exchange")
+async def google_exchange(payload: GoogleExchangeRequest, request: Request):
+    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+    if not await check_ip_rate_limit(ip_address, scope="google_exchange", limit=30, window_minutes=15):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts. Please try again shortly.")
+    if not GOOGLE_OAUTH_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="Staff sign-in is not configured.")
+    email = await asyncio.to_thread(_verify_google_id_token, payload.credential)
+    if not email:
+        raise HTTPException(status_code=401, detail="Invalid Google sign-in.")
+    user = await _active_team_member_by_email(email)
+    if not user:
+        await log_activity(event_type="STAFF_LOGIN_REJECTED", user_email=email, ip_address=ip_address,
+                           details={"method": "google"}, status="failure")
+        raise HTTPException(status_code=403,
+                            detail="This sign-in is for the team. Ask an admin to add you on the Team page.")
+    await log_activity(event_type="STAFF_LOGIN", user_email=user.get("email"), user_id=user["id"],
+                       ip_address=ip_address, details={"method": "google"}, status="success")
+    return _staff_session_response(user)
+
+
+@api_router.post("/auth/staff-login")
+async def staff_login(payload: LoginRequest, request: Request):
+    """Email + password sign-in for TEAM MEMBERS ONLY — the alternative to Google.
+    Independent of LEGACY_PASSWORD_LOGIN (that flag governs the patient legacy path).
+    Passwords are set/reset by an admin on the Team page."""
+    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else None)
+    if ip_address and "," in ip_address:
+        ip_address = ip_address.split(",")[0].strip()
+    if not await check_ip_rate_limit(ip_address, scope="staff_login", limit=20, window_minutes=15):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts. Please try again shortly.")
+    email = payload.email.lower()
+    # Per-account budget on top of the per-IP one: distributed attempts can't
+    # brute-force a single privileged staff account.
+    if not await check_rate_limit(f"staff_login:{email}", limit=10, window_minutes=15):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many attempts. Please try again shortly.")
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+    # One generic message for every credential failure — no account enumeration.
+    if (not user or not user.get("password_hash")
+            or not verify_password(payload.password, user["password_hash"])
+            or user.get("role") not in TEAM_ROLES):
+        await log_activity(event_type="STAFF_LOGIN_FAILED", user_email=email, ip_address=ip_address,
+                           details={"method": "password"}, status="failure")
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    ensure_account_active(user)  # deactivated team member -> 403
+    await log_activity(event_type="STAFF_LOGIN", user_email=user.get("email"), user_id=user["id"],
+                       ip_address=ip_address, details={"method": "password"}, status="success")
+    return _staff_session_response(user)
 
 
 # Staff role registry — the portal is the source of truth for team taxonomy. Learn's
@@ -2705,7 +2788,7 @@ async def push_learn_member_status(user_doc, active: bool):
 
 @api_router.post("/auth/learn-token")
 async def learn_sso_token(current_user: dict = Depends(get_current_user)):
-    if current_user.get("role") not in TEAM_ROLES:
+    if "learn" not in capabilities_for(current_user):
         raise HTTPException(status_code=403, detail="Learn is for the team")
     token = await create_auto_login_token(current_user["id"], current_user["email"],
                                           purpose="learn_sso", ttl_minutes=2)
@@ -2739,6 +2822,8 @@ async def learn_sso_redeem(payload: LearnRedeemRequest):
                                     "avatar_url": 1})
     if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
         raise HTTPException(status_code=403, detail="Not a team member")
+    if "learn" not in capabilities_for(user):  # re-check at redeem: access may have been revoked since mint
+        raise HTTPException(status_code=403, detail="Learn access has been removed for your role")
     await log_activity(event_type="LEARN_SSO_REDEEMED", user_email=user["email"],
                        user_id=user["id"], status="success")
     # Ship the full active roster with every redeem so Learn can provision the
@@ -2749,8 +2834,14 @@ async def learn_sso_redeem(payload: LearnRedeemRequest):
         {"role": {"$in": list(TEAM_ROLES)}, "active": {"$ne": False}},
         {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1, "avatar_url": 1},
     ).to_list(500)
+    # Only roles that currently hold the `learn` capability are provisioned — a member
+    # whose role loses Learn drops out of the roster, and Learn's sync deactivates them.
+    # `instruct` carries the learn.instruct entitlement so Learn can assign instructor.
+    team = [dict(m, instruct=("learn.instruct" in capabilities_for(m)))
+            for m in team if "learn" in capabilities_for(m)]
     return {"id": user["id"], "email": user["email"], "name": user.get("name", ""),
             "role": user["role"], "avatar_url": user.get("avatar_url"),
+            "instruct": "learn.instruct" in capabilities_for(user),
             "team": team, "team_ts": datetime.now(timezone.utc).isoformat()}
 
 
@@ -3219,7 +3310,7 @@ async def submit_intake_form(request: IntakeFormSubmitRequest, req: Request, cur
 # Admin Routes
 @api_router.get("/admin/users")
 async def get_all_users(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("patients.view")),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=10, le=200, description="Users per page"),
     search: str = Query("", description="Search by name, email, or phone")
@@ -3400,13 +3491,13 @@ async def lookup_user_by_email(
 
 # Automation CRUD Endpoints
 @api_router.get("/admin/automations")
-async def get_automations(admin_user: dict = Depends(get_admin_user)):
+async def get_automations(admin_user: dict = Depends(require_capability("automations.manage"))):
     """Get all automations"""
     automations = await db.automations.find({}, {"_id": 0}).to_list(100)
     return {"automations": automations}
 
 @api_router.post("/admin/automations")
-async def create_automation(automation: AutomationCreate, admin_user: dict = Depends(get_admin_user)):
+async def create_automation(automation: AutomationCreate, admin_user: dict = Depends(require_capability("automations.manage"))):
     """Create a new automation with multiple actions"""
     
     # Validate trigger
@@ -3453,7 +3544,7 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
     return {"message": "Automation created", "automation": {k: v for k, v in automation_data.items() if k != "_id"}}
 
 @api_router.get("/admin/automations/{automation_id}")
-async def get_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
+async def get_automation(automation_id: str, admin_user: dict = Depends(require_capability("automations.manage"))):
     """Get a specific automation"""
     automation = await db.automations.find_one({"id": automation_id}, {"_id": 0})
     if not automation:
@@ -3461,7 +3552,7 @@ async def get_automation(automation_id: str, admin_user: dict = Depends(get_admi
     return {"automation": automation}
 
 @api_router.put("/admin/automations/{automation_id}")
-async def update_automation(automation_id: str, automation: AutomationUpdate, admin_user: dict = Depends(get_admin_user)):
+async def update_automation(automation_id: str, automation: AutomationUpdate, admin_user: dict = Depends(require_capability("automations.manage"))):
     """Update an automation"""
     
     existing = await db.automations.find_one({"id": automation_id})
@@ -3505,7 +3596,7 @@ async def update_automation(automation_id: str, automation: AutomationUpdate, ad
     return {"message": "Automation updated", "automation": updated}
 
 @api_router.delete("/admin/automations/{automation_id}")
-async def delete_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
+async def delete_automation(automation_id: str, admin_user: dict = Depends(require_capability("automations.manage"))):
     """Delete an automation"""
     
     existing = await db.automations.find_one({"id": automation_id})
@@ -3526,7 +3617,7 @@ async def delete_automation(automation_id: str, admin_user: dict = Depends(get_a
 
 @api_router.get("/admin/automation-logs")
 async def get_automation_logs(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("automations.manage")),
     automation_id: str = None,
     limit: int = 50
 ):
@@ -3539,7 +3630,7 @@ async def get_automation_logs(
     return {"logs": logs}
 
 @api_router.post("/admin/automation-logs/{log_id}/retry")
-async def retry_automation_log(log_id: str, admin_user: dict = Depends(get_admin_user)):
+async def retry_automation_log(log_id: str, admin_user: dict = Depends(require_capability("automations.manage"))):
     """Retry a failed automation log - resends the same data to the same URL"""
     import httpx
     
@@ -3634,7 +3725,7 @@ async def retry_automation_log(log_id: str, admin_user: dict = Depends(get_admin
         }
 
 @api_router.post("/admin/automations/{automation_id}/test")
-async def test_automation(automation_id: str, admin_user: dict = Depends(get_admin_user)):
+async def test_automation(automation_id: str, admin_user: dict = Depends(require_capability("automations.manage"))):
     """Test an automation with sample data - tests all actions"""
     
     automation = await db.automations.find_one({"id": automation_id}, {"_id": 0})
@@ -3784,7 +3875,7 @@ async def test_automation(automation_id: str, admin_user: dict = Depends(get_adm
 
 @api_router.get("/admin/analytics")
 async def get_analytics(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("analytics.view")),
     start_date: str = None,
     end_date: str = None
 ):
@@ -3884,7 +3975,7 @@ async def get_analytics(
 
 @api_router.get("/admin/analytics/debug")
 async def debug_analytics_filter(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("analytics.view")),
     start_date: str = None,
     end_date: str = None,
     show_all: bool = False
@@ -4387,7 +4478,7 @@ class PromoteUserRequest(BaseModel):
 async def promote_user(
     user_id: str,
     request: PromoteUserRequest,
-    admin_user: dict = Depends(get_team_manager)  # role changes: admin/super_admin only, never pcc/doa
+    admin_user: dict = Depends(require_capability("accounts.destroy"))  # role changes: admin/super_admin only, never pcc/doa
 ):
     """Promote or demote a user to/from staff role. Only admins can do this."""
     if request.role not in ["staff", "user"]:
@@ -4398,9 +4489,10 @@ async def promote_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Can't change admin roles
-    if user.get("role") == "admin":
-        raise HTTPException(status_code=403, detail="Cannot change admin roles")
+    # Hierarchy: you may only change the role of someone you strictly outrank
+    # (blocks admin->admin, and anyone->super_admin).
+    if not _outranks(admin_user, user):
+        raise HTTPException(status_code=403, detail="You can't change the role of a member at or above your level")
     
     # Update the role
     await db.users.update_one(
@@ -4433,7 +4525,7 @@ async def promote_user(
 
 @api_router.get("/admin/activity-logs")
 async def get_activity_logs(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("analytics.view")),
     page: int = 1,
     per_page: int = 50,
     event_type: str = None,
@@ -4531,7 +4623,7 @@ async def normalize_log_timestamps(secret_key: str):
     }
 
 @api_router.post("/admin/user/{user_id}/reset")
-async def reset_user_progress(user_id: str, admin_user: dict = Depends(get_admin_user)):
+async def reset_user_progress(user_id: str, admin_user: dict = Depends(require_capability("patients.manage"))):
     # Get user info to preserve auto-filled data
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
@@ -4590,7 +4682,7 @@ class SetStepRequest(BaseModel):
     step: int
 
 @api_router.post("/admin/user/{user_id}/set-step")
-async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict = Depends(get_admin_user)):
+async def set_user_step(user_id: str, request: SetStepRequest, admin_user: dict = Depends(require_capability("patients.manage"))):
     """Set a user's current step to a specific value (0=refunded, 1-4 normal steps)"""
     # Validate step is within range (0 = refunded, 1-4 = normal steps)
     if request.step < 0 or request.step > 4:
@@ -4655,7 +4747,7 @@ class UpdateBookingRequest(BaseModel):
     notes: Optional[str] = None
 
 @api_router.post("/admin/user/{user_id}/update-booking")
-async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin_user: dict = Depends(get_admin_user)):
+async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin_user: dict = Depends(require_capability("patients.manage"))):
     """Update or set a user's booking time - for when users call to reschedule"""
     
     # Check if user exists
@@ -4754,7 +4846,7 @@ async def update_user_booking(user_id: str, request: UpdateBookingRequest, admin
     }
 
 @api_router.delete("/admin/user/{user_id}/booking")
-async def delete_user_booking(user_id: str, admin_user: dict = Depends(get_admin_user)):
+async def delete_user_booking(user_id: str, admin_user: dict = Depends(require_capability("patients.manage"))):
     """Remove a user's booking info"""
     
     # Check if user exists
@@ -4878,7 +4970,7 @@ async def migrate_emails_to_lowercase(secret_key: str):
     }
 
 @api_router.delete("/admin/user/{user_id}")
-async def delete_user(user_id: str, admin_user: dict = Depends(get_team_manager)):
+async def delete_user(user_id: str, admin_user: dict = Depends(require_capability("accounts.destroy"))):
     """
     Hard-delete a user — admin/super_admin only (never pcc/doa). Irreversible;
     see note to reserve for a super-admin-only workflow if desired.
@@ -4891,6 +4983,10 @@ async def delete_user(user_id: str, admin_user: dict = Depends(get_team_manager)
             detail="User not found"
         )
     
+    # Hierarchy: you may only delete someone you strictly outrank.
+    if not _outranks(admin_user, user):
+        raise HTTPException(status_code=403, detail="You can't delete a member at or above your level")
+
     # Prevent admin from deleting themselves
     if user.get("id") == admin_user.get("id"):
         raise HTTPException(
@@ -4928,7 +5024,7 @@ class UpdateUserRequest(BaseModel):
     last_name: Optional[str] = None
 
 @api_router.post("/admin/user/{user_id}/resend-welcome")
-async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admin_user)):
+async def resend_welcome_email(user_id: str, admin_user: dict = Depends(require_capability("patients.manage"))):
     """Resend welcome email to user - Admin only (uses Resend API)"""
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -5046,7 +5142,7 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(get_admi
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
 
 @api_router.put("/admin/user/{user_id}")
-async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict = Depends(get_admin_user)):
+async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict = Depends(require_capability("patients.manage"))):
     """Update user information - Admin only"""
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
@@ -5408,7 +5504,7 @@ def _parse_utc_iso(value):
 
 
 @api_router.get("/admin/settings")
-async def get_settings(admin_user: dict = Depends(get_admin_user)):
+async def get_settings(admin_user: dict = Depends(require_capability("settings.manage"))):
     """Get all admin-configurable settings."""
     doc = await db.settings.find_one({"_id": "app_settings"}, {"_id": 0})
     merged = {**SETTINGS_DEFAULTS, **(doc or {})}
@@ -5416,7 +5512,7 @@ async def get_settings(admin_user: dict = Depends(get_admin_user)):
     return merged
 
 @api_router.put("/admin/settings")
-async def update_settings(request: Request, admin_user: dict = Depends(get_admin_user)):
+async def update_settings(request: Request, admin_user: dict = Depends(require_capability("settings.manage"))):
     """Update admin-configurable settings."""
     body = await request.json()
     updates = _validate_settings_updates(body)
@@ -5616,14 +5712,14 @@ def _validate_date_overrides(overrides: list) -> list:
 
 
 @api_router.get("/admin/directors")
-async def list_directors(admin_user: dict = Depends(get_admin_user)):
+async def list_directors(admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """List all directors (active and inactive)."""
     directors = [d async for d in db.directors.find({}, {"_id": 0}).sort("name", 1)]
     return {"directors": directors}
 
 
 @api_router.post("/admin/directors")
-async def create_director(payload: DirectorCreate, admin_user: dict = Depends(get_admin_user)):
+async def create_director(payload: DirectorCreate, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     now = datetime.now(timezone.utc).isoformat()
     doc = {
         "director_id": str(uuid.uuid4()),
@@ -5657,7 +5753,7 @@ def _validate_host_color(v: str) -> str:
 
 
 @api_router.put("/admin/directors/{director_id}")
-async def update_director(director_id: str, payload: DirectorUpdate, admin_user: dict = Depends(get_admin_user)):
+async def update_director(director_id: str, payload: DirectorUpdate, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     existing = await db.directors.find_one({"director_id": director_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Director not found")
@@ -5760,13 +5856,13 @@ def _valid_date(s: str) -> str:
 
 
 @api_router.get("/admin/pccs")
-async def list_pccs(admin_user: dict = Depends(get_admin_user)):
+async def list_pccs(admin_user: dict = Depends(require_capability("scheduling.manage"))):
     pccs = [p async for p in db.pccs.find({}, {"_id": 0}).sort("name", 1)]
     return {"pccs": pccs}
 
 
 @api_router.post("/admin/pccs")
-async def create_pcc(payload: PccCreate, admin_user: dict = Depends(get_admin_user)):
+async def create_pcc(payload: PccCreate, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     now = datetime.now(timezone.utc).isoformat()
     doc = {"pcc_id": str(uuid.uuid4()), "name": payload.name.strip(), "email": payload.email.lower(),
            "google_calendar_id": (payload.google_calendar_id or "").strip(),
@@ -5780,7 +5876,7 @@ async def create_pcc(payload: PccCreate, admin_user: dict = Depends(get_admin_us
 
 
 @api_router.put("/admin/pccs/{pcc_id}")
-async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends(get_admin_user)):
+async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     if not await db.pccs.find_one({"pcc_id": pcc_id}, {"_id": 0}):
         raise HTTPException(status_code=404, detail="Coordinator not found")
     updates: dict = {}
@@ -5810,7 +5906,7 @@ async def update_pcc(pcc_id: str, payload: PccUpdate, admin_user: dict = Depends
 
 
 @api_router.delete("/admin/pccs/{pcc_id}")
-async def deactivate_pcc(pcc_id: str, admin_user: dict = Depends(get_admin_user)):
+async def deactivate_pcc(pcc_id: str, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     res = await db.pccs.update_one({"pcc_id": pcc_id},
                                    {"$set": {"active": False, "updated_at": datetime.now(timezone.utc).isoformat()}})
     if res.matched_count == 0:
@@ -5822,7 +5918,7 @@ async def deactivate_pcc(pcc_id: str, admin_user: dict = Depends(get_admin_user)
 
 @api_router.get("/admin/pcc-assignments")
 async def list_pcc_assignments(start: str, end: Optional[str] = None,
-                               admin_user: dict = Depends(get_admin_user)):
+                               admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Rota across a date range (director-local days). Returns the active directors plus an
     (every date × every director) grid with the coordinator assigned to each cell (or null).
     ``end`` defaults to ``start`` (single day). Range capped at 93 days."""
@@ -5886,7 +5982,7 @@ async def _set_assignment_doc(date_str: str, director_id: str, pcc):
 
 
 @api_router.put("/admin/pcc-assignments")
-async def upsert_pcc_assignment(payload: PccAssignmentUpsert, admin_user: dict = Depends(get_admin_user)):
+async def upsert_pcc_assignment(payload: PccAssignmentUpsert, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Assign (or clear, pcc_id=None) the coordinator for a director on a day, and immediately
     add/remove them on that day's confirmed bookings (attendee-only handoff)."""
     import booking as booking_module
@@ -5936,7 +6032,7 @@ async def _bulk_apply_cells(cells: list):
 
 
 @api_router.post("/admin/pcc-assignments/bulk")
-async def bulk_pcc_assign(payload: PccBulkAssign, admin_user: dict = Depends(get_admin_user)):
+async def bulk_pcc_assign(payload: PccBulkAssign, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Fill the rota across a range (day/week/month from start_date) in one action.
     mode='single' assigns one coordinator to every director; mode='round_robin' distributes all
     active coordinators across directors, rotating day to day. Assignments are saved synchronously;
@@ -5994,7 +6090,7 @@ async def bulk_pcc_assign(payload: PccBulkAssign, admin_user: dict = Depends(get
 
 @api_router.get("/admin/pb-clients")
 async def search_pb_clients(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("scheduling.view")),
     search: str = Query("", max_length=200),
     limit: int = Query(20, ge=1, le=50),
 ):
@@ -6093,7 +6189,7 @@ async def admin_calendar_events(
     end: str,
     hosts: Optional[str] = None,
     refresh: int = 0,
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("scheduling.view")),
 ):
     """Every active host's real Google events over [start, end) merged with our confirmed
     bookings. Bookings win the dedup (richer: patient/session/Meet link). Events the owner
@@ -6295,7 +6391,7 @@ _BOOKING_SORTS = {
 
 @api_router.get("/admin/bookings")
 async def list_bookings(
-    admin_user: dict = Depends(get_admin_user),
+    admin_user: dict = Depends(require_capability("scheduling.view")),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     status: Optional[str] = None,
@@ -6365,13 +6461,13 @@ _BOOKINGS_VIEW_STR_KEYS = ("status", "pb_status", "director_id")
 
 
 @api_router.get("/admin/prefs")
-async def get_admin_prefs(admin_user: dict = Depends(get_admin_user)):
+async def get_admin_prefs(admin_user: dict = Depends(require_capability("portal"))):
     doc = await db.admin_prefs.find_one({"_id": admin_user["id"]}, {"_id": 0})
     return doc or {}
 
 
 @api_router.put("/admin/prefs")
-async def update_admin_prefs(request: Request, admin_user: dict = Depends(get_admin_user)):
+async def update_admin_prefs(request: Request, admin_user: dict = Depends(require_capability("portal"))):
     """Merge-save preference sections; unknown sections/keys are dropped, values whitelisted."""
     body = await request.json()
     if not isinstance(body, dict):
@@ -6405,19 +6501,21 @@ class TeamMemberCreate(BaseModel):
     name: str
     email: str
     role: str
+    password: Optional[str] = None  # optional temp password for the email+password alternative
 
 
 class TeamMemberUpdate(BaseModel):
     name: Optional[str] = None
     role: Optional[str] = None
     active: Optional[bool] = None
+    password: Optional[str] = None  # admin set/reset of the member's email+password login
 
 
 _TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active": 1, "created_at": 1}
 
 
 @api_router.get("/admin/team")
-async def list_team_members(admin_user: dict = Depends(get_team_manager)):
+async def list_team_members(admin_user: dict = Depends(require_capability("team.manage"))):
     rows = await db.users.find({"role": {"$in": sorted(TEAM_ROLES)}}, _TEAM_PROJECTION) \
         .sort("created_at", 1).to_list(200)
     return {"members": rows}
@@ -6425,7 +6523,7 @@ async def list_team_members(admin_user: dict = Depends(get_team_manager)):
 
 @api_router.post("/admin/team")
 async def create_team_member(payload: TeamMemberCreate, request: Request,
-                             admin_user: dict = Depends(get_team_manager)):
+                             admin_user: dict = Depends(require_capability("team.manage"))):
     role = (payload.role or "").strip()
     if role not in ASSIGNABLE_TEAM_ROLES:
         raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
@@ -6438,24 +6536,33 @@ async def create_team_member(payload: TeamMemberCreate, request: Request,
     if await db.users.find_one({"email": email_lower}, {"_id": 0, "id": 1}):
         raise HTTPException(status_code=409, detail="A user with that email already exists (patients can't be converted here)")
 
+    if payload.password is not None and len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
     user = User(email=email_lower, name=name)
     doc = user.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
-    doc.pop("password_hash", None)
+    # Optional temp password for the email+password alternative; else no password (Google only).
+    if payload.password:
+        doc["password_hash"] = get_password_hash(payload.password)
+    else:
+        doc.pop("password_hash", None)
     doc["role"] = role
     await db.users.insert_one(doc)
     await log_admin_action("ADMIN_TEAM_MEMBER_CREATED", admin_user=admin_user,
-                           details={"role": role}, target_email=email_lower,
-                           target_user_id=doc["id"], request=request)
+                           details={"role": role, "password_set": bool(payload.password)},
+                           target_email=email_lower, target_user_id=doc["id"], request=request)
     return {k: doc.get(k) for k in ("id", "name", "email", "role", "active", "created_at")}
 
 
 @api_router.put("/admin/team/{user_id}")
 async def update_team_member(user_id: str, payload: TeamMemberUpdate,
-                             admin_user: dict = Depends(get_team_manager)):
+                             admin_user: dict = Depends(require_capability("team.manage"))):
     target = await db.users.find_one({"id": user_id}, {"_id": 0, "id": 1, "role": 1, "email": 1})
     if not target or target.get("role") not in TEAM_ROLES:
         raise HTTPException(status_code=404, detail="Team member not found")
+    if target["id"] != admin_user["id"] and not _outranks(admin_user, target):
+        raise HTTPException(status_code=403, detail="You can't modify a member at or above your level")
 
     updates: dict = {}
     if payload.role is not None:
@@ -6475,12 +6582,19 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
         if target.get("role") == "super_admin" and payload.active is False:
             raise HTTPException(status_code=400, detail="A super admin can't be deactivated here")
         updates["active"] = bool(payload.active)
-    if not updates:
+    # Password set/reset is kept out of the logged `updates` (never log the hash).
+    set_ops = dict(updates)
+    if payload.password is not None:
+        if len(payload.password) < 8:
+            raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        set_ops["password_hash"] = get_password_hash(payload.password)
+    if not set_ops:
         raise HTTPException(status_code=400, detail="Nothing to update")
 
-    await db.users.update_one({"id": user_id}, {"$set": updates})
+    await db.users.update_one({"id": user_id}, {"$set": set_ops})
     await log_admin_action("ADMIN_TEAM_MEMBER_UPDATED", admin_user=admin_user,
-                           details={"changes": updates, "previous_role": target.get("role")},
+                           details={"changes": {**updates, **({"password": "reset"} if payload.password is not None else {})},
+                                    "previous_role": target.get("role")},
                            target_email=target.get("email"), target_user_id=user_id)
     if "active" in updates:
         # Learn access must follow the portal's active flag immediately.
@@ -6489,8 +6603,85 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
     return fresh
 
 
+# ---------------------------------------------------------------- Roles & access (RBAC)
+# The Team → Roles tab. Reads/writes db.role_permissions; super_admin is implicit-all.
+CAPABILITY_CATALOG = [
+    {"key": "portal", "label": "Admin portal", "group": "Apps"},
+    {"key": "supplements", "label": "Supplements", "group": "Apps"},
+    {"key": "learn", "label": "Learn", "group": "Apps"},
+    {"key": "team", "label": "Team", "group": "Apps"},
+    {"key": "patients.view", "label": "View patients", "group": "Admin portal"},
+    {"key": "patients.manage", "label": "Manage patients", "group": "Admin portal"},
+    {"key": "scheduling.view", "label": "View scheduling", "group": "Admin portal"},
+    {"key": "scheduling.manage", "label": "Manage scheduling", "group": "Admin portal"},
+    {"key": "analytics.view", "label": "View analytics & logs", "group": "Admin portal"},
+    {"key": "automations.manage", "label": "Manage automations", "group": "Admin portal"},
+    {"key": "settings.manage", "label": "Manage settings", "group": "Admin portal"},
+    {"key": "team.manage", "label": "Manage team & roles", "group": "Admin portal"},
+    {"key": "accounts.destroy", "label": "Promote / delete accounts", "group": "Admin portal"},
+    {"key": "supplements.manage", "label": "Supplements admin (catalog/templates)", "group": "Sub-apps"},
+    {"key": "learn.instruct", "label": "Learn instructor", "group": "Sub-apps"},
+]
+
+
+@api_router.get("/admin/role-permissions")
+async def get_role_permissions(admin_user: dict = Depends(require_capability("team.manage"))):
+    """The capability matrix for the Roles tab: the catalog, the editable roles with their
+    effective capabilities, and what THIS admin is allowed to change (guardrails)."""
+    is_super = admin_user.get("role") == "super_admin"
+    roles = [{"role": r, "label": ROLE_DISPLAY.get(r, r), "capabilities": stored_or_default_caps(r),
+              "editable": is_super or (r not in SUPER_ADMIN_ONLY_ROLES and r != admin_user.get("role"))}
+             for r in EDITABLE_ROLES]
+    return {
+        "catalog": CAPABILITY_CATALOG,
+        "roles": roles,
+        "editorIsSuperAdmin": is_super,
+        "superAdminOnlyCaps": sorted(SUPER_ADMIN_ONLY_CAPS),
+    }
+
+
+class RolePermissionUpdate(BaseModel):
+    capabilities: List[str]
+
+
+@api_router.put("/admin/role-permissions/{role}")
+async def set_role_permissions(role: str, payload: RolePermissionUpdate,
+                               admin_user: dict = Depends(require_capability("team.manage"))):
+    is_super = admin_user.get("role") == "super_admin"
+    if role not in EDITABLE_ROLES:
+        raise HTTPException(status_code=400, detail="That role can't be edited here")
+    # Anti-escalation guardrails for non-super-admins.
+    if not is_super:
+        if role in SUPER_ADMIN_ONLY_ROLES:
+            raise HTTPException(status_code=403, detail="Only a super admin can edit this role")
+        if role == admin_user.get("role"):
+            raise HTTPException(status_code=403, detail="You can't edit your own role's access")
+    new_caps = [c for c in dict.fromkeys(payload.capabilities)]  # de-dupe, keep order
+    unknown = [c for c in new_caps if c not in CAPABILITIES]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown capabilities: {', '.join(unknown)}")
+    if not is_super:
+        # An admin can't grant capabilities reserved to super admins (e.g. accounts.destroy)
+        # unless the role already had them.
+        current = set(stored_or_default_caps(role))
+        newly_granted = set(new_caps) - current
+        forbidden = newly_granted & SUPER_ADMIN_ONLY_CAPS
+        if forbidden:
+            raise HTTPException(status_code=403,
+                                detail=f"Only a super admin can grant: {', '.join(sorted(forbidden))}")
+    await db.role_permissions.update_one(
+        {"role": role},
+        {"$set": {"role": role, "capabilities": new_caps, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    await load_role_caps_cache()
+    await log_admin_action("ADMIN_ROLE_PERMISSIONS_UPDATED", admin_user=admin_user,
+                           details={"role": role, "capabilities": new_caps})
+    return {"role": role, "capabilities": stored_or_default_caps(role)}
+
+
 @api_router.post("/admin/bookings")
-async def admin_create_booking(request: Request, admin_user: dict = Depends(get_admin_user)):
+async def admin_create_booking(request: Request, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Manually book a patient into a session (e.g. Report of Lab Findings). Creates the ledger
     row, the chosen director's Google event + Meet link, and optionally emails the patient."""
     import booking as booking_module
@@ -6535,7 +6726,7 @@ class AdminCancelPayload(BaseModel):
 
 @api_router.post("/admin/bookings/{booking_id}/cancel")
 async def admin_cancel_booking(booking_id: str, payload: Optional[AdminCancelPayload] = None,
-                               admin_user: dict = Depends(get_admin_user)):
+                               admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Cancel a booking (PB delete + Google delete + ledger + optional patient email)."""
     import booking as booking_module
     b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
@@ -6558,7 +6749,7 @@ async def admin_cancel_booking(booking_id: str, payload: Optional[AdminCancelPay
 
 @api_router.post("/admin/bookings/{booking_id}/reschedule")
 async def admin_reschedule_booking(booking_id: str, payload: AdminReschedulePayload,
-                                   admin_user: dict = Depends(get_admin_user)):
+                                   admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Move a booking to a new time (ledger + Google event + PB session + patient email)."""
     import booking as booking_module
     b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
@@ -6584,7 +6775,7 @@ async def admin_reschedule_booking(booking_id: str, payload: AdminReschedulePayl
 
 
 @api_router.delete("/admin/directors/{director_id}")
-async def deactivate_director(director_id: str, admin_user: dict = Depends(get_admin_user)):
+async def deactivate_director(director_id: str, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Soft-delete: deactivate so historical bookings keep their director."""
     result = await db.directors.update_one(
         {"director_id": director_id},
@@ -6608,7 +6799,7 @@ app.include_router(booking_router)
 import supplements
 from bson.errors import InvalidId as _BsonInvalidId
 supplements.init(secret_key=SECRET_KEY, users_collection=db.users,
-                 database=client["supplements"])
+                 database=client["supplements"], caps_resolver=capabilities_for)
 app.include_router(supplements.router, prefix="/api/supplements")
 
 
@@ -6636,6 +6827,9 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     """Pre-populate availability cache on startup for instant loading"""
+    # Load the role→capability overrides so RBAC checks don't hit the DB per request.
+    await load_role_caps_cache()
+
     # Supplements module: indexes + first-boot seed (own database, isolated failures)
     try:
         await supplements.ensure_indexes_and_seed()

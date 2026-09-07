@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import { Navigate, Route, Routes, useOutletContext } from 'react-router-dom';
-import { ADMIN_ROLES } from '@/lib/staffApps';
 import { SuppAuthContext } from './auth';
 import AppShell from './components/AppShell';
 import DashboardPage from './pages/DashboardPage';
@@ -18,18 +17,19 @@ import './supplements.css';
 // map onto the app's two roles: hc stays hc; portal admins get the app's admin powers
 // (catalog/templates/suppliers management).
 export default function SupplementsApp() {
-  const { profile, role } = useOutletContext();
+  const { profile } = useOutletContext();
 
   const user = useMemo(() => {
-    if (!['hc', ...ADMIN_ROLES].includes(role)) return null;
+    const caps = profile?.capabilities || [];
+    if (!caps.includes('supplements') && !caps.includes('supplements.manage')) return null;
     return {
       // _id = portal user id: backend stamps it as created_by on new plans, and the
       // dashboard's "My plans" filter matches on it.
       _id: profile.id,
       name: profile.name || profile.email,
-      role: ADMIN_ROLES.includes(role) ? 'admin' : 'hc',
+      role: caps.includes('supplements.manage') ? 'admin' : 'hc',
     };
-  }, [profile, role]);
+  }, [profile]);
 
   if (!user) return <Navigate to="/staff" replace />;
   const isAdmin = user.role === 'admin';
