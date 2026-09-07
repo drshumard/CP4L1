@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Eye, Globe, Lock, MoreHorizontalIcon } from 'lucide-react';
 import { adminApi, authHeaders } from '../api';
 import { confirmDialog } from '../confirm';
+import { fmtDateTime } from '../format';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -273,7 +274,7 @@ export default function Events() {
               <div className="flex flex-wrap gap-1.5">
                 {(preview.slots || []).slice(0, 24).map((slot, i) => (
                   <span key={i} className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                    {new Date(slot.start_time).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    {fmtDateTime(slot.start_time)}
                   </span>
                 ))}
                 {(preview.slots || []).length > 24 && <span className="self-center text-xs text-muted-foreground">+{preview.slots.length - 24} more</span>}

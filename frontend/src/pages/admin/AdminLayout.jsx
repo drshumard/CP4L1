@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import { adminApi } from './api';
+import { ArrowLeft, Globe } from 'lucide-react';
+import { toast } from 'sonner';
 import { homeForRole } from '@/lib/staffApps';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger,
+} from '@/components/ui/select';
 import { ConfirmRoot } from './confirm';
 import AppSidebar from './AppSidebar';
+import { adminApi } from './api';
+import { getAdminDisplayTz, setAdminDisplayTz } from './format';
+import { US_TIMEZONES, safeTz, tzAbbrev } from './usTimezones';
 import './admin.css';
 
 function pageTitle(pathname) {
@@ -20,14 +26,25 @@ function pageTitle(pathname) {
 
 export default function AdminLayout() {
   const { pathname } = useLocation();
+  // Admin-wide display timezone: Pacific until the profile loads, then the team member's
+  // saved zone. It also feeds format.js's module default, so the page subtree is re-keyed
+  // on change — components that call fmt* without a tz re-render with the new zone.
+  const [displayTz, setDisplayTzState] = useState(getAdminDisplayTz());
   // Staff (and patients) never see the admin shell — the API would 403 them anyway,
   // but bouncing to their own home avoids a shell full of failed requests.
   const [role, setRole] = useState(undefined); // undefined = still checking, null = load failed
   const [caps, setCaps] = useState([]);
   useEffect(() => {
+    // One /user/me load feeds the access guard AND the display timezone.
     const load = () => {
       setRole(undefined);
-      adminApi.get('/user/me').then((r) => { setRole(r.data?.role || 'user'); setCaps(r.data?.capabilities || []); }).catch(() => setRole(null));
+      adminApi.get('/user/me').then((r) => {
+        setRole(r.data?.role || 'user');
+        setCaps(r.data?.capabilities || []);
+        const t = safeTz(r.data?.timezone);
+        setAdminDisplayTz(t);
+        setDisplayTzState(t);
+      }).catch(() => setRole(null));
     };
     load();
     window.addEventListener('admin-role-retry', load);
@@ -54,6 +71,20 @@ export default function AdminLayout() {
   if (!caps.includes('portal')) {
     return <Navigate to={homeForRole(role) || '/'} replace />;
   }
+
+  const changeTz = async (v) => {
+    const prev = displayTz;
+    setAdminDisplayTz(v);
+    setDisplayTzState(v);
+    try {
+      await adminApi.put('/user/me', { timezone: v });
+    } catch {
+      setAdminDisplayTz(prev);
+      setDisplayTzState(prev);
+      toast.error('Could not save your timezone');
+    }
+  };
+
   return (
     <SidebarProvider className="admin-geist" style={{ background: 'hsl(40 6% 91%)' }}>
       <AppSidebar />
@@ -62,13 +93,26 @@ export default function AdminLayout() {
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-1 h-4" />
           <h1 className="text-base font-semibold">{pageTitle(pathname)}</h1>
-          <a href="/" className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90">
+          <Select value={displayTz} onValueChange={changeTz}>
+            <SelectTrigger
+              className="ml-auto h-8 w-auto gap-1.5 px-2 text-muted-foreground"
+              aria-label="Display timezone"
+              title="Timezone all admin times are shown in (saved to your profile)"
+            >
+              <Globe className="size-4" />
+              <span className="text-xs font-medium tabular-nums">{tzAbbrev(new Date(), displayTz) || 'TZ'}</span>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {US_TIMEZONES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <a href="/" className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90">
             <ArrowLeft className="size-4" />
             <span>Dashboard</span>
           </a>
         </header>
         <div
-          key={pathname.split('/')[2] || 'home'}
+          key={`${pathname.split('/')[2] || 'home'}:${displayTz}`}
           className="flex-1 overflow-y-auto min-w-0 [scrollbar-gutter:stable] animate-in fade-in-0 duration-200"
         >
           <Outlet />

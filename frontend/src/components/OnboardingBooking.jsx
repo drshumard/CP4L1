@@ -18,6 +18,7 @@ import {
   getTodayString,
   isSlotUnavailableError,
   isSlotValid,
+  localYmd,
 } from '../hooks/useBooking';
 import styles from './OnboardingBooking.module.css';
 
@@ -169,7 +170,7 @@ function SuccessState({
         <div className={styles.successDivider} />
         {slot && (
           <div className={styles.successDetails}>
-            <p className={styles.successDate}>{formatDateFull(slot.start_time.split('T')[0])}</p>
+            <p className={styles.successDate}>{formatDateFull(localYmd(slot.start_time))}</p>
             <p className={styles.successTime}>{formatTime(slot.start_time)}</p>
           </div>
         )}
@@ -238,7 +239,7 @@ function ClientForm({ formData, errors, onChange, selectedSlot, onConfirm, isSub
         <div className={styles.selectedSummary}>
           <span className={styles.summaryLabel}>Selected Time</span>
           <span className={styles.summaryValue}>
-            {formatDateFull(selectedSlot.start_time.split('T')[0])} at {formatTime(selectedSlot.start_time)}
+            {formatDateFull(localYmd(selectedSlot.start_time))} at {formatTime(selectedSlot.start_time)}
           </span>
         </div>
       )}
@@ -411,19 +412,11 @@ export function OnboardingBooking({
     return slotsByDate[selectedDate];
   }, [selectedDate, slotsByDate]);
 
-  // Filter dates_with_availability to only the first N dates that have slots (rolling window)
-  const filteredDatesWithAvailability = useMemo(() => {
-    if (!availability?.dates_with_availability) return [];
-    
-    // If no limit set, return all dates
-    if (!availabilityDays) {
-      return availability.dates_with_availability;
-    }
-    
-    // Sort dates and take the first N (rolling: counts only dates with availability)
-    const sorted = [...availability.dates_with_availability].sort();
-    return sorted.slice(0, availabilityDays);
-  }, [availability?.dates_with_availability, availabilityDays]);
+  // Dates for the picker — derived from the browser-tz slot grouping so the day a slot is
+  // listed under always matches the (browser-local) time shown on its chip. The server's
+  // dates_with_availability is bucketed by UTC date and would misplace late Pacific slots.
+  // groupSlotsByDate already applied the rolling availabilityDays window.
+  const filteredDatesWithAvailability = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
 
   const datesByMonth = useMemo(() => {
     if (!filteredDatesWithAvailability.length) return {};

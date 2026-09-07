@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Response, Header, Query, UploadFile, File
+from fastapi.encoders import ENCODERS_BY_TYPE
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -82,6 +83,16 @@ if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_VERIFY_SERVICE_SID:
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+# BSON datetimes come back from Mongo tz-NAIVE but are always UTC. Stock serialization
+# emits them without an offset ("...T23:30:00"), and browsers parse offset-less datetime
+# strings as LOCAL time — every raw-doc endpoint (e.g. /admin/bookings) then shifts by the
+# viewer's UTC offset (an hour off in London; the admin "When" column bug). Serialize every
+# naive datetime with the +00:00 it really has. Applies to jsonable_encoder (all dict/list
+# returns); response_model paths already normalize via their own validators.
+ENCODERS_BY_TYPE[datetime] = lambda dt: (
+    dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+).isoformat()
 
 # Activity Logging Utility
 async def log_activity(
@@ -273,6 +284,10 @@ class UserResponse(BaseModel):
     pb_client_record_id: Optional[str] = None
     # Effective RBAC capabilities — drives which apps/sections the staff UI shows.
     capabilities: Optional[List[str]] = None
+    # Team members' preferred display timezone for the admin views (IANA id). Absent ->
+    # the admin frontend falls back to the clinic's Pacific. Patients' booking timezone is
+    # a different thing and lives on the booking itself.
+    timezone: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -280,6 +295,7 @@ class ProfileUpdate(BaseModel):
     last_name: Optional[str] = None
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
+    timezone: Optional[str] = None
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -2601,6 +2617,7 @@ def _user_response(u: dict) -> UserResponse:
         role=u.get("role", "user"), avatar_url=u.get("avatar_url"),
         pb_client_record_id=u.get("pb_client_record_id"),
         capabilities=sorted(capabilities_for(u)) if u.get("role") in TEAM_ROLES else None,
+        timezone=u.get("timezone"),
     )
 
 
@@ -2852,8 +2869,18 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 @api_router.put("/user/me", response_model=UserResponse)
 async def update_me(payload: ProfileUpdate, current_user: dict = Depends(get_current_user)):
-    """Let a signed-in user edit their own profile (name, phone, avatar)."""
+    """Let a signed-in user edit their own profile (name, phone, avatar, timezone)."""
     update: dict = {}
+    if payload.timezone is not None:
+        tz_name = payload.timezone.strip()
+        if tz_name:
+            try:
+                ZoneInfo(tz_name)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Unknown timezone")
+            update["timezone"] = tz_name
+        else:
+            update["timezone"] = None
     if payload.first_name is not None:
         update["first_name"] = payload.first_name.strip()
     if payload.last_name is not None:
@@ -3953,7 +3980,65 @@ async def get_analytics(
     
     # Get completion rate trends (daily completions over time)
     completion_trends = await get_completion_trends(start_date, end_date, user_query)
-    
+
+    # No-show tracking over the selected range, by SESSION date (not booking date).
+    # slot_start_utc is a naive-UTC BSON date, so the range bounds must be naive UTC too;
+    # only sessions that have already started count toward the denominator.
+    now_naive = datetime.now(timezone.utc).replace(tzinfo=None)
+    slot_range = {"$lte": now_naive}
+    if start_date:
+        try:
+            slot_range["$gte"] = pacific.localize(datetime.strptime(start_date, "%Y-%m-%d")) \
+                .astimezone(pytz.UTC).replace(tzinfo=None)
+        except ValueError:
+            pass
+    if end_date:
+        try:
+            end_naive = pacific.localize(datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59)) \
+                .astimezone(pytz.UTC).replace(tzinfo=None)
+            slot_range["$lte"] = min(end_naive, now_naive)
+        except ValueError:
+            pass
+    # Grouped by EVENT TYPE (session_id) — a strategy-session no-show and a lab-findings
+    # no-show are different signals, so the rate is reported per session type as well as
+    # overall. Display titles come from the configured sessions, cleaned of the
+    # personalization token and the "(Online/Video Chat)" suffix.
+    groups = await db.bookings.aggregate([
+        {"$match": {"status": {"$in": ["confirmed", "no_show"]}, "slot_start_utc": slot_range}},
+        {"$group": {"_id": {"$ifNull": ["$session_id", "unknown"]},
+                    "past_sessions": {"$sum": 1},
+                    "no_shows": {"$sum": {"$cond": [{"$eq": ["$status", "no_show"]}, 1, 0]}}}},
+        {"$sort": {"past_sessions": -1}},
+    ]).to_list(100)
+
+    def _clean_session_title(t: str) -> str:
+        t = re.sub(r"\s+with\s+\{\{user\}\}", "", t or "")
+        t = re.sub(r"\s*\(Online/Video Chat\)\s*$", "", t)
+        return re.sub(r"\s{2,}", " ", t).strip()
+
+    settings_doc = await db.settings.find_one({}, {"_id": 0, "sessions": 1}) or {}
+    session_titles = {s.get("id"): _clean_session_title(s.get("title"))
+                      for s in settings_doc.get("sessions", [])}
+    by_session = []
+    total_past = total_no_shows = 0
+    for g in groups:
+        p, n = g["past_sessions"], g["no_shows"]
+        total_past += p
+        total_no_shows += n
+        by_session.append({
+            "session_id": g["_id"],
+            "title": session_titles.get(g["_id"]) or str(g["_id"]),
+            "past_sessions": p,
+            "no_shows": n,
+            "no_show_rate": round((n / p) * 100, 1) if p else 0,
+        })
+    booking_stats = {
+        "past_sessions": total_past,
+        "no_shows": total_no_shows,
+        "no_show_rate": round((total_no_shows / total_past) * 100, 1) if total_past else 0,
+        "by_session": by_session,
+    }
+
     return {
         "total_users": total_users,
         "day1_ready": day1_ready_count,
@@ -3963,6 +4048,7 @@ async def get_analytics(
         "funnel_data": funnel_data,
         "signup_trends": signup_trends,
         "completion_stats": completion_stats,
+        "booking_stats": booking_stats,
         "realtime_stats": realtime_stats,
         "hourly_activity": hourly_activity,
         "completion_trends": completion_trends,
@@ -6509,9 +6595,11 @@ class TeamMemberUpdate(BaseModel):
     role: Optional[str] = None
     active: Optional[bool] = None
     password: Optional[str] = None  # admin set/reset of the member's email+password login
+    timezone: Optional[str] = None
 
 
-_TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active": 1, "created_at": 1}
+_TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active": 1, "created_at": 1,
+                    "timezone": 1}
 
 
 @api_router.get("/admin/team")
@@ -6582,6 +6670,16 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
         if target.get("role") == "super_admin" and payload.active is False:
             raise HTTPException(status_code=400, detail="A super admin can't be deactivated here")
         updates["active"] = bool(payload.active)
+    if payload.timezone is not None:
+        tz_name = payload.timezone.strip()
+        if tz_name:
+            try:
+                ZoneInfo(tz_name)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Unknown timezone")
+            updates["timezone"] = tz_name
+        else:
+            updates["timezone"] = None
     # Password set/reset is kept out of the logged `updates` (never log the hash).
     set_ops = dict(updates)
     if payload.password is not None:
@@ -6743,6 +6841,93 @@ async def admin_cancel_booking(booking_id: str, payload: Optional[AdminCancelPay
     await log_admin_action("ADMIN_BOOKING_CANCELLED", admin_user=admin_user,
                            details={"booking_id": booking_id, "patient_notified": notify},
                            target_email=(b.get("patient") or {}).get("email"),
+                           target_user_id=b.get("user_id"))
+    return {"success": True}
+
+
+class AdminNoShowPayload(BaseModel):
+    no_show: bool = True
+
+
+@api_router.post("/admin/bookings/{booking_id}/no-show")
+async def admin_mark_no_show(booking_id: str, payload: Optional[AdminNoShowPayload] = None,
+                             admin_user: dict = Depends(get_admin_user)):
+    """Mark a past confirmed booking as a no-show, or undo it (no_show=false). Ledger-only:
+    the session already happened, so the Google event and PB session are left untouched and
+    no patient email is sent. Reminder/mirror sweeps only look at status='confirmed', so a
+    no_show row is inert to them."""
+    b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    mark = payload.no_show if payload is not None else True
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if mark:
+        if b.get("status") != "confirmed":
+            raise HTTPException(status_code=400, detail="Only a confirmed booking can be marked as a no-show")
+        start = b.get("slot_start_utc")
+        if isinstance(start, datetime):
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=timezone.utc)
+            if start > datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="That session hasn't started yet — cancel it instead")
+        await db.bookings.update_one(
+            {"booking_id": booking_id, "status": "confirmed"},
+            {"$set": {"status": "no_show", "no_show_at": now_iso,
+                      "no_show_by": admin_user.get("email"), "updated_at": now_iso}})
+    else:
+        if b.get("status") != "no_show":
+            raise HTTPException(status_code=400, detail="This booking isn't marked as a no-show")
+        await db.bookings.update_one(
+            {"booking_id": booking_id, "status": "no_show"},
+            {"$set": {"status": "confirmed", "updated_at": now_iso},
+             "$unset": {"no_show_at": "", "no_show_by": ""}})
+    await log_admin_action("ADMIN_BOOKING_NO_SHOW" if mark else "ADMIN_BOOKING_NO_SHOW_CLEARED",
+                           admin_user=admin_user, details={"booking_id": booking_id},
+                           target_email=(b.get("patient") or {}).get("email"),
+                           target_user_id=b.get("user_id"))
+    return {"success": True}
+
+
+@api_router.post("/admin/bookings/{booking_id}/resend-email")
+async def admin_resend_booking_email(booking_id: str, admin_user: dict = Depends(get_admin_user)):
+    """Re-send the booking confirmation email for an upcoming confirmed booking — the same
+    template as the original send (time in the patient's zone, Meet link, activation section
+    for portal-visible sessions). An explicit re-send: the original exactly-once claim
+    (confirmation_email_sent_at) is left untouched."""
+    import booking as booking_module
+    from services import booking_email
+    b = await db.bookings.find_one({"booking_id": booking_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if b.get("status") != "confirmed":
+        raise HTTPException(status_code=400, detail="Only a confirmed booking's email can be re-sent")
+    if b.get("engine") == "pb":
+        raise HTTPException(status_code=400, detail="Practice Better owns emails for legacy (PB-engine) bookings")
+    email = (b.get("patient") or {}).get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="This booking has no patient email")
+    start = b.get("slot_start_utc")
+    if isinstance(start, datetime):
+        aware = start if start.tzinfo else start.replace(tzinfo=timezone.utc)
+        if aware <= datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="That session is already in the past")
+    settings = await booking_module._load_app_settings()
+    session = booking_module._session_by_id(settings, b.get("session_id") or "") or {}
+    try:
+        await booking_email.send_booking_confirmation(
+            to_email=email,
+            first_name=(b.get("patient") or {}).get("first_name") or "there",
+            session_title=b.get("session_title") or "Session",
+            session_start_iso=booking_module._iso(b.get("slot_start_utc")),
+            patient_timezone=b.get("patient_timezone"),
+            meet_link=b.get("meet_link"),
+            pb_record_id=b.get("pb_client_record_id"),
+            include_activation=bool(session.get("portal_visible")),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Email send failed: {e}")
+    await log_admin_action("ADMIN_BOOKING_EMAIL_RESENT", admin_user=admin_user,
+                           details={"booking_id": booking_id}, target_email=email,
                            target_user_id=b.get("user_id"))
     return {"success": True}
 

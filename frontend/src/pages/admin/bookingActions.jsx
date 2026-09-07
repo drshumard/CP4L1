@@ -59,6 +59,50 @@ export async function cancelBooking(booking, { onDone } = {}) {
   }
 }
 
+/** Confirm + re-send the booking confirmation email (same template as the original —
+ *  patient-tz time, Meet link, activation section for portal-visible sessions). */
+export async function resendBookingEmail(booking, { onDone } = {}) {
+  const res = await confirmDialog({
+    title: 'Resend confirmation email?',
+    message: `Email ${patientName(booking)} the booking confirmation for ${fmtDateTime(booking.slot_start_utc)} again? Includes the Meet link.`,
+    confirmLabel: 'Resend email',
+  });
+  if (!res) return false;
+  try {
+    await adminApi.post(`/admin/bookings/${booking.booking_id}/resend-email`);
+    toast.success('Confirmation email sent');
+    onDone?.();
+    return true;
+  } catch (e) {
+    toast.error(e?.response?.data?.detail || 'Could not send');
+    return false;
+  }
+}
+
+/** Confirm + mark (or undo) a past booking as a no-show. Ledger-only — no emails,
+ *  no Practice Better or calendar changes. Returns true on success (caller refreshes). */
+export async function markNoShow(booking, { undo = false, onDone } = {}) {
+  const res = await confirmDialog(undo ? {
+    title: 'Undo no-show?',
+    message: `Put ${patientName(booking)}'s ${fmtDateTime(booking.slot_start_utc)} session back to confirmed?`,
+    confirmLabel: 'Undo no-show',
+  } : {
+    title: 'Mark as no-show?',
+    message: `Mark ${patientName(booking)} as a no-show for ${fmtDateTime(booking.slot_start_utc)}? No emails are sent and Practice Better is untouched — this only records it for tracking.`,
+    confirmLabel: 'Mark no-show',
+  });
+  if (!res) return false;
+  try {
+    await adminApi.post(`/admin/bookings/${booking.booking_id}/no-show`, { no_show: !undo });
+    toast.success(undo ? 'No-show cleared' : 'Marked as no-show');
+    onDone?.();
+    return true;
+  } catch (e) {
+    toast.error(e?.response?.data?.detail || 'Could not update');
+    return false;
+  }
+}
+
 // Reschedule modal — pick a new time from real available slots (clinic-tz), then
 // POST to the admin reschedule endpoint (which keeps the same director).
 export function RescheduleModal({ booking, onClose, onDone }) {

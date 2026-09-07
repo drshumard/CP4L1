@@ -5,7 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { BarChart3, RefreshCw, Calendar, ChevronDown, Users, TrendingUp, Clock } from 'lucide-react';
+import { BarChart3, RefreshCw, Calendar, ChevronDown, Users, TrendingUp, Clock, UserX } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Switch } from '../components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
@@ -134,6 +134,7 @@ const AdminAnalytics = () => {
     { label: 'Day-1 ready', value: `${analytics?.total_users ? Math.round((analytics?.day1_ready || 0) / analytics.total_users * 100) : 0}%`, sub: `${analytics?.day1_ready || 0} of ${analytics?.total_users || 0}` },
     { label: 'Activation rate', value: `${analytics?.completion_stats?.completion_rate || 0}%`, sub: `${analytics?.completion_stats?.completed || 0} completed`, accent: 'text-emerald-600' },
     { label: 'Refund rate', value: `${analytics?.completion_stats?.refund_rate || 0}%`, sub: `${analytics?.completion_stats?.refunded || 0} refunded`, accent: 'text-rose-600' },
+    { label: 'No-show rate', value: `${analytics?.booking_stats?.no_show_rate || 0}%`, sub: `${analytics?.booking_stats?.no_shows || 0} of ${analytics?.booking_stats?.past_sessions || 0} sessions`, accent: 'text-orange-600' },
     { label: 'Avg time to activate', value: analytics?.step_transition_times?.total_journey?.avg_formatted || '—', sub: 'booking → activation' },
   ];
 
@@ -209,7 +210,7 @@ const AdminAnalytics = () => {
       </div>
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
         {kpis.map((k) => (
           <div key={k.label} className="rounded-xl border bg-card p-5 shadow-sm">
             <p className={EYEBROW}>{k.label}</p>
@@ -283,6 +284,24 @@ const AdminAnalytics = () => {
           </div>
         </section>
       </div>
+
+      {/* No-shows by event type */}
+      {(analytics?.booking_stats?.by_session?.length || 0) > 0 && (
+        <section className="rounded-xl border bg-card p-5 shadow-sm">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><UserX className="size-4 text-muted-foreground" /> No-shows by event</h3>
+          <div className="mt-4 space-y-1">
+            {analytics.booking_stats.by_session.map((s, i) => (
+              <div key={s.session_id} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
+                <span className="min-w-0 truncate pr-4 text-sm text-foreground">{s.title}</span>
+                <div className="flex flex-shrink-0 items-center gap-3">
+                  <span className="text-xs tabular-nums text-muted-foreground">{s.no_shows} of {s.past_sessions}</span>
+                  <span className={`w-14 text-right text-sm font-semibold tabular-nums ${s.no_shows > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>{s.no_show_rate}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Today */}
       <section>

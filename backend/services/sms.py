@@ -1,10 +1,13 @@
 """Outbound SMS via Twilio Messages — used by the reminder sweep.
 
 Separate from the Verify (OTP) client in server.py: that one sends verification codes, this
-one sends plain Messages. Env: TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN, plus ONE sender —
-TWILIO_MESSAGING_SERVICE_SID (preferred: pooled numbers + carrier-level STOP/HELP opt-out)
-or TWILIO_SMS_FROM (a single E.164 number). No sender configured => SMS is disabled and the
-reminder sweep no-ops.
+one sends plain Messages. Env: TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN, plus a sender:
+  - TWILIO_MESSAGING_SERVICE_SID alone: Twilio picks the number from the service's sender pool
+    (sticky sender), with the service's carrier-level STOP/HELP opt-out handling.
+  - TWILIO_SMS_FROM alone: a single E.164 number, no messaging-service features.
+  - BOTH: sends are pinned to TWILIO_SMS_FROM while keeping the messaging service's features.
+    The number MUST be in that service's sender pool or Twilio rejects the send (21606/21712).
+No sender configured => SMS is disabled and the reminder sweep no-ops.
 """
 
 import asyncio
@@ -87,10 +90,11 @@ def classify_optout(body: Optional[str]) -> Optional[str]:
 def _sync_send(to_number: str, body: str):
     kwargs = {"to": to_number, "body": body}
     msid = os.environ.get("TWILIO_MESSAGING_SERVICE_SID")
+    from_number = os.environ.get("TWILIO_SMS_FROM")
     if msid:
         kwargs["messaging_service_sid"] = msid
-    else:
-        kwargs["from_"] = os.environ.get("TWILIO_SMS_FROM")
+    if from_number:
+        kwargs["from_"] = from_number
     return _get_client().messages.create(**kwargs)
 
 
