@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { CheckCircle2, Play, Calendar, Users, ExternalLink, Mail, LogOut, Home, HelpCircle, ArrowRight, Loader2 } from 'lucide-react';
+import { CheckCircle2, Play, Calendar, ExternalLink, LogOut, Home, HelpCircle, ArrowRight, Loader2, BookOpen, Utensils, Gift } from 'lucide-react';
 import { formatInTz, safeTimezone } from '../utils/tz';
 import './prototype/proto.css';
 
@@ -31,10 +31,12 @@ const fadeUp = {
   show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.45, delay: i * 0.08, ease: [0.22, 0.61, 0.36, 1] } }),
 };
 
-const CHECKLIST = [
-  { n: 1, icon: Calendar, title: 'Confirm your calendar', body: 'Find the confirmation email and add the session as top priority.' },
-  { n: 2, icon: Users, title: 'Bring your support team', body: 'Forward the invite to your spouse or a trusted decision-maker to join the call.' },
-  { n: 3, icon: Mail, title: 'Activate your portal', body: 'Check your email for the Practice Better invite and click Activate My Account.' },
+// Free resources delivered inside the Practice Better patient portal — only visible once the
+// patient has activated their account, so they're advertised here above the activation button.
+const BONUSES = [
+  { icon: Play, kind: 'Video series', title: '3 Foundations to Boosting Your Health', bg: 'linear-gradient(135deg, var(--brand-400), var(--brand-700))' },
+  { icon: BookOpen, kind: "Dr. Jason Shumard DC's book", title: 'How To Reverse Your Diabetes', bg: 'linear-gradient(135deg, var(--brand-600), var(--brand-900))' },
+  { icon: Utensils, kind: '7-day recipe challenge', title: 'Reduce Blood Sugars', bg: 'linear-gradient(135deg, var(--brand-500), var(--brand-800))' },
 ];
 
 export default function PortalReady() {
@@ -165,49 +167,54 @@ export default function PortalReady() {
         {/* Main column first in the DOM so keyboard/screen-reader order matches the
             visual order (grid auto-placement puts the aside in the right rail). */}
         <div className="proto-cols__main">
-        {/* Final checklist + activation - one card */}
-        <motion.section variants={fadeUp} custom={2} initial="hidden" animate="show" className="proto-card proto-card--pad">
-          <h2 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 19 }}>Your final checklist</h2>
-          <p className="proto-muted mt-1" style={{ fontSize: 14 }}>A few quick things before we meet.</p>
+        {/* Free resources + activation — the resources live inside the Practice Better portal,
+            so they're shown as gift tiles with the activation button right below. */}
+        <motion.section variants={fadeUp} custom={2} initial="hidden" animate="show"
+          className="proto-card proto-card--pad" style={{ padding: 20, borderColor: 'var(--brand-200)' }}>
+          <div className="flex items-center gap-3">
+            <span className="grid place-items-center rounded-2xl flex-none" style={{ width: 48, height: 48, background: 'var(--brand-100)', color: 'var(--brand-700)' }}>
+              <Gift size={24} strokeWidth={2} />
+            </span>
+            <div className="min-w-0">
+              <span className="proto-eyebrow">Last step</span>
+              <h2 className="font-bold leading-tight" style={{ color: 'var(--brand-900)', fontSize: 20 }}>Activate your Practice Better Portal to access the following add-ons with your purchase</h2>
+            </div>
+          </div>
 
-          <div className="mt-3">
-            {CHECKLIST.map((item, i) => {
-              const Icon = item.icon;
+          <div className="ready-gifts mt-4">
+            {BONUSES.map((b, i) => {
+              const Icon = b.icon;
               return (
-                <div key={item.n} className="flex items-start gap-3.5" style={{ padding: '14px 0', borderTop: i ? '1px solid var(--p-line)' : 'none' }}>
-                  <div className="proto-step-dot proto-step-dot--current" style={{ marginTop: 2 }}>{item.n}</div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <Icon size={17} strokeWidth={2} color="var(--brand-600)" />
-                      <h3 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 15.5 }}>{item.title}</h3>
-                    </div>
-                    <p className="proto-muted mt-1" style={{ fontSize: 14, lineHeight: 1.5 }}>{item.body}</p>
+                <motion.div key={b.title} variants={fadeUp} custom={3 + i} initial="hidden" animate="show" className="ready-gift">
+                  <div className="ready-gift__art" style={{ background: b.bg }}>
+                    <Icon className="ready-gift__bg" size={150} strokeWidth={1.25} color="#fff" />
+                    <Icon size={40} strokeWidth={1.75} color="#fff" style={{ position: 'relative' }} />
+                    <span className="ready-gift__free">FREE</span>
                   </div>
-                </div>
+                  <div className="ready-gift__body">
+                    <span className="proto-eyebrow" style={{ fontSize: 11 }}>{b.kind}</span>
+                    <div className="font-bold mt-1" style={{ color: 'var(--brand-900)', fontSize: 15.5, lineHeight: 1.3 }}>{b.title}</div>
+                  </div>
+                </motion.div>
               );
             })}
           </div>
 
-          {/* Activation CTA */}
-          <div className="mt-1 pt-5" style={{ borderTop: '1px solid var(--p-line)' }}>
-            <span className="proto-eyebrow">Last step</span>
-            <h3 className="mt-1.5 font-bold" style={{ color: 'var(--brand-900)', fontSize: 17 }}>Activate your patient portal</h3>
-            <p className="proto-muted mt-1 max-w-lg" style={{ fontSize: 14, lineHeight: 1.5 }}>
-              Set up your secure account in Practice Better to access your plan, messages, and resources before we meet. You can also find the activation email in your inbox or spam.
-            </p>
-            <a href={pbActivateUrl(user?.pb_client_record_id)} target="_blank" rel="noreferrer" className="proto-btn proto-btn--primary proto-btn--lg mt-4" style={{ gap: 8 }}>
-              <ExternalLink size={19} strokeWidth={2.2} /> Activate your Practice Better portal
-            </a>
-          </div>
+          <a href={pbActivateUrl(user?.pb_client_record_id)} target="_blank" rel="noreferrer" className="proto-btn proto-btn--primary proto-btn--lg proto-btn--block mt-5" style={{ gap: 8 }}>
+            <ExternalLink size={19} strokeWidth={2.2} /> Activate my Practice Better portal
+          </a>
+          <p className="proto-muted mt-3 text-center" style={{ fontSize: 13 }}>
+            Look for the Practice Better email in your inbox or spam.
+          </p>
         </motion.section>
 
         {/* Finish: completes the journey (step 3 -> 4) and opens the outcome page */}
-        <motion.section variants={fadeUp} custom={3} initial="hidden" animate="show"
+        <motion.section variants={fadeUp} custom={6} initial="hidden" animate="show"
           className="proto-card proto-card--pad" style={{ background: 'var(--brand-50)' }}>
           <p className="proto-eyebrow">One last thing</p>
-          <h3 className="mt-2 font-bold" style={{ color: 'var(--brand-900)', fontSize: 17 }}>Done with your checklist?</h3>
+          <h3 className="mt-2 font-bold" style={{ color: 'var(--brand-900)', fontSize: 17 }}>Portal activated?</h3>
           <p className="proto-muted mt-1 max-w-lg" style={{ fontSize: 14, lineHeight: 1.5 }}>
-            Mark your onboarding complete to see everything you&apos;ve accomplished and how to prepare for your call.
+            Mark your onboarding complete to see how to prepare for your call.
           </p>
           <button className="proto-btn proto-btn--primary proto-btn--lg mt-4" onClick={finishOnboarding} disabled={finishing} style={{ gap: 8 }}>
             {finishing
@@ -267,7 +274,7 @@ export default function PortalReady() {
         </div>
       </main>
 
-      <style>{'.proto-hide-sm{display:none}@media(min-width:720px){.proto-hide-sm{display:inline}}.proto-spin{animation:proto-spin .8s linear infinite}@keyframes proto-spin{to{transform:rotate(360deg)}}'}</style>
+      <style>{'.ready-gifts{display:grid;gap:12px;grid-template-columns:1fr}.ready-gift{display:grid;grid-template-columns:104px 1fr;border:1px solid var(--p-line);border-radius:var(--p-r-sm);overflow:hidden;background:#fff}.ready-gift__art{position:relative;min-height:104px;display:grid;place-items:center;overflow:hidden}.ready-gift__bg{position:absolute;right:-34px;bottom:-40px;opacity:.16}.ready-gift__free{position:absolute;top:8px;left:8px;background:#fff;color:var(--brand-800);font-size:10.5px;font-weight:800;letter-spacing:.08em;padding:3px 7px;border-radius:999px}.ready-gift__body{padding:12px 14px;display:flex;flex-direction:column;justify-content:center;min-width:0}@media(min-width:640px){.ready-gifts{grid-template-columns:repeat(3,minmax(0,1fr))}.ready-gift{grid-template-columns:1fr}.ready-gift__art{height:128px}.ready-gift__body{padding:14px}}.proto-hide-sm{display:none}@media(min-width:720px){.proto-hide-sm{display:inline}}.proto-spin{animation:proto-spin .8s linear infinite}@keyframes proto-spin{to{transform:rotate(360deg)}}'}</style>
     </div>
   );
 }
