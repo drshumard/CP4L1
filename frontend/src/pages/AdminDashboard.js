@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { fmtDateTime } from './admin/format';
+import { fmtDateTime, getAdminDisplayTz } from './admin/format';
 import { confirmDialog } from './admin/confirm';
 import { US_TIMEZONES, safeTz, utcToZonedWallTime, tzAbbrev } from './admin/usTimezones';
 import { zonedWallTimeToUtcIso } from './admin/scheduling/useSortedTimezones';
@@ -784,7 +784,8 @@ const AdminDashboard = () => {
                       </div>
                     ) : sessionBooking ? (
                       <div className="rounded-lg border bg-muted/30 p-3">
-                        <div className="font-medium text-foreground">{fmtDateTime(sessionBooking.slot_start_utc)}</div>
+                        {/* Render in the PATIENT's zone (the label below names it) — not the admin display tz. */}
+                        <div className="font-medium text-foreground">{fmtDateTime(sessionBooking.slot_start_utc, { tz: safeTz(sessionBooking.patient_timezone, getAdminDisplayTz()) })}</div>
                         <div className="mt-1 text-xs text-muted-foreground">{sessionBooking.director_name || sessionBooking.director_id || 'Director'}{sessionBooking.patient_timezone ? ` · ${sessionBooking.patient_timezone}` : ''}</div>
                       </div>
                     ) : selectedUser.booking_info ? (
