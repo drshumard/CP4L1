@@ -199,13 +199,44 @@ def to_pb_session_date(session_date: str) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def _zone_offsets(iana_timezone: str):
+    """(standard, daylight) UTC offsets for a zone, sampled at Jan 1 / Jul 1 of this year."""
+    zone = ZoneInfo(iana_timezone)
+    year = datetime.now(timezone.utc).year
+    return (datetime(year, 1, 1, 12, tzinfo=zone).utcoffset(),
+            datetime(year, 7, 1, 12, tzinfo=zone).utcoffset())
+
+
 def convert_timezone_to_windows(iana_timezone: str) -> str:
-    """Convert IANA timezone to Windows timezone format."""
+    """Convert IANA timezone to Windows timezone format.
+
+    Browsers report city zones the map doesn't list (America/Nassau, America/Toronto,
+    America/Detroit, ...). Those used to fall straight to "UTC", which PB then stored as the
+    client's profile timeZone and rendered every session reminder in UTC (a 12:30 PM EDT
+    call texted as "4:30 PM"). Now an unlisted zone is matched to a listed one with the
+    same standard+daylight offsets, so Nassau/Toronto/Detroit -> Eastern Standard Time."""
     result = TIMEZONE_MAP.get(iana_timezone)
-    if result is None:
-        logger.warning(f"Unknown timezone: {iana_timezone}, falling back to UTC")
-        return "UTC"
-    return result
+    if result is not None:
+        return result
+    try:
+        wanted = _zone_offsets(iana_timezone)
+        # Plain US zones first so e.g. Vancouver lands on "Pacific Standard Time", not the
+        # equally-offset "(Mexico)" variant that happens to sit earlier in the map.
+        preferred = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix",
+                     "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu"]
+        ordered = [(z, TIMEZONE_MAP[z]) for z in preferred] + list(TIMEZONE_MAP.items())
+        for candidate, windows_name in ordered:
+            try:
+                if _zone_offsets(candidate) == wanted:
+                    logger.info(f"Timezone {iana_timezone} not in map; matched by offsets to "
+                                f"{candidate} ({windows_name})")
+                    return windows_name
+            except Exception:
+                continue
+    except Exception:
+        pass
+    logger.warning(f"Unknown timezone: {iana_timezone}, falling back to UTC")
+    return "UTC"
 
 
 # ============================================================================
