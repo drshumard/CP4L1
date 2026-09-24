@@ -8,6 +8,7 @@ import re
 from fpdf import FPDF
 
 from .calculations import recalculate_plan_costs
+from .dosage import dose_schedule_for
 from .month_notes import supp_in_month, strip_month_note
 
 LOGO_PATH = os.path.join(os.path.dirname(__file__), "logo.png")
@@ -60,20 +61,10 @@ def _group_by_time(supplements):
     Backfills times from frequency_per_day if times is missing."""
     groups = {t: [] for t in TIME_ORDER}
     for s in supplements:
-        times = s.get("times")
-        if not times or len(times) == 0:
-            # Backfill from frequency
-            freq = s.get("frequency_per_day") or 1
-            if freq >= 3:
-                times = ["AM", "Afternoon", "PM"]
-            elif freq == 2:
-                times = ["AM", "PM"]
-            else:
-                times = ["AM"]
-            s["times"] = times
-        for t in times:
-            if t in groups:
-                groups[t].append(s)
+        for dose in dose_schedule_for(s):
+            if dose["time"] in groups:
+                # Each table row gets the quantity for that specific time slot.
+                groups[dose["time"]].append({**s, "quantity_per_dose": dose["quantity"]})
     return [(t, supps) for t in TIME_ORDER if (supps := groups.get(t, [])) and len(supps) > 0]
 
 
@@ -186,7 +177,7 @@ def _draw_time_table(pdf, time_label, supps, show_costs=False):
                 unit_type = "caps"
         if qty > 0:
             ul = unit_type.rstrip("s") if qty == 1 else (unit_type if unit_type.endswith("s") or unit_type in ("ml","g") else unit_type + "s")
-            dose_text = f"{qty} {ul}"
+            dose_text = f"{qty:g} {ul}"
         else:
             dose_text = re.sub(r'\s*\d*x\s*/?\s*day.*', '', _safe(s.get("dosage_display", "")), flags=re.IGNORECASE).strip()
         pdf.cell(cols[1], row_h, f" {dose_text[:14]}", border="B", new_x="RIGHT")
@@ -338,10 +329,8 @@ def generate_patient_pdf(plan_data: dict) -> bytes:
     pdf = ProtocolPDF()
     pdf.alias_nb_pages()
 
-    # Hide supplements whose legacy "Starts Month N" / "Month N only" note
-    # places them in a different month (older plans carry these). When
-    # anything is hidden, the stored bottle counts were computed for the
-    # unfiltered months — recompute them for what the patient actually takes.
+    # Recompute the order from the same schedule printed below. Older plans may
+    # have stale bottle counts from the former uniform-only dosage parser.
     months = plan_data.get("months") or []
     filtered = [
         {**m, "supplements": [
@@ -350,8 +339,7 @@ def generate_patient_pdf(plan_data: dict) -> bytes:
         ]}
         for m in months
     ]
-    if any(len(f["supplements"]) != len(m.get("supplements", [])) for f, m in zip(filtered, months)):
-        recalculate_plan_costs({"months": filtered})
+    recalculate_plan_costs({"months": filtered})
     months = filtered
 
     for month in months:

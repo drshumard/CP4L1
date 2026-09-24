@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Search, RefreshCw, Video, MoreHorizontalIcon, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { adminApi } from '../api';
@@ -47,6 +48,8 @@ const statusColor = (s) => {
 const titleize = (s) => String(s || '—').replace(/_/g, ' ');
 
 export default function Bookings() {
+  const { capabilities = [] } = useOutletContext() || {};
+  const canManage = capabilities.includes('scheduling.manage');
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -64,7 +67,7 @@ export default function Bookings() {
     adminApi.get('/admin/prefs')
       .then((r) => setView({ ...DEFAULT_VIEW, ...(r.data?.bookings_view || {}) }))
       .catch(() => setView(DEFAULT_VIEW));
-    Promise.all([
+    if (canManage) Promise.all([
       adminApi.get('/admin/directors').then((r) => (r.data.directors || []).filter((d) => d.active !== false)).catch(() => []),
       adminApi.get('/admin/pccs').then((r) => (r.data.pccs || []).filter((p) => p.active !== false)).catch(() => []),
     ]).then(([dirs, pccs]) => setHosts([
@@ -72,7 +75,7 @@ export default function Bookings() {
       ...pccs.map((p) => ({ value: p.pcc_id, label: `${p.name} (PCC)` })),
     ]));
     return () => clearTimeout(saveTimer.current);
-  }, []);
+  }, [canManage]);
 
   const setViewAndSave = (patch) => {
     setPage(1);
@@ -132,9 +135,9 @@ export default function Bookings() {
           <Button variant="outline" size="sm" onClick={load}>
             <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </Button>
-          <Button size="sm" onClick={() => setNewOpen(true)}>
+          {canManage && <Button size="sm" onClick={() => setNewOpen(true)}>
             <Plus className="size-4" /> New booking
-          </Button>
+          </Button>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ToggleGroup type="single" value={view.time} onValueChange={(v) => v && setViewAndSave({ time: v })} variant="outline" size="sm">
@@ -204,7 +207,7 @@ export default function Bookings() {
                     ) : <span className="text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className={`${CELL} text-center`}>
-                    {b.status === 'confirmed' ? (
+                    {canManage && b.status === 'confirmed' ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="size-8">
@@ -227,7 +230,7 @@ export default function Bookings() {
                             onClick={() => cancelBooking(b, { onDone: load })}>Cancel</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    ) : b.status === 'no_show' ? (
+                    ) : canManage && b.status === 'no_show' ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="size-8">
@@ -263,10 +266,10 @@ export default function Bookings() {
         )}
       </div>
 
-      {rescheduleFor && (
+      {canManage && rescheduleFor && (
         <RescheduleModal booking={rescheduleFor} onClose={() => setRescheduleFor(null)} onDone={load} />
       )}
-      <ManualBookingDrawer open={newOpen} onOpenChange={setNewOpen} onCreated={load} />
+      {canManage && <ManualBookingDrawer open={newOpen} onOpenChange={setNewOpen} onCreated={load} />}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginPath } from '@/lib/staffApps';
 import axios from 'axios';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -162,7 +163,7 @@ const AdminDashboard = () => {
         navigate('/');
       } else if (error.response?.status === 401) {
         localStorage.clear();
-        navigate('/login');
+        navigate(loginPath());
       } else {
         toast.error('Failed to load admin data', { id: 'admin-load-error' });
       }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginPath } from '@/lib/staffApps';
 import axios from 'axios';
 import { RefreshCw, Download, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,7 +62,7 @@ const ActivityLogs = () => {
     } catch (error) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         toast.error('Unauthorized access');
-        navigate('/login');
+        navigate(loginPath());
       } else {
         toast.error('Failed to fetch activity logs');
       }

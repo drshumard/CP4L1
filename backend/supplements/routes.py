@@ -27,6 +27,7 @@ from .models import (
     SupplierCreate, SupplierUpdate
 )
 from .calculations import recalculate_plan_costs
+from .dosage import normalize_dosage
 from .month_notes import supp_in_month, strip_month_note
 from .pdf_generator import generate_patient_pdf, generate_hc_pdf
 from .seed_data import SUPPLEMENTS, TEMPLATES
@@ -73,6 +74,19 @@ async def sync_plan_with_master(plan: dict) -> dict:
 async def get_user_display_name(user: dict) -> str:
     """Practitioner folder name for cloud saves — straight off the portal user."""
     return user.get("name") or (user.get("email", "").split("@")[0] or "Unknown User")
+
+
+def cloud_plan_filename(plan: dict) -> str:
+    """One stable Dropbox file per plan, including when names/steps collide."""
+    def safe(value, limit):
+        return re.sub(r'[\\/<>:"|?*\x00-\x1f]', "-", str(value or "")).strip()[:limit]
+
+    created = str(plan.get("created_at") or "")
+    date = created[:10] if re.match(r"^\d{4}-\d{2}-\d{2}", created) else "undated"
+    plan_id_suffix = str(plan["_id"])[-6:]
+    return (f"Patient - {safe(plan.get('patient_name', 'Unknown'), 55)} - "
+            f"{safe(plan.get('program_name', 'Protocol'), 55)} {safe(plan.get('step_label'), 25)}"
+            f" - {date} - {plan_id_suffix}.pdf")
 
 
 # ─── Health ──────────────────────────────────────────────────────────────────
@@ -396,6 +410,7 @@ async def list_templates(program_name: str = "", user=Depends(require_auth)):
                     if freq >= 3: supp["times"] = ["AM", "Afternoon", "PM"]
                     elif freq == 2: supp["times"] = ["AM", "PM"]
                     else: supp["times"] = ["AM"]
+                normalize_dosage(supp)
     
     return {"templates": templates}
 
@@ -481,6 +496,7 @@ async def save_plan_as_template(data: SaveAsTemplateRequest, user=Depends(requir
                 "unit_type": s.get("unit_type", "caps"),
                 "quantity_per_dose": s.get("quantity_per_dose"),
                 "frequency_per_day": s.get("frequency_per_day"),
+                "dose_schedule": s.get("dose_schedule"),
                 "dosage_display": s.get("dosage_display", ""),
                 "instructions": s.get("instructions", ""),
                 "units_per_bottle": s.get("units_per_bottle"),
@@ -588,6 +604,7 @@ async def get_template(template_id: str, user=Depends(require_auth)):
                 if freq >= 3: supp["times"] = ["AM", "Afternoon", "PM"]
                 elif freq == 2: supp["times"] = ["AM", "PM"]
                 else: supp["times"] = ["AM"]
+            normalize_dosage(supp)
     
     return tmpl
 
@@ -602,12 +619,18 @@ async def update_template(template_id: str, data: dict = None, user=Depends(requ
     if "default_months" in data:
         updates["default_months"] = data["default_months"]
     if "months" in data:
-        updates["months"] = data["months"]
+        try:
+            updates["months"] = [PlanMonth.model_validate(month).model_dump() for month in data["months"]]
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid template dosage: {exc}")
     # Also keep flat supplements in sync (backward compat) — use month 1's supplements
     if "months" in data and data["months"]:
-        updates["supplements"] = data["months"][0].get("supplements", [])
+        updates["supplements"] = updates["months"][0].get("supplements", [])
     if "supplements" in data and "months" not in data:
-        updates["supplements"] = data["supplements"]
+        try:
+            updates["supplements"] = [PlanSupplementEntry.model_validate(supp).model_dump() for supp in data["supplements"]]
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"Invalid template dosage: {exc}")
     updates["updated_at"] = datetime.utcnow()
     
     result = await db.templates.update_one(
@@ -727,9 +750,13 @@ async def create_plan(data: PlanCreate, user=Depends(require_auth)):
                             "company": ts.get("company", ""),
                             "quantity_per_dose": ts.get("quantity_per_dose"),
                             "frequency_per_day": ts.get("frequency_per_day"),
+                            "dose_schedule": ts.get("dose_schedule"),
                             "dosage_display": ts.get("dosage_display", ""),
                             "instructions": ts.get("instructions", ""),
                             "with_food": True,
+                            "times": ts.get("times", []),
+                            "unit_type": ts.get("unit_type", "caps"),
+                            "supplier": ts.get("supplier", ""),
                             "hc_notes": "",
                             "units_per_bottle": ts.get("units_per_bottle"),
                             "cost_per_bottle": ts.get("cost_per_bottle", 0),
@@ -965,7 +992,7 @@ async def export_hc_pdf(plan_id: str, user=Depends(require_auth)):
 
 @router.post("/plans/{plan_id}/save-to-cloud")
 async def save_plan_to_cloud(plan_id: str, authorization: str = Header(None)):
-    """Generate both PDFs and upload to Dropbox in practitioner/patient folder."""
+    """Generate the patient PDF and upload to its stable plan-specific Dropbox file."""
     user = await get_current_user(authorization)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -980,8 +1007,10 @@ async def save_plan_to_cloud(plan_id: str, authorization: str = Header(None)):
     plan = recalculate_plan_costs(plan, freight_map)
     
     patient_name = plan.get("patient_name", "Unknown")
-    program = plan.get("program_name", "Protocol")
-    step = plan.get("step_label", "")
+    if ObjectId.is_valid(plan.get("patient_id", "")):
+        patient = await db.patients.find_one({"_id": ObjectId(plan["patient_id"])})
+        if patient:
+            patient_name = patient.get("name", patient_name)
     practitioner_name = await get_user_display_name(user)
     
     try:
@@ -990,7 +1019,7 @@ async def save_plan_to_cloud(plan_id: str, authorization: str = Header(None)):
         # PDF rendering and the sync Dropbox SDK both block; run them in a thread so a
         # slow upload can't stall every other portal request on the single worker.
         patient_pdf = bytes(await asyncio.to_thread(generate_patient_pdf, plan))
-        patient_filename = f"Patient - {patient_name} - {program} {step}.pdf"
+        patient_filename = cloud_plan_filename(plan)
         patient_result = await asyncio.to_thread(upload_pdf, practitioner_name, patient_name, patient_filename, patient_pdf)
         
         return {
@@ -1013,7 +1042,7 @@ async def save_all_plans_to_cloud(patient_id: str, user=Depends(require_auth)):
     practitioner_name = await get_user_display_name(user)
     
     plan_cursor = db.plans.find({"patient_id": patient_id}).sort("updated_at", -1)
-    plans = await plan_cursor.to_list(length=100)
+    plans = await plan_cursor.to_list(length=None)
     
     if not plans:
         raise HTTPException(status_code=400, detail="No plans found for this patient")
@@ -1029,11 +1058,8 @@ async def save_all_plans_to_cloud(patient_id: str, user=Depends(require_auth)):
             plan = await sync_plan_with_master(plan)
             plan = recalculate_plan_costs(plan, freight_map)
             
-            program = plan.get("program_name", "Protocol")
-            step = plan.get("step_label", "")
-            
             patient_pdf = bytes(await asyncio.to_thread(generate_patient_pdf, plan))
-            patient_filename = f"Patient - {patient_name} - {program} {step}.pdf"
+            patient_filename = cloud_plan_filename(plan)
             uploaded.append(await asyncio.to_thread(upload_pdf, practitioner_name, patient_name, patient_filename, patient_pdf))
         
         return {

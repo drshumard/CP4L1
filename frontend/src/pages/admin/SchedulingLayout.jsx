@@ -1,6 +1,7 @@
 import React from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import { CalendarDays, CalendarRange, Users, Headset, Clock, Settings2 } from 'lucide-react';
+import { schedulingPagesForCapabilities } from '@/lib/portalAccess';
 
 const TABS = [
   { to: '/admin/scheduling/bookings', label: 'Bookings', icon: CalendarDays },
@@ -13,11 +14,16 @@ const TABS = [
 
 export default function SchedulingLayout() {
   const { pathname } = useLocation();
+  const context = useOutletContext();
+  const pages = schedulingPagesForCapabilities(context?.capabilities || []);
+  if (pathname.replace(/\/+$/, '') === '/admin/scheduling' && pages.length) {
+    return <Navigate to={pages[0].to} replace />;
+  }
   return (
     <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto w-full">
       <div className="mb-6 overflow-x-auto">
         <div className="cad-tabs">
-          {TABS.map(({ to, label, icon: Icon }) => (
+          {TABS.filter((tab) => pages.some((page) => page.to === tab.to)).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -30,7 +36,7 @@ export default function SchedulingLayout() {
         </div>
       </div>
       <div key={pathname} className="animate-in fade-in-0 duration-200">
-        <Outlet />
+        <Outlet context={context} />
       </div>
     </div>
   );

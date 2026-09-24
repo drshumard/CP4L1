@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginPath } from '@/lib/staffApps';
 import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -61,7 +62,7 @@ const AdminAnalytics = () => {
       setAnalytics(res.data);
     } catch (error) {
       if (error.response?.status === 403) { toast.error('Admin access required', { id: 'admin-access-required' }); navigate('/'); }
-      else if (error.response?.status === 401) { localStorage.clear(); navigate('/login'); }
+      else if (error.response?.status === 401) { localStorage.clear(); navigate(loginPath()); }
       else { toast.error('Failed to load analytics', { id: 'analytics-error' }); }
     } finally {
       setLoading(false);

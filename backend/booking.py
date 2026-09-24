@@ -56,6 +56,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/booking", tags=["booking"])
 
+_capabilities_resolver = None
+
+
+def configure_capabilities(resolver):
+    """Use the portal's live RBAC policy without importing its application module."""
+    global _capabilities_resolver
+    _capabilities_resolver = resolver
+
 # Per-email booking cooldown to prevent rapid-fire requests
 _booking_cooldowns: dict = {}  # email -> timestamp of last attempt
 BOOKING_COOLDOWN_SECONDS = 30
@@ -496,10 +504,11 @@ def _decode_optional_jwt_user_id(authorization: Optional[str]) -> Optional[str]:
         return None
 
 
-async def _require_admin(request: Request) -> dict:
-    """Hard admin gate for booking.py's admin utility endpoints. Fails CLOSED when
-    JWT_SECRET_KEY is unset — never falls back to a known literal a caller could sign
-    tokens with. Returns the admin user doc, or raises."""
+async def _require_capability(request: Request, capability: str) -> dict:
+    """Authenticate booking utilities and apply the portal's current capabilities.
+
+    Fail closed if the application has not configured its policy resolver.
+    """
     auth_header = request.headers.get("Authorization", "")
     if not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing auth token")
@@ -517,10 +526,12 @@ async def _require_admin(request: Request) -> dict:
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token")
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    # admin AND super_admin (was admin-only, which locked out super admins); and a
-    # deactivated admin must lose access immediately, not at token expiry.
-    if not user or user.get("role") not in {"admin", "super_admin"} or user.get("active") is False:
-        raise HTTPException(status_code=403, detail="Admin only")
+    if not user or user.get("active") is False:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if _capabilities_resolver is None:
+        raise HTTPException(status_code=503, detail="Access policy is not configured")
+    if capability not in _capabilities_resolver(user):
+        raise HTTPException(status_code=403, detail="You don't have access to this")
     return user
 
 
@@ -1644,7 +1655,7 @@ async def send_reminder_test(req: ReminderTestRequest, request: Request):
     """Admin: send one reminder to a phone number to preview it live. Renders the CURRENT saved
     copy for that reminder with sample data — {link} shows the bare portal URL (a test isn't tied
     to a patient, so no personal login token is minted)."""
-    await _require_admin(request)
+    await _require_capability(request, "settings.manage")
     if not _sms.is_configured():
         raise HTTPException(status_code=400, detail="SMS is not configured on the server (Twilio env vars are missing).")
     cfg = _reminder_cfg(await _load_app_settings())
@@ -2696,7 +2707,7 @@ async def fetch_pb_clients_to_mongo(
     Protected endpoint - requires Authorization Bearer token (admin only).
     Returns list of all PB clients fetched and which ones matched local users.
     """
-    await _require_admin(request)
+    await _require_capability(request, "patients.manage")
 
     all_pb_clients = []
     last_id = None
@@ -2818,7 +2829,7 @@ async def lookup_pb_client(
     
     Protected - requires admin Bearer token.
     """
-    await _require_admin(request)
+    await _require_capability(request, "patients.manage")
 
     # Search PB for this email using the fixed pagination
     pb_record_id = await pb_service.search_client_by_email(email, correlation_id=correlation_id)
@@ -2863,9 +2874,11 @@ async def lookup_pb_client(
 
 @router.get("/cache-status")
 async def cache_status(
+    request: Request,
     correlation_id: str = Depends(get_correlation_id)
 ):
     """Get the current status of the client cache and availability cache."""
+    await _require_capability(request, "patients.view")
     from services.client_cache import get_client_cache
     
     cache = get_client_cache()
@@ -2891,7 +2904,7 @@ async def cache_lookup(
     Admin-gated: "does this email belong to a client of the practice" is sensitive
     membership information for a medical practice, even without profile fields.
     """
-    await _require_admin(request)
+    await _require_capability(request, "patients.view")
     from services.client_cache import get_client_cache
     cache = get_client_cache()
     client = cache.get_client_by_email(email)

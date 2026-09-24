@@ -1,4 +1,5 @@
 import { GraduationCap, Pill, ShieldCheck, UserCog } from 'lucide-react';
+import { portalHomeForCapabilities } from './portalAccess';
 
 // Central registry of the team role model and the staff apps. The staff sidebar, the
 // staff-home tiles, and the per-app route guards are ALL derived from this file — to
@@ -57,7 +58,9 @@ export const STAFF_APPS = [
 
 // Access is driven by the RBAC matrix (Team → Roles & access), delivered as
 // profile.capabilities from /user/me — never by the role name.
-export const appsForCapabilities = (caps) => STAFF_APPS.filter((a) => (caps || []).includes(a.capability));
+export const appsForCapabilities = (caps) => STAFF_APPS
+  .filter((a) => (caps || []).includes(a.capability))
+  .map((a) => a.key === 'portal' ? { ...a, path: portalHomeForCapabilities(caps) || '/admin' } : a);
 
 /** Where a signed-in user belongs after login: the whole team (staff AND admins) lands in
  *  the workspace — admins reach the admin portal via its "Portal" tab. Patients → null. */

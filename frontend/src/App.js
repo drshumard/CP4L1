@@ -30,7 +30,7 @@ import StaffAppPage from './pages/staff/StaffAppPage';
 import LearnLauncher from './pages/staff/LearnLauncher';
 import StaffSettings from './pages/staff/StaffSettings';
 import SupplementsApp from './pages/staff/supplements/SupplementsApp';
-import { homeForRole, loginPath } from './lib/staffApps';
+import { homeForRole, isStaffHost, loginPath } from './lib/staffApps';
 import StaffLogin from './pages/StaffLogin';
 import ProtoLayout from './pages/prototype/ProtoLayout';
 import ProtoDashboard from './pages/prototype/ProtoDashboard';
@@ -62,6 +62,13 @@ const API = process.env.REACT_APP_BACKEND_URL + '/api';
 // Track session start on app load
 if (typeof window !== 'undefined') {
   trackSessionStart();
+}
+
+// Learn's own "Sign out" lands here (Learn is served next to the portal at /learn): end the
+// whole staff session — portal tokens + Learn cookie — and show the staff login.
+function StaffLogout() {
+  useEffect(() => { endSession('/staff-login'); }, []);
+  return null;
 }
 
 function PrivateRoute({ children }) {
@@ -240,10 +247,12 @@ function AxiosInterceptor() {
         });
 
         // Use setTimeout to ensure state cleanup happens before redirect;
-        // endSession also kills the Learn cookie and clears tokens.
+        // endSession also kills the Learn cookie and clears tokens. Resolve the login page
+        // now: by the time the timer fires, a page-level 401 handler may have navigated away.
+        const target = loginPath();
         setTimeout(() => {
           isHandling401 = false;
-          endSession(loginPath());
+          endSession(target);
         }, 100);
       }
     };
@@ -325,9 +334,12 @@ function App() {
           <AxiosInterceptor />
           <ErrorBoundary>
           <Routes>
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/login" element={<Login />} />
+            {/* staff.<domain> is the team's front door: no patient sign-in/sign-up there, and the
+                root goes straight to the workspace (the /staff guard sends guests to the staff login). */}
+            <Route path="/signup" element={isStaffHost() ? <Navigate to="/staff-login" replace /> : <Signup />} />
+            <Route path="/login" element={isStaffHost() ? <Navigate to="/staff-login" replace /> : <Login />} />
             <Route path="/staff-login" element={<StaffLogin />} />
+            <Route path="/staff-logout" element={<StaffLogout />} />
             {/* Prototype patient portal (non-production design preview) */}
             <Route path="/prototype" element={<ProtoLayout />}>
               <Route index element={<ProtoDashboard />} />
@@ -339,7 +351,7 @@ function App() {
             <Route path="/auto-login/:token" element={<AutoLogin />} />
             <Route path="/booking-complete" element={<BookingThankYou />} />
             <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
-            <Route path="/" element={<JourneyRoute><PortalDashboard /></JourneyRoute>} />
+            <Route path="/" element={isStaffHost() ? <Navigate to="/staff" replace /> : <JourneyRoute><PortalDashboard /></JourneyRoute>} />
             <Route path="/dashboard" element={<JourneyRoute><PortalDashboard /></JourneyRoute>} />
             {/* Onboarding pages are step-locked: each one only renders for the user's
                 current step; anything else forwards to where they actually are. */}

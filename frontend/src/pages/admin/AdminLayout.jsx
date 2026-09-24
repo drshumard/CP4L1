@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ArrowLeft, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { homeForRole } from '@/lib/staffApps';
+import { canAccessPortalPath, portalHomeForCapabilities } from '@/lib/portalAccess';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -71,6 +72,14 @@ export default function AdminLayout() {
   if (!caps.includes('portal')) {
     return <Navigate to={homeForRole(role) || '/'} replace />;
   }
+  const landing = portalHomeForCapabilities(caps);
+  if (!landing) {
+    return <div className="flex min-h-screen flex-col items-center justify-center gap-3 p-6 text-center">
+      <p>No Portal sections have been assigned to your account. Ask your administrator to update your access.</p>
+      <Link className="underline" to="/staff">Return to staff workspace</Link>
+    </div>;
+  }
+  if (!canAccessPortalPath(pathname, caps)) return <Navigate to={landing} replace />;
 
   const changeTz = async (v) => {
     const prev = displayTz;
@@ -87,7 +96,7 @@ export default function AdminLayout() {
 
   return (
     <SidebarProvider className="admin-geist" style={{ background: 'hsl(40 6% 91%)' }}>
-      <AppSidebar />
+      <AppSidebar capabilities={caps} />
       <SidebarInset className="md:m-2 md:ml-0 md:rounded-xl md:border md:shadow-sm md:h-[calc(100svh-1rem)] overflow-hidden bg-card">
         <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-4">
           <SidebarTrigger className="-ml-1" />
@@ -115,7 +124,7 @@ export default function AdminLayout() {
           key={`${pathname.split('/')[2] || 'home'}:${displayTz}`}
           className="flex-1 overflow-y-auto min-w-0 [scrollbar-gutter:stable] animate-in fade-in-0 duration-200"
         >
-          <Outlet />
+          <Outlet context={{ capabilities: caps }} />
         </div>
       </SidebarInset>
       <ConfirmRoot />

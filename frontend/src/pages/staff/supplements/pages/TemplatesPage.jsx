@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getTemplates, updateTemplate, createTemplate, deleteTemplate, getSupplements } from '../lib/api';
-import { formatCurrency } from '../lib/utils';
-import { parseDosage, buildDosageText } from '../lib/dosageParser';
+import { calculateDailyDosage, formatCurrency } from '../lib/utils';
+import { getDoseSchedule, normalizeDosageEntry, updateDosageEntry } from '../lib/dosageParser';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
@@ -30,7 +30,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 
 const DEFAULT_PROGRAMS = ['Detox 1', 'Detox 2', 'Maintenance'];
 const TIMES_ORDER = ['AM', 'Afternoon', 'PM'];
-const ROW_COLS = '14px 96px minmax(150px,1fr) 56px 56px 140px minmax(140px,1fr) 44px 72px 28px';
+const ROW_COLS = '14px 96px minmax(150px,1fr) 104px 56px 140px minmax(140px,1fr) 44px 72px 28px';
 
 const freqToTimes = (freq) => {
   if (freq >= 3) return ['AM', 'Afternoon', 'PM'];
@@ -63,7 +63,7 @@ const templatesForProgram = (templates, program) =>
     .filter(t => (t.program_name || '').trim() === program)
     .sort((a, b) => (a.step_number - b.step_number) || (b.updated_at || '').localeCompare(a.updated_at || ''));
 
-function NumberStepper({ value, onChange, min = 0 }) {
+function NumberStepper({ value, onChange, min = 0, max = Infinity }) {
   const num = value ?? 0;
   return (
     <div className="inline-flex items-center h-[24px] rounded-md border hairline overflow-hidden select-none bg-white">
@@ -80,6 +80,7 @@ function NumberStepper({ value, onChange, min = 0 }) {
       </span>
       <button
         type="button"
+        disabled={num >= max}
         onClick={() => onChange(num + 1)}
         className="w-5 h-full flex items-center justify-center text-ink-subtle hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors"
       >
@@ -154,7 +155,7 @@ function MonthAddSupplement({ monthNum, supplements, onAdd }) {
 const makeSuppEntry = (supp) => {
   const freq = supp.default_frequency_per_day || 1;
   const times = freqToTimes(freq);
-  return {
+  return normalizeDosageEntry({
     supplement_id: supp._id,
     supplement_name: supp.supplement_name,
     company: supp.company || '',
@@ -168,7 +169,7 @@ const makeSuppEntry = (supp) => {
     cost_per_bottle: supp.cost_per_bottle || 0,
     refrigerate: supp.refrigerate || false,
     times,
-  };
+  });
 };
 
 export default function TemplatesPage() {
@@ -220,7 +221,7 @@ export default function TemplatesPage() {
     if ((tmpl?._id || '') !== selectedId) setSelectedId(tmpl?._id || '');
     setCurrentTemplate(tmpl);
     setEditMonths(tmpl?.default_months || 1);
-    setEditSupps(tmpl?.months || []);
+    setEditSupps((tmpl?.months || []).map(month => ({ ...month, supplements: (month.supplements || []).map(normalizeDosageEntry) })));
   }, [selectedProgram, selectedId, templates]);
 
   const addTemplateSupp = (monthNum, supp) => {
@@ -243,27 +244,7 @@ export default function TemplatesPage() {
       if (m.month_number !== monthNum) return m;
       const supps = [...(m.supplements || [])];
       if (!supps[idx]) return m;
-      const s = { ...supps[idx], [field]: value };
-      const unit = s.unit_type || 'caps';
-      if (field === 'quantity_per_dose' || field === 'frequency_per_day') {
-        if (s.quantity_per_dose && s.frequency_per_day) {
-          s.dosage_display = buildDosageText(s.quantity_per_dose, s.frequency_per_day, unit);
-        }
-        if (field === 'frequency_per_day' && value) s.times = freqToTimes(value);
-      } else if (field === 'dosage_display') {
-        const parsed = parseDosage(value);
-        if (parsed) {
-          s.quantity_per_dose = parsed.qty;
-          if (parsed.freq !== s.frequency_per_day) {
-            s.frequency_per_day = parsed.freq;
-            s.times = freqToTimes(parsed.freq);
-          }
-        }
-      } else if (field === 'times') {
-        s.frequency_per_day = value.length;
-        if (s.quantity_per_dose) s.dosage_display = buildDosageText(s.quantity_per_dose, value.length, unit);
-      }
-      supps[idx] = s;
+      supps[idx] = updateDosageEntry(supps[idx], field, value);
       return { ...m, supplements: supps };
     }));
   };
@@ -292,6 +273,10 @@ export default function TemplatesPage() {
 
   const handleSave = async () => {
     if (!currentTemplate) return;
+    if (editSupps.some(month => month.supplements?.some(supp => supp.dosage_error))) {
+      toast.error('Resolve the highlighted dosage instructions before saving.');
+      return;
+    }
     setSaving(true);
     try {
       await updateTemplate(currentTemplate._id, { default_months: editMonths, months: editSupps });
@@ -497,11 +482,12 @@ export default function TemplatesPage() {
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                     <SortableContext items={suppIds} strategy={verticalListSortingStrategy}>
                     {(month.supplements || []).map((supp, idx) => {
-                      const qty = supp.quantity_per_dose || 0;
-                      const freq = supp.frequency_per_day || 0;
                       const upb = supp.units_per_bottle || 0;
-                      const bottles = (qty > 0 && freq > 0 && upb > 0) ? Math.ceil((qty * freq * 30) / upb) : '—';
+                      const daily = calculateDailyDosage(supp.quantity_per_dose, supp.frequency_per_day, supp.dose_schedule);
+                      const periodDays = month.month_number % 1 === 0.5 ? 14 : 30;
+                      const bottles = (daily > 0 && upb > 0) ? Math.ceil((daily * periodDays) / upb) : '—';
                       const times = supp.times || ['AM'];
+                      const schedule = supp.dose_schedule?.length ? supp.dose_schedule : getDoseSchedule(supp);
                       return (
                         <SortableRow key={suppIds[idx]} id={suppIds[idx]}>
                         <div
@@ -544,19 +530,35 @@ export default function TemplatesPage() {
                             )}
                           </div>
                           <div className="flex justify-center">
+                            {supp.dose_schedule?.length ? (
+                              <div className="flex flex-col gap-1 py-1">
+                                {schedule.map(dose => (
+                                  <label key={dose.time} className="flex items-center justify-between gap-1 text-[10px] text-ink-muted">
+                                    {dose.time === 'Afternoon' ? 'Aft' : dose.time}
+                                    <input type="number" min="0.01" step="any" value={dose.quantity}
+                                      aria-label={`${supp.supplement_name} ${dose.time} quantity`}
+                                      className="w-12 rounded border hairline px-1 text-[12px] text-ink"
+                                      onChange={event => updateTemplateSupp(month.month_number, idx, 'dose_schedule', schedule.map(item => item.time === dose.time ? { ...item, quantity: Number(event.target.value) } : item))} />
+                                  </label>
+                                ))}
+                              </div>
+                            ) : (
                             <NumberStepper
                               value={supp.quantity_per_dose}
                               min={1}
                               onChange={(v) => updateTemplateSupp(month.month_number, idx, 'quantity_per_dose', v)}
                             />
+                            )}
                           </div>
                           <div className="flex justify-center">
                             <NumberStepper
                               value={supp.frequency_per_day}
                               min={1}
+                              max={3}
                               onChange={(v) => updateTemplateSupp(month.month_number, idx, 'frequency_per_day', v)}
                             />
                           </div>
+                          <div>
                           <div
                             contentEditable
                             suppressContentEditableWarning
@@ -567,6 +569,8 @@ export default function TemplatesPage() {
                             }}
                             dangerouslySetInnerHTML={{ __html: escapeHtml(supp.dosage_display || '') }}
                           />
+                          {supp.dosage_error && <p role="alert" className="mt-1 text-[11px] text-red-600">{supp.dosage_error}</p>}
+                          </div>
                           <div
                             contentEditable
                             suppressContentEditableWarning

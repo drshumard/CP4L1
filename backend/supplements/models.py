@@ -2,9 +2,10 @@
 MongoDB data models for the Supplement Protocol App.
 """
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Literal, Optional
+from pydantic import BaseModel, Field, model_validator
 from bson import ObjectId
+from .dosage import normalize_dosage
 
 
 # ─── Helpers ────────────────────────────────────────────────────────────
@@ -70,13 +71,34 @@ class SupplementUpdate(BaseModel):
 
 # ─── Template Models ────────────────────────────────────────────────────
 
-class TemplateSupplementEntry(BaseModel):
+class DoseEntry(BaseModel):
+    time: Literal["AM", "Afternoon", "PM"]
+    quantity: float = Field(gt=0, allow_inf_nan=False)
+
+
+class ScheduledDosage(BaseModel):
+    quantity_per_dose: Optional[float] = None
+    frequency_per_day: Optional[int] = None
+    dose_schedule: Optional[list[DoseEntry]] = None
+    dosage_display: str = ""
+    times: list[str] = Field(default_factory=list)
+    unit_type: str = "caps"
+
+    @model_validator(mode="after")
+    def normalize_schedule(self):
+        normalized = normalize_dosage(self.model_dump())
+        if normalized.get("dose_schedule"):
+            self.dose_schedule = [DoseEntry(**dose) for dose in normalized["dose_schedule"]]
+            self.quantity_per_dose = normalized["quantity_per_dose"]
+            self.frequency_per_day = normalized["frequency_per_day"]
+            self.times = normalized["times"]
+        return self
+
+
+class TemplateSupplementEntry(ScheduledDosage):
     supplement_id: str
     supplement_name: str
     company: str = ""
-    quantity_per_dose: Optional[int] = None
-    frequency_per_day: Optional[int] = None
-    dosage_display: str = ""
     instructions: str = ""
     units_per_bottle: Optional[int] = None
     cost_per_bottle: float = 0.0
@@ -99,19 +121,15 @@ class TemplateUpdate(BaseModel):
 
 # ─── Plan Models ────────────────────────────────────────────────────────
 
-class PlanSupplementEntry(BaseModel):
+class PlanSupplementEntry(ScheduledDosage):
     supplement_id: str = ""
     supplement_name: str
     company: str = ""
     manufacturer: str = ""
     supplier: str = ""
-    quantity_per_dose: Optional[int] = None
-    frequency_per_day: Optional[int] = None
-    dosage_display: str = ""
     instructions: str = ""
     with_food: bool = True
     time_of_day: str = "AM"  # Legacy single field
-    times: list = ["AM"]  # Active time slots: AM, Afternoon, PM
     hc_notes: str = ""
     units_per_bottle: Optional[int] = None
     cost_per_bottle: float = 0.0

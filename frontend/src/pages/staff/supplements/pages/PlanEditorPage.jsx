@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getPlan, updatePlan, getSupplements, exportPatientPDF, exportHCPDF,
@@ -6,7 +6,8 @@ import {
   getTemplates, savePlanAsTemplate,
 } from '../lib/api';
 import { formatCurrency, recalculatePlanCosts, downloadBlob } from '../lib/utils';
-import { parseDosage, buildDosageText } from '../lib/dosageParser';
+import { getDoseSchedule, normalizeDosageEntry, unitLabel, updateDosageEntry } from '../lib/dosageParser';
+import { afterLatestPlanSaved, clonePlan, createPlanSaveQueue, mergeSavedPlan } from '../lib/planSaveQueue';
 import { useAuth } from '../auth';
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -43,9 +44,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  ArrowLeft, Plus, Minus, Trash2, Download, FileText, Eye, EyeOff, Save,
-  Snowflake, ChevronsUpDown, Lock, Unlock, Copy, User, CopyPlus,
-  GripVertical, CalendarDays, Circle, MoreHorizontal, CloudUpload, AlertTriangle,
+  ArrowLeft, Plus, Trash2, Download, FileText, Eye, EyeOff, Save,
+  Snowflake, Lock, Unlock, Copy, User, CopyPlus,
+  GripVertical, CalendarDays, Circle, MoreHorizontal, MoreVertical, CloudUpload, AlertTriangle,
   Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -63,33 +64,28 @@ const fmtTplDate = (d) => {
 // "<img onerror=…>" renders as literal characters instead of executing. Matches
 // TemplatesPage's identical fields.
 const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const editorDoseSchedule = (entry) => entry.dose_schedule?.length ? entry.dose_schedule : getDoseSchedule(entry);
 
-/* ─────────────────── NumberStepper ─────────────────── */
-function NumberStepper({ value, onChange, disabled, min = 0 }) {
-  const num = value ?? 0;
-  return (
-    <div className="inline-flex items-center h-[24px] rounded-md border hairline overflow-hidden select-none bg-white">
-      <button
-        type="button"
-        disabled={disabled || num <= min}
-        onClick={() => onChange(Math.max(min, num - 1))}
-        className="w-5 h-full flex items-center justify-center text-ink-subtle hover:bg-[color:var(--surface-hover)] hover:text-ink disabled:opacity-30 transition-colors"
-      >
-        <Minus size={10} />
-      </button>
-      <span className="w-6 h-full flex items-center justify-center font-mono text-[11px] font-semibold text-ink tabular-nums">
-        {num}
-      </span>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => onChange(num + 1)}
-        className="w-5 h-full flex items-center justify-center text-ink-subtle hover:bg-[color:var(--surface-hover)] hover:text-ink disabled:opacity-30 transition-colors"
-      >
-        <Plus size={10} />
-      </button>
-    </div>
-  );
+// The three schedule cells in the plan editor. "Mid" is the model's "Afternoon".
+const SCHEDULE_SLOTS = [
+  { time: 'AM', label: 'AM' },
+  { time: 'Afternoon', label: 'Mid' },
+  { time: 'PM', label: 'PM' },
+];
+const slotLabel = (time) => SCHEDULE_SLOTS.find((s) => s.time === time)?.label || time;
+
+// The line under a supplement's name is DERIVED from its schedule + bottles, never typed:
+// uniform doses read "2 caps · 3× daily", split doses list each time ("1 cap AM · 2 caps PM").
+function dosageSummary(supp) {
+  const doses = editorDoseSchedule(supp).filter((d) => Number(d.quantity) > 0);
+  if (!doses.length) return '';
+  const unit = supp.unit_type || 'caps';
+  const qtys = doses.map((d) => Number(d.quantity));
+  const uniform = qtys.every((q) => q === qtys[0]);
+  const parts = uniform
+    ? [`${qtys[0]} ${unitLabel(qtys[0], unit)}`, doses.length === 1 ? 'once daily' : `${doses.length}× daily`]
+    : [doses.map((d) => `${d.quantity} ${unitLabel(Number(d.quantity), unit)} ${slotLabel(d.time)}`).join(' · ')];
+  return parts.join(' · ');
 }
 
 /* ─────────────────── Sortable row wrapper ─────────────────── */
@@ -141,268 +137,242 @@ function MonthSection({
     month.month_number === 0.5 ? '2 Weeks' :
     month.month_number % 1 !== 0 ? `Month ${Math.floor(month.month_number)} + 2 Weeks` :
     `Month ${month.month_number}`;
+  // Mirrors the backend's days_in_period: the 2-week period is 14 days, everything else 30.
+  const supplyDays = month.month_number === 0.5 ? 14 : 30;
+  const count = (month.supplements || []).length;
+  const editable = !isFinalized && !patientView;
 
-  const rowCols = patientView
-    ? '110px minmax(180px,260px) 110px 72px minmax(160px,1fr)'
-    : showCosts
-      ? '14px 110px minmax(180px,240px) 56px 56px 110px 72px minmax(160px,1fr) 36px 78px 20px'
-      : '14px 110px minmax(180px,240px) 56px 56px 110px 72px minmax(160px,1fr) 20px';
+  // Column plan shared by the header band and every row, so they can never drift.
+  const cols = [
+    !patientView && '14px',                 // drag handle
+    'minmax(200px,1.3fr)',                  // supplement + derived dosage line
+    '200px',                                // schedule: AM / Mid / PM quantity cells
+    '120px',                                // with food
+    'minmax(120px,1fr)',                    // notes (gives up width to Btls)
+    showCosts && !patientView && '44px',    // bottles needed
+    showCosts && !patientView && '84px',    // cost
+    editable && '28px',                     // row menu
+  ].filter(Boolean).join(' ');
+
+  // One cell edit = one entry in the supplement's dose_schedule. Empty cell = not at
+  // that time. Validation/dosage_display upkeep happen in updateDosageEntry, as before.
+  const setSlot = (supp, idx, time, raw) => {
+    const others = editorDoseSchedule(supp).filter((d) => d.time !== time);
+    const next = raw === '' ? others : [...others, { time, quantity: Number(raw) }];
+    next.sort((a, b) => SCHEDULE_SLOTS.findIndex((s) => s.time === a.time) - SCHEDULE_SLOTS.findIndex((s) => s.time === b.time));
+    onUpdateField(month.month_number, idx, 'dose_schedule', next);
+  };
 
   return (
-    <section
-      className="mb-8"
-      data-testid={`month-page-${month.month_number}`}
-    >
-      {/* Quiet section header */}
-      <div className="flex items-end justify-between px-1 pb-3">
-        <div className="flex items-baseline gap-3">
-          <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{monthLabel}</h3>
-          <span className="text-[12px] text-ink-subtle">
-            {(month.supplements || []).length} {(month.supplements || []).length === 1 ? 'supplement' : 'supplements'}
-          </span>
-        </div>
-        {showCosts && !patientView && (
-          <div className="flex flex-col items-end gap-0.5">
-            <div className="flex items-baseline gap-2">
-              <span className="text-[11px] uppercase tracking-[0.08em] text-ink-subtle font-medium">Total</span>
-              <span className="font-mono tabular-nums text-[15px] font-semibold text-ink">
+    <section className="mb-8" data-testid={`month-page-${month.month_number}`}>
+      <div className="rounded-xl border hairline surface shadow-[var(--shadow-xs)] px-5 pt-5 pb-5">
+        {/* Header: period + supply on the left, cost roll-up on the right */}
+        <div className="flex items-start justify-between gap-6 pb-4">
+          <div>
+            <h3 className="text-[18px] font-semibold tracking-[-0.02em] text-ink leading-tight">{monthLabel}</h3>
+            <p className="mt-0.5 text-[13px] text-ink-muted">
+              {count} {count === 1 ? 'supplement' : 'supplements'} · {supplyDays}-day supply
+            </p>
+          </div>
+          {showCosts && !patientView && (
+            <div className="text-right">
+              <div className="text-[12px] text-ink-muted">Total</div>
+              <div className="text-[18px] font-semibold tracking-[-0.02em] text-ink tabular-nums leading-tight">
                 {formatCurrency(month.monthly_total_cost)}
-              </span>
+              </div>
+              <div className="text-[12px] text-ink-muted tabular-nums">
+                {formatCurrency(month.supplement_cost || month.monthly_total_cost)} supplements
+                {(month.freight_total || 0) > 0 && <> + {formatCurrency(month.freight_total)} shipping</>}
+              </div>
             </div>
-            <div className="font-mono tabular-nums text-[11px] text-ink-subtle">
-              Supps {formatCurrency(month.supplement_cost || month.monthly_total_cost)}
-              {(month.freight_total || 0) > 0 && (
-                <> <span className="text-ink-faint">·</span> Ship {formatCurrency(month.freight_total)}</>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Table card */}
-      <div className="rounded-lg border hairline surface overflow-hidden shadow-[var(--shadow-xs)]">
-        {/* Brand accent strip */}
-        <div
-          aria-hidden
-          className="h-[2px] w-full"
-          style={{ background: 'linear-gradient(90deg, #0D5F68 0%, #46989D 50%, #0D5F68 100%)' }}
-        />
-        {/* Column headers */}
-        <div
-          className="grid items-center px-3 h-9 hairline-b gap-x-3 text-[10px] font-semibold tracking-[0.09em] uppercase text-[color:var(--accent-teal)]"
-          style={{
-            gridTemplateColumns: rowCols,
-            background: 'linear-gradient(90deg, rgba(13,95,104,0.12) 0%, rgba(70,152,157,0.18) 50%, rgba(13,95,104,0.12) 100%)',
-          }}
-        >
-          {!patientView && <span />}
-          <span className="text-center">Times</span>
-          <span className="pl-2">Supplement</span>
-          {!patientView && (<>
-            <span className="text-center">Qty</span>
-            <span className="text-center">Freq</span>
-          </>)}
-          <span className="text-center">Dosage</span>
-          <span className="text-center">Food</span>
-          <span className="text-center">Notes</span>
-          {showCosts && !patientView && (<>
-            <span className="text-center">Btls</span>
-            <span className="text-right">Cost</span>
-          </>)}
-          {!isFinalized && !patientView && <span />}
+          )}
         </div>
 
-        {/* Rows */}
-        {(month.supplements || []).length === 0 ? (
-          <div className="px-8 py-12 text-center text-ink-subtle text-[13px]">
-            No supplements added yet.
-          </div>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={suppIds} strategy={verticalListSortingStrategy}>
-              {(month.supplements || []).map((supp, idx) => (
-                <SortableRow key={suppIds[idx]} id={suppIds[idx]} disabled={isFinalized || patientView}>
-                  <div
-                    className="grid items-center px-3 min-h-[36px] py-1 border-b border-[color:var(--hairline)] last:border-b-0 row-hover transition-colors duration-100 group gap-x-3"
-                    style={{ gridTemplateColumns: rowCols }}
-                  >
-                    {/* Drag handle */}
-                    {!patientView && (
-                      <div className="flex items-center justify-center cursor-grab active:cursor-grabbing drag-handle">
-                        <GripVertical size={12} className="text-ink-faint group-hover:text-ink-subtle" />
-                      </div>
-                    )}
-
-                    {/* Time chips */}
-                    <div className="flex justify-center gap-1">
-                      {patientView ? (
-                        <span className="text-[11px] font-medium text-[color:var(--accent-teal)]">
-                          {(supp.times || ['AM']).map(t => t === 'Afternoon' ? 'AFT' : t.toUpperCase()).join(' · ')}
-                        </span>
-                      ) : (
-                        [
-                          { label: 'AM',  full: 'AM' },
-                          { label: 'AFT', full: 'Afternoon' },
-                          { label: 'PM',  full: 'PM' },
-                        ].map(({ label, full }) => {
-                          const times = supp.times || ['AM'];
-                          const active = times.includes(full);
-                          return (
-                            <button
-                              key={label}
-                              type="button"
-                              disabled={isFinalized}
-                              onClick={() => {
-                                const newTimes = active
-                                  ? times.filter(t => t !== full)
-                                  : [...times, full].sort((a, b) => ['AM','Afternoon','PM'].indexOf(a) - ['AM','Afternoon','PM'].indexOf(b));
-                                if (newTimes.length === 0) return;
-                                onUpdateField(month.month_number, idx, 'times', newTimes);
-                              }}
-                              className={`min-w-[30px] px-1.5 h-[20px] flex items-center justify-center rounded text-[10px] font-semibold tracking-[0.02em] transition-colors ${
-                                active
-                                  ? 'bg-[color:var(--accent-teal)] text-white shadow-[0_1px_0_rgba(13,95,104,0.25)]'
-                                  : 'bg-[color:var(--surface-subtle)] text-ink-subtle hover:text-ink hover:bg-[color:var(--surface-hover)]'
-                              } ${isFinalized ? 'opacity-50' : ''}`}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-
-                    {/* Supplement */}
-                    <div className="flex items-start gap-1.5 min-w-0 py-1 pl-2">
-                      <span className="text-[13px] font-medium text-ink leading-tight break-words">
-                        {supp.supplement_name}
-                      </span>
-                      {supp.refrigerate && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Snowflake size={11} className="text-blue-500 shrink-0 mt-0.5" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs">Refrigerate</TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-
-                    {!patientView && (<>
-                      <div className="flex justify-center">
-                        <NumberStepper
-                          value={supp.quantity_per_dose}
-                          disabled={isFinalized}
-                          onChange={(v) => onUpdateField(month.month_number, idx, 'quantity_per_dose', v)}
-                        />
-                      </div>
-                      <div className="flex justify-center">
-                        <NumberStepper
-                          value={supp.frequency_per_day}
-                          disabled={isFinalized}
-                          onChange={(v) => onUpdateField(month.month_number, idx, 'frequency_per_day', v)}
-                        />
-                      </div>
-                    </>)}
-
-                    {/* Dosage */}
-                    <div className="min-w-0">
-                      {patientView || isFinalized ? (
-                        <span className="text-[12.5px] text-ink-3 block truncate text-center">
-                          {(supp.dosage_display || '').replace(/<[^>]*>/g, '').trim() || '—'}
-                        </span>
-                      ) : (
-                        <div
-                          contentEditable
-                          suppressContentEditableWarning
-                          className="text-[12.5px] text-ink-3 outline-none min-h-[18px] break-words cursor-text rounded px-1 -mx-1 leading-tight text-center focus:text-left focus:bg-white focus:shadow-[var(--focus-subtle)]"
-                          onBlur={(e) => onUpdateField(month.month_number, idx, 'dosage_display', e.target.textContent)}
-                          dangerouslySetInnerHTML={{ __html: escapeHtml(supp.dosage_display || '') }}
-                        />
-                      )}
-                    </div>
-
-                    {/* With Food */}
-                    <div className="flex justify-center">
-                      {patientView ? (
-                        <span className="text-[12px] text-ink-muted">{supp.with_food ? 'Yes' : 'No'}</span>
-                      ) : (
-                        <Select
-                          value={supp.with_food ? 'yes' : 'no'}
-                          onValueChange={(v) => onUpdateField(month.month_number, idx, 'with_food', v === 'yes')}
-                          disabled={isFinalized}
-                        >
-                          <SelectTrigger className="h-7 text-[12px] border hairline w-full px-2.5 bg-white focus:ring-0 focus:shadow-[var(--focus-subtle)]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-
-                    {/* Notes */}
-                    <div className="min-w-0">
-                      {patientView || isFinalized ? (
-                        <span className="text-[12.5px] text-ink-muted block text-center break-words leading-tight">
-                          {(supp.instructions || '').replace(/<[^>]*>/g, '').trim() || '—'}
-                        </span>
-                      ) : (
-                        <div
-                          contentEditable
-                          suppressContentEditableWarning
-                          className="text-[12.5px] text-ink-muted outline-none min-h-[18px] break-words cursor-text rounded px-1.5 -mx-1 leading-tight text-center focus:text-left focus:bg-white focus:shadow-[var(--focus-subtle)] focus:text-ink-3"
-                          onBlur={(e) => onUpdateField(month.month_number, idx, 'instructions', e.target.textContent)}
-                          dangerouslySetInnerHTML={{ __html: escapeHtml(supp.instructions || '') }}
-                        />
-                      )}
-                    </div>
-
-                    {showCosts && !patientView && (<>
-                      <div className="font-mono tabular-nums text-[12px] text-ink-3 text-center">
-                        {supp.bottles_needed || '—'}
-                      </div>
-                      <div className="font-mono tabular-nums text-[12px] font-semibold text-ink text-right whitespace-nowrap">
-                        {formatCurrency(supp.calculated_cost)}
-                      </div>
-                    </>)}
-
-                    {!isFinalized && !patientView && (
-                      <div className="flex justify-center">
-                        <button
-                          className="h-6 w-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-ink-subtle hover:text-red-600 hover:bg-red-50 rounded"
-                          onClick={() => setDeleteRow(idx)}
-                          aria-label="Remove"
-                        >
-                          <Trash2 size={11} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </SortableRow>
-              ))}
-            </SortableContext>
-          </DndContext>
-        )}
-
-        {/* Add supplement */}
-        {!isFinalized && !patientView && (
+        {/* Table */}
+        <div className="rounded-lg border hairline overflow-hidden">
+          {/* Brand accent strip (original) */}
           <div
-            className="hairline-t px-3 py-2"
+            aria-hidden
+            className="h-[2px] w-full"
+            style={{ background: 'linear-gradient(90deg, #0D5F68 0%, #46989D 50%, #0D5F68 100%)' }}
+          />
+          {/* Column headers (original colors) */}
+          <div
+            className="grid items-center px-3 h-9 gap-x-3 text-[10px] font-semibold tracking-[0.09em] uppercase text-[color:var(--accent-teal)]"
             style={{
-              background: 'linear-gradient(90deg, rgba(13,95,104,0.09) 0%, rgba(70,152,157,0.13) 50%, rgba(13,95,104,0.09) 100%)',
+              gridTemplateColumns: cols,
+              background: 'linear-gradient(90deg, rgba(13,95,104,0.12) 0%, rgba(70,152,157,0.18) 50%, rgba(13,95,104,0.12) 100%)',
             }}
           >
+            {!patientView && <span />}
+            <span className="pl-2">Supplement</span>
+            <span className="text-center">Schedule</span>
+            <span className="text-center">With food</span>
+            <span>Notes</span>
+            {showCosts && !patientView && (<>
+              <span className="text-center">Btls</span>
+              <span className="text-center">Cost</span>
+            </>)}
+            {editable && <span />}
+          </div>
+
+          {count === 0 ? (
+            <div className="px-8 py-12 text-center text-ink-subtle text-[13px]">No supplements added yet.</div>
+          ) : (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={suppIds} strategy={verticalListSortingStrategy}>
+                {(month.supplements || []).map((supp, idx) => {
+                  const schedule = editorDoseSchedule(supp);
+                  const summary = dosageSummary(supp);
+                  return (
+                    <SortableRow key={suppIds[idx]} id={suppIds[idx]} disabled={!editable}>
+                      <div
+                        className="grid items-center px-3 py-2.5 gap-x-3 border-b border-[color:var(--hairline)] last:border-b-0 row-hover transition-colors duration-100 group"
+                        style={{ gridTemplateColumns: cols }}
+                      >
+                        {/* Drag handle */}
+                        {!patientView && (
+                          <div className="flex items-center justify-center cursor-grab active:cursor-grabbing drag-handle">
+                            <GripVertical size={12} className="text-ink-faint group-hover:text-ink-subtle" />
+                          </div>
+                        )}
+
+                        {/* Supplement: name, refrigerate chip, then the schedule-derived dosage line */}
+                        <div className="min-w-0 pl-2">
+                          <div className="text-[13.5px] font-semibold text-ink leading-tight break-words">{supp.supplement_name}</div>
+                          {supp.refrigerate && (
+                            <span className="mt-1 inline-flex items-center gap-1 rounded bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+                              <Snowflake size={11} /> Refrigerate
+                            </span>
+                          )}
+                          <div className="mt-0.5 text-[12px] text-ink-muted">
+                            {summary || <span className="text-ink-faint">Set a schedule</span>}
+                          </div>
+                        </div>
+
+                        {/* Schedule cells */}
+                        <div>
+                          <div className="flex justify-center gap-2">
+                            {SCHEDULE_SLOTS.map(({ time, label }) => {
+                              const dose = schedule.find((d) => d.time === time);
+                              const val = dose ? dose.quantity : '';
+                              return (
+                                <div key={time} className="flex flex-col items-center gap-1">
+                                  <span className="text-[10.5px] text-ink-subtle">{label}</span>
+                                  {editable ? (
+                                    <input
+                                      type="number" inputMode="decimal" min="0.01" step="any" value={val} placeholder="–"
+                                      aria-label={`${supp.supplement_name} ${label} quantity`}
+                                      onChange={(e) => setSlot(supp, idx, time, e.target.value)}
+                                      className="w-[54px] h-[30px] rounded-md border hairline bg-white text-center text-[13.5px] text-ink tabular-nums outline-none focus:shadow-[var(--focus-subtle)] placeholder:text-ink-faint [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
+                                  ) : (
+                                    <div className="w-[54px] h-[30px] flex items-center justify-center rounded-md border hairline bg-white text-[13.5px] text-ink tabular-nums">
+                                      {val === '' ? '–' : val}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {supp.dosage_error && <p role="alert" className="mt-1.5 text-center text-[11px] text-red-700">{supp.dosage_error}</p>}
+                        </div>
+
+                        {/* With food */}
+                        <div className="flex justify-center">
+                          {patientView ? (
+                            <span className="text-[13px] text-ink-3">{supp.with_food ? 'Yes' : 'No'}</span>
+                          ) : (
+                            <div className="inline-flex items-center rounded-md border hairline bg-white p-[2px]" role="group" aria-label={`${supp.supplement_name} with food`}>
+                              {[['Yes', true], ['No', false]].map(([label, val]) => (
+                                <button
+                                  key={label} type="button" disabled={isFinalized}
+                                  onClick={() => onUpdateField(month.month_number, idx, 'with_food', val)}
+                                  className={`h-6 px-3 rounded text-[12px] font-semibold transition-colors ${
+                                    !!supp.with_food === val
+                                      ? 'bg-[color:var(--accent-teal)] text-white'
+                                      : 'text-ink-3 hover:text-ink'
+                                  } ${isFinalized ? 'opacity-60' : ''}`}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        <div className="min-w-0">
+                          {editable ? (
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              data-placeholder="Add note"
+                              className="text-[12.5px] text-ink-muted outline-none min-h-[18px] break-words cursor-text rounded px-1 -mx-1 leading-snug focus:bg-white focus:shadow-[var(--focus-subtle)] focus:text-ink-3"
+                              onBlur={(e) => onUpdateField(month.month_number, idx, 'instructions', e.target.textContent)}
+                              dangerouslySetInnerHTML={{ __html: escapeHtml(supp.instructions || '') }}
+                            />
+                          ) : (
+                            <span className="text-[12.5px] text-ink-muted block break-words leading-snug">
+                              {(supp.instructions || '').replace(/<[^>]*>/g, '').trim() || '—'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bottles + cost (both from the existing recalculation) */}
+                        {showCosts && !patientView && (<>
+                          <div className="font-mono tabular-nums text-[12px] text-ink-3 text-center">
+                            {supp.bottles_needed || '—'}
+                          </div>
+                          <div className="text-center text-[13px] font-semibold text-ink tabular-nums whitespace-nowrap">
+                            {formatCurrency(supp.calculated_cost)}
+                          </div>
+                        </>)}
+
+                        {/* Row menu */}
+                        {editable && (
+                          <div className="flex justify-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="h-7 w-7 flex items-center justify-center rounded-md border hairline bg-white text-ink-3 hover:text-ink hover:bg-[color:var(--surface-hover)] transition-colors"
+                                  aria-label={`${supp.supplement_name} actions`}
+                                >
+                                  <MoreVertical size={14} />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => { setDeleteFromAll(false); setDeleteRow(idx); }}>
+                                  <Trash2 size={13} /> Remove from this month
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => { setDeleteFromAll(true); setDeleteRow(idx); }}>
+                                  <Layers size={13} /> Remove from all months
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        )}
+                      </div>
+                    </SortableRow>
+                  );
+                })}
+              </SortableContext>
+            </DndContext>
+          )}
+        </div>
+
+        {/* Add supplement */}
+        {editable && (
+          <div className="pt-4">
             <Popover open={searchOpen} onOpenChange={setSearchOpen}>
               <PopoverTrigger asChild>
                 <button
-                  className="w-full h-8 px-2 inline-flex items-center gap-2 text-[12px] text-ink-muted hover:text-ink transition-colors rounded"
+                  type="button"
+                  className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border-[1.5px] border-[color:var(--accent-teal)] text-[color:var(--accent-teal)] text-[13px] font-semibold hover:bg-[color:var(--accent-teal-wash)] transition-colors"
                   data-testid={`month-${month.month_number}-add-supplement`}
                 >
-                  <Plus size={13} className="text-[color:var(--accent-teal)]" />
-                  <span>Add supplement to {monthLabel}</span>
-                  <ChevronsUpDown size={11} className="ml-auto text-ink-faint" />
+                  <Plus size={14} /> Add supplement
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-[460px] p-0" align="start">
@@ -422,9 +392,7 @@ function MonthSection({
                             <div className="text-[13px] font-medium">{supp.supplement_name}</div>
                             <div className="text-[11px] text-ink-subtle">{supp.company}</div>
                           </div>
-                          <span className="text-[11px] font-mono text-ink-muted ml-4">
-                            {formatCurrency(supp.cost_per_bottle)}
-                          </span>
+                          <span className="text-[11px] font-mono text-ink-muted ml-4">{formatCurrency(supp.cost_per_bottle)}</span>
                         </CommandItem>
                       ))}
                     </CommandGroup>
@@ -498,7 +466,17 @@ export default function PlanEditorPage() {
   const { planId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [plan, setPlan] = useState(null);
+  const [plan, setPlanState] = useState(null);
+  const planRef = useRef(null);
+  const activePlanIdRef = useRef(planId);
+  activePlanIdRef.current = planId;
+  // Keep the newest edit available synchronously (including an input blur that
+  // immediately precedes Finalize) instead of waiting for React's next render.
+  const setPlan = useCallback((next) => {
+    const value = typeof next === 'function' ? next(planRef.current) : next;
+    planRef.current = value;
+    setPlanState(value);
+  }, []);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCosts, setShowCosts] = useState(true);
@@ -508,10 +486,76 @@ export default function PlanEditorPage() {
   const [exporting, setExporting] = useState(false);
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const saveTimerRef = useRef(null);
+  const actionLockRef = useRef(false);
+  const [actionBusy, setActionBusy] = useState(false);
   const isFinalized = plan?.status === 'finalized';
+  const isReadOnly = isFinalized || actionBusy;
   const effectiveShowCosts = patientViewMode ? false : showCosts;
 
+  const saveQueue = useMemo(() => createPlanSaveQueue(
+    (snapshot) => updatePlan(planId, { patient_name: snapshot.patient_name, date: snapshot.date, months: snapshot.months }),
+    (busy) => { if (activePlanIdRef.current === planId) setSaving(busy); },
+  ), [planId]);
+
+  const cancelPendingSave = useCallback(() => {
+    clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+  }, []);
+
+  const savePlan = useCallback(async (planData = planRef.current) => {
+    cancelPendingSave();
+    if (!planData || !planId || planData.status === 'finalized') return;
+    try {
+      const result = await saveQueue.save(planData);
+      // A response may update derived totals, but must never replace edits made
+      // after its snapshot or a different plan loaded through client navigation.
+      if (activePlanIdRef.current === planId) {
+        setPlan(current => mergeSavedPlan(current, planData, result));
+      }
+      return result;
+    } catch (err) {
+      throw new Error(`Plan not saved. ${err.message || 'Please try again before continuing.'}`);
+    }
+  }, [planId, saveQueue, setPlan, cancelPendingSave]);
+
+  const debouncedSave = useCallback((planData) => {
+    cancelPendingSave();
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      savePlan(planData).catch((err) => toast.error(err.message));
+    }, 800);
+  }, [savePlan, cancelPendingSave]);
+
+  const runSavedAction = async (action) => {
+    if (actionLockRef.current) return;
+    // Blur fires the editor's onBlur before the lock, including keyboard-driven
+    // menu actions, so the saved snapshot contains the text currently displayed.
+    document.activeElement?.blur();
+    actionLockRef.current = true;
+    setActionBusy(true);
+    const requireSamePlan = () => {
+      if (activePlanIdRef.current !== planId) throw new Error('The open plan changed. Return to the previous plan to check its saved status.');
+    };
+    try {
+      return await afterLatestPlanSaved({ cancelPending: cancelPendingSave,
+        getLatest: () => { requireSamePlan(); return planRef.current; }, save: savePlan,
+        action: async (saved) => { requireSamePlan(); return action(saved, requireSamePlan); } });
+    } finally {
+      actionLockRef.current = false;
+      setActionBusy(false);
+    }
+  };
+
   useEffect(() => {
+    activePlanIdRef.current = planId;
+    return () => {
+      cancelPendingSave();
+      activePlanIdRef.current = null;
+    };
+  }, [planId, cancelPendingSave]);
+
+  useEffect(() => {
+    let cancelled = false;
     const load = async () => {
       try {
         const [p, s, c] = await Promise.all([getPlan(planId), getSupplements('', true), getSuppliers()]);
@@ -540,41 +584,32 @@ export default function PlanEditorPage() {
               else supp.times = ['AM'];
               needsSave = true;
             }
+            const normalized = normalizeDosageEntry(supp);
+            if (JSON.stringify(supp) !== JSON.stringify(normalized)) needsSave = true;
+            Object.assign(supp, normalized);
           }
         }
+        if (cancelled) return;
         setPlan(p); setSupplements(s.supplements || []);
         const freightMap = {};
         for (const co of (c.suppliers || [])) { if (co.freight_charge > 0) freightMap[co.name] = co.freight_charge; }
         setCompanyFreight(freightMap);
         if (needsSave && p.status !== 'finalized') {
-          try { await updatePlan(planId, { patient_name: p.patient_name, date: p.date, months: p.months }); } catch {}
+          savePlan(p).catch((err) => { if (!cancelled) toast.error(err.message); });
         }
-      } catch (err) { toast.error('Failed to load plan'); navigate(-1); }
-      finally { setLoading(false); }
+      } catch (err) { if (!cancelled) { toast.error('Failed to load plan'); navigate(-1); } }
+      finally { if (!cancelled) setLoading(false); }
     };
+    setLoading(true);
     load();
-  }, [planId, navigate]);
-
-  const savePlan = useCallback(async (planData) => {
-    if (!planData || !planId || planData.status === 'finalized') return;
-    setSaving(true);
-    try {
-      const result = await updatePlan(planId, { patient_name: planData.patient_name, date: planData.date, months: planData.months });
-      setPlan(prev => ({ ...prev, ...result }));
-    } catch (err) { toast.error('Failed to save'); }
-    finally { setSaving(false); }
-  }, [planId]);
-
-  const debouncedSave = useCallback((planData) => {
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => savePlan(planData), 800);
-  }, [savePlan]);
+    return () => { cancelled = true; };
+  }, [planId, navigate, setPlan, savePlan]);
 
   const recalcAndUpdate = (newPlan) => {
     const result = recalculatePlanCosts(newPlan.months || [], supplierFreight);
     newPlan.months = result.months;
     newPlan.total_program_cost = result.total_program_cost;
-    setPlan({ ...newPlan }); debouncedSave(newPlan);
+    setPlan(newPlan); debouncedSave(newPlan);
   };
 
   const freqToTimes = (freq) => {
@@ -585,7 +620,7 @@ export default function PlanEditorPage() {
 
   const makeEntry = (supp) => {
     const freq = supp.default_frequency_per_day || 1;
-    return {
+    return normalizeDosageEntry({
       supplement_id: supp._id, supplement_name: supp.supplement_name, company: supp.company || '',
       manufacturer: supp.manufacturer || supp.company || '',
       supplier: supp.supplier || '', unit_type: supp.unit_type || 'caps',
@@ -595,38 +630,38 @@ export default function PlanEditorPage() {
       times: freqToTimes(freq), hc_notes: '',
       units_per_bottle: supp.units_per_bottle || null, cost_per_bottle: supp.cost_per_bottle || 0,
       refrigerate: supp.refrigerate || false, bottles_needed: null, calculated_cost: null,
-    };
+    });
   };
 
   const addSupplementToMonth = (monthNum, supp) => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const m = np.months?.find(x => x.month_number === monthNum);
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const m = np.months?.find(x => x.month_number === monthNum);
     if (!m) return; m.supplements = [...(m.supplements || []), makeEntry(supp)];
     recalcAndUpdate(np); toast.success(`Added ${supp.supplement_name} to Month ${monthNum}`);
   };
   const addSupplementToAllMonths = (supp) => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const e = makeEntry(supp);
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const e = makeEntry(supp);
     for (const m of np.months || []) { m.supplements = [...(m.supplements || []), { ...e }]; }
     recalcAndUpdate(np); toast.success(`Added ${supp.supplement_name} to all months`);
   };
   const removeRow = (monthNum, index) => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const m = np.months?.find(x => x.month_number === monthNum);
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const m = np.months?.find(x => x.month_number === monthNum);
     if (m) m.supplements = (m.supplements || []).filter((_, i) => i !== index);
     recalcAndUpdate(np); toast.success('Supplement removed');
   };
   const removeFromAllMonths = (suppName) => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan };
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current);
     for (const m of np.months || []) {
       m.supplements = (m.supplements || []).filter(s => s.supplement_name !== suppName);
     }
     recalcAndUpdate(np); toast.success(`Removed "${suppName}" from all months`);
   };
   const reorderSupplements = (monthNum, oldIdx, newIdx) => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const m = np.months?.find(x => x.month_number === monthNum);
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const m = np.months?.find(x => x.month_number === monthNum);
     if (m) {
       m.supplements = arrayMove(m.supplements, oldIdx, newIdx);
       recalcAndUpdate(np);
@@ -634,38 +669,22 @@ export default function PlanEditorPage() {
   };
 
   const updateField = (monthNum, suppIndex, field, value) => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const m = np.months?.find(x => x.month_number === monthNum);
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const m = np.months?.find(x => x.month_number === monthNum);
     if (m && m.supplements[suppIndex]) {
       const s = m.supplements[suppIndex];
-      s[field] = value;
       const master = supplements.find(ms => ms._id === s.supplement_id) ||
                      supplements.find(ms => ms.supplement_name?.toLowerCase() === s.supplement_name?.toLowerCase());
       const unit = s.unit_type || master?.unit_type || 'caps';
 
-      if (field === 'quantity_per_dose' || field === 'frequency_per_day') {
-        const qty = field === 'quantity_per_dose' ? value : s.quantity_per_dose;
-        const freq = field === 'frequency_per_day' ? value : s.frequency_per_day;
-        if (qty && freq) s.dosage_display = buildDosageText(qty, freq, unit);
-        if (field === 'frequency_per_day' && value) s.times = freqToTimes(value);
-      } else if (field === 'dosage_display') {
-        const parsed = parseDosage(value);
-        if (parsed) {
-          s.quantity_per_dose = parsed.qty;
-          s.frequency_per_day = parsed.freq;
-          s.times = freqToTimes(parsed.freq);
-        }
-      } else if (field === 'times') {
-        s.frequency_per_day = value.length;
-        if (s.quantity_per_dose) s.dosage_display = buildDosageText(s.quantity_per_dose, value.length, unit);
-      }
+      m.supplements[suppIndex] = updateDosageEntry(s, field, value, unit);
     }
     recalcAndUpdate(np);
   };
 
   const updatePatientName = (name) => {
-    if (!plan || isFinalized || plan.patient_id) return;
-    const np = { ...plan, patient_name: name }; setPlan(np); debouncedSave(np);
+    if (!planRef.current || isFinalized || actionLockRef.current || planRef.current.patient_id) return;
+    const np = { ...planRef.current, patient_name: name }; setPlan(np); debouncedSave(np);
   };
 
   const goBack = () => {
@@ -677,21 +696,25 @@ export default function PlanEditorPage() {
   const handleExportPatient = async () => {
     setExporting(true);
     try {
-      if (!isFinalized) await savePlan(plan);
-      const b = await exportPatientPDF(planId);
-      downloadBlob(b, `Patient - ${plan.patient_name || 'patient'} - ${plan.program_name || ''} ${plan.step_label || ''}.pdf`);
-      toast.success('Patient PDF exported');
-    } catch { toast.error('Export failed'); }
+      await runSavedAction(async (saved, requireSamePlan) => {
+        const b = await exportPatientPDF(planId);
+        requireSamePlan();
+        downloadBlob(b, `Patient - ${saved.patient_name || 'patient'} - ${saved.program_name || ''} ${saved.step_label || ''}.pdf`);
+        toast.success('Patient PDF exported');
+      });
+    } catch (err) { toast.error(err.message || 'Export failed'); }
     finally { setExporting(false); }
   };
   const handleExportHC = async () => {
     setExporting(true);
     try {
-      if (!isFinalized) await savePlan(plan);
-      const b = await exportHCPDF(planId);
-      downloadBlob(b, `HC - ${plan.patient_name || 'patient'} - ${plan.program_name || ''} ${plan.step_label || ''}.pdf`);
-      toast.success('HC PDF exported');
-    } catch { toast.error('Export failed'); }
+      await runSavedAction(async (saved, requireSamePlan) => {
+        const b = await exportHCPDF(planId);
+        requireSamePlan();
+        downloadBlob(b, `HC - ${saved.patient_name || 'patient'} - ${saved.program_name || ''} ${saved.step_label || ''}.pdf`);
+        toast.success('HC PDF exported');
+      });
+    } catch (err) { toast.error(err.message || 'Export failed'); }
     finally { setExporting(false); }
   };
 
@@ -699,19 +722,33 @@ export default function PlanEditorPage() {
   const handleSaveToDrive = async () => {
     setSavingDrive(true);
     try {
-      if (!isFinalized) await savePlan(plan);
-      const result = await saveToDrive(planId);
-      toast.success(result.message || 'Saved to Google Drive');
+      await runSavedAction(async (_saved, requireSamePlan) => {
+        const result = await saveToDrive(planId);
+        requireSamePlan();
+        toast.success(result.message || 'Saved to Dropbox');
+      });
     } catch (err) { toast.error(err.message || 'Drive save failed'); }
     finally { setSavingDrive(false); }
   };
 
   const handleFinalize = async () => {
-    try { await savePlan(plan); const r = await finalizePlan(planId); setPlan(prev => ({ ...prev, ...r })); toast.success('Plan finalized'); setConfirmFinalize(false); }
-    catch { toast.error('Failed to finalize'); }
+    try {
+      await runSavedAction(async (_saved, requireSamePlan) => {
+        const r = await finalizePlan(planId);
+        requireSamePlan();
+        setPlan(prev => ({ ...prev, ...r }));
+        toast.success('Plan finalized'); setConfirmFinalize(false);
+      });
+    } catch (err) { toast.error(err.message || 'Failed to finalize'); }
   };
   const handleReopen = async () => {
-    try { const r = await reopenPlan(planId); setPlan(prev => ({ ...prev, ...r })); toast.success('Plan reopened'); }
+    try {
+      await runSavedAction(async (_saved, requireSamePlan) => {
+        const r = await reopenPlan(planId);
+        requireSamePlan();
+        setPlan(prev => ({ ...prev, ...r })); toast.success('Plan reopened');
+      });
+    }
     catch { toast.error('Failed to reopen'); }
   };
 
@@ -732,8 +769,11 @@ export default function PlanEditorPage() {
       const body = { target: dupTarget };
       if (dupTarget === 'existing') body.patient_id = dupSelectedPatientId;
       if (dupTarget === 'new') body.new_patient_name = dupNewName;
-      const r = await duplicatePlan(planId, body);
-      toast.success('Plan duplicated'); setDupOpen(false); navigate(`/staff/supplements/plans/${r._id}`);
+      await runSavedAction(async (_saved, requireSamePlan) => {
+        const r = await duplicatePlan(planId, body);
+        requireSamePlan();
+        toast.success('Plan duplicated'); setDupOpen(false); navigate(`/staff/supplements/plans/${r._id}`);
+      });
     } catch (err) { toast.error(err.message || 'Failed to duplicate'); }
     finally { setDupLoading(false); }
   };
@@ -795,31 +835,35 @@ export default function PlanEditorPage() {
       } else {
         body.template_id = tplId;
       }
-      const r = await savePlanAsTemplate(body);
-      toast.success(r.message || 'Template saved');
-      setTplOpen(false);
+      await runSavedAction(async (_saved, requireSamePlan) => {
+        const r = await savePlanAsTemplate(body);
+        requireSamePlan();
+        toast.success(r.message || 'Template saved');
+        setTplOpen(false);
+      });
     } catch (err) { toast.error(err.message || 'Failed to save template'); }
     finally { setTplSaving(false); }
   };
 
   const addMonth = () => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const last = np.months?.[np.months.length - 1];
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const last = np.months?.[np.months.length - 1];
     const num = Math.ceil(last?.month_number || 0) + 1;
     np.months = [...(np.months || []), { month_number: num, supplements: (last?.supplements || []).map(s => ({ ...s })), monthly_total_cost: 0 }];
     recalcAndUpdate(np);
   };
   const addTwoWeeks = () => {
-    if (!plan || isFinalized) return;
-    const np = { ...plan }; const last = np.months?.[np.months.length - 1];
+    if (!planRef.current || isFinalized || actionLockRef.current) return;
+    const np = clonePlan(planRef.current); const last = np.months?.[np.months.length - 1];
     const num = (last?.month_number || 0) + 0.5;
     np.months = [...(np.months || []), { month_number: num, supplements: (last?.supplements || []).map(s => ({ ...s })), monthly_total_cost: 0 }];
     recalcAndUpdate(np);
   };
   const removeLastMonth = () => {
-    if (!plan || isFinalized || (plan.months?.length || 0) <= 1) return;
-    const last = plan.months[plan.months.length - 1];
-    const np = { ...plan }; np.months = (np.months || []).filter(m => m.month_number !== last.month_number);
+    if (!planRef.current || isFinalized || actionLockRef.current || (planRef.current.months?.length || 0) <= 1) return;
+    const np = clonePlan(planRef.current);
+    const last = np.months[np.months.length - 1];
+    np.months = (np.months || []).filter(m => m.month_number !== last.month_number);
     recalcAndUpdate(np);
   };
 
@@ -834,7 +878,11 @@ export default function PlanEditorPage() {
   useEffect(() => {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
-        if (plan && !isFinalized) { e.preventDefault(); savePlan(plan); }
+        if (planRef.current && !isFinalized && !actionLockRef.current) {
+          e.preventDefault();
+          document.activeElement?.blur();
+          savePlan().catch((err) => toast.error(err.message));
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -898,7 +946,7 @@ export default function PlanEditorPage() {
                 className="text-[20px] font-semibold border-0 bg-transparent h-9 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 tracking-[-0.02em] max-w-[280px] shadow-none"
                 placeholder="Patient name"
                 data-testid="plan-editor-patient-name"
-                disabled={isFinalized}
+                disabled={isReadOnly}
               />
             )}
 
@@ -942,7 +990,7 @@ export default function PlanEditorPage() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={handleSaveToDrive}
-                    disabled={savingDrive}
+                    disabled={savingDrive || actionBusy}
                     data-testid="plan-editor-save-drive-pill"
                     className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white hairline border text-[12px] font-medium text-ink-3 hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors disabled:opacity-60"
                     aria-label="Save to Dropbox"
@@ -1009,6 +1057,7 @@ export default function PlanEditorPage() {
                   <button
                     className="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md text-[12px] font-medium text-ink-3 border hairline bg-white hover:bg-[color:var(--surface-hover)] transition-colors"
                     aria-label="Actions"
+                    disabled={actionBusy}
                   >
                     <MoreHorizontal size={13} />
                     <span>Actions</span>
@@ -1041,7 +1090,7 @@ export default function PlanEditorPage() {
                   )}
                   {!isFinalized && !patientViewMode && (
                     <>
-                      <DropdownMenuItem onClick={() => savePlan(plan)} disabled={saving} data-testid="plan-editor-save-button">
+                      <DropdownMenuItem onClick={() => savePlan().catch((err) => toast.error(err.message))} disabled={saving || actionBusy} data-testid="plan-editor-save-button">
                         <Save size={13} className="mr-2" />
                         {saving ? 'Saving…' : 'Save plan'}
                         <kbd className="ml-auto text-[10px] font-mono text-ink-subtle">⌘S</kbd>
@@ -1063,7 +1112,7 @@ export default function PlanEditorPage() {
         </header>
 
         {/* Sub-toolbar */}
-        {!isFinalized && !patientViewMode && (
+        {!isReadOnly && !patientViewMode && (
           <div className="chrome-blur hairline-b sticky top-[80px] z-20 px-8 h-10 flex items-center gap-1">
             <Popover open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}>
               <PopoverTrigger asChild>
@@ -1166,7 +1215,7 @@ export default function PlanEditorPage() {
                 month={month}
                 showCosts={effectiveShowCosts}
                 patientView={patientViewMode}
-                isFinalized={isFinalized}
+                isFinalized={isReadOnly}
                 onUpdateField={updateField}
                 onRemoveRow={removeRow}
                 onRemoveFromAll={removeFromAllMonths}
@@ -1393,7 +1442,7 @@ export default function PlanEditorPage() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-6 gap-2">
             <AlertDialogCancel className="h-9 px-4 text-[13px]">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleFinalize} className="bg-amber-700 hover:bg-amber-800 text-white h-9 px-4 text-[13px] font-medium">
+            <AlertDialogAction onClick={handleFinalize} disabled={actionBusy} className="bg-amber-700 hover:bg-amber-800 text-white h-9 px-4 text-[13px] font-medium">
               Finalize plan
             </AlertDialogAction>
           </AlertDialogFooter>

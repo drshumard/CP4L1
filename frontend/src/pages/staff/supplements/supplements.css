@@ -1,7 +1,8 @@
 /* Design tokens + hand-rolled utilities from the standalone supplementor app, SCOPED to
    .supp-app so nothing leaks into the rest of the portal (their index.css applied these
    to :root/body). shadcn token overrides were deliberately NOT ported — the portal's
-   theme wins, so the module inherits the admin look. Fonts inherit the portal's too. */
+   theme wins, so the module inherits the admin look. The one exception is the font: the
+   original app's Inter Tight is restored below (loaded via App.css's Google Fonts import). */
 
 .supp-app {
   /* Surfaces — calm, layered */
@@ -43,10 +44,18 @@
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 
+  --font-sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   background: var(--canvas);
   color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* The staff shell wraps this app in .admin-geist, whose heading rule would otherwise win. */
+.admin-geist .supp-app h1, .admin-geist .supp-app h2, .admin-geist .supp-app h3,
+.admin-geist .supp-app h4, .admin-geist .supp-app h5, .admin-geist .supp-app h6 {
+  font-family: var(--font-sans);
 }
 
 .supp-app .font-mono { font-family: var(--font-mono); }
@@ -82,3 +91,6 @@
   to { opacity: 1; transform: translateY(0); }
 }
 .supp-app .animate-fade-up { animation: supp-fade-up 220ms var(--ease-out); }
+
+/* Placeholder text for empty contentEditable cells (plan editor notes). */
+.supp-app [data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--ink-faint); }

@@ -5,6 +5,7 @@ months carry forward, reducing what needs to be shipped in later months.
 """
 import math
 from typing import Optional
+from .dosage import normalize_dosage
 
 
 def days_in_period(month_number: float) -> int:
@@ -15,8 +16,10 @@ def days_in_period(month_number: float) -> int:
     return 30
 
 
-def calculate_daily_dosage(quantity_per_dose: int, frequency_per_day: int) -> int:
+def calculate_daily_dosage(quantity_per_dose: float, frequency_per_day: int, dose_schedule=None) -> float:
     """Calculate total units consumed per day."""
+    if dose_schedule:
+        return round(sum(dose["quantity"] for dose in dose_schedule), 10)
     return max(0, (quantity_per_dose or 0) * (frequency_per_day or 0))
 
 
@@ -76,6 +79,7 @@ def recalculate_plan_costs(plan_data: dict, supplier_freight: dict = None) -> di
         month_suppliers_shipping = set()  # Track which suppliers need to ship this month
         
         for supp in month.get("supplements", []):
+            normalize_dosage(supp)
             # Unique key for this supplement across months
             supp_key = supp.get("supplement_id") or supp.get("supplement_name", "")
             if not supp_key:
@@ -83,7 +87,8 @@ def recalculate_plan_costs(plan_data: dict, supplier_freight: dict = None) -> di
             
             daily = calculate_daily_dosage(
                 supp.get("quantity_per_dose") or 0,
-                supp.get("frequency_per_day") or 0
+                supp.get("frequency_per_day") or 0,
+                supp.get("dose_schedule"),
             )
             
             units_per_bottle = supp.get("units_per_bottle") or 0
@@ -109,7 +114,7 @@ def recalculate_plan_costs(plan_data: dict, supplier_freight: dict = None) -> di
                 continue
             
             # Units needed this period
-            units_needed = daily * period_days
+            units_needed = round(daily * period_days, 10)
             
             # Get current surplus for this supplement
             current_surplus = surplus.get(supp_key, 0)

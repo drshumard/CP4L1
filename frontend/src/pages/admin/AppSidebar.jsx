@@ -18,17 +18,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { adminApi } from './api';
 import { endSession } from '@/lib/session';
 import { loginPath } from '@/lib/staffApps';
+import { schedulingPagesForCapabilities } from '@/lib/portalAccess';
 
 const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
-
-const SCHEDULING_SUB = [
-  { to: '/admin/scheduling/bookings', label: 'Bookings' },
-  { to: '/admin/scheduling/calendar', label: 'Calendar' },
-  { to: '/admin/scheduling/hosts', label: 'Hosts' },
-  { to: '/admin/scheduling/coordinators', label: 'Coordinators' },
-  { to: '/admin/scheduling/events', label: 'Events' },
-  { to: '/admin/scheduling/settings', label: 'Settings' },
-];
 
 const NAV = [
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3, cap: 'analytics.view' },
@@ -36,7 +28,7 @@ const NAV = [
   { to: '/admin/automations', label: 'Automations', icon: Zap, cap: 'automations.manage' },
 ];
 
-export default function AppSidebar() {
+export default function AppSidebar({ capabilities }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { state } = useSidebar();
@@ -52,8 +44,9 @@ export default function AppSidebar() {
   }, []);
 
   // Sections follow the RBAC matrix (profile.capabilities); the API enforces the same.
-  const caps = profile?.capabilities || [];
+  const caps = capabilities || profile?.capabilities || [];
   const can = (c) => caps.includes(c);
+  const schedulingPages = schedulingPagesForCapabilities(caps);
 
   let storedEmail = '';
   try { storedEmail = JSON.parse(localStorage.getItem('user_data') || '{}')?.email || ''; } catch { /* ignore */ }
@@ -86,10 +79,10 @@ export default function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>)}
 
-            {can('scheduling.view') && (collapsed ? (
+            {schedulingPages.length > 0 && (collapsed ? (
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={schedulingActive} tooltip="Scheduling">
-                  <Link to="/admin/scheduling/bookings"><CalendarClock /><span>Scheduling</span></Link>
+                  <Link to={schedulingPages[0].to}><CalendarClock /><span>Scheduling</span></Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ) : (
@@ -104,7 +97,7 @@ export default function AppSidebar() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <SidebarMenuSub>
-                      {SCHEDULING_SUB.map((s) => (
+                      {schedulingPages.map((s) => (
                         <SidebarMenuSubItem key={s.to}>
                           <SidebarMenuSubButton asChild isActive={pathname === s.to}>
                             <Link to={s.to}><span>{s.label}</span></Link>
@@ -155,9 +148,9 @@ export default function AppSidebar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/admin/scheduling/settings')}>
+                {can('settings.manage') && <DropdownMenuItem onClick={() => navigate('/admin/scheduling/settings')}>
                   <Settings /> Settings
-                </DropdownMenuItem>
+                </DropdownMenuItem>}
                 <DropdownMenuItem onClick={() => navigate('/staff')}>
                   <LayoutGrid /> Staff workspace
                 </DropdownMenuItem>

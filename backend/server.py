@@ -585,6 +585,27 @@ def _outranks(actor: dict, target: dict) -> bool:
     return _ROLE_RANK.get((actor or {}).get("role"), 0) > _ROLE_RANK.get((target or {}).get("role"), 0)
 
 
+def _require_patient_target(target: dict):
+    """Patient tools must never mutate an account used for staff authentication."""
+    if target.get("role") not in (None, "user"):
+        raise HTTPException(status_code=403, detail="Staff accounts must be managed through Team")
+
+
+def assignable_team_roles(actor: dict) -> list:
+    """Managing the roster does not delegate the power to create administrators."""
+    roles = ASSIGNABLE_TEAM_ROLES
+    if actor.get("role") != "super_admin":
+        roles = roles - ADMIN_ROLES
+    return sorted(roles)
+
+
+def _require_assignable_team_role(actor: dict, role: str):
+    if role not in ASSIGNABLE_TEAM_ROLES:
+        raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
+    if role not in assignable_team_roles(actor):
+        raise HTTPException(status_code=403, detail="Only a super admin can assign the admin role")
+
+
 # ============================================================================
 # Capability-based access control (admin-editable via the Team → Roles tab)
 # ----------------------------------------------------------------------------
@@ -2757,19 +2778,65 @@ async def _send_learn_push(doc) -> bool:
         return False
     try:
         import httpx
+        # Stamp BEFORE reading: a stale in-flight snapshot must never outrank a
+        # newer revocation. Retry jobs resolve current state, not their old payload.
+        snapshot_at = datetime.now(timezone.utc).isoformat()
+        member = await db.users.find_one({"id": doc["user_id"]}, {"_id": 0})
+        caps = set()
+        if member and member.get("role") in TEAM_ROLES:
+            permission = await db.role_permissions.find_one({"role": member["role"]})
+            caps = (set(permission.get("capabilities", []))
+                    if permission and member["role"] != "super_admin" else capabilities_for(member))
+        identity = member or doc
+        payload = {"portalUserId": doc["user_id"], "email": identity.get("email"),
+                   "name": identity.get("name"), "avatar_url": identity.get("avatar_url"),
+                   "role": identity.get("role", "staff"),
+                   "active": bool(member and member.get("active") is not False and "learn" in caps),
+                   "instruct": "learn.instruct" in caps, "ts": snapshot_at}
         async with httpx.AsyncClient(timeout=8) as hc:
             r = await hc.post(f"{LEARN_SERVICE_URL}/api/service/member-status",
                               headers={"X-Service-Key": LEARN_SERVICE_KEY},
-                              json={"portalUserId": doc["user_id"], "email": doc.get("email"),
-                                    "active": doc["active"], "ts": doc["ts"]})
+                              json=payload)
             return r.status_code == 200
     except Exception as e:
         logging.warning(f"[learn-push] delivery failed (will retry): {e}")
         return False
 
 
+async def _enqueue_pending_learn_updates():
+    """Turn atomic mutation markers into idempotent delivery jobs.
+
+    Markers live on the same Mongo document as the permission change, so a crash
+    between saving a change and enqueuing its notification cannot lose a revocation.
+    """
+    async def enqueue(member, key):
+        now = datetime.now(timezone.utc).isoformat()
+        await db.learn_push_queue.update_one({"id": key}, {"$setOnInsert": {
+            "id": key, "user_id": member["id"], "email": member.get("email"),
+            "name": member.get("name"), "role": member.get("role", "staff"),
+            "created_at": now, "next_at": now, "attempts": 0,
+        }}, upsert=True)
+
+    roles = await db.role_permissions.find({"learn_sync_pending": {"$exists": True}}).to_list(None)
+    for permission in roles:
+        marker = permission["learn_sync_pending"]
+        members = await db.users.find({"role": permission["role"]}, {"_id": 0}).to_list(None)
+        for member in members:
+            await enqueue(member, f"role:{permission['role']}:{marker}:{member['id']}")
+        await db.role_permissions.update_one(
+            {"role": permission["role"], "learn_sync_pending": marker},
+            {"$unset": {"learn_sync_pending": ""}})
+    members = await db.users.find({"learn_sync_pending": {"$exists": True}}, {"_id": 0}).to_list(None)
+    for member in members:
+        marker = member["learn_sync_pending"]
+        await enqueue(member, f"member:{member['id']}:{marker}")
+        await db.users.update_one({"id": member["id"], "learn_sync_pending": marker},
+                                  {"$unset": {"learn_sync_pending": ""}})
+
+
 async def drain_learn_push_queue():
     async with _learn_drain_lock:
+        await _enqueue_pending_learn_updates()
         now = datetime.now(timezone.utc)
         docs = await db.learn_push_queue.find(
             {"next_at": {"$lte": now.isoformat()}}
@@ -2777,7 +2844,7 @@ async def drain_learn_push_queue():
         for doc in docs:
             if await _send_learn_push(doc):
                 await db.learn_push_queue.delete_one({"id": doc["id"]})
-                logging.info(f"[learn-push] delivered active={doc['active']} for {doc.get('email')}")
+                logging.info(f"[learn-push] delivered current access for {doc.get('email')}")
             else:
                 attempts = doc.get("attempts", 0) + 1
                 delay = min(3600, 30 * (2 ** min(attempts, 7)))
@@ -2792,7 +2859,8 @@ async def push_learn_member_status(user_doc, active: bool):
     now = datetime.now(timezone.utc)
     await db.learn_push_queue.insert_one({
         "id": str(uuid.uuid4()), "user_id": user_doc["id"], "email": user_doc.get("email"),
-        "active": active, "ts": now.isoformat(), "attempts": 0,
+        "active": active, "role": user_doc.get("role", "staff"), "name": user_doc.get("name"),
+        "ts": now.isoformat(), "attempts": 0,
         "next_at": now.isoformat(), "created_at": now.isoformat(),
     })
     asyncio.create_task(drain_learn_push_queue())
@@ -2800,12 +2868,26 @@ async def push_learn_member_status(user_doc, active: bool):
 
 # ---------------------------------------------------------------- Learn SSO handoff
 # The workspace's Learn tab mints a 2-minute single-use token; the Learn app's server
-# (Neuro93Saturn, federated at /learn) redeems it here and mints its own Supabase session.
+# (Neuro93Saturn, federated at /learn) redeems it here and mints its own session.
 # The Team roster stays the sole authority: only active team members can mint or redeem.
+
+async def _learn_role_permissions_snapshot() -> dict:
+    """Read shared authority once per handoff; another worker's cache may be old."""
+    docs = await db.role_permissions.find({}, {"_id": 0, "role": 1, "capabilities": 1}).to_list(None)
+    return {doc["role"]: set(doc.get("capabilities", []) or []) for doc in docs}
+
+
+def _learn_capabilities_for(member: dict, snapshot: dict) -> set:
+    role = member.get("role")
+    if role == "super_admin":
+        return set(CAPABILITIES)
+    return snapshot.get(role, set(DEFAULT_ROLE_CAPABILITIES.get(role, [])))
+
 
 @api_router.post("/auth/learn-token")
 async def learn_sso_token(current_user: dict = Depends(get_current_user)):
-    if "learn" not in capabilities_for(current_user):
+    permissions = await _learn_role_permissions_snapshot()
+    if "learn" not in _learn_capabilities_for(current_user, permissions):
         raise HTTPException(status_code=403, detail="Learn is for the team")
     token = await create_auto_login_token(current_user["id"], current_user["email"],
                                           purpose="learn_sso", ttl_minutes=2)
@@ -2839,7 +2921,11 @@ async def learn_sso_redeem(payload: LearnRedeemRequest):
                                     "avatar_url": 1})
     if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
         raise HTTPException(status_code=403, detail="Not a team member")
-    if "learn" not in capabilities_for(user):  # re-check at redeem: access may have been revoked since mint
+    # `now` was stamped before reading any member or permission state. Combined
+    # with Learn's timestamp guard, an in-flight handoff cannot undo a newer push.
+    permissions = await _learn_role_permissions_snapshot()
+    user_caps = _learn_capabilities_for(user, permissions)
+    if "learn" not in user_caps:  # access may have been revoked since mint
         raise HTTPException(status_code=403, detail="Learn access has been removed for your role")
     await log_activity(event_type="LEARN_SSO_REDEEMED", user_email=user["email"],
                        user_id=user["id"], status="success")
@@ -2854,12 +2940,12 @@ async def learn_sso_redeem(payload: LearnRedeemRequest):
     # Only roles that currently hold the `learn` capability are provisioned — a member
     # whose role loses Learn drops out of the roster, and Learn's sync deactivates them.
     # `instruct` carries the learn.instruct entitlement so Learn can assign instructor.
-    team = [dict(m, instruct=("learn.instruct" in capabilities_for(m)))
-            for m in team if "learn" in capabilities_for(m)]
+    team = [dict(m, instruct=("learn.instruct" in _learn_capabilities_for(m, permissions)))
+            for m in team if "learn" in _learn_capabilities_for(m, permissions)]
     return {"id": user["id"], "email": user["email"], "name": user.get("name", ""),
             "role": user["role"], "avatar_url": user.get("avatar_url"),
-            "instruct": "learn.instruct" in capabilities_for(user),
-            "team": team, "team_ts": datetime.now(timezone.utc).isoformat()}
+            "instruct": "learn.instruct" in user_caps,
+            "team": team, "team_ts": now.isoformat()}
 
 
 @api_router.get("/user/me", response_model=UserResponse)
@@ -4580,11 +4666,15 @@ async def promote_user(
     if not _outranks(admin_user, user):
         raise HTTPException(status_code=403, detail="You can't change the role of a member at or above your level")
     
-    # Update the role
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {"role": request.role}}
+    # Preserve the hierarchy decision if another manager promotes this account
+    # between the read above and the write.
+    result = await db.users.update_one(
+        {"id": user_id, "role": user.get("role")},
+        {"$set": {"role": request.role,
+                  "learn_sync_pending": datetime.now(timezone.utc).isoformat()}}
     )
+    if not result.matched_count:
+        raise HTTPException(status_code=409, detail="Account changed; reload before editing")
     
     # Log the activity
     await log_activity(
@@ -4605,6 +4695,7 @@ async def promote_user(
         target_email=user.get("email"),
         target_user_id=user_id,
     )
+    asyncio.create_task(drain_learn_push_queue())
 
     return {"message": f"User role changed to {request.role}", "role": request.role}
 
@@ -5080,17 +5171,27 @@ async def delete_user(user_id: str, admin_user: dict = Depends(require_capabilit
             detail="Cannot delete your own admin account"
         )
     
-    # Delete user's progress
-    await db.user_progress.delete_many({"user_id": user_id})
-    
-    # Delete user
-    result = await db.users.delete_one({"id": user_id})
-    
+    checked_target = {"id": user_id, "role": user.get("role")}
+    sync_learn = user.get("role") in TEAM_ROLES or bool(user.get("learn_sync_pending"))
+    if sync_learn:
+        # Disable access and preserve a durable notification before removing its
+        # source document. If enqueueing fails, the marker survives for retry.
+        result = await db.users.update_one(checked_target, {"$set": {
+            "active": False, "learn_sync_pending": datetime.now(timezone.utc).isoformat(),
+        }})
+        if not result.matched_count:
+            raise HTTPException(status_code=409, detail="Account changed; reload before deleting")
+        await _enqueue_pending_learn_updates()
+        checked_target = {**checked_target, "active": False}
+
+    # Recheck the role in the delete so a concurrent promotion cannot bypass the
+    # hierarchy. Do not remove associated records until this check has succeeded.
+    result = await db.users.delete_one(checked_target)
     if result.deleted_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete user"
-        )
+        raise HTTPException(status_code=409, detail="Account changed; reload before deleting")
+    if sync_learn:
+        asyncio.create_task(drain_learn_push_queue())
+    await db.user_progress.delete_many({"user_id": user_id})
 
     await log_admin_action(
         "ADMIN_USER_DELETED",
@@ -5229,11 +5330,12 @@ async def resend_welcome_email(user_id: str, admin_user: dict = Depends(require_
 
 @api_router.put("/admin/user/{user_id}")
 async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict = Depends(require_capability("patients.manage"))):
-    """Update user information - Admin only"""
+    """Update patient information without exposing staff identity changes."""
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _require_patient_target(user)
     
     # Build update dict with only provided fields
     update_data = {}
@@ -5257,7 +5359,12 @@ async def update_user(user_id: str, request: UpdateUserRequest, admin_user: dict
     if not update_data:
         return {"message": "No changes made"}
     
-    await db.users.update_one({"id": user_id}, {"$set": update_data})
+    # Keep the target restriction in the write as well: a concurrent promotion
+    # must not let an already-authorized patient edit change a staff identity.
+    result = await db.users.update_one({"id": user_id, "role": {"$in": [None, "user"]}},
+                                       {"$set": update_data})
+    if not result.matched_count:
+        raise HTTPException(status_code=409, detail="Account changed; reload before editing")
     
     await log_activity(
         event_type="USER_UPDATED_BY_ADMIN",
@@ -6606,15 +6713,14 @@ _TEAM_PROJECTION = {"_id": 0, "id": 1, "name": 1, "email": 1, "role": 1, "active
 async def list_team_members(admin_user: dict = Depends(require_capability("team.manage"))):
     rows = await db.users.find({"role": {"$in": sorted(TEAM_ROLES)}}, _TEAM_PROJECTION) \
         .sort("created_at", 1).to_list(200)
-    return {"members": rows}
+    return {"members": rows, "assignable_roles": assignable_team_roles(admin_user)}
 
 
 @api_router.post("/admin/team")
 async def create_team_member(payload: TeamMemberCreate, request: Request,
                              admin_user: dict = Depends(require_capability("team.manage"))):
     role = (payload.role or "").strip()
-    if role not in ASSIGNABLE_TEAM_ROLES:
-        raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
+    _require_assignable_team_role(admin_user, role)
     name = (payload.name or "").strip()
     email_lower = (payload.email or "").strip().lower()
     if not name:
@@ -6655,8 +6761,7 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
     updates: dict = {}
     if payload.role is not None:
         role = payload.role.strip()
-        if role not in ASSIGNABLE_TEAM_ROLES:
-            raise HTTPException(status_code=400, detail=f"Role must be one of: {', '.join(sorted(ASSIGNABLE_TEAM_ROLES))}")
+        _require_assignable_team_role(admin_user, role)
         if target["id"] == admin_user["id"]:
             raise HTTPException(status_code=400, detail="You can't change your own role")
         if target.get("role") == "super_admin":
@@ -6689,14 +6794,17 @@ async def update_team_member(user_id: str, payload: TeamMemberUpdate,
     if not set_ops:
         raise HTTPException(status_code=400, detail="Nothing to update")
 
-    await db.users.update_one({"id": user_id}, {"$set": set_ops})
+    if "active" in updates or "role" in updates:
+        set_ops["learn_sync_pending"] = datetime.now(timezone.utc).isoformat()
+    result = await db.users.update_one({"id": user_id, "role": target["role"]}, {"$set": set_ops})
+    if not result.matched_count:
+        raise HTTPException(status_code=409, detail="Account changed; reload before editing")
     await log_admin_action("ADMIN_TEAM_MEMBER_UPDATED", admin_user=admin_user,
                            details={"changes": {**updates, **({"password": "reset"} if payload.password is not None else {})},
                                     "previous_role": target.get("role")},
                            target_email=target.get("email"), target_user_id=user_id)
-    if "active" in updates:
-        # Learn access must follow the portal's active flag immediately.
-        await push_learn_member_status(target, updates["active"])
+    if "learn_sync_pending" in set_ops:
+        asyncio.create_task(drain_learn_push_queue())
     fresh = await db.users.find_one({"id": user_id}, _TEAM_PROJECTION)
     return fresh
 
@@ -6767,12 +6875,15 @@ async def set_role_permissions(role: str, payload: RolePermissionUpdate,
         if forbidden:
             raise HTTPException(status_code=403,
                                 detail=f"Only a super admin can grant: {', '.join(sorted(forbidden))}")
+    changed_at = datetime.now(timezone.utc).isoformat()
     await db.role_permissions.update_one(
         {"role": role},
-        {"$set": {"role": role, "capabilities": new_caps, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        {"$set": {"role": role, "capabilities": new_caps, "updated_at": changed_at,
+                  "learn_sync_pending": changed_at}},
         upsert=True,
     )
     await load_role_caps_cache()
+    asyncio.create_task(drain_learn_push_queue())
     await log_admin_action("ADMIN_ROLE_PERMISSIONS_UPDATED", admin_user=admin_user,
                            details={"role": role, "capabilities": new_caps})
     return {"role": role, "capabilities": stored_or_default_caps(role)}
@@ -6851,7 +6962,7 @@ class AdminNoShowPayload(BaseModel):
 
 @api_router.post("/admin/bookings/{booking_id}/no-show")
 async def admin_mark_no_show(booking_id: str, payload: Optional[AdminNoShowPayload] = None,
-                             admin_user: dict = Depends(get_admin_user)):
+                             admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Mark a past confirmed booking as a no-show, or undo it (no_show=false). Ledger-only:
     the session already happened, so the Google event and PB session are left untouched and
     no patient email is sent. Reminder/mirror sweeps only look at status='confirmed', so a
@@ -6889,7 +7000,7 @@ async def admin_mark_no_show(booking_id: str, payload: Optional[AdminNoShowPaylo
 
 
 @api_router.post("/admin/bookings/{booking_id}/resend-email")
-async def admin_resend_booking_email(booking_id: str, admin_user: dict = Depends(get_admin_user)):
+async def admin_resend_booking_email(booking_id: str, admin_user: dict = Depends(require_capability("scheduling.manage"))):
     """Re-send the booking confirmation email for an upcoming confirmed booking — the same
     template as the original send (time in the patient's zone, Meet link, activation section
     for portal-visible sessions). An explicit re-send: the original exactly-once claim
@@ -6977,7 +7088,8 @@ async def deactivate_director(director_id: str, admin_user: dict = Depends(requi
 app.include_router(api_router)
 
 # Include booking router for the new custom calendar
-from booking import router as booking_router
+from booking import router as booking_router, configure_capabilities as configure_booking_capabilities
+configure_booking_capabilities(capabilities_for)
 app.include_router(booking_router)
 
 # Supplement Protocol Manager (absorbed sibling app) — staff-only, own database.
@@ -7009,6 +7121,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+async def ensure_learn_push_indexes():
+    """Keep marker-derived jobs unique when multiple application workers enqueue."""
+    await db.learn_push_queue.create_index("id", unique=True)
+
+
 @app.on_event("startup")
 async def startup_event():
     """Pre-populate availability cache on startup for instant loading"""
@@ -7023,6 +7140,7 @@ async def startup_event():
 
     # Portal → Learn status-push retry loop: drain on boot (pushes queued while
     # Learn or this process was down), then re-drain every minute with backoff.
+    await ensure_learn_push_indexes()
     async def learn_push_loop():
         while True:
             try:

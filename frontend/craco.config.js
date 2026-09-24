@@ -30,6 +30,17 @@ if (config.enableHealthCheck) {
 }
 
 const webpackConfig = {
+  jest: {
+    configure: {
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/$1',
+        // CRA's Jest predates package exports; resolve Router 7's public CJS
+        // entry points with Node instead of its obsolete package.json main.
+        '^react-router-dom$': path.join(path.dirname(require.resolve('react-router-dom/package.json')), 'dist/index.js'),
+        '^react-router/dom$': path.join(path.dirname(require.resolve('react-router/package.json')), 'dist/development/dom-export.js'),
+      },
+    },
+  },
   webpack: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

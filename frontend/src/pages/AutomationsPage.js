@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loginPath } from '@/lib/staffApps';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Plus, Trash2, Play, RotateCcw, Zap, Calendar, CalendarX, CheckCircle, XCircle, ChevronDown, ChevronUp, Key, MoreHorizontalIcon, Loader2 } from 'lucide-react';
@@ -48,7 +49,7 @@ const AutomationsPage = () => {
       setAutomations(response.data.automations || []);
     } catch (error) {
       if (error.response?.status === 403) { toast.error('Admin access required'); navigate('/'); }
-      else if (error.response?.status === 401) { localStorage.clear(); navigate('/login'); }
+      else if (error.response?.status === 401) { localStorage.clear(); navigate(loginPath()); }
       else { toast.error('Failed to load automations'); }
     } finally { setLoading(false); }
   }, [navigate]);

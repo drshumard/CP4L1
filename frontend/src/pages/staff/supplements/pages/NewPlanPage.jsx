@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getTemplates, createPlan, createPatient, getPatients, searchPbClients } from '../lib/api';
 import { useAuth } from '../auth';
+import { normalizeDosageEntry } from '../lib/dosageParser';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -128,7 +129,7 @@ export default function NewPlanPage() {
             ? templateMonths[0].supplements || []
             : selectedTemplate?.supplements || [];
 
-          const mapSupp = (s) => ({
+          const mapSupp = (s) => normalizeDosageEntry({
             supplement_id: s.supplement_id || '',
             supplement_name: s.supplement_name,
             company: s.company || '',
@@ -137,6 +138,7 @@ export default function NewPlanPage() {
             unit_type: s.unit_type || 'caps',
             quantity_per_dose: s.quantity_per_dose || null,
             frequency_per_day: s.frequency_per_day || null,
+            dose_schedule: s.dose_schedule || null,
             dosage_display: s.dosage_display || '',
             instructions: s.instructions || '',
             with_food: true,

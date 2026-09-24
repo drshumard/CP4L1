@@ -1,5 +1,6 @@
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { normalizeDosageEntry } from './dosageParser';
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
@@ -22,7 +23,8 @@ function daysInPeriod(monthNumber) {
   return 30;
 }
 
-function calculateDailyDosage(qty, freq) {
+export function calculateDailyDosage(qty, freq, schedule = null) {
+  if (schedule?.length) return Math.round(schedule.reduce((total, dose) => total + Number(dose.quantity), 0) * 1e10) / 1e10;
   return Math.max(0, (qty || 0) * (freq || 0));
 }
 
@@ -53,7 +55,8 @@ export function recalculatePlanCosts(months, supplierFreight = {}) {
       const key = supp.supplement_id || supp.supplement_name || '';
       if (!key) continue;
 
-      const daily = calculateDailyDosage(supp.quantity_per_dose, supp.frequency_per_day);
+      Object.assign(supp, normalizeDosageEntry(supp));
+      const daily = calculateDailyDosage(supp.quantity_per_dose, supp.frequency_per_day, supp.dose_schedule);
       const unitsPerBottle = supp.units_per_bottle || 0;
       const override = null; // Override removed — pure math-driven calculation
       const costPerBottle = supp.cost_per_bottle || 0;
@@ -76,7 +79,7 @@ export function recalculatePlanCosts(months, supplierFreight = {}) {
         continue;
       }
 
-      const unitsNeeded = daily * periodDays;
+      const unitsNeeded = Math.round(daily * periodDays * 1e10) / 1e10;
       const currentSurplus = surplus[key] || 0;
       const unitsToBuy = Math.max(0, unitsNeeded - currentSurplus);
       const bottlesToShip = unitsToBuy > 0 ? Math.ceil(unitsToBuy / unitsPerBottle) : 0;
