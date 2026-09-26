@@ -3393,6 +3393,26 @@ async def test_automation(automation_id: str, admin_user: dict = Depends(get_adm
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "_test": True
         }
+    elif trigger == "checkout_purchase":  # same fields as checkout.fulfill_checkout sends
+        test_data = {
+            "trigger": "checkout_purchase",
+            "first_name": "Test",
+            "last_name": "User",
+            "email": "test@example.com",
+            "mobile_phone": "+1234567890",
+            "amount": 97.0,
+            "currency": "usd",
+            "stripe_session_id": "cs_test_123",
+            "stripe_payment_intent_id": "pi_test_123",
+            "booking_id": "test-booking-123",
+            "session_date": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
+            "timezone": "America/New_York",
+            "outcome": "booked",
+            "user_id": "test-user-id",
+            "new_account": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "_test": True
+        }
     else:  # cancelled_booking
         test_data = {
             "trigger": "cancelled_booking",
