@@ -542,6 +542,192 @@ async def get_super_admin_user(current_user: dict = Depends(get_current_user)):
     return current_user
 
 # Routes
+def generate_portal_password() -> str:
+    """Memorable one-time password for a new patient account (only stored when legacy password login is on)."""
+    # Generate memorable password using random word combinations
+    import random
+
+    # Word lists for memorable passwords
+    adjectives = [
+        "Swift", "Bright", "Golden", "Silver", "Crystal", "Cosmic", "Solar", "Lunar",
+        "Velvet", "Royal", "Noble", "Brave", "Clever", "Mighty", "Happy", "Lucky",
+        "Gentle", "Bold", "Calm", "Wise", "Cool", "Fresh", "Warm", "Wild"
+    ]
+    
+    nouns = [
+        "Tiger", "Eagle", "Wolf", "Phoenix", "Dragon", "Falcon", "Lion", "Bear",
+        "Dolphin", "Panther", "Hawk", "Raven", "Fox", "Owl", "Cobra", "Shark"
+    ]
+    
+    elements = [
+        "Carbon", "Helium", "Neon", "Argon", "Copper", "Silver", "Gold", "Iron",
+        "Cobalt", "Nickel", "Zinc", "Titanium", "Platinum", "Mercury", "Radium", "Xenon"
+    ]
+    
+    foods = [
+        "Apple", "Mango", "Lemon", "Berry", "Peach", "Grape", "Melon", "Cherry",
+        "Orange", "Banana", "Coconut", "Kiwi", "Plum", "Fig", "Lime", "Pear"
+    ]
+    
+    # Choose password pattern randomly
+    pattern = random.choice([1, 2, 3, 4])
+    number = random.randint(10, 99)
+    
+    if pattern == 1:
+        # Adjective + Number + Noun (e.g., Swift42Tiger)
+        generated_password = random.choice(adjectives) + str(number) + random.choice(nouns)
+    elif pattern == 2:
+        # Element + Number + Food (e.g., Gold55Apple)
+        generated_password = random.choice(elements) + str(number) + random.choice(foods)
+    elif pattern == 3:
+        # Food + Number + Noun (e.g., Mango23Eagle)
+        generated_password = random.choice(foods) + str(number) + random.choice(nouns)
+    else:
+        # Adjective + Number + Element (e.g., Cosmic88Neon)
+        generated_password = random.choice(adjectives) + str(number) + random.choice(elements)
+    return generated_password
+
+
+async def send_portal_welcome_email(email: str, name: str, user_id: str, generated_password: str,
+                                    auto_login_url: str) -> None:
+    """Welcome email for a new patient account (GHL purchase webhook and the book-first checkout).
+    Failures are logged, never raised: the account exists either way."""
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
+    email_lower = email.lower()
+    # Build conditional email fragments based on auth mode
+    if LEGACY_PASSWORD_LOGIN:
+        credentials_html = f"""
+                            <!-- Credentials Box -->
+                            <table width="100%" cellpadding="15" cellspacing="0" border="1" style="border-color: #000000; border-collapse: collapse; margin: 25px 0;">
+                                <tr>
+                                    <td colspan="2" style="background-color: #f5f5f5; font-weight: bold; font-size: 18px;">
+                                        Your Login Information
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold; width: 120px;">Email:</td>
+                                    <td style="font-size: 16px;">{email_lower}</td>
+                                </tr>
+                                <tr>
+                                    <td style="font-weight: bold;">Password:</td>
+                                    <td style="font-family: Courier, monospace; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{generated_password}</td>
+                                </tr>
+                            </table>"""
+        note_html = """
+                            <p style="margin: 25px 0; padding: 15px; border: 2px solid #000000; background-color: #fffde7;">
+                                <strong>IMPORTANT:</strong> Please save your password in a safe place. You will need it to log into your portal.
+                            </p>"""
+        cta_url = f"{frontend_url}/login"
+        cta_label = "LOG IN TO YOUR PORTAL"
+    else:
+        credentials_html = ""
+        note_html = f"""
+                            <p style="margin: 25px 0;">
+                                If this link expires, head to <a href="{frontend_url}/login" style="color: #000000;">{frontend_url}/login</a> and enter your email &mdash; we'll send a fresh sign-in link or text a 6-digit code to the phone on file.
+                            </p>"""
+        cta_url = auto_login_url
+        cta_label = "ACCESS YOUR PORTAL"
+
+    try:
+        resend.Emails.send({
+            "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
+            "to": email,
+            "reply_to": ["concierge@drshumard.com"],
+            "subject": "Welcome to Your Onboarding Portal",
+            "html": f"""
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Welcome to Your Onboarding Portal</title>
+            </head>
+            <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <tr>
+                        <td>
+                            <!-- Logo -->
+                            <p style="margin: 0 0 24px 0; text-align: center;"><img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;"></p>
+
+                            <!-- Header -->
+                            <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
+                                Welcome to your onboarding portal with Dr Shumard
+                            </h1>
+                            
+                            <!-- Greeting -->
+                            <p style="font-size: 18px; margin: 20px 0;">
+                                Hello {name},
+                            </p>
+                            
+                            <!-- Main Message -->
+                            <p style="margin: 20px 0;">
+                                Thank you for joining us. Your account has been created and you can now access your onboarding portal.
+                            </p>
+                            {credentials_html}
+                            {note_html}
+
+                            <!-- Login Button -->
+                            <p style="margin: 30px 0; text-align: center;">
+                                <a href="{cta_url}"
+                                   style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
+                                    {cta_label}
+                                </a>
+                            </p>
+
+                            <!-- Alternative Link -->
+                            <p style="margin: 20px 0; font-size: 14px;">
+                                If the button above doesn't work, copy and paste this link into your browser:<br>
+                                <span style="word-break: break-all;">{cta_url}</span>
+                            </p>
+                            
+                            <!-- What's Next -->
+                            <h2 style="font-size: 18px; color: #000000; margin: 30px 0 15px 0; border-bottom: 1px solid #cccccc; padding-bottom: 10px;">
+                                What to Do Next
+                            </h2>
+                            <ol style="margin: 15px 0; padding-left: 25px;">
+                                <li style="margin: 10px 0;"><strong>Step 1:</strong> Book your strategy session</li>
+                                <li style="margin: 10px 0;"><strong>Step 2:</strong> Complete your onboarding form</li>
+                                <li style="margin: 10px 0;"><strong>Step 3:</strong> Review next steps for your strategy session</li>
+                            </ol>
+                            
+                            <!-- Need Help -->
+                            <p style="margin: 30px 0; padding: 15px; background-color: #f5f5f5;">
+                                <strong>Need Help?</strong><br>
+                                If you have any questions or need assistance, please reply to this email or contact our support team at <a href="mailto:concierge@drshumard.com" style="color: #000000;">concierge@drshumard.com</a> or <a href="tel:+18585647081" style="color: #000000;">858-564-7081</a>.
+                            </p>
+                            
+                            <!-- Footer -->
+                            <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
+                                Best regards,<br>
+                                <strong>Onboarding Team, DS</strong>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+            </html>
+            """
+        })
+        logging.info(f"Welcome email with credentials sent to {email}")
+        await log_activity(
+            event_type="EMAIL_SENT",
+            user_email=email,
+            user_id=user_id,
+            details={"email_type": "welcome_email", "credentials_included": True},
+            status="success"
+        )
+    except Exception as e:
+        logging.error(f"Failed to send welcome email: {e}")
+        await log_activity(
+            event_type="EMAIL_FAILED",
+            user_email=email,
+            user_id=user_id,
+            details={"email_type": "welcome_email", "error": str(e)},
+            status="failure"
+        )
+        # Continue even if email fails - user account still created
+
+
 @api_router.post("/webhook/ghl")
 async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     """Receive webhook from GHL after purchase - Protected by webhook secret"""
@@ -612,47 +798,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
     else:
         full_name = data.name
     
-    # Generate memorable password using random word combinations
-    import random
-
-    # Word lists for memorable passwords
-    adjectives = [
-        "Swift", "Bright", "Golden", "Silver", "Crystal", "Cosmic", "Solar", "Lunar",
-        "Velvet", "Royal", "Noble", "Brave", "Clever", "Mighty", "Happy", "Lucky",
-        "Gentle", "Bold", "Calm", "Wise", "Cool", "Fresh", "Warm", "Wild"
-    ]
-    
-    nouns = [
-        "Tiger", "Eagle", "Wolf", "Phoenix", "Dragon", "Falcon", "Lion", "Bear",
-        "Dolphin", "Panther", "Hawk", "Raven", "Fox", "Owl", "Cobra", "Shark"
-    ]
-    
-    elements = [
-        "Carbon", "Helium", "Neon", "Argon", "Copper", "Silver", "Gold", "Iron",
-        "Cobalt", "Nickel", "Zinc", "Titanium", "Platinum", "Mercury", "Radium", "Xenon"
-    ]
-    
-    foods = [
-        "Apple", "Mango", "Lemon", "Berry", "Peach", "Grape", "Melon", "Cherry",
-        "Orange", "Banana", "Coconut", "Kiwi", "Plum", "Fig", "Lime", "Pear"
-    ]
-    
-    # Choose password pattern randomly
-    pattern = random.choice([1, 2, 3, 4])
-    number = random.randint(10, 99)
-    
-    if pattern == 1:
-        # Adjective + Number + Noun (e.g., Swift42Tiger)
-        generated_password = random.choice(adjectives) + str(number) + random.choice(nouns)
-    elif pattern == 2:
-        # Element + Number + Food (e.g., Gold55Apple)
-        generated_password = random.choice(elements) + str(number) + random.choice(foods)
-    elif pattern == 3:
-        # Food + Number + Noun (e.g., Mango23Eagle)
-        generated_password = random.choice(foods) + str(number) + random.choice(nouns)
-    else:
-        # Adjective + Number + Element (e.g., Cosmic88Neon)
-        generated_password = random.choice(adjectives) + str(number) + random.choice(elements)
+    generated_password = generate_portal_password()
     
     # Hash password (only stored when legacy password login is enabled;
     # passwordless mode skips this — auth happens via magic link / SMS OTP)
@@ -720,138 +866,7 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
         signup_url += f"&zsh={quote(resolved_cid, safe='')}"
     auto_login_url = f"{frontend_url}/auto-login/{auto_login_token}"
     
-    # Build conditional email fragments based on auth mode
-    if LEGACY_PASSWORD_LOGIN:
-        credentials_html = f"""
-                            <!-- Credentials Box -->
-                            <table width="100%" cellpadding="15" cellspacing="0" border="1" style="border-color: #000000; border-collapse: collapse; margin: 25px 0;">
-                                <tr>
-                                    <td colspan="2" style="background-color: #f5f5f5; font-weight: bold; font-size: 18px;">
-                                        Your Login Information
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="font-weight: bold; width: 120px;">Email:</td>
-                                    <td style="font-size: 16px;">{email_lower}</td>
-                                </tr>
-                                <tr>
-                                    <td style="font-weight: bold;">Password:</td>
-                                    <td style="font-family: Courier, monospace; font-size: 18px; font-weight: bold; letter-spacing: 1px;">{generated_password}</td>
-                                </tr>
-                            </table>"""
-        note_html = """
-                            <p style="margin: 25px 0; padding: 15px; border: 2px solid #000000; background-color: #fffde7;">
-                                <strong>IMPORTANT:</strong> Please save your password in a safe place. You will need it to log into your portal.
-                            </p>"""
-        cta_url = f"{frontend_url}/login"
-        cta_label = "LOG IN TO YOUR PORTAL"
-    else:
-        credentials_html = ""
-        note_html = f"""
-                            <p style="margin: 25px 0;">
-                                If this link expires, head to <a href="{frontend_url}/login" style="color: #000000;">{frontend_url}/login</a> and enter your email &mdash; we'll send a fresh sign-in link or text a 6-digit code to the phone on file.
-                            </p>"""
-        cta_url = auto_login_url
-        cta_label = "ACCESS YOUR PORTAL"
-
-    try:
-        resend.Emails.send({
-            "from": "Onboarding - Dr Shumard <noreply@portal.drshumard.com>",
-            "to": data.email,
-            "reply_to": ["concierge@drshumard.com"],
-            "subject": "Welcome to Your Onboarding Portal",
-            "html": f"""
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Welcome to Your Onboarding Portal</title>
-            </head>
-            <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.6; color: #333333; background-color: #ffffff;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <tr>
-                        <td>
-                            <!-- Logo -->
-                            <p style="margin: 0 0 24px 0; text-align: center;"><img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard" style="height: 36px; object-fit: contain;"></p>
-
-                            <!-- Header -->
-                            <h1 style="font-size: 24px; color: #000000; margin: 0 0 20px 0; border-bottom: 2px solid #000000; padding-bottom: 10px;">
-                                Welcome to your onboarding portal with Dr Shumard
-                            </h1>
-                            
-                            <!-- Greeting -->
-                            <p style="font-size: 18px; margin: 20px 0;">
-                                Hello {data.name},
-                            </p>
-                            
-                            <!-- Main Message -->
-                            <p style="margin: 20px 0;">
-                                Thank you for joining us. Your account has been created and you can now access your onboarding portal.
-                            </p>
-                            {credentials_html}
-                            {note_html}
-
-                            <!-- Login Button -->
-                            <p style="margin: 30px 0; text-align: center;">
-                                <a href="{cta_url}"
-                                   style="display: inline-block; padding: 15px 40px; background-color: #000000; color: #ffffff; text-decoration: none; font-size: 18px; font-weight: bold;">
-                                    {cta_label}
-                                </a>
-                            </p>
-
-                            <!-- Alternative Link -->
-                            <p style="margin: 20px 0; font-size: 14px;">
-                                If the button above doesn't work, copy and paste this link into your browser:<br>
-                                <span style="word-break: break-all;">{cta_url}</span>
-                            </p>
-                            
-                            <!-- What's Next -->
-                            <h2 style="font-size: 18px; color: #000000; margin: 30px 0 15px 0; border-bottom: 1px solid #cccccc; padding-bottom: 10px;">
-                                What to Do Next
-                            </h2>
-                            <ol style="margin: 15px 0; padding-left: 25px;">
-                                <li style="margin: 10px 0;"><strong>Step 1:</strong> Book your strategy session</li>
-                                <li style="margin: 10px 0;"><strong>Step 2:</strong> Complete your onboarding form</li>
-                                <li style="margin: 10px 0;"><strong>Step 3:</strong> Review next steps for your strategy session</li>
-                            </ol>
-                            
-                            <!-- Need Help -->
-                            <p style="margin: 30px 0; padding: 15px; background-color: #f5f5f5;">
-                                <strong>Need Help?</strong><br>
-                                If you have any questions or need assistance, please reply to this email or contact our support team at <a href="mailto:concierge@drshumard.com" style="color: #000000;">concierge@drshumard.com</a> or <a href="tel:+18585647081" style="color: #000000;">858-564-7081</a>.
-                            </p>
-                            
-                            <!-- Footer -->
-                            <p style="margin: 30px 0 0 0; padding-top: 20px; border-top: 1px solid #cccccc; font-size: 14px; color: #666666;">
-                                Best regards,<br>
-                                <strong>Onboarding Team, DS</strong>
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </body>
-            </html>
-            """
-        })
-        logging.info(f"Welcome email with credentials sent to {data.email}")
-        await log_activity(
-            event_type="EMAIL_SENT",
-            user_email=data.email,
-            user_id=user.id,
-            details={"email_type": "welcome_email", "credentials_included": True},
-            status="success"
-        )
-    except Exception as e:
-        logging.error(f"Failed to send welcome email: {e}")
-        await log_activity(
-            event_type="EMAIL_FAILED",
-            user_email=data.email,
-            user_id=user.id,
-            details={"email_type": "welcome_email", "error": str(e)},
-            status="failure"
-        )
-        # Continue even if email fails - user account still created
+    await send_portal_welcome_email(data.email, data.name, user.id, generated_password, auto_login_url)
     
     return {
         "message": "User created and welcome email sent", 
@@ -3129,7 +3144,7 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
     """Create a new automation with multiple actions"""
     
     # Validate trigger
-    valid_triggers = ["new_booking", "cancelled_booking"]
+    valid_triggers = ["new_booking", "cancelled_booking", "checkout_purchase"]
     if automation.trigger not in valid_triggers:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -3192,7 +3207,7 @@ async def update_automation(automation_id: str, automation: AutomationUpdate, ad
     if automation.name is not None:
         update_data["name"] = automation.name
     if automation.trigger is not None:
-        valid_triggers = ["new_booking", "cancelled_booking"]
+        valid_triggers = ["new_booking", "cancelled_booking", "checkout_purchase"]
         if automation.trigger not in valid_triggers:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -5022,6 +5037,7 @@ SETTINGS_DEFAULTS = {
     "sessions": [],                         # [{id, title, description, duration_minutes, portal_visible}]
     "clinic_closures": [],             # [{start_utc, end_utc, reason}]
     "sms_reminders": SMS_REMINDER_DEFAULTS, # Twilio reminder config (see above)
+    "checkout_promo_enabled": False,        # /checkout charges STRIPE_PROMO_PRICE_ID instead of STRIPE_PRICE_ID
 }
 
 
@@ -5122,6 +5138,8 @@ def _validate_settings_updates(body: dict) -> dict:
             val = cleaned
         elif key == "sms_reminders":
             val = _sanitize_sms_reminders(val)
+        elif key == "checkout_promo_enabled":
+            val = bool(val)
         updates[key] = val
     return updates
 
@@ -6088,6 +6106,9 @@ async def list_bookings(
     query: dict = {}
     if status:
         query["status"] = status
+    else:
+        # Checkout holds (unpaid reservations) aren't bookings; only listed when asked for.
+        query["status"] = {"$nin": ["held", "expired"]}
     if director_id:
         query["director_id"] = director_id
     if pb_status:
@@ -6476,6 +6497,8 @@ app.include_router(api_router)
 # Include booking router for the new custom calendar
 from booking import router as booking_router
 app.include_router(booking_router)
+from checkout import router as checkout_router
+app.include_router(checkout_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -6521,16 +6544,19 @@ async def startup_event():
     except Exception as e:
         logging.warning(f"Auth index creation failed: {e}")
     # Bookings ledger + directors indexes. The partial unique index on
-    # (director_id, slot_start_utc) where status="confirmed" is the double-booking
-    # guard, so build it in its OWN block and FAIL LOUD — a swallowed failure would
-    # silently disable the guard. (Empty collection at deploy time => no dup risk.)
+    # (director_id, slot_start_utc) where status in (confirmed, held) is the double-booking
+    # guard (a checkout hold occupies its slot too), so build it in its OWN block and FAIL
+    # LOUD — a swallowed failure would silently disable the guard. The new index is built
+    # BEFORE the old confirmed-only one is dropped, so the guard never lapses.
     try:
         await db.bookings.create_index(
             [("director_id", 1), ("slot_start_utc", 1)],
             unique=True,
-            partialFilterExpression={"status": "confirmed"},
-            name="uniq_confirmed_director_slot",
+            partialFilterExpression={"status": {"$in": ["confirmed", "held"]}},
+            name="uniq_active_director_slot",
         )
+        if "uniq_confirmed_director_slot" in await db.bookings.index_information():
+            await db.bookings.drop_index("uniq_confirmed_director_slot")
         await db.bookings.create_index([("slot_start_utc", 1), ("status", 1)])
         await db.bookings.create_index([("user_id", 1)])
         await db.bookings.create_index([("director_id", 1), ("status", 1)])
@@ -6616,6 +6642,13 @@ async def startup_event():
         start_calendar_busy_sweep()
     except Exception as e:
         logger.warning(f"Could not start calendar busy sweep: {e}")
+
+    # Book-first checkout: expire the Stripe session of every lapsed/replaced slot hold, every minute.
+    try:
+        from checkout import start_checkout_sweep
+        start_checkout_sweep()
+    except Exception as e:
+        logger.warning(f"Could not start checkout sweep: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

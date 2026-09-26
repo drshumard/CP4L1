@@ -185,6 +185,7 @@ export default function SettingsTab() {
         const r = await adminApi.put('/admin/settings', {
           booking_engine: s.booking_engine, shared_pb_consultant_id: s.shared_pb_consultant_id || '',
           pb_booking_mode: s.pb_booking_mode || 'one_director', sms_reminders: s.sms_reminders,
+          checkout_promo_enabled: !!s.checkout_promo_enabled,
         });
         setS(r.data);
       }
@@ -203,10 +204,11 @@ export default function SettingsTab() {
   return (
     <div className="max-w-4xl">
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="engine">Booking engine</TabsTrigger>
           <TabsTrigger value="sms">SMS reminders</TabsTrigger>
+          <TabsTrigger value="checkout">Checkout</TabsTrigger>
         </TabsList>
 
         {/* ---------------- Profile ---------------- */}
@@ -401,9 +403,25 @@ export default function SettingsTab() {
             </div>
           </section>
         </TabsContent>
+
+        {/* ---------------- Checkout ---------------- */}
+        <TabsContent value="checkout" className="mt-4">
+          <section className="rounded-xl border bg-card p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className={EYEBROW}>Promo price</p>
+                <p className="mt-1 text-sm text-muted-foreground">While on, the book-first checkout (/checkout) shows and charges the promo price instead of the regular price, from the moment you save. Anyone already on the payment step keeps the price they started with.</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                <Label htmlFor="checkout-promo" className="text-sm text-muted-foreground">{s.checkout_promo_enabled ? 'On' : 'Off'}</Label>
+                <Switch id="checkout-promo" checked={!!s.checkout_promo_enabled} onCheckedChange={(v) => set('checkout_promo_enabled', v)} />
+              </div>
+            </div>
+          </section>
+        </TabsContent>
       </Tabs>
 
-      {/* Sticky global save bar (all three tabs) */}
+      {/* Sticky global save bar (all tabs) */}
       <div className="sticky bottom-4 mt-6 flex justify-end">
         <div className="flex items-center gap-3.5 rounded-xl border bg-card px-4 py-2.5 shadow-lg">
           <span className={`text-sm ${dirty ? 'text-foreground' : 'text-muted-foreground'}`}>{statusLabel}</span>

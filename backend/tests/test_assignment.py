@@ -7,7 +7,7 @@ pairs, simulating the partial unique index. directors_free_at is stubbed.
 import asyncio
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -36,6 +36,9 @@ class FakeBookings:
 
     async def count_documents(self, q):
         return self.loads.get(q["director_id"], 0)
+
+    async def update_many(self, q, u):  # expire_stale_holds: nothing stale in these fakes
+        self.expired_query = q
 
 
 class FakeDirectors:
@@ -125,3 +128,15 @@ def test_forced_director_not_found_raises():
         assert False, "expected SlotFull"
     except SlotFull:
         pass
+
+
+def test_hold_minutes_inserts_an_expiring_held_row():
+    # Checkout hold: same atomic claim, but status 'held' with an expiry; stale holds are
+    # expired first so a lapsed hold can't keep the (director, slot) unique index occupied.
+    _stub_free([_dir("d1")])
+    bookings = FakeBookings()
+    before = datetime.now(UTC)
+    doc = _hold(FakeDB(bookings), hold_minutes=15)
+    assert doc["status"] == "held" and bookings.inserted[0]["status"] == "held"
+    assert timedelta(minutes=14) < doc["hold_expires_at"] - before <= timedelta(minutes=15, seconds=5)
+    assert bookings.expired_query["status"] == "held"

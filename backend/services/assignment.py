@@ -3,10 +3,13 @@ Round-robin director assignment at commit time (least-loaded, atomic).
 
 Fairness is "least-loaded with random tiebreak" over a balancing window (the same UTC
 calendar day, D8). The atomicity is provided by the partial unique index on
-(director_id, slot_start_utc) where status="confirmed": the first insert wins; a
+(director_id, slot_start_utc) where status in ("confirmed", "held"): the first insert wins; a
 concurrent claim for the same (director, slot) raises DuplicateKeyError and we fall
 through to the next eligible director. No locks. If every eligible director is taken
 between availability display and commit, we raise SlotFull -> a clean "just taken".
+
+A "held" row is a checkout reservation: it occupies the slot like a confirmed booking until
+hold_expires_at, but nothing has been sent to Google/PB/email yet.
 """
 
 from __future__ import annotations
@@ -26,6 +29,16 @@ logger = logging.getLogger(__name__)
 
 class SlotFull(Exception):
     """No eligible director could be held for the requested slot."""
+
+
+async def expire_stale_holds(db) -> None:
+    """Flip checkout holds past their expiry to 'expired' so they stop occupying the unique
+    (director, slot) index. Availability already ignores them by time; this is for writers."""
+    await db.bookings.update_many(
+        {"status": "held", "hold_expires_at": {"$lte": datetime.now(timezone.utc)}},
+        {"$set": {"status": "expired", "expired_reason": "timeout",
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
 
 
 async def _load_in_window(db, director_id: str, slot_start_utc: datetime) -> int:
@@ -51,12 +64,15 @@ async def assign_and_hold(
     source: str,
     notes=None,
     forced_director_id=None,
+    hold_minutes=None,
 ) -> dict:
-    """Atomically reserve a director for the slot by inserting a confirmed booking row.
+    """Atomically reserve a director for the slot by inserting a confirmed booking row
+    (or, with ``hold_minutes``, a 'held' row that expires after that many minutes).
 
     Returns the inserted booking doc (gcal_*/pb_* fields are placeholders to be filled by
     the caller after Google/PB steps). Raises SlotFull if nothing can be held.
     """
+    await expire_stale_holds(db)
     if forced_director_id:
         # Admin override: book the chosen host even outside the normal free check; the unique index
         # still prevents an actual double-book. HC/VA are directors (role field); a PCC host lives in
@@ -130,6 +146,9 @@ async def assign_and_hold(
             "created_at": now_iso,
             "updated_at": now_iso,
         }
+        if hold_minutes:
+            doc["status"] = "held"
+            doc["hold_expires_at"] = datetime.now(timezone.utc) + timedelta(minutes=hold_minutes)
         try:
             await db.bookings.insert_one(dict(doc))
             doc.pop("_id", None)

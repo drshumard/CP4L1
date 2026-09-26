@@ -310,7 +310,10 @@ async def _load_active_directors(db) -> list[dict]:
 
 
 async def _load_confirmed_bookings(db, lo: datetime, hi: datetime, exclude_booking_id: str = None) -> list[dict]:
-    query = {"status": "confirmed", "slot_start_utc": {"$gte": lo, "$lt": hi}}
+    # An unexpired checkout hold occupies its slot exactly like a confirmed booking.
+    query = {"$or": [{"status": "confirmed"},
+                     {"status": "held", "hold_expires_at": {"$gt": datetime.now(timezone.utc)}}],
+             "slot_start_utc": {"$gte": lo, "$lt": hi}}
     if exclude_booking_id:
         # When re-checking availability for a reschedule, the booking being moved is still
         # 'confirmed' at its old slot; excluding it stops its own (buffered) interval from

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Plus, Trash2, Play, RotateCcw, Zap, Calendar, CalendarX, CheckCircle, XCircle, ChevronDown, ChevronUp, Key, MoreHorizontalIcon, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Play, RotateCcw, Zap, Calendar, CalendarX, CreditCard, CheckCircle, XCircle, ChevronDown, ChevronUp, Key, MoreHorizontalIcon, Loader2 } from 'lucide-react';
 import { confirmDialog } from './admin/confirm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ const API = `${BACKEND_URL}/api`;
 const TRIGGERS = [
   { value: 'new_booking', icon: Calendar, label: 'New booking', desc: 'When a new appointment is booked', color: 'text-emerald-600' },
   { value: 'cancelled_booking', icon: CalendarX, label: 'Cancelled booking', desc: 'When an appointment is cancelled', color: 'text-red-600' },
+  { value: 'checkout_purchase', icon: CreditCard, label: 'Checkout purchase', desc: 'When someone pays on the /checkout page', color: 'text-blue-600' },
 ];
 
 const AutomationsPage = () => {
@@ -207,6 +208,7 @@ const AutomationsPage = () => {
   const getTriggerIcon = (trigger, cls = 'size-4') => {
     if (trigger === 'new_booking') return <Calendar className={`${cls} text-emerald-600`} />;
     if (trigger === 'cancelled_booking') return <CalendarX className={`${cls} text-red-600`} />;
+    if (trigger === 'checkout_purchase') return <CreditCard className={`${cls} text-blue-600`} />;
     return <Zap className={cls} />;
   };
   const getTriggerLabel = (trigger) => TRIGGERS.find((t) => t.value === trigger)?.label || trigger;
@@ -443,7 +445,9 @@ const AutomationsPage = () => {
 
             <div className="rounded-lg bg-muted/40 p-4">
               <Label className="text-xs text-muted-foreground">Sample payload that will be sent</Label>
-              <pre className="mt-2 max-h-32 overflow-auto text-xs">{formData.trigger === 'new_booking'
+              <pre className="mt-2 max-h-32 overflow-auto text-xs">{formData.trigger === 'checkout_purchase'
+                ? '{\n  "trigger": "checkout_purchase",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "amount": 97.0,\n  "currency": "usd",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "timezone": "America/Chicago",\n  "outcome": "booked",\n  "new_account": true,\n  "stripe_session_id": "cs_...",\n  "stripe_payment_intent_id": "pi_...",\n  "user_id": "...",\n  "timestamp": "2026-02-14T..."\n}'
+                : formData.trigger === 'new_booking'
                 ? '{\n  "trigger": "new_booking",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "user_found": true,\n  "step_advanced": true,\n  "timestamp": "2026-02-14T..."\n}'
                 : '{\n  "trigger": "cancelled_booking",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "timestamp": "2026-02-14T..."\n}'}</pre>
             </div>

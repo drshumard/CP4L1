@@ -880,18 +880,11 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
     best-effort mirror to the shared PB account, then advance the journey and email the patient."""
     settings = await _load_app_settings()
     portal_session = _portal_session(settings)
-    session_id = portal_session.get("id") or "strategy"
-    session_title = portal_session.get("title") or "Strategy Session"
     slot_minutes = int(portal_session.get("duration_minutes") or settings.get("slot_minutes") or 30)
-    # The Events-tab per-session PB service is authoritative (manual/sweep/reschedule already
-    # read it); the legacy top-level setting is the fallback, then the PB client's env default.
-    pb_service_id = ((portal_session.get("pb_service_id") or "").strip()
-                     or (settings.get("pb_service_id") or "").strip())
 
     start_dt = datetime.fromisoformat(request.slot_start_time.replace("Z", "+00:00")).astimezone(tz.utc)
     end_dt = start_dt + timedelta(minutes=slot_minutes)
     jwt_user_id = _decode_optional_jwt_user_id(authorization)
-    session_title = await _resolve_session_title(session_title, request.first_name, request.last_name, jwt_user_id)
 
     # Idempotency: a prior confirmed booking for the same (user/email, slot) -> return it.
     idem_or = [{"patient.email": request.email}, {"patient.email": request.email.lower()}]
@@ -918,13 +911,38 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
         raise HTTPException(status_code=409,
                             detail="This time slot is no longer available. Please select another time.")
 
+    await _finalize_local_booking(booking, request, jwt_user_id, pb_service, correlation_id)
+    return _booking_to_response(booking, "Your onboarding call has been booked successfully!",
+                                is_new_client=False)
+
+
+async def _finalize_local_booking(booking: dict, request: "BookSessionRequest", jwt_user_id: Optional[str],
+                                  pb_service: PracticeBetterService, correlation_id: str, *,
+                                  release_on_gcal_failure: bool = True) -> None:
+    """Steps 2-4 of a portal booking once its slot row is claimed: Google event + Meet link, journey
+    advance, then the backgrounded coordinator / PB mirror / confirmation email. Shared by the patient
+    booking path and the paid checkout, which passes release_on_gcal_failure=False: a PAID booking is
+    kept (gcal_status='failed', the caller alerts the office) instead of being cancelled."""
+    settings = await _load_app_settings()
+    portal_session = _portal_session(settings)
+    session_id = portal_session.get("id") or "strategy"
+    # The Events-tab per-session PB service is authoritative (manual/sweep/reschedule already
+    # read it); the legacy top-level setting is the fallback, then the PB client's env default.
+    pb_service_id = ((portal_session.get("pb_service_id") or "").strip()
+                     or (settings.get("pb_service_id") or "").strip())
+    session_title = await _resolve_session_title(portal_session.get("title") or "Strategy Session",
+                                                 request.first_name, request.last_name, jwt_user_id)
+    start_dt, end_dt = (d if d.tzinfo else d.replace(tzinfo=tz.utc)
+                        for d in (booking["slot_start_utc"], booking["slot_end_utc"]))
+
     booking_id = booking["booking_id"]
     director_id = booking["director_id"]
     director_tz = await _director_timezone(director_id)
     effective_pb_id = await _effective_pb_consultant_id(settings, director_id, correlation_id)
     director_email = await _director_email(director_id)
 
-    # 2. Google Calendar event w/ Meet (the patient deliverable). Failure -> release hold, 503.
+    # 2. Google Calendar event w/ Meet (the patient deliverable). Failure -> release hold, 503
+    #    (unless release_on_gcal_failure=False: a paid checkout booking is kept).
     try:
         event_id, meet_link = await gcal.create_event_with_meet(
             calendar_id=booking.get("gcal_calendar_id"),
@@ -933,20 +951,22 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
             attendee_email=request.email, director_email=director_email,
             request_id=f"cadence-{booking_id}",
         )
+        gcal_fields = {"gcal_event_id": event_id, "meet_link": meet_link, "gcal_status": "synced"}
     except Exception as e:
-        logger.error(f"[{correlation_id}] Google event creation failed: {e}; releasing hold {booking_id}")
-        await db.bookings.update_one({"booking_id": booking_id},
-                                     {"$set": {"status": "cancelled", "gcal_status": "failed",
-                                               "pb_status": "skipped", "updated_at": _now_iso()}})
-        raise HTTPException(status_code=503,
-                            detail="We couldn't finish setting up your video call. Please try again.")
+        if release_on_gcal_failure:
+            logger.error(f"[{correlation_id}] Google event creation failed: {e}; releasing hold {booking_id}")
+            await db.bookings.update_one({"booking_id": booking_id},
+                                         {"$set": {"status": "cancelled", "gcal_status": "failed",
+                                                   "pb_status": "skipped", "updated_at": _now_iso()}})
+            raise HTTPException(status_code=503,
+                                detail="We couldn't finish setting up your video call. Please try again.")
+        logger.error(f"[{correlation_id}] Google event creation failed for paid booking {booking_id}: {e}; keeping it")
+        meet_link = None
+        gcal_fields = {"gcal_status": "failed"}
 
-    await db.bookings.update_one({"booking_id": booking_id},
-                                 {"$set": {"gcal_event_id": event_id, "meet_link": meet_link,
-                                           "gcal_status": "synced", "session_id": session_id,
-                                           "session_title": session_title, "updated_at": _now_iso()}})
-    booking.update({"gcal_event_id": event_id, "meet_link": meet_link, "gcal_status": "synced",
-                    "session_id": session_id, "session_title": session_title})
+    fields = {**gcal_fields, "session_id": session_id, "session_title": session_title}
+    await db.bookings.update_one({"booking_id": booking_id}, {"$set": {**fields, "updated_at": _now_iso()}})
+    booking.update(fields)
 
     # 3. Mirror to user + advance journey + webhook + automations (fast, patient-facing — keep
     #    synchronous so the portal reflects the booking on the next call).
@@ -960,8 +980,6 @@ async def _book_local(request: "BookSessionRequest", authorization: Optional[str
 
     logger.info(f"[{correlation_id}] Local booking complete: {booking_id} director={director_id} "
                 f"(coordinator + PB mirror backgrounded)")
-    return _booking_to_response(booking, "Your onboarding call has been booked successfully!",
-                                is_new_client=False)
 
 
 async def _stamp_user_pb_record_id(email: Optional[str], pb_record_id: Optional[str],
@@ -2099,6 +2117,7 @@ async def _reschedule_booking(booking: dict, new_start_iso: str,
         set_fields["director_id"] = new_director_id
         set_fields["gcal_calendar_id"] = new_calendar_id
         set_fields["host_name"] = new_director_doc.get("name")
+    await assignment_service.expire_stale_holds(db)  # a lapsed checkout hold mustn't block the move
     try:
         res = await db.bookings.update_one(
             {"booking_id": booking_id, "status": "confirmed"}, {"$set": set_fields})
@@ -2594,6 +2613,69 @@ async def book_session(
             status_code=500,
             detail="Something went wrong. Please try again in a moment."
         )
+
+
+# ============================================================================
+# Checkout holds (book-first checkout at /checkout)
+# ============================================================================
+
+HOLD_MINUTES = 15
+_SLOT_TAKEN = "This time slot is no longer available. Please select another time."
+
+
+class HoldSlotRequest(BookSessionRequest):
+    """Same fields as a booking; consultant_id is ignored (the director is assigned at hold time)."""
+    consultant_id: str = "auto"
+
+
+@router.post("/hold")
+async def hold_slot(request: HoldSlotRequest, req: Request,
+                    correlation_id: str = Depends(get_correlation_id)):
+    """Public: reserve a slot for HOLD_MINUTES while the patient pays. The hold is a real ledger row
+    (status='held'), so availability and the double-booking index treat it as taken; nothing goes to
+    Google/PB/email until payment confirms it. One active hold per email — a new hold replaces the
+    old one (e.g. they went back and picked another time). Rate-limited per IP and per email."""
+    from server import check_rate_limit, check_ip_rate_limit  # lazy: server imports this module
+
+    email = request.email.strip().lower()
+    ip = (req.headers.get("X-Forwarded-For") or (req.client.host if req.client else "") or "").split(",")[0].strip()
+    if (not await check_ip_rate_limit(ip or None, scope="booking_hold", limit=10, window_minutes=15)
+            or not await check_rate_limit(f"booking_hold:{email}", limit=6, window_minutes=15)):
+        raise HTTPException(status_code=429, detail="Too many attempts. Please wait a few minutes and try again.")
+    if await _booking_engine() != "local":
+        raise HTTPException(status_code=503, detail="Online booking is temporarily unavailable.")
+
+    settings = await _load_app_settings()
+    slot_minutes = int(_portal_session(settings).get("duration_minutes") or settings.get("slot_minutes") or 30)
+    start_dt = datetime.fromisoformat(request.slot_start_time.replace("Z", "+00:00")).astimezone(tz.utc)
+    end_dt = start_dt + timedelta(minutes=slot_minutes)
+    # Only times the public calendar could offer (min notice .. max advance); off-grid times are
+    # rejected by the engine's free check inside assign_and_hold.
+    lo, hi = availability_engine._clamp_window(await availability_engine.load_engine_settings(db), start_dt, end_dt)
+    if lo != start_dt or lo >= hi:
+        raise HTTPException(status_code=409, detail=_SLOT_TAKEN)
+
+    await db.bookings.update_many(
+        {"status": "held", "patient.email": email},
+        {"$set": {"status": "expired", "expired_reason": "replaced", "updated_at": _now_iso()}})
+    patient = {"first_name": request.first_name, "last_name": request.last_name,
+               "email": email, "phone": request.phone}
+    try:
+        hold = await assignment_service.assign_and_hold(
+            db, slot_start_utc=start_dt, slot_end_utc=end_dt, duration_minutes=slot_minutes,
+            patient=patient, patient_timezone=request.timezone, user_id=None,
+            source="checkout", hold_minutes=HOLD_MINUTES)
+    except assignment_service.SlotFull:
+        raise HTTPException(status_code=409, detail=_SLOT_TAKEN)
+    logger.info(f"[{correlation_id}] Checkout hold {hold['booking_id']} at {start_dt.isoformat()}")
+    return {
+        "hold_id": hold["booking_id"],
+        "slot_start_utc": _iso(start_dt),
+        "slot_end_utc": _iso(end_dt),
+        "expires_at": _iso(hold["hold_expires_at"]),
+        # Relative, so the client countdown is immune to a skewed device clock.
+        "expires_in_seconds": int((hold["hold_expires_at"] - datetime.now(tz.utc)).total_seconds()),
+    }
 
 
 @router.get("/health")
