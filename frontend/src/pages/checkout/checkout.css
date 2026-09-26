@@ -305,12 +305,15 @@
 .co .experience-mark{padding-left:12px}
 .co .experience-mark span{font-size:11px}
 }
-@media(max-width:899px){.co .consultation-overview{order:3;width:100%}
+@media(max-width:899px){.co .consultation-overview{display:contents}
+.co .consultation-summary{order:1;width:100%;padding:30px 0 27px;border-top:1px solid #cfd8ea;border-bottom:1px solid #cfd8ea}
+.co .consultation-overview .session-benefits{margin-bottom:0}
+.co .doctor-proof{order:3;width:100%;padding:22px 0 27px;border-top:1px solid #cfd8ea;border-bottom:1px solid #cfd8ea}
 .co .consultation-overview .session-description{font-size:16px}
 .co .doctor-proof{align-items:flex-start}
 .co .experience-mark{align-self:center}
 }
-@media(max-width:520px){.co .consultation-overview{padding:26px 0}
+@media(max-width:520px){.co .consultation-summary{padding:26px 0}
 .co .consultation-head{grid-template-columns:1fr;gap:20px}
 .co .consultation-overview h2{font-size:27px}
 .co .offer-price{display:grid;grid-template-columns:auto 1fr;column-gap:12px;align-items:center;width:100%;padding:12px 0 12px 15px}

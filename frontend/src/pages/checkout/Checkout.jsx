@@ -214,20 +214,23 @@ export default function Checkout() {
         <section className="offer-column" aria-labelledby="offer-title">
           <div className="intro"><h1 id="offer-title">A clearer path.<br />A healthier <span>you.</span></h1><p className="intro-copy">Get on the fastest and simplest path to <strong>reversing your diabetes</strong> for good.</p></div>
           <section className="consultation-overview" aria-labelledby="session-title">
-            <div className="consultation-head">
-              <div>
-                <span className="consultation-kicker"><CalendarDays size={18} strokeWidth={1.8} /> Private one-to-one consultation</span>
-                <h2 id="session-title">Diabetes Reversal Strategy Session</h2>
+            {/* On mobile the summary sits above the checkout card and the doctor below it (checkout.css) */}
+            <div className="consultation-summary">
+              <div className="consultation-head">
+                <div>
+                  <span className="consultation-kicker"><CalendarDays size={18} strokeWidth={1.8} /> Private one-to-one consultation</span>
+                  <h2 id="session-title">Diabetes Reversal Strategy Session</h2>
+                </div>
+                <div className="offer-price" aria-label={`A $1,100 value, available today for ${fee.display}`}>
+                  <span>Session value</span>
+                  <s>$1,100</s>
+                  <strong className={feeHidden}>{fee.display} <small>today</small></strong>
+                </div>
               </div>
-              <div className="offer-price" aria-label={`A $1,100 value, available today for ${fee.display}`}>
-                <span>Session value</span>
-                <s>$1,100</s>
-                <strong className={feeHidden}>{fee.display} <small>today</small></strong>
-              </div>
+              <p className="session-description">A private, focused conversation about your health, your questions, and the clearest next steps for you.</p>
+              <p className="included-heading">During your session, you’ll:</p>
+              <ul className="session-benefits"><li><Check size={17} /> Explore the factors affecting your metabolic health</li><li><Check size={17} /> Understand your current health assessment</li><li><Check size={17} /> Leave with a personalized action plan</li></ul>
             </div>
-            <p className="session-description">A private, focused conversation about your health, your questions, and the clearest next steps for you.</p>
-            <p className="included-heading">During your session, you’ll:</p>
-            <ul className="session-benefits"><li><Check size={17} /> Explore the factors affecting your metabolic health</li><li><Check size={17} /> Understand your current health assessment</li><li><Check size={17} /> Leave with a personalized action plan</li></ul>
             <div className="doctor-proof"><img src={portrait} alt="Dr. Jason Shumard" width={1000} height={1250} className="doctor-avatar" /><div><span>Your consultation is with</span><strong>Dr. Jason Shumard, DC</strong><p>Doctor of Chiropractic · Functional Medicine</p></div><div className="experience-mark"><ShieldCheck size={20} /><span>20+ years of<br />clinical experience</span></div></div>
           </section>
           <div className="bonuses-section"><div className="section-label"><h3>More support. Included.</h3><span>3 complimentary resources</span></div><div className="bonus-list">{bonuses.map(({ icon: Icon, title, description, value, type }) => <div className="bonus-row" key={title}><span className="bonus-icon"><Icon size={19} strokeWidth={1.6} /></span><div className="min-w-0 flex-1"><span className="bonus-type">{type}</span><h4>{title}</h4><p>{description}</p></div><div className="bonus-value"><s>{value}</s><span>Included</span></div></div>)}</div></div>
@@ -237,7 +240,6 @@ export default function Checkout() {
           <div className="checkout-card">
             <div className="checkout-topline"><span><LockKeyhole size={13} /> YOUR RESERVATION</span></div>
             <h2 id="checkout-title" ref={heading} tabIndex={-1}>{titles[stage][0]}</h2><p className="checkout-subtitle">{titles[stage][1]}</p>
-            <div className="mobile-session"><CalendarDays size={17} /><span>Diabetes Reversal Strategy Session<em><s>$1,100 value</s></em><strong className={feeHidden}>{fee.display} · One-time payment</strong></span></div>
             <ol className="steps" aria-label="Checkout progress">
               <li aria-current={stepIndex === 1 ? 'step' : undefined} className="active"><span>{stepIndex > 1 ? <Check size={13} /> : '1'}</span>Date &amp; time</li>
               <li className="step-line" aria-hidden="true" />
