@@ -13,6 +13,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminAnalytics from './pages/AdminAnalytics';
 import ActivityLogs from './pages/ActivityLogs';
 import AutomationsPage from './pages/AutomationsPage';
+import PurchasesPage from './pages/admin/PurchasesPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import SchedulingLayout from './pages/admin/SchedulingLayout';
 import SchedulingBookings from './pages/admin/scheduling/Bookings';
@@ -292,6 +293,7 @@ function App() {
               <Route path="analytics" element={<AdminAnalytics />} />
               <Route path="logs" element={<ActivityLogs />} />
               <Route path="automations" element={<AutomationsPage />} />
+              <Route path="purchases" element={<PurchasesPage />} />
               <Route path="scheduling" element={<SchedulingLayout />}>
                 <Route index element={<Navigate to="bookings" replace />} />
                 <Route path="bookings" element={<SchedulingBookings />} />

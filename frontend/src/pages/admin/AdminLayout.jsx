@@ -19,6 +19,7 @@ function pageTitle(pathname) {
   if (pathname.startsWith('/admin/analytics')) return 'Analytics';
   if (pathname.startsWith('/admin/logs')) return 'Activity log';
   if (pathname.startsWith('/admin/automations')) return 'Automations';
+  if (pathname.startsWith('/admin/purchases')) return 'Purchases';
   return 'Users';
 }
 

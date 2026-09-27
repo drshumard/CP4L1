@@ -271,7 +271,8 @@ const AutomationsPage = () => {
                     <Button variant="outline" size="sm" onClick={() => handleTest(automation)} disabled={testingId === automation.id}>
                       {testingId === automation.id ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Test
                     </Button>
-                    <DropdownMenu>
+                    {/* modal={false}: "Edit" opens a Dialog from this menu; a modal menu leaves the page unclickable after it closes */}
+                    <DropdownMenu modal={false}>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="size-8"><MoreHorizontalIcon /><span className="sr-only">Open menu</span></Button>
                       </DropdownMenuTrigger>

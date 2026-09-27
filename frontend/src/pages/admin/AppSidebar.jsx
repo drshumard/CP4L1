@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Users, CalendarClock, BarChart3, Activity, Zap, Settings,
+  Users, CalendarClock, BarChart3, Activity, Zap, Settings, Receipt,
   ChevronRight, ChevronsUpDown, LogOut, ExternalLink,
 } from 'lucide-react';
 import {
@@ -29,6 +29,7 @@ const SCHEDULING_SUB = [
 ];
 
 const NAV = [
+  { to: '/admin/purchases', label: 'Purchases', icon: Receipt },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/admin/logs', label: 'Activity log', icon: Activity },
   { to: '/admin/automations', label: 'Automations', icon: Zap },
