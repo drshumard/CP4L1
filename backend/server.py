@@ -2960,10 +2960,17 @@ async def get_all_users(
     admin_user: dict = Depends(get_admin_user),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=10, le=200, description="Users per page"),
-    search: str = Query("", description="Search by name, email, or phone")
+    search: str = Query("", description="Search by name, email, or phone"),
+    onboarding: str = Query("all", pattern="^(all|in_progress|complete)$", description="all | in_progress (steps 1–3) | complete (step 4)")
 ):
+    # Onboarding buckets (the admin Users tabs). Refunded (step 0) only shows under "all".
+    onboarding_filters = {
+        "in_progress": {"current_step": {"$nin": [0, 4]}},
+        "complete": {"current_step": 4},
+    }
+
     # Build filter
-    query = {}
+    query = dict(onboarding_filters.get(onboarding, {}))
     if search.strip():
         search_regex = {"$regex": search.strip(), "$options": "i"}
         query["$or"] = [
@@ -2974,6 +2981,11 @@ async def get_all_users(
     
     # Get total count for pagination
     total = await db.users.count_documents(query)
+    # Whole-directory tab/stat counts (not narrowed by the search or the tab).
+    counts = {
+        "all": await db.users.count_documents({}),
+        **{k: await db.users.count_documents(f) for k, f in onboarding_filters.items()},
+    }
     
     # Fetch paginated users sorted by created_at desc (newest first)
     skip = (page - 1) * page_size
@@ -3018,6 +3030,7 @@ async def get_all_users(
     return {
         "users": users,
         "total": total,
+        "counts": counts,
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size
