@@ -1,15 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { ArrowRight, CircleAlert, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { isStaffHost } from '@/lib/staffApps';
+import logo from './checkout/dr-shumard-logo.png';
+import s from './staff-login.module.css';
 
 // Staff sign-in (staff.drshumard.com, also reachable at /staff-login): sign in with
 // Google (primary) or email + password (alternative). Either way the backend only learns
 // the email — the Team page (users collection) decides membership/role. The one portal
 // JWT it returns then governs the admin portal, Supplements, and Learn (via SSO handoff).
+// Layout ported from shumard-checkout-portal/app/staff-login (Lyra).
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_OAUTH_CLIENT_ID || '';
 const GSI_SRC = 'https://accounts.google.com/gsi/client';
+const PATIENT_LOGIN = 'https://portal.drshumard.com/login';
 
 // Load Google Identity Services once, resolving when window.google.accounts.id is ready.
 function loadGsi() {
@@ -34,10 +40,18 @@ function loadGsi() {
 export default function StaffLogin() {
   const navigate = useNavigate();
   const googleBtnRef = useRef(null);
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [notice, setNotice] = useState('');   // server-side rejection (wrong password, not on the team…)
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const previous = document.title;
+    document.title = 'Team Sign In | Dr. Shumard';
+    return () => { document.title = previous; };
+  }, []);
 
   const onSession = (data) => {
     localStorage.setItem('access_token', data.access_token);
@@ -55,76 +69,127 @@ export default function StaffLogin() {
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async ({ credential }) => {
-          setError('');
+          setNotice('');
           setBusy(true);
           try {
             const res = await axios.post(`${API}/auth/google-exchange`, { credential });
             onSession(res.data);
           } catch (e) {
             setBusy(false);
-            setError(e?.response?.data?.detail || "Couldn't sign in with Google. Please try again.");
+            setNotice(e?.response?.data?.detail || "Couldn't sign in with Google. Please try again.");
           }
         },
       });
       window.google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: 'outline', size: 'large', width: 288, text: 'signin_with',
+        theme: 'outline', size: 'large', shape: 'rectangular', text: 'signin_with',
+        width: Math.min(372, googleBtnRef.current.clientWidth || 372),
       });
-    }).catch(() => setError('Could not load Google sign-in — you can still use email and password.'));
+    }).catch(() => setNotice('Could not load Google sign-in — you can still use email and password.'));
     return () => { cancelled = true; };
   }, []);
 
   const submitPassword = async (e) => {
     e.preventDefault();
-    setError('');
+    const value = email.trim();
+    const next = {
+      email: !value ? 'Enter your work email.'
+        : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) ? 'Enter a full email address, like name@drshumard.com.' : undefined,
+      password: password ? undefined : 'Enter your password.',
+    };
+    setErrors(next);
+    setNotice('');
+    if (next.email || next.password) {
+      document.getElementById(next.email ? 'staff-email' : 'staff-password')?.focus();
+      return;
+    }
     setBusy(true);
     try {
-      const res = await axios.post(`${API}/auth/staff-login`, { email, password });
+      const res = await axios.post(`${API}/auth/staff-login`, { email: value, password });
       onSession(res.data);
     } catch (err) {
       setBusy(false);
-      setError(err?.response?.data?.detail || 'Incorrect email or password');
+      setNotice(err?.response?.data?.detail || 'Incorrect email or password');
+      document.getElementById('staff-email')?.focus();
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F8FA] p-4">
-      <div className="flex w-80 flex-col items-center gap-5">
-        <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr. Shumard"
-          className="h-9 w-auto object-contain" style={{ filter: 'brightness(0.2)' }} />
-        <p className="text-sm text-slate-500">Team workspace sign-in</p>
-
-        {error && (
-          <div className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
-            {error}
+    <main className={s.page}>
+      <div className={s.column}>
+        <section className={s.card} aria-labelledby="staff-title">
+          <div className={s.brand}>
+            <img src={logo} alt="Dr. Shumard" width={1024} height={152} />
+            <span>Team workspace</span>
           </div>
-        )}
 
-        {GOOGLE_CLIENT_ID && (
-          <>
-            <div ref={googleBtnRef} className="flex min-h-[40px] justify-center" />
-            <div className="flex w-full items-center gap-3 text-xs text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" /> or <span className="h-px flex-1 bg-slate-200" />
-            </div>
-          </>
-        )}
+          <div className={s.body}>
+            <h1 id="staff-title">Sign in to your workspace</h1>
+            <p className={s.intro}>For the Dr. Shumard practice team.</p>
 
-        <form onSubmit={submitPassword} className="flex w-full flex-col gap-2">
-          <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email" autoComplete="username"
-            className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none" />
-          <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password" autoComplete="current-password"
-            className="h-10 rounded-md border border-slate-300 px-3 text-sm focus:border-slate-500 focus:outline-none" />
-          <button type="submit" disabled={busy}
-            className="mt-1 h-10 rounded-md bg-slate-900 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
+            {notice && <p className={s.notice} role="alert"><CircleAlert size={17} aria-hidden="true" /><span>{notice}</span></p>}
 
-        <p className="text-center text-xs text-slate-400">
-          Forgot your password? Ask an admin to reset it on the Team page.
+            {GOOGLE_CLIENT_ID && (
+              <>
+                <div ref={googleBtnRef} className={s.google} />
+                <div className={s.divider}>or</div>
+              </>
+            )}
+
+            <form className={s.form} onSubmit={submitPassword} noValidate>
+              <label htmlFor="staff-email" className={s.label}>Work email</label>
+              <input
+                id="staff-email"
+                className={s.input}
+                type="email"
+                name="email"
+                autoComplete="username"
+                placeholder="name@drshumard.com"
+                maxLength={254}
+                value={email}
+                onChange={(event) => { setEmail(event.target.value); setErrors({ ...errors, email: undefined }); }}
+                aria-invalid={Boolean(errors.email)}
+                aria-describedby={errors.email ? 'staff-email-error' : undefined}
+              />
+              {errors.email && <p id="staff-email-error" className={s.error} role="alert">{errors.email}</p>}
+
+              <label htmlFor="staff-password" className={s.label}>Password</label>
+              <div className={s.passwordField}>
+                <input
+                  id="staff-password"
+                  className={s.input}
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => { setPassword(event.target.value); setErrors({ ...errors, password: undefined }); }}
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={errors.password ? 'staff-password-error' : undefined}
+                />
+                <button type="button" className={s.reveal} onClick={() => setShowPassword((v) => !v)} aria-label="Show password" aria-pressed={showPassword}>
+                  {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
+                </button>
+              </div>
+              {errors.password && <p id="staff-password-error" className={s.error} role="alert">{errors.password}</p>}
+
+              <button type="submit" className={s.primary} disabled={busy}>
+                {busy ? 'Signing in…' : <>Sign in <ArrowRight size={18} aria-hidden="true" /></>}
+              </button>
+            </form>
+          </div>
+
+          <div className={s.help}>
+            <span className={s.helpIcon}><KeyRound size={16} aria-hidden="true" /></span>
+            <p><strong>Forgot your password?</strong>Ask an admin to reset it on the Team page.</p>
+          </div>
+        </section>
+
+        <p className={s.patient}>
+          Are you a patient?{' '}
+          {isStaffHost()
+            ? <a href={PATIENT_LOGIN}>Go to patient sign in <ArrowRight size={14} aria-hidden="true" /></a>
+            : <Link to="/login">Go to patient sign in <ArrowRight size={14} aria-hidden="true" /></Link>}
         </p>
       </div>
-    </div>
+    </main>
   );
 }
