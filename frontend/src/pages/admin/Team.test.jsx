@@ -48,18 +48,17 @@ describe('member role drawer', () => {
       await act(async () => container.querySelector('tbody button[aria-haspopup="menu"]')
         .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
       const edit = [...document.querySelectorAll('[role="menuitem"]')].find(el => el.textContent === 'Edit');
-      await act(async () => edit.click());
+      await act(async () => { edit.click(); await new Promise(resolve => setTimeout(resolve, 0)); });
     } else {
       await act(async () => container.querySelector('tbody tr').click());
     }
   };
-  const openRoles = () => act(async () => document.querySelector('[role="combobox"][aria-label="Role"]')
-    .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })));
+  // The sheet's role picker is a radio group; each option's accessible name is the role label.
+  const roleInputs = () => [...document.querySelectorAll('input[name="member-role"]')];
 
   test('a super-admin can open, select, and save Admin when the API omits the new role field', async () => {
     await renderTeam('super_admin', {}, true);
-    await openRoles();
-    const option = [...document.querySelectorAll('[role="option"]')].find(el => el.textContent === 'Admin');
+    const option = roleInputs().find(el => el.getAttribute('aria-label') === 'Admin');
     expect(option).toBeDefined();
     await act(async () => option.click());
     const save = [...document.querySelectorAll('button')].find(el => el.textContent === 'Save member');
@@ -69,17 +68,18 @@ describe('member role drawer', () => {
 
   test('a normal admin can change staff roles but never sees Admin in the drawer', async () => {
     await renderTeam('admin', {});
-    await openRoles();
-    const labels = [...document.querySelectorAll('[role="option"]')].map(el => el.textContent);
+    const labels = roleInputs().map(el => el.getAttribute('aria-label'));
     expect(labels).toEqual(['Care Coordinator', 'Director of Admissions', 'Health Coach']);
     expect(labels).not.toContain('Admin');
   });
 
   test('an explicitly empty server list keeps the current label and allows name-only saves', async () => {
     await renderTeam('super_admin', { assignable_roles: [] });
-    const trigger = document.querySelector('[role="combobox"][aria-label="Role"]');
-    expect(trigger.disabled).toBe(true);
-    expect(trigger.textContent).toContain('Health Coach');
+    const inputs = roleInputs();
+    expect(inputs).toHaveLength(1);
+    expect(inputs[0].disabled).toBe(true);
+    expect(inputs[0].checked).toBe(true);
+    expect(inputs[0].getAttribute('aria-label')).toContain('Health Coach');
     const save = [...document.querySelectorAll('button')].find(el => el.textContent === 'Save member');
     await act(async () => save.click());
     expect(adminApi.put).toHaveBeenCalledWith('/admin/team/member', { name: 'Test Coach' });

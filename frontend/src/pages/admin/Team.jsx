@@ -1,29 +1,27 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, MoreHorizontalIcon } from 'lucide-react';
+import { Info, Lock, MoreHorizontal, Plus, Search } from 'lucide-react';
 import { adminApi } from './api';
 import { confirmDialog } from './confirm';
 import RolesAccess from './RolesAccess';
-import { ROLE_LABELS, TEAM_ROLES } from '@/lib/staffApps';
+import { ADMIN_ROLES, ROLE_LABELS, STAFF_APPS, TEAM_ROLES } from '@/lib/staffApps';
 import { canManageTeamMember } from '@/lib/portalAccess';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup,
+  DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent,
+  DropdownMenuSubTrigger, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle,
-} from '@/components/ui/drawer';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import s from './team.module.css';
 
-const HEADER_GRADIENT = 'linear-gradient(to top, #F8F8F8, #F8F8F899, #00000000)';
-const HEAD = 'h-14 px-6 text-center align-middle text-[13px] font-semibold text-foreground';
-const CELL = 'px-6 py-2 text-sm text-center';
-const EYEBROW = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
+// Team app (members + roles), ported from shumard-checkout-portal/app/staff/team (Lyra).
+// Rendered inside the staff workspace shell, which provides the page padding and CSS variables.
+
+const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
+const ROLE_TONE = { super_admin: 'super', admin: 'admin', doa: 'director', pcc: 'coordinator', hc: 'coach' };
+const initials = (name) => (name || '').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase() || '?';
+const statusOf = (m) => (m.active === false ? 'Inactive' : 'Active');
 
 export function teamRoleChoices(actorRole, serverRoles) {
   if (!TEAM_ROLES.includes(actorRole)) return [];
@@ -40,17 +38,23 @@ export default function Team() {
   const [me, setMe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
-  const [tab, setTab] = useState('members'); // 'members' | 'roles'
+  const [roleCaps, setRoleCaps] = useState({});   // { role: Set(capabilities) } for the Access column
+  const [tab, setTab] = useState('members');
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
 
-  // Add / edit drawer
+  // Add / edit sheet
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(null); // { id?, name, email, role }
+  const [form, setForm] = useState(null); // { id?, name, email, role, initialRole?, password }
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const roleOptions = (teamLoaded ? teamRoleChoices(me?.role, assignableRoles) : [])
     .map((role) => ({ value: role, label: ROLE_LABELS[role] }));
-  const currentRoleOption = form && !roleOptions.some(option => option.value === form.role)
+  // Editing someone whose role the actor can't hand out: show it, locked, so a name-only save still works.
+  const currentRoleOption = form?.id && !roleOptions.some((o) => o.value === form.role)
     ? { value: form.role, label: `${ROLE_LABELS[form.role] || form.role} (current role)`, disabled: true }
     : null;
+  const sheetRoles = [...(currentRoleOption ? [currentRoleOption] : []), ...roleOptions];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,36 +71,86 @@ export default function Team() {
 
   useEffect(() => {
     adminApi.get('/user/me').then((r) => setMe(r.data)).catch(() => {});
+    adminApi.get('/admin/role-permissions').then((r) => {
+      const caps = {};
+      (r.data?.roles || []).forEach((role) => { caps[role.role] = new Set(role.capabilities); });
+      setRoleCaps(caps);
+    }).catch(() => {});
     load();
   }, [load]);
 
+  const appAccess = useCallback((role) => (ADMIN_ROLES.includes(role)
+    ? STAFF_APPS
+    : STAFF_APPS.filter((app) => roleCaps[role]?.has(app.capability))), [roleCaps]);
+
+  const counts = useMemo(() => ({
+    All: members.length,
+    Active: members.filter((m) => statusOf(m) === 'Active').length,
+    Inactive: members.filter((m) => statusOf(m) === 'Inactive').length,
+    Admins: members.filter((m) => ADMIN_ROLES.includes(m.role)).length,
+  }), [members]);
+  const search = query.trim().toLowerCase();
+  const visible = members.filter((m) => (statusFilter === 'All' || statusOf(m) === statusFilter)
+    && `${m.name || ''} ${m.email || ''}`.toLowerCase().includes(search));
+
   const openNew = () => {
     if (!roleOptions.length) return;
-    setForm({ id: null, name: '', email: '', role: roleOptions[0].value, password: '' }); setOpen(true);
+    setErrors({});
+    setForm({ id: null, name: '', email: '', role: roleOptions[0].value, password: '' });
+    setOpen(true);
   };
-  const openEdit = (m) => { setForm({ id: m.id, name: m.name || '', email: m.email, role: m.role, initialRole: m.role, password: '' }); setOpen(true); };
-  const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const openEdit = (m) => {
+    setErrors({});
+    setForm({ id: m.id, name: m.name || '', email: m.email, role: m.role, initialRole: m.role, password: '' });
+    setOpen(true);
+  };
+  const setF = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setErrors((e) => ({ ...e, [k]: undefined })); };
 
-  const save = async () => {
-    if (!form.name.trim()) { toast.error('Name is required'); return; }
-    if (!form.id && !form.email.trim()) { toast.error('Email is required'); return; }
+  const save = async (event) => {
+    event?.preventDefault();
+    const name = form.name.trim();
+    const email = form.email.trim().toLowerCase();
+    const next = {
+      name: name ? undefined : 'Enter their full name.',
+      email: form.id ? undefined
+        : !email ? 'Enter their work email.'
+          : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) ? 'Enter a full email address, like name@drshumard.com.'
+            : members.some((m) => (m.email || '').toLowerCase() === email) ? 'This person is already on the team.' : undefined,
+      password: form.password && form.password.length < 8 ? 'Use at least 8 characters.' : undefined,
+    };
+    setErrors(next);
+    if (next.name || next.email || next.password) {
+      document.getElementById(next.name ? 'member-name' : next.email ? 'member-email' : 'member-password')?.focus();
+      return;
+    }
     const roleChanged = !form.id || form.role !== form.initialRole;
-    if (roleChanged && !roleOptions.some(option => option.value === form.role)) {
+    if (roleChanged && !roleOptions.some((o) => o.value === form.role)) {
       toast.error('You cannot assign that role. Reload the team and try again.'); return;
     }
     setSaving(true);
     try {
       if (form.id) {
-        await adminApi.put(`/admin/team/${form.id}`, { name: form.name.trim(), ...(roleChanged ? { role: form.role } : {}), ...(form.password ? { password: form.password } : {}) });
+        await adminApi.put(`/admin/team/${form.id}`, { name, ...(roleChanged ? { role: form.role } : {}), ...(form.password ? { password: form.password } : {}) });
         toast.success('Member updated');
       } else {
-        await adminApi.post('/admin/team', { name: form.name.trim(), email: form.email.trim(), role: form.role, ...(form.password ? { password: form.password } : {}) });
-        toast.success(`${form.name.trim()} added — they can sign in with Google${form.password ? ' or the password you set' : ''}`);
+        await adminApi.post('/admin/team', { name, email, role: form.role, ...(form.password ? { password: form.password } : {}) });
+        toast.success(`${name} added — they can sign in with Google${form.password ? ' or the password you set' : ''}`);
       }
       setOpen(false); load();
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Save failed');
     } finally { setSaving(false); }
+  };
+
+  const changeRole = async (m, role) => {
+    if (role === m.role) return;
+    try {
+      await adminApi.put(`/admin/team/${m.id}`, { role });
+      toast.success(`${m.name || m.email} is now a ${ROLE_LABELS[role] || role}. It applies on their next page load.`);
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || 'Update failed');
+    }
   };
 
   const toggleActive = async (m) => {
@@ -111,152 +165,191 @@ export default function Team() {
     }
     try {
       await adminApi.put(`/admin/team/${m.id}`, { active: !deactivating });
-      toast.success(deactivating ? 'Member deactivated' : 'Member reactivated');
+      toast.success(deactivating ? `${m.name || m.email} can no longer sign in.` : `${m.name || m.email} can sign in again.`);
       load();
     } catch (e) {
       toast.error(e?.response?.data?.detail || 'Update failed');
     }
   };
 
-  if (forbidden) {
-    return <div className="p-6 py-12 text-center text-muted-foreground">Only admins can manage the team.</div>;
-  }
+  if (forbidden) return <p className={s.intro}>Only admins can manage the team.</p>;
+
+  const isSuper = me?.role === 'super_admin';
 
   return (
-    // Rendered inside the staff workspace shell (which provides the page padding).
-    <div className="space-y-4">
-      <div className="flex gap-1 border-b">
-        {[['members', 'Members'], ['roles', 'Roles & access']].map(([k, label]) => (
-          <button key={k} type="button" onClick={() => setTab(k)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>
-            {label}
-          </button>
+    <>
+      <div className={s.heading}>
+        <div>
+          <span className={s.kicker}>Team</span>
+          <h1>Team</h1>
+          <p>Team members sign in with Google or their email and password, and land in the workspace their role allows.</p>
+        </div>
+        <button type="button" className={s.primary} onClick={openNew} disabled={!me || !roleOptions.length}><Plus size={16} aria-hidden="true" />Add member</button>
+      </div>
+
+      <dl className={s.stats}>
+        {[['Members', counts.All], ['Active', counts.Active], ['Inactive', counts.Inactive], ['Admins', counts.Admins]].map(([label, n]) => (
+          <div key={label}><dt>{label}</dt><dd>{n}</dd></div>
         ))}
-      </div>
+      </dl>
 
-      {tab === 'roles' ? <RolesAccess /> : (<>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Team members sign in with Google or their email and password, and land in the workspace their role allows.
-        </p>
-        <Button size="sm" onClick={openNew} disabled={!me || !roleOptions.length}><Plus className="size-4" /> Add member</Button>
-      </div>
+      <Tabs value={tab} onValueChange={setTab} className={s.tabs}>
+        <TabsList className={s.tabList} aria-label="Team views">
+          <TabsTrigger value="members">Members<span>{members.length}</span></TabsTrigger>
+          <TabsTrigger value="roles">Roles &amp; access</TabsTrigger>
+        </TabsList>
 
-      <div className="overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b hover:bg-transparent" style={{ backgroundImage: HEADER_GRADIENT }}>
-              <TableHead className={HEAD}>Name</TableHead>
-              <TableHead className={HEAD}>Email</TableHead>
-              <TableHead className={HEAD}>Role</TableHead>
-              <TableHead className={HEAD}>Status</TableHead>
-              <TableHead className={HEAD}>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+        <TabsContent value="members" className={s.panel}>
+          <section className={s.card} aria-label="Team members">
+            <div className={s.toolbar}>
+              <label className={s.search}>
+                <Search size={15} aria-hidden="true" />
+                <span className="sr-only">Search members</span>
+                <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or email" />
+              </label>
+              <div className={s.segmented} role="group" aria-label="Filter by status">
+                {STATUS_FILTERS.map((status) => (
+                  <button key={status} type="button" aria-pressed={statusFilter === status} onClick={() => setStatusFilter(status)}>{status}<span>{counts[status]}</span></button>
+                ))}
+              </div>
+              <span className={s.count}>{visible.length} of {members.length}</span>
+            </div>
+
             {loading && members.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">Loading...</TableCell></TableRow>
-            ) : members.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">No team members yet.</TableCell></TableRow>
-            ) : members.map((m) => {
-              const active = m.active !== false;
-              const isSelf = me && m.id === me.id;
-              const canManage = canManageTeamMember(me, m);
-              return (
-                <TableRow key={m.id} className={canManage ? 'cursor-pointer' : ''}
-                  onClick={() => { if (canManage) openEdit(m); }}>
-                  <TableCell className={`${CELL} font-medium text-foreground`}>
-                    {m.name}{isSelf && <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span>}
-                  </TableCell>
-                  <TableCell className={`${CELL} text-muted-foreground`}>{m.email}</TableCell>
-                  <TableCell className={CELL}>
-                    <span className="font-medium text-foreground">{ROLE_LABELS[m.role] || m.role}</span>
-                  </TableCell>
-                  <TableCell className={`${CELL} text-center`}>
-                    <span className={`font-semibold ${active ? 'text-emerald-700' : 'text-red-700'}`}>{active ? 'Active' : 'Inactive'}</span>
-                  </TableCell>
-                  <TableCell className={`${CELL} text-center`} onClick={(e) => e.stopPropagation()}>
-                    {!canManage ? <span className="text-muted-foreground">—</span> : (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="size-8">
-                            <MoreHorizontalIcon />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(m)}>Edit</DropdownMenuItem>
-                          {active
-                            ? <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => toggleActive(m)}>Deactivate</DropdownMenuItem>
-                            : <DropdownMenuItem onClick={() => toggleActive(m)}>Reactivate</DropdownMenuItem>}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-      </>)}
-
-      {/* Add / edit drawer */}
-      <Drawer open={open} onOpenChange={(o) => { if (!saving) setOpen(o); }}>
-        <DrawerContent>
-          <div className="mx-auto flex w-full max-w-lg flex-col">
-            <DrawerHeader className="text-left">
-              <DrawerTitle>{form?.id ? 'Edit member' : 'Add team member'}</DrawerTitle>
-              <DrawerDescription>
-                {form?.id
-                  ? 'Change their name or role. Role changes apply on their next page load.'
-                  : 'Creates their portal account. They sign in with Google (or an email + password an admin sets).'}
-              </DrawerDescription>
-            </DrawerHeader>
-            {form && (
-              <div className="space-y-4 px-4 pb-2">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="tm-name">Name</Label>
-                    <Input id="tm-name" value={form.name} onChange={(e) => setF('name', e.target.value)} placeholder="Jane Smith" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="tm-email">Email</Label>
-                    <Input id="tm-email" type="email" value={form.email} disabled={!!form.id}
-                      onChange={(e) => setF('email', e.target.value)} placeholder="jane@drshumard.com" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Role</Label>
-                  <Select value={form.role} onValueChange={(value) => setF('role', value)} disabled={saving || !roleOptions.length}>
-                    <SelectTrigger aria-label="Role" className="w-60"><SelectValue placeholder="Select role" /></SelectTrigger>
-                    <SelectContent>
-                      {[...(currentRoleOption ? [currentRoleOption] : []), ...roleOptions].map(option => (
-                        <SelectItem key={option.value} value={option.value} disabled={option.disabled}>{option.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Staff roles land in the staff workspace. Only a super-admin can assign the Admin role.
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="tm-password">{form.id ? 'Reset password (optional)' : 'Temporary password (optional)'}</Label>
-                  <Input id="tm-password" type="password" value={form.password} autoComplete="new-password"
-                    onChange={(e) => setF('password', e.target.value)} placeholder={form.id ? 'Leave blank to keep the current one' : 'At least 8 characters'} />
-                  <p className="text-xs text-muted-foreground">
-                    Google sign-in always works. Set this to enable the email + password alternative.
-                  </p>
-                </div>
+              <div className={s.empty}><p>Loading…</p></div>
+            ) : visible.length ? (
+              <div className={s.scroll}>
+                <table className={s.table}>
+                  <thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col">Access</th><th scope="col">Status</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+                  <tbody>
+                    {visible.map((m) => {
+                      const isSelf = me && m.id === me.id;
+                      const canManage = canManageTeamMember(me, m);
+                      const access = appAccess(m.role);
+                      const status = statusOf(m);
+                      const lockedReason = isSelf ? "You can't change your own role" : !canManage ? 'Only a super admin can change this account' : null;
+                      const tone = ROLE_TONE[m.role];
+                      return (
+                        <tr key={m.id} data-clickable={canManage || undefined} onClick={() => { if (canManage) openEdit(m); }}>
+                          <td>
+                            <div className={s.person}>
+                              <span className={s.avatar} data-role={tone} aria-hidden="true">{initials(m.name || m.email)}</span>
+                              <div><strong>{m.name || m.email}{isSelf && <span className={s.you}>You</span>}</strong><span>{m.email}</span></div>
+                            </div>
+                          </td>
+                          <td><span className={s.role} data-role={tone}><i aria-hidden="true" />{ROLE_LABELS[m.role] || m.role}</span></td>
+                          <td>
+                            <span className={s.access} role="img" aria-label={`Access: ${access.map((a) => a.label).join(', ') || 'none'}`}>
+                              {STAFF_APPS.map((app) => (
+                                <span key={app.key} data-on={access.includes(app)} data-tone={app.tone} title={app.label}><app.icon size={13} aria-hidden="true" /></span>
+                              ))}
+                            </span>
+                          </td>
+                          <td><span className={s.status} data-status={status}>{status}</span></td>
+                          <td className={s.actions} onClick={(e) => e.stopPropagation()}>
+                            {lockedReason ? (
+                              <span className={s.locked} title={lockedReason}><Lock size={14} aria-hidden="true" /><span className="sr-only">{lockedReason}</span></span>
+                            ) : (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button type="button" className={s.menuButton} aria-label={`Actions for ${m.name || m.email}`}><MoreHorizontal size={16} aria-hidden="true" /></button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className={s.menu}>
+                                  <DropdownMenuLabel className={s.menuLabel}>{m.name || m.email}</DropdownMenuLabel>
+                                  {/* Deferred: let the menu close and hand focus back before the sheet's focus trap takes over. */}
+                                  <DropdownMenuItem onSelect={() => window.setTimeout(() => openEdit(m), 0)}>Edit</DropdownMenuItem>
+                                  {roleOptions.length > 0 && (
+                                    <DropdownMenuSub>
+                                      <DropdownMenuSubTrigger>Change role</DropdownMenuSubTrigger>
+                                      <DropdownMenuSubContent className={s.menu}>
+                                        <DropdownMenuRadioGroup value={m.role} onValueChange={(role) => changeRole(m, role)}>
+                                          {roleOptions.map((o) => <DropdownMenuRadioItem key={o.value} value={o.value}>{o.label}</DropdownMenuRadioItem>)}
+                                        </DropdownMenuRadioGroup>
+                                      </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+                                  )}
+                                  <DropdownMenuSeparator />
+                                  {status === 'Active'
+                                    ? <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => toggleActive(m)}>Deactivate</DropdownMenuItem>
+                                    : <DropdownMenuItem onSelect={() => toggleActive(m)}>Reactivate</DropdownMenuItem>}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className={s.empty}>
+                <p>{members.length ? 'No team members match these filters.' : 'No team members yet.'}</p>
+                {members.length > 0 && <button type="button" className={s.secondary} onClick={() => { setQuery(''); setStatusFilter('All'); }}>Clear filters</button>}
               </div>
             )}
-            <DrawerFooter className="flex-row justify-end gap-2">
-              <DrawerClose asChild><Button variant="outline">Cancel</Button></DrawerClose>
-              <Button onClick={save} disabled={saving}>{saving ? 'Saving...' : form?.id ? 'Save member' : 'Add member'}</Button>
-            </DrawerFooter>
-          </div>
-        </DrawerContent>
-      </Drawer>
-    </div>
+            <p className={s.note}>
+              <Info size={14} aria-hidden="true" />
+              {isSuper
+                ? 'Super admins can manage every account, including admins.'
+                : "You're an admin, so admin accounts are locked. Only a super admin can change admins or delete accounts."}
+            </p>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="roles" className={s.panel}>
+          <RolesAccess members={members} />
+        </TabsContent>
+      </Tabs>
+
+      <Sheet open={open} onOpenChange={(o) => { if (!saving) setOpen(o); }}>
+        <SheetContent className={s.sheet}>
+          <SheetHeader className={s.sheetHeader}>
+            <span className={s.sheetKicker}>{form?.id ? 'Edit member' : 'New member'}</span>
+            <SheetTitle>{form?.id ? 'Edit team member' : 'Add a team member'}</SheetTitle>
+            <SheetDescription>
+              {form?.id
+                ? 'Change their name or role. Role changes apply on their next page load.'
+                : 'They can sign in with Google right away, or with a password you set here.'}
+            </SheetDescription>
+          </SheetHeader>
+          {form && (
+            <form className={s.sheetForm} onSubmit={save} noValidate>
+              <label className={s.field}>
+                Full name
+                <input id="member-name" autoComplete="off" value={form.name} onChange={(e) => setF('name', e.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'member-name-error' : undefined} />
+                {errors.name && <span id="member-name-error" className={s.fieldError} role="alert">{errors.name}</span>}
+              </label>
+              <label className={s.field}>
+                Work email
+                <input id="member-email" type="email" autoComplete="off" placeholder="name@drshumard.com" value={form.email} disabled={!!form.id} onChange={(e) => setF('email', e.target.value)} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'member-email-error' : undefined} />
+                {errors.email && <span id="member-email-error" className={s.fieldError} role="alert">{errors.email}</span>}
+              </label>
+              <fieldset className={s.roles}>
+                <legend>Role</legend>
+                {sheetRoles.map((o) => (
+                  <label key={o.value} className={s.roleOption}>
+                    <input type="radio" name="member-role" value={o.value} checked={form.role === o.value} disabled={o.disabled || saving} onChange={() => setF('role', o.value)} aria-label={o.label} />
+                    <span><strong>{o.label}</strong><small>Opens {appAccess(o.value).map((a) => a.label).join(' · ') || 'no apps yet'}</small></span>
+                  </label>
+                ))}
+                <p className={s.rolesNote}>Staff roles land in the staff workspace. Only a super admin can assign the Admin role.</p>
+              </fieldset>
+              <label className={s.field}>
+                {form.id ? 'Reset password (optional)' : 'Temporary password (optional)'}
+                <input id="member-password" type="password" autoComplete="new-password" value={form.password} onChange={(e) => setF('password', e.target.value)} placeholder={form.id ? 'Leave blank to keep the current one' : 'At least 8 characters'} aria-invalid={Boolean(errors.password)} aria-describedby={errors.password ? 'member-password-error' : undefined} />
+                {errors.password
+                  ? <span id="member-password-error" className={s.fieldError} role="alert">{errors.password}</span>
+                  : <span className={s.fieldHint}>Google sign-in always works. Set this to enable the email + password alternative.</span>}
+              </label>
+              <div className={s.sheetActions}>
+                <button type="button" className={s.secondary} onClick={() => setOpen(false)} disabled={saving}>Cancel</button>
+                <button type="submit" className={s.primary} disabled={saving}>{saving ? 'Saving…' : form.id ? 'Save member' : 'Add member'}</button>
+              </div>
+            </form>
+          )}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
