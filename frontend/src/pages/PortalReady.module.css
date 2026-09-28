@@ -1,0 +1,181 @@
+/* Lyra patient page inside the welcome frame: hairline cards, mono labels, flat surfaces. */
+.page {
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --ease: cubic-bezier(.32, .72, 0, 1);
+  --ink: #273249;
+  --muted: #647185;
+  --label: #66758c;
+  --line: #e3e4df;
+  --hairline: #ecebe6;
+}
+
+.back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #4c6189; font-size: .875rem; white-space: nowrap; transition: color .2s var(--ease); }
+.back:hover { color: var(--blue); }
+
+.main { flex: 1; width: calc(100% - 80px); max-width: 1360px; margin: 0 auto; padding: 48px 0 64px; }
+.kicker { display: flex; align-items: center; gap: 7px; color: var(--label); font-family: var(--mono); font-size: .6875rem; font-weight: 400; letter-spacing: .08em; line-height: 1.5; text-transform: uppercase; }
+
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) 380px; align-items: end; gap: 24px; margin-bottom: 32px; }
+.hero .kicker svg { color: #397c70; }
+.hero h1 { margin: 14px 0 0; color: var(--ink); font-size: clamp(2.25rem, 3.6vw, 3rem); font-weight: 500; letter-spacing: -.045em; line-height: 1.06; text-wrap: balance; }
+.hero h1 span { color: var(--blue); }
+.lead { max-width: 620px; margin-top: 16px; color: var(--muted); font-size: 1.0625rem; line-height: 1.7; text-wrap: pretty; }
+.lead strong { color: var(--ink); font-weight: 600; }
+.status { margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: #fff; list-style: none; }
+.status li { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; color: #3f4b5e; font-family: var(--mono); font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; }
+.status li + li { border-top: 1px solid var(--hairline); }
+.status svg { color: #397c70; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 380px; align-items: start; gap: 24px; }
+.card { min-width: 0; border: 1px solid var(--line); border-radius: 4px; background: #fff; scroll-margin-top: 24px; }
+.aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.iconBox { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid #dce5fa; border-radius: 3px; background: #edf2ff; color: var(--blue); }
+.iconBox[data-tone="aqua"] { border-color: #cbe8eb; background: #e4f5f6; color: #2d818b; }
+.iconBox[data-tone="yellow"] { border-color: #f0dfb2; background: #fff3d7; color: #986716; }
+.iconBox[data-tone="neutral"] { border-color: var(--line); background: #fff; color: #5d6f8a; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid #cfe7de; border-radius: 2px; background: #f0f8f4; color: #3a7560; font-family: var(--mono); font-size: .6875rem; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; white-space: nowrap; }
+
+.activation { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 18px; padding: 28px; }
+.title { margin-top: 8px; color: var(--ink); font-size: 1.5rem; font-weight: 500; letter-spacing: -.03em; line-height: 1.25; text-wrap: balance; }
+.body { max-width: 600px; margin-top: 8px; color: var(--muted); font-size: .9375rem; line-height: 1.65; }
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 13px 22px;
+  border: 1px solid #ecb440;
+  border-radius: 4px;
+  background: var(--yellow);
+  color: #382e19;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background .2s var(--ease), transform .2s var(--ease);
+}
+.primary:hover { background: #ffb936; }
+.primary:active { transform: translateY(1px); }
+.hint { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: .875rem; line-height: 1.5; }
+.hint svg { color: var(--blue); }
+.message { display: flex; align-items: flex-start; gap: 10px; max-width: 600px; margin-top: 16px; padding: 12px 14px; border: 1px solid #dce5fa; border-radius: 3px; background: #f5f8ff; color: #4a5f86; outline: none; }
+.message svg { margin-top: 2px; color: var(--blue); }
+.message p { font-size: .875rem; line-height: 1.55; }
+.message strong { display: block; margin-bottom: 3px; color: #36508f; font-family: var(--mono); font-size: .6875rem; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; }
+
+.included { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 22px 28px 16px; border-top: 1px solid var(--hairline); }
+.subtitle { margin-top: 6px; color: var(--ink); font-size: 1.25rem; font-weight: 500; letter-spacing: -.025em; line-height: 1.3; text-wrap: balance; }
+.count { padding: 4px 8px; border: 1px solid #f0dfb2; border-radius: 2px; background: #fff8e6; color: #6f4d12; font-family: var(--mono); font-size: .6875rem; letter-spacing: .06em; line-height: 1.3; text-transform: uppercase; white-space: nowrap; }
+.addOns { margin: 0; padding: 0; list-style: none; }
+.addOns li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 18px 28px; border-top: 1px solid var(--hairline); }
+.addOns h3 { margin-top: 4px; color: var(--ink); font-size: 1rem; font-weight: 500; line-height: 1.4; text-wrap: balance; }
+.addOns p { margin-top: 2px; color: var(--muted); font-size: .875rem; line-height: 1.55; }
+/* Left padding lines the button up with the text column: card padding + icon + gap. */
+.actions { padding: 24px 28px 28px 86px; border-top: 1px solid var(--hairline); }
+
+.cardHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 20px; border-bottom: 1px solid var(--hairline); }
+.cardBody { padding: 20px; }
+.cardTitle { color: var(--ink); font-size: 1.125rem; font-weight: 500; letter-spacing: -.02em; line-height: 1.35; text-wrap: balance; }
+.duration { margin-top: 4px; color: var(--muted); font-size: .875rem; line-height: 1.5; }
+.when { display: flex; align-items: flex-start; gap: 12px; margin-top: 16px; padding: 14px 16px; border-radius: 3px; background: #f6f6f2; }
+.when > svg { margin-top: 2px; color: var(--blue); }
+.when strong { display: block; margin-top: 4px; color: var(--ink); font-size: .9375rem; font-weight: 500; }
+.time { display: block; margin-top: 2px; color: var(--muted); font-family: var(--mono); font-size: .8125rem; }
+
+.steps { margin: 0; padding: 4px 20px; list-style: none; }
+.steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 14px 0; }
+.steps li + li { border-top: 1px solid var(--hairline); }
+.steps li > span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #dce5fa; border-radius: 3px; background: #f5f8ff; color: var(--blue); font-family: var(--mono); font-size: .6875rem; }
+.steps p { color: var(--muted); font-size: .875rem; line-height: 1.55; }
+.steps strong { display: block; margin-bottom: 2px; color: var(--ink); font-size: .9375rem; font-weight: 500; }
+
+.support { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 14px; padding: 20px; border: 1px solid var(--line); border-radius: 4px; background: #fafaf7; }
+.support h2 { color: var(--ink); font-size: 1rem; font-weight: 500; line-height: 1.4; }
+.support p { margin-top: 4px; color: var(--muted); font-size: .875rem; line-height: 1.6; }
+.support a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 12px; padding: 10px 14px; border: 1px solid #d5d9df; border-radius: 3px; background: #fff; color: var(--ink); font-size: .875rem; font-weight: 500; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.support a:hover { border-color: #b3bcc7; background: #f7f9fc; }
+
+.secure { display: inline-flex; align-items: center; gap: 7px; }
+.secure svg { color: var(--blue); }
+
+@media (max-width: 1100px) {
+  .hero, .grid { grid-template-columns: minmax(0, 1fr) 340px; }
+}
+
+@media (max-width: 880px) {
+  .main { padding-top: 36px; }
+  .hero, .grid { grid-template-columns: minmax(0, 1fr); }
+  .status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .status li + li { border-top: 0; border-left: 1px solid var(--hairline); }
+  .aside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .aside > :first-child { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+  .main { width: calc(100% - 40px); padding: 28px 0 40px; }
+  .hero { margin-bottom: 24px; }
+  .hero h1 { font-size: 2.125rem; }
+  .lead { font-size: 1rem; }
+  .status { grid-template-columns: minmax(0, 1fr); }
+  .status li + li { border-left: 0; border-top: 1px solid var(--hairline); }
+  .activation { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 22px 20px; }
+  .primary { width: 100%; justify-content: space-between; text-align: left; }
+  .included { flex-direction: column; align-items: flex-start; gap: 10px; padding: 20px 20px 14px; }
+  .addOns li { grid-template-columns: 40px minmax(0, 1fr); align-items: start; gap: 14px; padding: 16px 20px; }
+  .actions { padding: 20px; }
+  .addOns .badge { grid-column: 2; justify-self: start; }
+  .aside { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ===================================================================================================
+   Portal adaptation (everything above is the prototype's app/onboarding-complete/onboarding-complete.module.css
+   verbatim — shumard-checkout-portal). The /ready page (step 3), inside the welcome frame (auth/welcome.module.css).
+   =================================================================================================== */
+/* Inter, not the prototype's monospace (rsms Inter has no mono cut); App.css sets headings in Space Grotesk. */
+.page { --mono: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }
+.page :is(h1, h2, h3) { font-family: inherit; }
+.kicker, .status li, .badge, .count, .time, .steps li > span { font-variant-numeric: tabular-nums; }
+/* 24px from the header to the heading at every width, and no eyebrow over it (user, 2026-09-28). */
+.main { padding-top: 24px; }
+.hero h1 { margin-top: 0; }
+/* Both sides flush, top and bottom (user, 2026-09-28). The left column is two rows — the activation card, then the
+   finish card. With an appointment the side column spans both rows; without one it only spans the activation card's
+   row and the finish card stands alone. Leftover height goes to the finish card (row 2 is 1fr) or, on the right, to
+   "What happens next", whose three steps share it. */
+.grid { grid-template-rows: auto 1fr; row-gap: 16px; align-items: stretch; }
+.activationCard { grid-column: 1; grid-row: 1; }
+.finish { grid-column: 1; grid-row: 2; }
+.aside { grid-column: 2; grid-row: 1; }
+.grid[data-appointment] .aside { grid-row: 1 / span 2; }
+.stepsCard { flex: 1; display: flex; flex-direction: column; }
+.stepsCard .steps { flex: 1; display: flex; flex-direction: column; }
+.stepsCard .steps li { flex: 1; align-items: center; }
+/* The status list: at the top of the side column on desktop, its top flush with the activation card; under the
+   hero once the columns stack, as in the design. */
+.heroStatus { display: none; }
+@media (max-width: 880px) {
+  .heroStatus { display: grid; }
+  .asideStatus { display: none; }
+  /* Stacked: one column in reading order; the first visible side card spans the tablet's two-up grid. */
+  .grid { grid-template-rows: none; }
+  .activationCard, .finish, .aside, .grid[data-appointment] .aside { grid-column: 1; grid-row: auto; }
+  .asideStatus + * { grid-column: 1 / -1; }
+}
+/* Finish (step 3 → 4, kept from the previous Ready page): marks onboarding complete and opens /outcome. */
+.finish { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 18px; padding: 24px 28px; }
+.finish .title { font-size: 1.25rem; }
+.secondary { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 16px; padding: 10px 16px; border: 1px solid #d5d9df; border-radius: 3px; background: #fff; color: var(--ink); font: inherit; font-size: .9375rem; font-weight: 500; cursor: pointer; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.secondary:hover:not(:disabled) { border-color: #b3bcc7; background: #f7f9fc; }
+.secondary:disabled { opacity: .6; cursor: default; }
+.spin { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* Appointment card extras: the host, and the Meet link inside the When box (every booking has one). */
+.meetLink { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: var(--blue); font-size: .8125rem; font-weight: 500; }
+.meetLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* "Contact support" opens the support pop-up, so it's a button dressed as the design's link. */
+.support button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 12px; padding: 10px 14px; border: 1px solid #d5d9df; border-radius: 3px; background: #fff; color: var(--ink); font: inherit; font-size: .875rem; font-weight: 500; cursor: pointer; transition: border-color .2s var(--ease), background .2s var(--ease); }
+.support button:hover { border-color: #b3bcc7; background: #f7f9fc; }
+@media (max-width: 600px) {
+  .finish { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 22px 20px; }
+  .secondary { width: 100%; justify-content: space-between; }
+}

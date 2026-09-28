@@ -5,7 +5,7 @@
 // AdminLayout loads it (setAdminDisplayTz). Callers can still pass an explicit tz
 // (e.g. a booking's own zone).
 
-import { safeTz, DEFAULT_US_TZ } from './usTimezones';
+import { safeTz, DEFAULT_US_TZ, utcToZonedWallTime } from './usTimezones';
 
 let displayTz = DEFAULT_US_TZ;
 
@@ -13,6 +13,10 @@ let displayTz = DEFAULT_US_TZ;
 export function setAdminDisplayTz(tz) { displayTz = safeTz(tz); }
 
 export function getAdminDisplayTz() { return displayTz; }
+
+/** Today ("YYYY-MM-DD") in the display timezone. Not `toISOString().slice(0, 10)` — that's the UTC date, which is
+ *  already tomorrow every US evening. */
+export function todayYmd(tz = displayTz) { return utcToZonedWallTime(new Date(), tz).date; }
 
 // Ledger instants are UTC, but endpoints returning raw Mongo docs used to serialize them
 // WITHOUT an offset ("...T23:30:00") — and new Date() parses offset-less datetimes as the

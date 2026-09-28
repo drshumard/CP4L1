@@ -11,15 +11,14 @@ import PortalForms from './pages/PortalForms';
 import PortalReady from './pages/PortalReady';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminAnalytics from './pages/AdminAnalytics';
-import ActivityLogs from './pages/ActivityLogs';
 import AutomationsPage from './pages/AutomationsPage';
 import PurchasesPage from './pages/admin/PurchasesPage';
 import AdminLayout from './pages/admin/AdminLayout';
 import SchedulingLayout from './pages/admin/SchedulingLayout';
 import SchedulingBookings from './pages/admin/scheduling/Bookings';
+import SchedulingNewBooking from './pages/admin/scheduling/NewBooking';
 import SchedulingTeamCalendar from './pages/admin/scheduling/TeamCalendar';
 import SchedulingHosts from './pages/admin/scheduling/Hosts';
-import DirectorEditor from './pages/admin/scheduling/DirectorEditor';
 import SchedulingCoordinators from './pages/admin/scheduling/Coordinators';
 import SchedulingEvents from './pages/admin/scheduling/Events';
 import SchedulingSettings from './pages/admin/scheduling/SettingsTab';
@@ -29,15 +28,19 @@ import ProtoBooking from './pages/prototype/ProtoBooking';
 import ProtoForms from './pages/prototype/ProtoForms';
 import ProtoReady from './pages/prototype/ProtoReady';
 import ResetPassword from './pages/ResetPassword';
-import OutcomePage from './pages/OutcomePage';
+import OutcomePage, { OutcomeSkeleton } from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
+import Welcome from './pages/Welcome';
 import BookingThankYou from './pages/BookingThankYou';
 import Checkout from './pages/checkout/Checkout';
 import CheckoutComplete from './pages/checkout/CheckoutComplete';
 import RefundedPage from './pages/RefundedPage';
+import PatientSkeleton from './pages/PatientSkeleton';
 import SupportPopup from './components/SupportPopup';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Toaster } from './components/ui/sonner';
 import { trackSessionStart, trackApiError } from './utils/analytics';
+import { peekWelcomeData, clearWelcomeData } from './utils/welcomePrefetch';
 import './App.css';
 
 // Create React Query client
@@ -71,8 +74,10 @@ const STEP_PATHS = { 1: '/book', 2: '/forms', 3: '/ready', 4: '/outcome' };
 // The check runs per pathname change, so in-page flows (booking confirmation) aren't
 // interrupted when the server advances the step mid-page.
 function JourneyRoute({ children, step = null }) {
-  const [checking, setChecking] = useState(true);
-  const [currentStep, setCurrentStep] = useState(null);
+  // Straight from the welcome or /ready's finish, the step is already loaded (utils/welcomePrefetch) — no check.
+  const [primed, setPrimed] = useState(() => peekWelcomeData());
+  const [checking, setChecking] = useState(!primed);
+  const [currentStep, setCurrentStep] = useState(primed?.progress?.current_step ?? null);
   const token = localStorage.getItem('access_token');
   const location = useLocation();
 
@@ -83,12 +88,15 @@ function JourneyRoute({ children, step = null }) {
   // refetch corrects it. Adjust-state-during-render is React's supported pattern for this.
   const [lastPath, setLastPath] = useState(location.pathname);
   if (lastPath !== location.pathname) {
+    const next = peekWelcomeData();
     setLastPath(location.pathname);
-    setChecking(true);
-    setCurrentStep(null);
+    setPrimed(next);
+    setChecking(!next);
+    setCurrentStep(next?.progress?.current_step ?? null);
   }
 
   useEffect(() => {
+    if (primed) { clearWelcomeData(); return undefined; }
     let alive = true;
     (async () => {
       if (!token) return;
@@ -105,18 +113,14 @@ function JourneyRoute({ children, step = null }) {
       if (alive) setChecking(false);
     })();
     return () => { alive = false; };
-  }, [token, location.pathname]);
+  }, [token, location.pathname, primed]);
 
   if (!token) {
     return <Navigate to="/login" />;
   }
 
   if (checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-      </div>
-    );
+    return step === 4 ? <OutcomeSkeleton /> : <PatientSkeleton />;   // /outcome has its own frame
   }
 
   if (currentStep === 0) {
@@ -152,50 +156,14 @@ function StepsRedirect() {
   }, [token]);
 
   if (!token) return <Navigate to="/login" />;
-  if (!dest) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600"></div>
-      </div>
-    );
-  }
+  if (!dest) return <PatientSkeleton />;
   return <Navigate to={dest} replace />;
 }
 
-// A render crash anywhere used to unmount React to a silent white page (e.g. formatting a
-// date with an invalid stored timezone). Catch it and give the patient a way back.
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { error };
-  }
-
-  componentDidCatch(error, info) {
-    console.error('Unhandled render error:', error, info?.componentStack);
-  }
-
-  render() {
-    if (!this.state.error) return this.props.children;
-    return (
-      <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#f6fafb', fontFamily: "'Hanken Grotesk', -apple-system, sans-serif", padding: 16 }}>
-        <div style={{ maxWidth: 420, textAlign: 'center', background: '#fff', border: '1px solid #e6eef2', borderRadius: 18, padding: '34px 28px', boxShadow: '0 10px 30px rgba(31,67,82,.06)' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#1d2f38', margin: 0 }}>Something went wrong</h1>
-          <p style={{ color: '#56707c', fontSize: 15, lineHeight: 1.55, marginTop: 10 }}>
-            An unexpected error stopped this page. Your information is safe — reloading usually fixes it.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{ marginTop: 18, padding: '13px 22px', fontSize: 15, fontWeight: 600, color: '#fff', background: '#4a7a8f', border: 0, borderRadius: 12, cursor: 'pointer' }}>
-            Reload the page
-          </button>
-        </div>
-      </div>
-    );
-  }
+// The route resets the boundary, so one bad render doesn't stick to every page (components/ErrorBoundary).
+function RoutedErrorBoundary({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
 }
 
 // Axios interceptor component
@@ -262,7 +230,7 @@ function App() {
       <BrowserRouter>
         <div className="App">
           <AxiosInterceptor />
-          <ErrorBoundary>
+          <RoutedErrorBoundary>
           <Routes>
             <Route path="/signup" element={<Signup />} />
             <Route path="/login" element={<Login />} />
@@ -275,6 +243,7 @@ function App() {
             </Route>
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/auto-login/:token" element={<AutoLogin />} />
+            <Route path="/welcome" element={<PrivateRoute><Welcome /></PrivateRoute>} />
             <Route path="/booking-complete" element={<BookingThankYou />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/complete" element={<CheckoutComplete />} />
@@ -291,17 +260,19 @@ function App() {
             <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
               <Route index element={<AdminDashboard />} />
               <Route path="analytics" element={<AdminAnalytics />} />
-              <Route path="logs" element={<ActivityLogs />} />
+              <Route path="logs" element={<Navigate to="/admin/analytics" replace />} />   {/* the activity log lives on Analytics now */}
               <Route path="automations" element={<AutomationsPage />} />
               <Route path="purchases" element={<PurchasesPage />} />
               <Route path="scheduling" element={<SchedulingLayout />}>
                 <Route index element={<Navigate to="bookings" replace />} />
                 <Route path="bookings" element={<SchedulingBookings />} />
+                <Route path="new" element={<SchedulingNewBooking />} />
                 <Route path="calendar" element={<SchedulingTeamCalendar />} />
                 <Route path="hosts">
                   <Route index element={<SchedulingHosts />} />
-                  <Route path="new" element={<DirectorEditor />} />
-                  <Route path=":directorId" element={<DirectorEditor />} />
+                  {/* The host editor is a sheet on the Hosts page now; old editor links land on the list. */}
+                  <Route path="new" element={<Navigate to="/admin/scheduling/hosts" replace />} />
+                  <Route path=":directorId" element={<Navigate to="/admin/scheduling/hosts" replace />} />
                 </Route>
                 <Route path="directors" element={<Navigate to="/admin/scheduling/hosts" replace />} />
                 <Route path="coordinators" element={<SchedulingCoordinators />} />
@@ -310,7 +281,7 @@ function App() {
               </Route>
             </Route>
           </Routes>
-          </ErrorBoundary>
+          </RoutedErrorBoundary>
           <GlobalSupport />
           <Toaster position="top-center" />
         </div>

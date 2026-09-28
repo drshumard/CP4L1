@@ -1,60 +1,38 @@
-import React from 'react';
-import { Card, CardContent } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { HeartHandshake, ExternalLink } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { ArrowRight, Mail } from 'lucide-react';
+import AuthFrame from './auth/AuthFrame';
+import s from './RefundedPage.module.css';
+
+// Refunded patients (journey step 0) — design: shumard-checkout-portal/app/refunded, inside the sign-in frame. The
+// way back: a new consultation (the checkout), or the concierge.
 
 const CHECKOUT_URL = process.env.REACT_APP_CHECKOUT_URL || 'https://drshumardworkshop.com/checkout3';
 
-const RefundedPage = () => {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Card className="max-w-lg w-full shadow-lg border-0">
-        <CardContent className="p-8 text-center">
-          {/* Icon */}
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <HeartHandshake className="w-10 h-10 text-gray-500" />
-          </div>
-          
-          {/* Heading */}
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            We're Sorry to See You Go
-          </h1>
-          
-          {/* Message */}
-          <p className="text-gray-600 text-lg leading-relaxed mb-8">
-            Your account has been refunded. We understand that circumstances change, and we respect your decision.
-          </p>
-          
-          <p className="text-gray-600 mb-8">
-            If you change your mind, we'd love to have you back. You can purchase another consultation below to restart your wellness journey.
-          </p>
-          
-          {/* CTA Button */}
-          <a 
-            href={CHECKOUT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block w-full"
-          >
-            <Button 
-              className="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-4 text-lg rounded-lg flex items-center justify-center gap-2"
-            >
-              Purchase New Consultation
-              <ExternalLink size={20} />
-            </Button>
-          </a>
-          
-          {/* Support info */}
-          <p className="text-sm text-gray-500 mt-6">
-            Questions? Contact us at{' '}
-            <a href="mailto:concierge@drshumard.com" className="text-teal-600 underline">
-              concierge@drshumard.com
-            </a>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
+export default function RefundedPage() {
+  useEffect(() => {
+    const previous = document.title;
+    document.title = 'Account Refunded | Dr. Jason Shumard';
+    return () => { document.title = previous; };
+  }, []);
 
-export default RefundedPage;
+  return (
+    <AuthFrame mainId="main" skipLabel="Skip to content">
+      <div className={s.content}>
+        <section aria-labelledby="refunded-title">
+          <h1 id="refunded-title">We’re sorry<br /><span>to see you go.</span></h1>
+          <p className={s.lead}>Your account has been refunded. We understand that circumstances change, and we respect your decision.</p>
+        </section>
+
+        <section className={s.card} aria-labelledby="return-title">
+          <div className={s.cardHeader}><span className={s.kicker}>If you change your mind</span></div>
+          <div className={s.cardBody}>
+            <h2 id="return-title">We’d love to have you back.</h2>
+            <p>You can purchase another consultation whenever you’re ready to restart your wellness journey.</p>
+            <a href={CHECKOUT_URL} className={s.primary}>Purchase a new consultation <ArrowRight size={18} aria-hidden="true" /></a>
+          </div>
+          <p className={s.contact}><Mail size={16} aria-hidden="true" /><span>Questions? Contact us at <a href="mailto:concierge@drshumard.com">concierge@drshumard.com</a></span></p>
+        </section>
+      </div>
+    </AuthFrame>
+  );
+}

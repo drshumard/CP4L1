@@ -1,0 +1,45 @@
+/* Admin date + time pickers (Lyra): a field-like trigger, a white panel with 4px corners, 3px controls, brand blue for
+   the selection, Inter's tabular figures for dates and times. Black text: main #111, secondary #444. */
+.trigger { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; height: auto; padding: 10px 12px; border: 1px solid #dce3ee; border-radius: 3px; background: #fff; box-shadow: none; color: #111; font: inherit; font-size: .9375rem; line-height: 1.4; text-align: left; font-variant-numeric: tabular-nums; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.trigger > svg:first-child { flex: none; color: #5f6f86; }
+.trigger > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.trigger[data-empty] > span, .trigger [data-placeholder], .trigger > span[data-placeholder] { color: #6b7280; }
+.trigger > svg:last-child { flex: none; width: 16px; height: 16px; opacity: .55; }
+.chevron { flex: none; opacity: .55; }
+.trigger:hover { border-color: #c7d2e3; }
+.trigger:focus { outline: none; box-shadow: none; }   /* not shadcn's thin dark ring — the blue one below */
+.trigger:focus-visible, .trigger[data-state=open] { outline: none; border-color: #8daaf1; box-shadow: 0 0 0 3px #edf2ff; }
+.trigger[aria-invalid=true] { border-color: #cd8282; }
+
+.panel { width: auto; min-width: 0; padding: 12px; border: 1px solid #dfe5ef; border-radius: 4px; background: #fff; color: #111; box-shadow: 0 14px 34px -10px rgba(30, 45, 70, .2); font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }
+
+/* Calendar (react-day-picker v8, our own classNames — its stylesheet isn't loaded). */
+.months { display: flex; }
+.month { margin: 0; }
+.caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; padding: 0 2px 0 6px; }
+.captionLabel { color: #111; font-size: .9375rem; font-weight: 500; letter-spacing: -.01em; }
+.nav { display: flex; gap: 4px; }
+.navButton { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid #e0e6ef; border-radius: 3px; background: #fff; color: #444; cursor: pointer; }
+.navButton:hover:not([disabled]) { border-color: #c9d6ec; background: #f4f7fc; color: #111; }
+.navButton:focus-visible { outline: 2px solid #8daaf1; outline-offset: 1px; }
+.table { border-collapse: collapse; }
+.row { display: flex; }
+.headCell { display: grid; place-items: center; width: 38px; height: 30px; color: #444; font-size: .6875rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
+.cell { width: 38px; height: 36px; padding: 1px; }
+.day { display: grid; place-items: center; width: 100%; height: 100%; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #111; font: inherit; font-size: .8125rem; font-variant-numeric: tabular-nums; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.day:hover:not([disabled]) { background: #f3f6fb; }
+.day:focus-visible { outline: 2px solid #8daaf1; outline-offset: 1px; }
+.today { border-color: #c9d7fb; color: #3565e9; font-weight: 600; }
+.outside { color: #aab3c0; }
+.selected, .selected:hover:not([disabled]) { border-color: #3565e9; background: #3565e9; color: #fff; font-weight: 500; }
+.disabled { color: #c3cad4; cursor: default; }
+.panelFoot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid #edf0f5; }
+.todayButton { min-height: 30px; padding: 5px 10px; border: 1px solid #e0e6ef; border-radius: 3px; background: #fff; color: #111; font: inherit; font-size: .75rem; font-weight: 500; cursor: pointer; }
+.todayButton:hover { border-color: #c9d6ec; background: #f4f7fc; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* Time list (Radix Select, in the same panel). */
+.timeMenu { max-height: 288px; padding: 4px; }
+.timeOption { min-height: 34px; border-radius: 3px; color: #111; font-size: .875rem; font-variant-numeric: tabular-nums; cursor: pointer; }
+.timeOption[data-highlighted] { background: #f3f6fb; color: #111; }
+.timeOption[data-state=checked] { background: #edf2ff; color: #2448b8; font-weight: 500; }

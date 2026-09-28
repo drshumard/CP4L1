@@ -1,0 +1,91 @@
+.scope { --lyra-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace; --brand: #315fd1; --line: #dfe5ee; color: #34445d; min-width: 0; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-bottom: 26px; }
+.heading p { color: #728198; font-size: .875rem; margin-top: 8px; }
+.heading h1 { color: #253149; font-size: 2.125rem; line-height: 1.2; letter-spacing: -.04em; font-weight: 500; }
+.heading .kicker { margin: 0 0 9px; }
+.nav { display: flex; gap: 5px; align-items: stretch; overflow-x: auto; max-width: 100%; border-bottom: 1px solid #dce3ed; margin-bottom: 28px; scrollbar-width: thin; }
+.nav a { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 13px 14px; min-height: 47px; border-bottom: 2px solid transparent; color: #748198; font-size: .8125rem; }
+.nav a:first-child { padding-left: 8px; }
+.nav a:hover { color: #315fd1; background: #edf2ff66; }
+.nav a[aria-current] { border-bottom-color: #315fd1; color: #315fd1; font-weight: 500; }
+.nav svg { stroke-width: 1.7; }
+.card { background: #fff; border: 1px solid #dfe5ee; border-radius: 4px; min-width: 0; overflow: hidden; }
+.cardHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 22px 24px; border-bottom: 1px solid #e3e8ef; }
+.kicker { display: block; font: .625rem/1.6 "SFMono-Regular", Consolas, "Liberation Mono", monospace; letter-spacing: .09em; color: #7386a4; text-transform: uppercase; }
+.sectionTitle { margin: 3px 0 0; color: #35465f; font-size: 1.125rem; font-weight: 500; letter-spacing: -.02em; }
+.description { margin-top: 7px; color: #7a899f; font-size: .8125rem; line-height: 1.65; }
+.toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 24px; border-bottom: 1px solid #e7ecf3; }
+.button,.secondary,.iconButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 10px 14px; border: 1px solid #dce3ed; border-radius: 3px; background: #fff; font: 500 .8125rem/1.3 Inter,"Helvetica Neue",Arial,sans-serif; color: #536580; white-space: nowrap; }
+.button { color: #3b311d; border-color: #edb443; background: #ffc24a; }
+.button:hover { background: #ffb936; }
+.secondary:hover,.iconButton:hover { background: #f4f7fc; border-color: #c9d6ec; }
+.button:disabled,.secondary:disabled { opacity: .5; cursor: default; }
+.iconButton { width: 38px; min-width: 38px; padding: 0; }
+.fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px 20px; }
+.field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: .8125rem; color: #53657e; }
+.field label { font-size: .8125rem; font-weight: 500; }
+.field input,.field select,.field textarea { display: block; width: 100%; max-width: 100%; min-width: 0; margin: 0; padding: 10px 12px; min-height: 42px; border: 1px solid #dce3ed; border-radius: 3px; background: #fff; color: #40536e; font: inherit; }
+.field input[type=checkbox] { display: inline; width: 17px; min-height: 17px; accent-color: #315fd1; }
+.field textarea { min-height: 95px; resize: vertical; }
+.field input:focus,.field select:focus,.field textarea:focus { outline: 2px solid #adc2f4; outline-offset: 1px; }
+.field small { color: #8291a5; font-size: .75rem; line-height: 1.6; }
+.form { padding: 24px; }
+.actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; width: max-content; padding: 4px 7px; border: 1px solid #dce6fa; border-radius: 2px; background: #f0f4ff; color: #4a6fbb; font: .625rem/1.4 "SFMono-Regular",Consolas,monospace; white-space: nowrap; }
+.badge[data-tone=green] { background: #edf7f3; border-color: #d6e9e0; color: #397f69; }
+.badge[data-tone=amber] { background: #fff8e9; border-color: #f0dfb9; color: #956f29; }
+.badge[data-tone=muted] { background: #f4f6f9; border-color: #e2e7ed; color: #8995a5; }
+.notice { display: flex; align-items: flex-start; gap: 9px; padding: 13px 16px; border: 1px solid #dce7f8; border-radius: 3px; background: #f4f7fd; color: #617794; font-size: .8125rem; line-height: 1.65; }
+.notice svg { margin-top: 3px; flex-shrink: 0; }
+.tableScroll { max-width: 100%; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; text-align: left; }
+.table th { height: 44px; padding: 12px 20px; border-bottom: 1px solid #dfe5ee; background: #f6f8fb; color: #7c8da3; font: .625rem/1.5 "SFMono-Regular",Consolas,monospace; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.table td { padding: 17px 20px; color: #5d708b; border-bottom: 1px solid #e8edf3; font-size: .8125rem; }
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover { background: #fafcff; }
+.mono { font-family: "SFMono-Regular",Consolas,monospace; font-size: .6875rem; }
+.empty { padding: 50px 24px; text-align: center; color: #8492a6; font-size: .875rem; }
+.segmented { display: inline-flex; gap: 0; max-width: 100%; overflow-x: auto; border: 1px solid #dce3ed; border-radius: 3px; background: #fff; }
+.segmented button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 14px; min-height: 36px; border: 0; border-right: 1px solid #e0e6ef; background: transparent; color: #7b899d; font: .75rem/1.4 Inter,Arial,sans-serif; white-space: nowrap; }
+.segmented button:last-child { border-right: 0; }
+.segmented button[aria-pressed=true],.segmented button[aria-selected=true],.segmented button[data-state=active] { color: #315fd1; background: #edf2ff; }
+.sheet { width: min(520px,100%); max-width: 100%; padding: 30px; overflow-y: auto; background: #fff; color: #425670; }
+.sheet [data-slot=sheet-header] { padding: 8px 20px 18px 0; }
+.sheet [data-slot=sheet-title] { font-size: 1.35rem; font-weight: 500; letter-spacing: -.025em; }
+.sheet [data-slot=sheet-description] { font-size: .875rem; line-height: 1.65; color: #8290a4; }
+.sheet > button:last-child { min-width: 30px; min-height: 30px; display: grid; place-items: center; }
+.saveBar { position: sticky; bottom: 16px; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 24px; padding: 14px 18px; border: 1px solid #dce3ed; border-radius: 4px; background: #fff; box-shadow: 0 4px 20px #1e355914; color: #7b899c; font-size: .8125rem; }
+@media(max-width:767px) {
+  .heading { align-items: flex-start; gap: 14px; }
+  .heading h1 { font-size: 1.8rem; }
+  .heading > a { min-height: 40px; padding: 9px 12px; }
+  .heading p { font-size: .8125rem; }
+  .nav { margin-bottom: 22px; gap: 0; }
+  .nav a { padding: 12px; min-height: 46px; }
+  .cardHeader { padding: 18px; flex-wrap: wrap; }
+  .toolbar { padding: 14px 18px; gap: 10px; }
+  .fields { grid-template-columns: 1fr; gap: 18px; }
+  .form { padding: 18px; }
+  .sheet { padding: 25px 20px; }
+  .field input,.field select,.field textarea { font-size: 16px; }
+  .saveBar { bottom: 8px; padding: 12px; gap: 10px; flex-wrap: wrap; }
+  .saveBar .actions { margin-left: auto; }
+}
+
+/* ===================================================================================================
+   Portal adaptation (everything above is the prototype's scheduling/scheduling.module.css verbatim —
+   shumard-checkout-portal/app/admin/scheduling). Shared by the Scheduling shell and its sub-pages.
+   =================================================================================================== */
+/* Inter throughout (user, 2026-09-27: rsms Inter has no mono cut) — Inter's tabular figures where the design sets mono. */
+.scope { --lyra-mono: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }
+.kicker, .badge, .table th, .mono { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+.button, .secondary, .iconButton, .segmented button { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; cursor: pointer; }
+.button:disabled, .secondary:disabled { cursor: default; }
+/* The section tabs are router links. */
+.nav a { text-decoration: none; }
+/* Beat the app's global teal input focus (index.css — specificity 0,3,1). */
+.field input:not([type=checkbox]):not([type=radio]):focus, .field textarea:focus, .field select:focus { border-color: #dce3ed; box-shadow: none; }
+/* Black text (user, 2026-09-27): main #111, secondary #444; accents (blue active states, tones, gold button) keep theirs. */
+.scope, .heading h1, .nav a, .sectionTitle, .field, .field input, .field select, .field textarea, .table td, .secondary,
+.iconButton, .sheet { color: #111; }
+.heading p, .description, .kicker, .field small, .table th, .empty, .segmented button, .saveBar { color: #444; }

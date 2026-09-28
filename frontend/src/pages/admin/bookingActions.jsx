@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
 import { adminApi } from './api';
-import { fmtDate, fmtTime, fmtDateTime } from './format';
+import { fmtDate, fmtTime, fmtDateTime, todayYmd } from './format';
 import { confirmDialog } from './confirm';
 import { Button } from '@/components/ui/button';
 
@@ -115,7 +115,7 @@ export function RescheduleModal({ booking, onClose, onDone }) {
   useEffect(() => {
     (async () => {
       try {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = todayYmd();
         const res = await adminApi.get('/booking/availability', { start_date: today, days: 60 });
         setSlots(res.data.slots || []);
       } catch {
@@ -154,7 +154,7 @@ export function RescheduleModal({ booking, onClose, onDone }) {
     // admin-geist => Geist/Inter font + shadcn tokens. pointerEvents:auto re-enables clicks
     // when this opens over the vaul user-drawer (which sets pointer-events:none on the body).
     <div className="admin-geist fixed inset-0 z-[80] flex items-center justify-center p-4"
-      role="dialog" aria-modal="true" style={{ pointerEvents: 'auto' }}>
+      role="dialog" aria-modal="true" data-admin-overlay="" style={{ pointerEvents: 'auto' }}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-background border rounded-lg shadow-xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="flex items-start justify-between p-5 border-b">

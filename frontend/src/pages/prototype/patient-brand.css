@@ -1,0 +1,29 @@
+/* /book and /forms in the brand look shared with /checkout and the dashboard: proto.css's teal tokens re-pointed to
+   brand blue and its neutrals to the dashboard's, the primary button gold, the dashboard font (Inter). Opt-in via
+   .patient-brand on the page's .proto root; other proto pages keep proto.css as is. The blue header/footer come
+   from PatientShell. */
+.proto.patient-brand,
+body:has(.patient-brand) .proto-menu {   /* ProtoSelect's open menu is portaled to <body>, outside the page */
+  --brand-50: #eef3ff; --brand-100: #eaf0ff; --brand-200: #cddcff; --brand-300: #9fb6f3; --brand-400: #7c91cf;
+  --brand-500: #3565e9; --brand-600: #3565e9; --brand-700: #2d5bdc; --brand-800: #2448b8; --brand-900: #1b3a8e;
+  --p-bg: transparent; --p-ink: #242f43; --p-ink-soft: #5d6a7e; --p-muted: #68768b;
+  --p-line: #e0e6ef; --p-line-2: #dce3ee;
+  --p-shadow: 0 3px 8px #23344c03, 0 14px 40px #23344c04;
+  --p-shadow-lg: 0 18px 50px #23344c24;
+  font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif;
+  min-height: 0;
+}
+.proto.patient-brand :is(h1, h2, h3, h4) { font-family: inherit; font-weight: 500; letter-spacing: -.035em; }
+.patient-brand .proto-notice h4 { font-weight: 600; }   /* the consent text's sub-headings stay bold */
+.patient-brand .proto-btn--primary { background: #ffc24a; color: #382d19; border-color: #edb43f; box-shadow: 0 2px 3px #7555120a; }
+.patient-brand .proto-btn--primary:hover:not(:disabled) { background: #ffb92f; }
+.patient-brand .proto-req { color: #b42318; }
+.patient-brand .proto-book-aside { top: 24px; }   /* the blue header isn't sticky */
+.patient-brand .proto-addr-menu { border-color: #cfd8ea; font-family: inherit; }
+.patient-brand .proto-sec-ico { color: #111; background: #f2f4f7; }   /* black icons, like the dashboard's tiles */
+/* Line the content up with the blue header/footer (the dashboard's 1256px column, 40/28/18px gutters). */
+.patient-brand .proto-container { max-width: 1256px; padding-left: 40px; padding-right: 40px; }
+@media (max-width: 900px) { .patient-brand .proto-container { padding-left: 28px; padding-right: 28px; } }
+@media (max-width: 440px) { .patient-brand .proto-container { padding-left: 18px; padding-right: 18px; } }
+/* Phones: the time-zone picker wraps under the title — let it fill the row like the calendar card below it. */
+@media (max-width: 440px) { .patient-brand .proto-book-headmob > div { flex: 1 1 100%; } }

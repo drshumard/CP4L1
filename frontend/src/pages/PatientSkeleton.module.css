@@ -1,0 +1,22 @@
+/* Skeleton loaders in the Lyra style (user, 2026-09-28: they replace the spinners) — flat blocks with 3px corners on
+   hairline cards and a slow shimmer; still when reduced motion is asked for. */
+.bone {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #e8ecf2 40%, #f3f5f8 50%, #e8ecf2 60%) 100% 0 / 300% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer { to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .bone { animation: none; } }
+
+.intro { display: grid; gap: 16px; }
+.side { display: grid; gap: 20px; min-width: 0; }
+.card { display: grid; justify-items: start; gap: 12px; min-width: 0; padding: 28px 32px 30px; border: 1px solid #e0e6ef; border-radius: 4px; background: #fff; }
+.action { margin: 8px 0 4px; }
+.row { display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 6px; padding-top: 18px; border-top: 1px solid #edf0f5; }
+.row > div { display: grid; flex: 1; gap: 8px; min-width: 0; }
+.forms { display: grid; gap: 18px; }
+.field { display: grid; gap: 10px; width: 100%; margin-top: 6px; }
+@media (max-width: 440px) { .card { padding: 24px 20px; } }

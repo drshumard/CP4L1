@@ -1,35 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../components/ui/button';
-import { Badge } from '../components/ui/badge';
-import { Input } from '../components/ui/input';
-import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-import {
-  Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle,
-} from '../components/ui/drawer';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../components/ui/table';
 import { toast } from 'sonner';
-import { fmtDateTime, getAdminDisplayTz } from './admin/format';
+import {
+  ArrowUpDown, Ban, CalendarClock, CalendarPlus, Clock, Columns3, Copy, PenLine, MoreHorizontal, Plus,
+  RefreshCw, Send, SlidersHorizontal, Trash2, UserRound,
+} from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '../components/ui/sheet';
+import { fmtDate, fmtDateTime, fmtTime, getAdminDisplayTz } from './admin/format';
 import { confirmDialog } from './admin/confirm';
 import { US_TIMEZONES, safeTz, utcToZonedWallTime, tzAbbrev } from './admin/usTimezones';
 import { zonedWallTimeToUtcIso } from './admin/scheduling/useSortedTimezones';
-import {
-  Home, Users, BarChart3, RefreshCw, Trash2, Activity,
-  Search, Phone, Calendar,
-  Send, Edit2, Clock, Settings, CalendarClock, Ban
-} from 'lucide-react';
 import { RescheduleModal, cancelBooking, fetchActiveBookingForUser } from './admin/bookingActions';
-import UsersDataTable from './admin/UsersDataTable';
+import { AdminSelect, NoResults, Person, SearchBox, Status, TablePager, keepSheetOpen } from './admin/workspace-ui';
+import AddUserDialog from './admin/AddUserDialog';
+import s from './admin/workspace.module.css';
 import {
   trackAdminPanelViewed,
   trackAdminUserViewed,
@@ -40,27 +31,110 @@ import {
   trackModalClosed
 } from '../utils/analytics';
 
+// Admin → Users. Design: shumard-checkout-portal/app/admin/users/page.tsx (tabs, table, user sheet).
+
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Color-coded journey-step badge styles (Refunded / Step 1 / 2 / 3 / Complete).
-const STEP_BADGE = {
-  0: 'bg-rose-50 text-rose-700 border-rose-200',
-  1: 'bg-slate-100 text-slate-700 border-slate-200',
-  2: 'bg-amber-50 text-amber-700 border-amber-200',
-  3: 'bg-sky-50 text-sky-700 border-sky-200',
-  4: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+// Journey step → onboarding pill + how many of the 3 steps are done (the mini progress bars).
+const ONBOARDING = {
+  0: { label: 'Refunded', tone: 'red', done: 0 },
+  1: { label: 'Step 1 · Book session', tone: 'blue', done: 0 },
+  2: { label: 'Step 2 · Health profile', tone: 'blue', done: 1 },
+  3: { label: 'Step 3 · Access add-ons', tone: 'blue', done: 2 },
+  4: { label: 'Complete', tone: 'green', done: 3 },
 };
-const stepBadgeClass = (step) => STEP_BADGE[step] || STEP_BADGE[1];
+const onboardingOf = (step) => ONBOARDING[step] || ONBOARDING[1];
+const STEP_OPTIONS = [
+  { value: '0', label: 'Refunded' },
+  { value: '1', label: 'Step 1 · Book your session' },
+  { value: '2', label: 'Step 2 · Health profile' },
+  { value: '3', label: 'Step 3 · Access add-ons' },
+  { value: '4', label: 'Complete' },
+];
+const ROLE_TAG = { super_admin: 'Super admin', admin: 'Admin', staff: 'Staff' };
+const COLUMN_LABELS = { email: 'Email address', joined: 'Date joined', status: 'Onboarding status' };
+const count = (n) => (typeof n === 'number' ? n.toLocaleString() : '—');
+
+function Progress({ step }) {
+  const o = onboardingOf(step);
+  return (
+    <div className={s.progressCell}>
+      <span className={s.miniSteps} data-complete={step === 4} aria-hidden="true">
+        {[0, 1, 2].map((i) => <i key={i} data-done={i < o.done} />)}
+      </span>
+      <Status value={o.label} tone={o.tone} />
+    </div>
+  );
+}
+
+// modal={false}: "View user" opens a sheet, and a modal menu handing off to a dialog leaves the page unclickable.
+function RowMenu({ user, onView, onResend, onBook }) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={s.iconButton} aria-label={`Actions for ${user.name || user.email}`} onClick={(e) => e.stopPropagation()}>
+          <MoreHorizontal size={19} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className={s.menu}>
+        <DropdownMenuItem onSelect={() => onView(user)}><UserRound size={16} />View user</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onBook(user)}><CalendarPlus size={16} />Book a session</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onResend(user)}><Send size={16} />Send access email</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => { try { navigator.clipboard?.writeText(user.email || ''); } catch { /* noop */ } }}><Copy size={16} />Copy email</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Row spacing + visible columns: at the end of the column-header row (and beside the search on phones).
+function TableTools({ density, setDensity, columns, setColumns }) {
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className={s.iconButton} aria-label="Table settings"><SlidersHorizontal size={17} /></button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className={s.menu}>
+          <DropdownMenuLabel>Row spacing</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={density} onValueChange={setDensity}>
+            <DropdownMenuRadioItem value="comfortable">Comfortable</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="compact">Compact</DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" className={s.iconButton} aria-label="Visible columns"><Columns3 size={17} /></button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className={s.menu}>
+          <DropdownMenuLabel>Show in table</DropdownMenuLabel>
+          {Object.keys(COLUMN_LABELS).map((key) => (
+            <DropdownMenuCheckboxItem key={key} checked={columns[key]} onCheckedChange={(v) => setColumns({ ...columns, [key]: !!v })} onSelect={(e) => e.preventDefault()}>
+              {COLUMN_LABELS[key]}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [onboarding, setOnboarding] = useState('all');
+  const [counts, setCounts] = useState(null);
+  const [sort, setSort] = useState({ key: 'joined', ascending: false });
+  const [density, setDensity] = useState('comfortable');
+  const [columns, setColumns] = useState({ email: true, joined: true, status: true });
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [sessionBooking, setSessionBooking] = useState(null);
   const [rescheduleSession, setRescheduleSession] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -74,9 +148,6 @@ const AdminDashboard = () => {
     timezone: '',
     notes: ''
   });
-  const [settings, setSettings] = useState({ availability_days: 14 });
-  const [settingsLoading, setSettingsLoading] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,8 +157,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchData();
-    fetchSettings();
-  }, [currentPage, debouncedSearch]);
+  }, [currentPage, debouncedSearch, onboarding]);
 
   // Load the user's confirmed ledger session so the modal can reschedule/cancel it.
   useEffect(() => {
@@ -109,34 +179,6 @@ const AdminDashboard = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const fetchSettings = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await axios.get(`${API}/admin/settings`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSettings(res.data);
-    } catch (e) {
-      // Non-blocking — use defaults
-    }
-  };
-
-  const saveSettings = async (updates) => {
-    setSettingsLoading(true);
-    try {
-      const token = localStorage.getItem('access_token');
-      const res = await axios.put(`${API}/admin/settings`, updates, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSettings(res.data);
-      toast.success('Settings saved');
-    } catch (e) {
-      toast.error(e.response?.data?.detail || 'Failed to save settings');
-    } finally {
-      setSettingsLoading(false);
-    }
-  };
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -144,9 +186,10 @@ const AdminDashboard = () => {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         page_size: PAGE_SIZE.toString(),
+        onboarding,
       });
       if (debouncedSearch) params.append('search', debouncedSearch);
-      
+
       const usersRes = await axios.get(`${API}/admin/users?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -154,7 +197,8 @@ const AdminDashboard = () => {
       setUsers(usersRes.data.users);
       setTotalPages(usersRes.data.total_pages || 1);
       setTotalUsers(usersRes.data.total || 0);
-      
+      setCounts(usersRes.data.counts || null);
+
       trackAdminPanelViewed(localStorage.getItem('user_id'));
     } catch (error) {
       if (error.response?.status === 403) {
@@ -168,6 +212,7 @@ const AdminDashboard = () => {
       }
     } finally {
       setLoading(false);
+      setLoaded(true);
     }
   };
 
@@ -177,7 +222,7 @@ const AdminDashboard = () => {
 
   const handleSaveStepChange = async () => {
     if (pendingStep === null || pendingStep === undefined || !selectedUser) return;
-    
+
     const userId = selectedUser.id;
     const newStep = pendingStep;
 
@@ -277,7 +322,7 @@ const AdminDashboard = () => {
 
   const handleEditUser = async () => {
     if (!selectedUser) return;
-    
+
     setActionLoading(true);
     try {
       const token = localStorage.getItem('access_token');
@@ -286,13 +331,13 @@ const AdminDashboard = () => {
         editFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       trackAdminUserEdited(selectedUser.id, Object.keys(editFormData));
       toast.success('User updated successfully', { id: 'edit-user-success' });
       setShowEditModal(false);
       trackModalClosed('edit_user');
       fetchData();
-      
+
       setSelectedUser({ ...selectedUser, ...editFormData });
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to update user', { id: 'edit-user-error' });
@@ -377,7 +422,7 @@ const AdminDashboard = () => {
       toast.success('Booking updated successfully');
       setShowBookingModal(false);
       await fetchData();
-      
+
       // Update selected user with new data
       const updatedUser = users.find(u => u.id === selectedUser.id);
       if (updatedUser) {
@@ -418,13 +463,13 @@ const AdminDashboard = () => {
 
   const handlePromoteUser = async (newRole) => {
     if (!selectedUser || selectedUser.role === 'admin') return;
-    
-    const confirmMessage = newRole === 'staff' 
+
+    const confirmMessage = newRole === 'staff'
       ? 'Promote this user to Staff? They will have access to admin panel and be excluded from analytics.'
       : 'Demote this user to regular User?';
-    
+
     if (!(await confirmDialog({ title: newRole === 'staff' ? 'Promote to staff?' : 'Demote to user?', message: confirmMessage, danger: false, confirmLabel: newRole === 'staff' ? 'Promote' : 'Demote' }))) return;
-    
+
     setActionLoading(true);
     try {
       const token = localStorage.getItem('access_token');
@@ -433,7 +478,7 @@ const AdminDashboard = () => {
         { role: newRole },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      
+
       toast.success(`User ${newRole === 'staff' ? 'promoted to Staff' : 'demoted to User'}`);
       setSelectedUser({ ...selectedUser, role: newRole });
       await fetchData();
@@ -444,378 +489,269 @@ const AdminDashboard = () => {
     }
   };
 
-  // Users are already sorted and filtered by the server
-  const filteredUsers = users;
-
-  const getStepLabel = (step) => {
-    const labels = {
-      0: 'Refunded',
-      1: 'Step 1',
-      2: 'Step 2',
-      3: 'Step 3',
-      4: 'Complete'
-    };
-    return labels[step] || `Step ${step}`;
+  // The server pages newest-first; sorting re-orders the current page.
+  const rows = useMemo(() => [...users].sort((a, b) => {
+    const pick = (u) => (sort.key === 'name' ? u.name || '' : u.created_at || '');
+    return pick(a).localeCompare(pick(b)) * (sort.ascending ? 1 : -1);
+  }), [users, sort]);
+  const changeSort = (key) => setSort((cur) => ({ key, ascending: key === cur.key ? !cur.ascending : true }));
+  const ariaSort = (key) => (sort.key === key ? (sort.ascending ? 'ascending' : 'descending') : 'none');
+  const changeTab = (v) => { setOnboarding(v); setCurrentPage(1); };
+  const reset = () => { setSearchTerm(''); changeTab('all'); };
+  // A new user is the newest, so they head the unfiltered first page — refetch it, or clear the filters to get there.
+  const showNewUser = () => { if (onboarding === 'all' && currentPage === 1 && !searchTerm && !debouncedSearch) fetchData(); else reset(); };
+  const closeUser = () => { setShowUserModal(false); setPendingStep(null); setShowEditModal(false); setShowBookingModal(false); };
+  const viewUser = (e, u) => { e?.stopPropagation?.(); openUserDetails(u); };
+  const resend = (u) => handleResendWelcomeEmail(u.id);
+  // Scheduling → New booking, with this patient filled in.
+  const bookFor = (u) => {
+    const [first = '', ...rest] = (u.name || '').trim().split(/\s+/);
+    navigate(`/admin/scheduling/new?${new URLSearchParams({ email: u.email || '', first: u.first_name || first, last: u.last_name || rest.join(' '), phone: u.phone || '' })}`);
   };
 
-  // Cadence: journey-step tags are monochrome (slate); the one meaningful alert state
-  // (Refunded) borrows the conflict token. Complete reads as a filled "done" badge.
-  // Format date as "Jan 15, 2025, 2:30 PM"
-  const formatDate = (dateString) => fmtDateTime(dateString);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#F4F3F2' }}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
+  const u = selectedUser;
+  const userTz = u?.signup_location?.timezone || u?.location_info?.timezone;
+  const field = (key, label, props = {}) => (
+    <div className={`${s.field} ${props.wide ? s.wideField : ''}`}>
+      <label htmlFor={`edit-${key}`}>{label}</label>
+      <input id={`edit-${key}`} type={props.type || 'text'} value={editFormData[key] || ''} onChange={(e) => setEditFormData({ ...editFormData, [key]: e.target.value })} />
+    </div>
+  );
 
   return (
-    <div className="min-h-full">
-      {/* Header replaced by the unified AdminLayout shell (sidebar + topbar). Kept hidden
-          so its handlers stay referenced; the overlapping centered-title bug is gone. */}
-      <div className="hidden" data-testid="admin-header">
-        <div className="max-w-7xl 2xl:max-w-none mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-              <img 
-                src="https://portal-drshumard.b-cdn.net/logo.png" 
-                alt="Logo" 
-                className="h-8 object-contain"
-              />
-              <div className="flex items-center gap-3 md:hidden">
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/admin/analytics')} 
-                  className="flex items-center gap-2"
-                  size="sm"
-                >
-                  <BarChart3 size={16} />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/admin/logs')} 
-                  className="flex items-center gap-2"
-                  size="sm"
-                >
-                  <Activity size={16} />
-                </Button>
-                <Button 
-                  variant={showSettings ? "default" : "outline"}
-                  onClick={() => setShowSettings(!showSettings)} 
-                  className="flex items-center gap-2"
-                  size="sm"
-                  data-testid="settings-toggle-mobile"
-                >
-                  <Settings size={16} />
-                </Button>
-                <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2" size="sm">
-                  <Home size={16} />
-                </Button>
-              </div>
-            </div>
-            <h1 className="text-xl font-bold text-slate-800 text-center w-full md:w-auto md:absolute md:left-1/2 md:-translate-x-1/2">User Management</h1>
-            <div className="hidden md:flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/admin/analytics')} 
-                className="flex items-center gap-2"
-              >
-                <BarChart3 size={16} />
-                <span>Analytics</span>
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate('/admin/logs')} 
-                className="flex items-center gap-2"
-              >
-                <Activity size={16} />
-                <span>Logs</span>
-              </Button>
-              <Button 
-                variant={showSettings ? "default" : "outline"}
-                onClick={() => setShowSettings(!showSettings)} 
-                className="flex items-center gap-2"
-                data-testid="settings-toggle"
-              >
-                <Settings size={16} />
-                <span>Settings</span>
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/')} className="flex items-center gap-2">
-                <Home size={16} />
-                <span>Home</span>
-              </Button>
-            </div>
-          </div>
+    <div className={s.usersLyra}>
+      <div className={s.heading}>
+        <div>
+          <h1>Users</h1>
+          <p>A clear view of everyone’s onboarding journey.</p>
+        </div>
+        <div className={s.headingActions}>
+          <button type="button" className={s.primaryButton} onClick={() => setAddOpen(true)}><Plus size={17} />Add user</button>
         </div>
       </div>
+      <AddUserDialog open={addOpen} onOpenChange={setAddOpen} onCreated={showNewUser} />
 
-      <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto">
-        {/* Settings Panel */}
-        {showSettings && (
-          <Card className="bg-white border border-slate-200 shadow-sm mb-6" data-testid="settings-panel">
-            <CardHeader className="border-b border-slate-100 pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Settings className="text-slate-600" size={20} />
-                Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-slate-700 whitespace-nowrap">
-                    Booking Calendar — Days of Availability
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={90}
-                    value={settings.availability_days}
-                    onChange={(e) => setSettings(prev => ({ ...prev, availability_days: parseInt(e.target.value) || 14 }))}
-                    className="w-20 px-3 py-1.5 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
-                    data-testid="availability-days-input"
-                  />
-                  <span className="text-sm text-slate-500">days</span>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() => saveSettings({ availability_days: settings.availability_days })}
-                  disabled={settingsLoading}
-                  data-testid="save-settings-btn"
-                >
-                  {settingsLoading ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-              <p className="text-xs text-slate-400 mt-2">
-                Shows the next {settings.availability_days} dates that have available booking slots (skips weekends and days with no availability).
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Users data-table (shadcn) — server-side search + pagination preserved */}
-        <UsersDataTable
-          users={filteredUsers}
-          totalUsers={totalUsers}
-          search={searchTerm}
-          onSearchChange={setSearchTerm}
-          page={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          onView={openUserDetails}
-          onResend={(u) => handleResendWelcomeEmail(u.id)}
-          formatDate={formatDate}
-          getStepLabel={getStepLabel}
-          stepBadgeClass={stepBadgeClass}
-          settingsActive={showSettings}
-          onToggleSettings={() => setShowSettings((s) => !s)}
-        />
-      </div>
-
-      {/* User Details Drawer (bento) */}
-      <Drawer open={showUserModal} onOpenChange={(o) => { if (!o) { setShowUserModal(false); setPendingStep(null); setShowEditModal(false); setShowBookingModal(false); } }}>
-        <DrawerContent>
-          {selectedUser && (
-            <div className="mx-auto flex w-full max-w-5xl 2xl:max-w-6xl flex-col">
-              <DrawerHeader className="text-left">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex size-12 flex-none items-center justify-center rounded-full bg-foreground text-lg font-semibold text-background">
-                    {selectedUser.name?.charAt(0)?.toUpperCase() || 'U'}
-                  </div>
-                  <div className="min-w-0">
-                    <DrawerTitle className="truncate">{selectedUser.name}</DrawerTitle>
-                    <DrawerDescription className="truncate">{selectedUser.email}</DrawerDescription>
-                  </div>
-                </div>
-              </DrawerHeader>
-
-              <div className="max-h-[64vh] overflow-y-auto px-4 pb-4">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {/* Profile */}
-                  <div className="rounded-xl border bg-card p-4">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Profile</span>
-                      {!showEditModal && (
-                        <Button variant="ghost" size="sm" onClick={openEditModal} disabled={actionLoading}><Edit2 className="size-4" /> Edit</Button>
-                      )}
-                    </div>
-                    {showEditModal ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">First name</label>
-                            <Input value={editFormData.first_name || ''} onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })} />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">Last name</label>
-                            <Input value={editFormData.last_name || ''} onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })} />
-                          </div>
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Display name</label>
-                          <Input value={editFormData.name || ''} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Email</label>
-                          <Input type="email" value={editFormData.email || ''} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Phone</label>
-                          <Input type="tel" value={editFormData.phone || ''} onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })} />
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <Button onClick={handleEditUser} disabled={actionLoading} className="flex-1">{actionLoading ? 'Saving...' : 'Save profile'}</Button>
-                          <Button variant="outline" onClick={() => setShowEditModal(false)} disabled={actionLoading}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <dl className="divide-y">
-                        <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Phone</dt><dd className="text-sm font-medium text-foreground">{selectedUser.phone || '—'}</dd></div>
-                        <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Email</dt><dd className="max-w-[60%] truncate text-sm font-medium text-foreground">{selectedUser.email || '—'}</dd></div>
-                        <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Joined</dt><dd className="text-sm font-medium text-foreground">{formatDate(selectedUser.created_at)}</dd></div>
-                      </dl>
-                    )}
-                  </div>
-
-                  {/* Account */}
-                  <div className="rounded-xl border bg-card p-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Account</span>
-                    <dl className="mt-2 divide-y">
-                      <div className="flex items-center justify-between py-2.5"><dt className="text-sm text-muted-foreground">Journey step</dt><dd><Badge variant="outline" className={stepBadgeClass(selectedUser.current_step)}>{getStepLabel(selectedUser.current_step)}</Badge></dd></div>
-                      <div className="flex items-center justify-between py-2.5">
-                        <dt className="text-sm text-muted-foreground">Role</dt>
-                        <dd className="flex items-center gap-2">
-                          {selectedUser.role === 'admin' ? (
-                            <Badge>Administrator</Badge>
-                          ) : (
-                            <>
-                              <Badge variant="secondary">{selectedUser.role === 'staff' ? 'Staff' : 'User'}</Badge>
-                              <Button variant="outline" size="sm" onClick={() => handlePromoteUser(selectedUser.role === 'staff' ? 'user' : 'staff')} disabled={actionLoading}>{selectedUser.role === 'staff' ? 'Demote' : 'Make staff'}</Button>
-                            </>
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                    <div className="mt-3 border-t pt-3">
-                      <label className="text-sm text-muted-foreground">Move to step</label>
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <Select value={String(pendingStep !== null ? pendingStep : (selectedUser?.current_step ?? 1))} onValueChange={(v) => handleStepChange(parseInt(v, 10))} disabled={actionLoading}>
-                          <SelectTrigger className="flex-1" aria-label="Move to step"><SelectValue placeholder="Select step" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Refunded</SelectItem>
-                            <SelectItem value="1">Step 1 — Welcome &amp; booking</SelectItem>
-                            <SelectItem value="2">Step 2 — Health profile</SelectItem>
-                            <SelectItem value="3">Step 3 — Final preparations</SelectItem>
-                            <SelectItem value="4">Complete</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button onClick={handleSaveStepChange} disabled={pendingStep === null || pendingStep === selectedUser?.current_step || actionLoading}>Save</Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Booking */}
-                  <div className="rounded-xl border bg-card p-4 lg:col-span-2">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Booking</span>
-                      <div className="flex items-center gap-2">
-                        {sessionBooking && (
-                          <>
-                            <Button variant="outline" size="sm" onClick={() => setRescheduleSession(sessionBooking)}><CalendarClock className="size-3.5" /> Reschedule</Button>
-                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={async () => { const ok = await cancelBooking(sessionBooking); if (ok) { setSessionBooking(null); setSelectedUser((u) => (u ? { ...u, booking_info: null } : u)); fetchData(); } }}><Ban className="size-3.5" /> Cancel</Button>
-                          </>
-                        )}
-                        {/* Legacy stamp editor (writes users.booking_info only). Hidden whenever a real
-                            ledger booking exists — its Save/Remove don't touch the actual booking, so
-                            offering it next to the real Reschedule/Cancel reads as a broken remove. */}
-                        {!showBookingModal && !sessionBooking && (
-                          <Button variant="outline" size="sm" onClick={openBookingModal}>{selectedUser.booking_info ? 'Edit booking' : 'Set booking'}</Button>
-                        )}
-                      </div>
-                    </div>
-
-                    {showBookingModal ? (
-                      <div className="space-y-3">
-                        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800">
-                          <span className="flex items-center gap-1.5 font-medium"><Clock className="size-3.5" /> User timezone</span>
-                          <span className="mt-0.5 block">{selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'Unknown — please verify with the patient'}</span>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">Date</label>
-                            <Input type="date" value={bookingFormData.date} onChange={(e) => setBookingFormData({ ...bookingFormData, date: e.target.value })} />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">Time</label>
-                            <Input type="time" value={bookingFormData.time} onChange={(e) => setBookingFormData({ ...bookingFormData, time: e.target.value })} />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-foreground">Timezone</label>
-                            <Select value={bookingFormData.timezone} onValueChange={(v) => setBookingFormData({ ...bookingFormData, timezone: v })}>
-                              <SelectTrigger className="w-full"><SelectValue placeholder="Timezone" /></SelectTrigger>
-                              <SelectContent>
-                                {US_TIMEZONES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                                {bookingFormData.timezone && !US_TIMEZONES.some((o) => o.value === bookingFormData.timezone) && (
-                                  <SelectItem value={bookingFormData.timezone}>{bookingFormData.timezone}</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <p className="text-xs text-muted-foreground">Date &amp; time are in the selected timezone.</p>
-                        <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-foreground">Notes (optional)</label>
-                          <Textarea rows={2} value={bookingFormData.notes} onChange={(e) => setBookingFormData({ ...bookingFormData, notes: e.target.value })} placeholder="e.g., Rescheduled via phone call" />
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <Button onClick={handleUpdateBooking} disabled={actionLoading || !bookingFormData.date || !bookingFormData.time} className="flex-1">{actionLoading ? 'Saving...' : 'Save booking'}</Button>
-                          {/* Always offered here (the editor only opens when there's no ledger booking):
-                              a stale pre-portal appointment row can exist with NO visible stamp, and
-                              Remove is the only way to clear what the patient still sees. */}
-                          {!sessionBooking && (
-                            <Button variant="outline" className="text-destructive hover:text-destructive" onClick={handleDeleteBooking} disabled={actionLoading}>Remove legacy booking</Button>
-                          )}
-                          <Button variant="outline" onClick={() => setShowBookingModal(false)} disabled={actionLoading}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : sessionBooking ? (
-                      <div className="rounded-lg border bg-muted/30 p-3">
-                        {/* Render in the PATIENT's zone (the label below names it) — not the admin display tz. */}
-                        <div className="font-medium text-foreground">{fmtDateTime(sessionBooking.slot_start_utc, { tz: safeTz(sessionBooking.patient_timezone, getAdminDisplayTz()) })}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">{sessionBooking.director_name || sessionBooking.director_id || 'Director'}{sessionBooking.patient_timezone ? ` · ${sessionBooking.patient_timezone}` : ''}</div>
-                      </div>
-                    ) : selectedUser.booking_info ? (
-                      <div className="rounded-lg border bg-muted/30 p-3">
-                        <div className="font-medium text-foreground">{(() => {
-                          const bi = selectedUser.booking_info;
-                          const btz = safeTz(bi.timezone || bi.booking_timezone);
-                          const v = bi.session_start || bi.booking_datetime;
-                          return `${fmtDateTime(v, { tz: btz })} ${tzAbbrev(v, btz)}`;
-                        })()}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">{selectedUser.booking_info.timezone || selectedUser.booking_info.booking_timezone || 'Timezone not set'}{selectedUser.booking_info.source ? ` · ${selectedUser.booking_info.source === 'online_booking' ? 'Online booking' : 'Manual entry'}` : ''}</div>
-                        {selectedUser.booking_info.update_notes && <div className="mt-1 text-xs italic text-muted-foreground">{selectedUser.booking_info.update_notes}</div>}
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border p-3 text-sm text-muted-foreground">No booking set · user timezone {selectedUser.signup_location?.timezone || selectedUser.location_info?.timezone || 'unknown'}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <DrawerFooter className="flex-row flex-wrap gap-2">
-                <Button variant="outline" onClick={() => handleResendWelcomeEmail(selectedUser.id)} disabled={actionLoading}><Send className="size-4" /> Resend welcome</Button>
-                <Button variant="outline" onClick={() => handleResetProgress(selectedUser.id)} disabled={actionLoading}><RefreshCw className="size-4" /> Reset progress</Button>
-                <Button variant="outline" className="ml-auto text-destructive hover:text-destructive" onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name, selectedUser.email)} disabled={actionLoading}><Trash2 className="size-4" /> Delete user</Button>
-              </DrawerFooter>
+      <Tabs value={onboarding} onValueChange={changeTab} className={`${s.surface} ${s.analyticsSurface}`}>
+        <div className={`${s.analyticsToolbar} ${s.usersToolbar}`}>
+          <div>
+            <span className={s.analyticsKicker}>PATIENT DIRECTORY</span>
+            <h2>People<span className={s.peopleCount}>{count(totalUsers)} {totalUsers === 1 ? 'user' : 'users'}</span></h2>
+          </div>
+          <div className={s.usersSearchRow}>
+            <div className={s.usersSearch}>
+              <SearchBox value={searchTerm} onChange={setSearchTerm} label="Search name, email or phone" placeholder="Name, email or phone" />
             </div>
-          )}
-        </DrawerContent>
-      </Drawer>
+            <div className={s.mobileTools}><TableTools density={density} setDensity={setDensity} columns={columns} setColumns={setColumns} /></div>
+          </div>
+          <TabsList className={s.lyraTabs} aria-label="Onboarding status">
+            <TabsTrigger value="all">All users <span className={s.tabCount}>{count(counts?.all)}</span></TabsTrigger>
+            <TabsTrigger value="in_progress">In progress <span className={s.tabCount}>{count(counts?.in_progress)}</span></TabsTrigger>
+            <TabsTrigger value="complete">Complete <span className={s.tabCount}>{count(counts?.complete)}</span></TabsTrigger>
+          </TabsList>
+        </div>
 
+        <TabsContent value={onboarding} className="mt-0" aria-busy={loading}>
+          {!loaded ? (
+            <p className={s.loadingRow} role="status">Loading users…</p>
+          ) : rows.length ? (
+            <div className={s.tableArea} data-busy={loading}>
+              <div className={s.desktopTable}>
+                <Table className={`${s.table} ${s.usersTableLyra}`} data-density={density}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead aria-sort={ariaSort('name')}><button type="button" onClick={() => changeSort('name')}>User <ArrowUpDown size={12} /></button></TableHead>
+                      {columns.joined && <TableHead aria-sort={ariaSort('joined')}><button type="button" onClick={() => changeSort('joined')}>Joined <ArrowUpDown size={12} /></button></TableHead>}
+                      {columns.status && <TableHead>Onboarding</TableHead>}
+                      <TableHead className={s.headTools}><span className="sr-only">Actions</span><div><TableTools density={density} setDensity={setDensity} columns={columns} setColumns={setColumns} /></div></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <TableRow key={row.id} className={s.clickableRow} onClick={() => openUserDetails(row)}>
+                        <TableCell><Person name={row.name} email={columns.email ? row.email : undefined} tag={ROLE_TAG[row.role]} onClick={(e) => viewUser(e, row)} /></TableCell>
+                        {columns.joined && <TableCell><span className={s.monoDate}>{fmtDate(row.created_at)}</span><span className={s.monoTime}>{fmtTime(row.created_at)}</span></TableCell>}
+                        {columns.status && <TableCell><Progress step={row.current_step} /></TableCell>}
+                        <TableCell onClick={(e) => e.stopPropagation()}><RowMenu user={row} onView={openUserDetails} onResend={resend} onBook={bookFor} /></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className={s.mobileList}>
+                {rows.map((row) => (
+                  <article className={s.analyticsMobileRow} key={row.id}>
+                    <div className={s.mobileRowTop}>
+                      <Person name={row.name} email={columns.email ? row.email : undefined} tag={ROLE_TAG[row.role]} onClick={(e) => viewUser(e, row)} />
+                      <RowMenu user={row} onView={openUserDetails} onResend={resend} onBook={bookFor} />
+                    </div>
+                    <div className={s.mobileMeta}>
+                      {columns.status && <Progress step={row.current_step} />}
+                      {columns.joined && <span className={s.monoDate}>{fmtDate(row.created_at)}</span>}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <NoResults reset={reset} />
+          )}
+          <TablePager page={currentPage} count={totalUsers} pageSize={PAGE_SIZE} onChange={setCurrentPage} />
+        </TabsContent>
+      </Tabs>
+
+      {/* User overview */}
+      <Sheet open={showUserModal} onOpenChange={(o) => { if (!o) closeUser(); }}>
+        <SheetContent className={s.detailSheet} onInteractOutside={keepSheetOpen} onEscapeKeyDown={keepSheetOpen}>
+          <SheetHeader>
+            <SheetTitle>User overview</SheetTitle>
+            <SheetDescription className={s.sheetDescription}>Onboarding details and session access.</SheetDescription>
+          </SheetHeader>
+          {u && (
+            <>
+              <div className={s.sheetPerson}>
+                <Person name={u.name} email={u.email} tag={ROLE_TAG[u.role]} />
+                {!showEditModal && <button type="button" className={s.smallButton} onClick={openEditModal} disabled={actionLoading}><PenLine size={14} />Edit</button>}
+              </div>
+
+              {showEditModal ? (
+                <section className={s.sheetSection} aria-label="Edit profile">
+                  <div className={s.fields}>
+                    {field('first_name', 'First name')}
+                    {field('last_name', 'Last name')}
+                    {field('name', 'Display name', { wide: true })}
+                    {field('email', 'Email', { wide: true, type: 'email' })}
+                    {field('phone', 'Phone', { wide: true, type: 'tel' })}
+                  </div>
+                  <div className={s.sheetFormActions}>
+                    <button type="button" className={s.primaryButton} onClick={handleEditUser} disabled={actionLoading}>{actionLoading ? 'Saving…' : 'Save profile'}</button>
+                    <button type="button" className={s.secondaryButton} onClick={() => setShowEditModal(false)} disabled={actionLoading}>Cancel</button>
+                  </div>
+                </section>
+              ) : (
+                <dl className={s.detailList}>
+                  <div><dt>Joined</dt><dd>{u.created_at ? `${fmtDate(u.created_at)} at ${fmtTime(u.created_at)}` : '—'}</dd></div>
+                  <div><dt>Phone</dt><dd>{u.phone || '—'}</dd></div>
+                  <div><dt>Onboarding status</dt><dd><Status value={onboardingOf(u.current_step).label} tone={onboardingOf(u.current_step).tone} /></dd></div>
+                  <div>
+                    <dt>Role</dt>
+                    <dd className={s.inlineRow}>
+                      {u.role === 'admin' ? 'Administrator' : ROLE_TAG[u.role] || 'User'}
+                      {!['admin', 'super_admin'].includes(u.role) && (
+                        <button type="button" className={s.smallButton} onClick={() => handlePromoteUser(u.role === 'staff' ? 'user' : 'staff')} disabled={actionLoading}>
+                          {u.role === 'staff' ? 'Demote' : 'Make staff'}
+                        </button>
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+
+              <section className={s.sheetSection} aria-labelledby="journey-step">
+                <div className={s.sheetSectionHead}><h3 id="journey-step">Journey step</h3></div>
+                <div className={s.stepRow}>
+                  <AdminSelect
+                    label="Move to step"
+                    value={String(pendingStep !== null ? pendingStep : (u.current_step ?? 1))}
+                    onChange={(v) => handleStepChange(parseInt(v, 10))}
+                    options={STEP_OPTIONS}
+                    disabled={actionLoading}
+                  />
+                  <button type="button" className={s.secondaryButton} onClick={handleSaveStepChange} disabled={pendingStep === null || pendingStep === u.current_step || actionLoading}>Save</button>
+                </div>
+              </section>
+
+              <section className={s.sheetSection} aria-labelledby="consultation-booking">
+                <div className={s.sheetSectionHead}>
+                  <h3 id="consultation-booking">Consultation booking</h3>
+                  <div>
+                    {sessionBooking && (
+                      <>
+                        <button type="button" className={s.smallButton} onClick={() => setRescheduleSession(sessionBooking)}><CalendarClock size={14} />Reschedule</button>
+                        <button type="button" className={s.smallButton} data-danger="" onClick={async () => { const ok = await cancelBooking(sessionBooking); if (ok) { setSessionBooking(null); setSelectedUser((cur) => (cur ? { ...cur, booking_info: null } : cur)); fetchData(); } }}><Ban size={14} />Cancel</button>
+                      </>
+                    )}
+                    {/* Legacy stamp editor (writes users.booking_info only). Hidden whenever a real
+                        ledger booking exists — its Save/Remove don't touch the actual booking, so
+                        offering it next to the real Reschedule/Cancel reads as a broken remove. */}
+                    {!showBookingModal && !sessionBooking && (
+                      <button type="button" className={s.smallButton} onClick={openBookingModal}>{u.booking_info ? 'Edit booking' : 'Set booking'}</button>
+                    )}
+                  </div>
+                </div>
+
+                {showBookingModal ? (
+                  <div className={s.bookingEditor}>
+                    <p className={s.sheetNotice}><Clock size={14} /><span><strong>User timezone</strong>{userTz || 'Unknown — please verify with the patient'}</span></p>
+                    <div className={s.fields}>
+                      <div className={s.field}>
+                        <label htmlFor="booking-date">Date</label>
+                        <input id="booking-date" type="date" value={bookingFormData.date} onChange={(e) => setBookingFormData({ ...bookingFormData, date: e.target.value })} />
+                      </div>
+                      <div className={s.field}>
+                        <label htmlFor="booking-time">Time</label>
+                        <input id="booking-time" type="time" value={bookingFormData.time} onChange={(e) => setBookingFormData({ ...bookingFormData, time: e.target.value })} />
+                      </div>
+                      <div className={`${s.field} ${s.wideField}`}>
+                        <label htmlFor="booking-timezone">Timezone</label>
+                        <AdminSelect
+                          id="booking-timezone"
+                          label="Timezone"
+                          value={bookingFormData.timezone}
+                          onChange={(v) => setBookingFormData({ ...bookingFormData, timezone: v })}
+                          options={[
+                            ...US_TIMEZONES.map((o) => ({ value: o.value, label: o.label })),
+                            ...(bookingFormData.timezone && !US_TIMEZONES.some((o) => o.value === bookingFormData.timezone) ? [{ value: bookingFormData.timezone, label: bookingFormData.timezone }] : []),
+                          ]}
+                        />
+                        <p>Date &amp; time are in the selected timezone.</p>
+                      </div>
+                      <div className={`${s.field} ${s.wideField}`}>
+                        <label htmlFor="booking-notes">Notes <span>· optional</span></label>
+                        <textarea id="booking-notes" rows={2} value={bookingFormData.notes} onChange={(e) => setBookingFormData({ ...bookingFormData, notes: e.target.value })} placeholder="e.g., Rescheduled via phone call" />
+                      </div>
+                    </div>
+                    <div className={s.sheetFormActions}>
+                      <button type="button" className={s.primaryButton} onClick={handleUpdateBooking} disabled={actionLoading || !bookingFormData.date || !bookingFormData.time}>{actionLoading ? 'Saving…' : 'Save booking'}</button>
+                      {/* Always offered here (the editor only opens when there's no ledger booking):
+                          a stale pre-portal appointment row can exist with NO visible stamp, and
+                          Remove is the only way to clear what the patient still sees. */}
+                      {!sessionBooking && (
+                        <button type="button" className={s.smallButton} data-danger="" onClick={handleDeleteBooking} disabled={actionLoading}>Remove legacy booking</button>
+                      )}
+                      <button type="button" className={s.secondaryButton} onClick={() => setShowBookingModal(false)} disabled={actionLoading}>Cancel</button>
+                    </div>
+                  </div>
+                ) : sessionBooking ? (
+                  <div className={s.bookingCard}>
+                    {/* Render in the PATIENT's zone (the label below names it) — not the admin display tz. */}
+                    <strong>{fmtDateTime(sessionBooking.slot_start_utc, { tz: safeTz(sessionBooking.patient_timezone, getAdminDisplayTz()) })}</strong>
+                    <span>{sessionBooking.director_name || sessionBooking.director_id || 'Director'}{sessionBooking.patient_timezone ? ` · ${sessionBooking.patient_timezone}` : ''}</span>
+                  </div>
+                ) : u.booking_info ? (
+                  <div className={s.bookingCard}>
+                    <strong>{(() => {
+                      const bi = u.booking_info;
+                      const btz = safeTz(bi.timezone || bi.booking_timezone);
+                      const v = bi.session_start || bi.booking_datetime;
+                      return `${fmtDateTime(v, { tz: btz })} ${tzAbbrev(v, btz)}`;
+                    })()}</strong>
+                    <span>{u.booking_info.timezone || u.booking_info.booking_timezone || 'Timezone not set'}{u.booking_info.source ? ` · ${u.booking_info.source === 'online_booking' ? 'Online booking' : 'Manual entry'}` : ''}</span>
+                    {u.booking_info.update_notes && <em>{u.booking_info.update_notes}</em>}
+                  </div>
+                ) : (
+                  <p className={s.detailNote}>No booking set · user timezone {userTz || 'unknown'}</p>
+                )}
+              </section>
+
+              <div className={s.sheetActions}>
+                <button type="button" className={s.secondaryButton} onClick={() => handleResendWelcomeEmail(u.id)} disabled={actionLoading}><Send size={15} />Resend welcome</button>
+                <button type="button" className={s.secondaryButton} onClick={() => handleResetProgress(u.id)} disabled={actionLoading}><RefreshCw size={15} />Reset progress</button>
+                <button type="button" className={s.secondaryButton} data-danger="" onClick={() => handleDeleteUser(u.id, u.name, u.email)} disabled={actionLoading}><Trash2 size={15} />Delete user</button>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
 
       {rescheduleSession && (
         <RescheduleModal

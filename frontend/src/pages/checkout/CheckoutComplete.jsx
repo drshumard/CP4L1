@@ -36,8 +36,10 @@ export default function CheckoutComplete() {
           localStorage.setItem('access_token', body.access_token);
           localStorage.setItem('refresh_token', body.refresh_token);
           localStorage.setItem('user_email', body.email || '');
-          // A full page load into the portal: nothing from the checkout page comes along.
-          setTimeout(() => window.location.replace(body.outcome === 'needs_new_time' ? '/book' : '/forms'), 2500);
+          // A full page load into the portal (nothing from the checkout page comes along), through the welcome —
+          // which greets them by the first name they gave at checkout.
+          const next = body.outcome === 'needs_new_time' ? '/book' : '/forms';
+          setTimeout(() => window.location.replace(`/welcome?next=${encodeURIComponent(next)}`), 2500);
         } else if (body.state === 'confirming' || body.state === 'processing') {
           if (tries < 60) setTimeout(poll, body.state === 'processing' ? 5000 : 1500);
           else setStatus({ state: 'slow' });

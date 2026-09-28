@@ -1,59 +1,153 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, ExternalLink, RefreshCw, Search, Send, XCircle } from 'lucide-react';
+import {
+  CalendarDays, CheckCircle2, ChevronRight, CircleAlert, CircleDashed, CreditCard, ExternalLink, MailCheck, RefreshCw,
+  Send, Tag, UserPlus, XCircle,
+} from 'lucide-react';
 import { adminApi } from './api';
 import { fmtDate, fmtTime } from './format';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { NoResults, SearchBox, TablePager, keepSheetOpen, useLastRecord } from './workspace-ui';
+import s from './workspace.module.css';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-// Admin > Purchases: every /checkout (Stripe) payment the webhook processed, with what fulfillment did
-// for it — booking, account, receipt, automations — so nobody needs the Stripe dashboard to check an order.
-// GHL-checkout purchases aren't here: they're paid and recorded in GHL. "Send to automations" resends a
-// purchase to chosen Checkout-purchase automation webhooks (e.g. one made while automations were off).
+// Admin > Purchases: every /checkout (Stripe) payment the webhook processed. Design:
+// shumard-checkout-portal/app/admin/purchases/page.tsx (overview strip, purchase ledger, details sheet).
+// A row opens the sheet: booking, account, receipt, each automation run, and "Send to automations"
+// (resend to chosen Checkout-purchase webhooks, e.g. a purchase made while automations were off).
+// GHL-checkout purchases aren't here: they live in GHL.
 
-const HEADER_GRADIENT = 'linear-gradient(to top, #F8F8F8, #F8F8F899, #00000000)';
-const money = (cents) => `$${((cents || 0) / 100).toFixed(2)}`;
+const PAGE_SIZE = 25;
+const money = (cents) => `$${((cents || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fullName = (p) => [p.first_name, p.last_name].filter(Boolean).join(' ') || p.email;
+const initials = (p) => ((p.first_name?.[0] || '') + (p.last_name?.[0] || '')).toUpperCase() || (p.email?.[0] || '?').toUpperCase();
 const stripeUrl = (p) => `https://dashboard.stripe.com/${p.id.startsWith('cs_test_') ? 'test/' : ''}payments/${p.payment_intent}`;
 const driveUrl = (id) => `https://drive.google.com/file/d/${id}/view`;
+const share = (n, total) => (total ? `${Math.round((n / total) * 100)}% of purchases` : 'No purchases yet');
+const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
 
-function Check({ ok, children }) {
-  const Icon = ok ? CheckCircle2 : XCircle;
-  return <span className={`flex items-center gap-1.5 ${ok ? 'text-emerald-700' : 'text-red-600'}`}><Icon className="size-3.5 shrink-0" />{children}</span>;
+// [tone, label]: success (green) · review (amber) · none (grey) — the ledger's status chip.
+function status(p) {
+  if (p.status !== 'fulfilled') return ['none', 'Processing'];
+  if (p.outcome === 'needs_new_time') return ['review', 'Needs a new time'];
+  if (!p.receipt_sent || !p.receipt_filed) return ['review', 'Receipt issue'];
+  return ['success', 'Complete'];
 }
 
-function Session({ p }) {
-  if (p.status !== 'fulfilled') return <Badge variant="outline">Processing</Badge>;
-  if (p.outcome === 'needs_new_time') return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Needs a new time</Badge>;
-  const b = p.booking;
-  if (!b) return <span className="text-muted-foreground">—</span>;
+// Latest run per automation webhook (a resend after a failure counts as fixed). [tone, label]: sent · failed · none.
+const latestRuns = (p) => Object.values(p.automations.reduce((m, a) => ({ ...m, [`${a.automation_name}|${a.action_name}`]: a }), {}));
+function automationStatus(p) {
+  if (!p.automations_fired) return ['none', 'Not run'];
+  const runs = latestRuns(p);
+  if (!runs.length) return ['none', 'None sent'];
+  const failed = runs.filter((a) => !a.success).length;
+  return failed ? ['failed', `${failed} failed`] : ['sent', `Sent to ${runs.length}`];
+}
+
+const STATUS_ICON = { success: CheckCircle2, review: CircleAlert, none: CircleDashed };
+const AUTOMATION_ICON = { sent: MailCheck, failed: CircleAlert, none: CircleDashed };
+
+function StatusChip({ p }) {
+  const [tone, label] = status(p);
+  const Icon = STATUS_ICON[tone];
+  return <span className={s.logStatus} data-tone={tone}><Icon size={12} />{label}</span>;
+}
+
+function AutomationChip({ p }) {
+  const [tone, label] = automationStatus(p);
+  const Icon = AUTOMATION_ICON[tone];
+  return <span className={s.automationStatus} data-tone={tone}><Icon size={13} />{label}</span>;
+}
+
+function Person({ p }) {
   return (
-    <div>
-      <div className="cad-mono whitespace-nowrap">{fmtDate(b.slot_start_utc)}</div>
-      <div className="whitespace-nowrap text-xs text-muted-foreground"><span className="cad-mono">{fmtTime(b.slot_start_utc)}</span> · {b.host || 'Host not set'}</div>
-      {b.status !== 'confirmed' && <Badge variant="outline" className="mt-1 capitalize">{String(b.status || '').replace('_', ' ')}</Badge>}
+    <div className={s.purchasePerson}>
+      <span>{initials(p)}</span>
+      <div><strong>{fullName(p)}</strong><small>{p.email}</small></div>
     </div>
   );
 }
 
-function Automations({ p }) {
-  if (!p.automations_fired) return <span className="text-muted-foreground">Not run yet</span>;
-  if (!p.automations.length) return <span className="text-muted-foreground">None were on</span>;
+function PurchaseSheet({ purchase, onClose, onSend }) {
+  const p = useLastRecord(purchase);
+  const b = p?.booking;
   return (
-    <div className="space-y-1">
-      {p.automations.map((a, i) => (
-        <Check key={i} ok={a.success}>
-          <span title={a.error || `HTTP ${a.response_status}`}>
-            {a.automation_name}
-            {a.action_name && a.action_name !== a.automation_name && <span className="text-muted-foreground"> › {a.action_name}</span>}
-            {a.success ? '' : ` · ${a.response_status || 'error'}`}{a.is_retry ? ' (retry)' : ''}{a.manual ? ' (manual)' : ''}
-          </span>
-        </Check>
-      ))}
-    </div>
+    <Sheet open={!!purchase} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <SheetContent className={s.detailSheet} onInteractOutside={keepSheetOpen} onEscapeKeyDown={keepSheetOpen}>
+        <SheetHeader>
+          <SheetTitle>Purchase details</SheetTitle>
+          <SheetDescription className={s.sheetDescription}>Payment, booking, and follow-up information.</SheetDescription>
+        </SheetHeader>
+        {p && (
+          <>
+            <div className={s.purchaseSheetHeader}>
+              <span>{initials(p)}</span>
+              <div>
+                {p.payment_intent && <small>{p.payment_intent}</small>}
+                <h3>{fullName(p)}</h3>
+                <p>{[p.email, p.phone].filter(Boolean).join(' · ')}</p>
+              </div>
+            </div>
+            <dl className={s.detailList}>
+              <div><dt>Payment</dt><dd>{money(p.amount)} · {p.promo ? 'Promo' : 'Full price'}</dd></div>
+              <div><dt>Paid</dt><dd>{fmtDate(p.paid_at)} at {fmtTime(p.paid_at)}</dd></div>
+              <div>
+                <dt>Strategy session</dt>
+                <dd>{b ? <>{fmtDate(b.slot_start_utc)} at {fmtTime(b.slot_start_utc)}{b.host && <> with {b.host}</>}</>
+                  : p.outcome === 'needs_new_time' ? 'Picking a new time' : '—'}</dd>
+              </div>
+              <div><dt>Account</dt><dd>{p.new_account ? 'New' : 'Existing'}{p.current_step != null && ` · Step ${p.current_step}`}</dd></div>
+              <div>
+                <dt>Receipt</dt>
+                <dd>
+                  {p.receipt_sent ? 'Emailed' : <span className={s.textDanger}>Not emailed</span>}
+                  {' · '}
+                  {p.receipt_filed && p.receipt_drive_file_id
+                    ? <a href={driveUrl(p.receipt_drive_file_id)} target="_blank" rel="noreferrer" className={s.textLink}>PDF in Drive</a>
+                    : <span className={s.textDanger}>No PDF</span>}
+                </dd>
+              </div>
+              {p.payment_intent && (
+                <div><dt>Stripe</dt><dd><a href={stripeUrl(p)} target="_blank" rel="noreferrer" className={s.textLink}>View payment <ExternalLink size={12} /></a></dd></div>
+              )}
+              <div><dt>Status</dt><dd><StatusChip p={p} /></dd></div>
+            </dl>
+
+            <section className={s.sheetSection} aria-labelledby="purchase-automations">
+              <div className={s.sheetSectionHead}><h3 id="purchase-automations">Automations</h3><AutomationChip p={p} /></div>
+              {!p.automations.length
+                ? <p className={s.detailNote}>{p.automations_fired ? 'Nothing sent — no automations were on.' : 'Not run yet.'}</p>
+                : (
+                  <div className={s.runList}>
+                    {p.automations.map((a, i) => {
+                      const Icon = a.success ? CheckCircle2 : XCircle;
+                      return (
+                        <div key={i} className={s.runRow} data-ok={a.success}>
+                          <span><Icon size={15} /></span>
+                          <div>
+                            <strong>{a.automation_name}</strong>
+                            <small title={a.error || ''}>
+                              {[a.action_name !== a.automation_name && a.action_name, a.success ? null : (a.response_status ? `HTTP ${a.response_status}` : 'error'),
+                                `${fmtDate(a.executed_at)} ${fmtTime(a.executed_at)}`, a.manual && 'manual', a.is_retry && 'retry'].filter(Boolean).join(' · ')}
+                            </small>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+            </section>
+
+            {p.status === 'fulfilled' && (
+              <button type="button" className={`${s.primaryButton} ${s.fullWidthButton}`} onClick={() => onSend(p)}><Send size={16} />Send to automations</button>
+            )}
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -88,39 +182,40 @@ function SendDialog({ purchase, onClose, onSent }) {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o && !sending) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className={s.formDialog}>
         <DialogHeader>
-          <DialogTitle>Send to automations</DialogTitle>
-          <DialogDescription>
-            {[purchase.first_name, purchase.last_name].filter(Boolean).join(' ')}’s purchase goes to the webhooks you tick, with the same data a live purchase sends (marked manual). Works even if the automation is switched off.
+          <DialogTitle>Send {fullName(purchase)}’s purchase</DialogTitle>
+          <DialogDescription className={s.sheetDescription}>
+            Goes to the webhooks you tick, with the same data a live purchase sends (marked manual). Works even if the automation is off.
           </DialogDescription>
         </DialogHeader>
-        {automations === null ? <p className="py-4 text-sm text-muted-foreground">Loading automations...</p>
-          : !automations.length ? <p className="py-4 text-sm text-muted-foreground">No “Checkout purchase” automations yet — create one on the Automations page.</p>
+        {automations === null ? <p className={s.detailNote}>Loading automations…</p>
+          : !automations.length ? <p className={s.detailNote}>No “Checkout purchase” automations yet — create one on the Automations page.</p>
             : (
-              <div className="max-h-80 space-y-4 overflow-y-auto py-1">
+              <div className={s.sendList}>
                 {automations.map((a) => (
-                  <div key={a.id}>
-                    <p className="flex items-center gap-2 text-sm font-medium">{a.name}{!a.enabled && <Badge variant="outline">Off</Badge>}</p>
-                    <div className="mt-2 space-y-2 pl-1">
-                      {actionsOf(a).filter((x) => x.id).map((x) => {
-                        const key = `${a.id}|${x.id}`;
-                        return (
-                          <label key={key} className="flex cursor-pointer items-center gap-2.5 text-sm">
-                            <Checkbox checked={!!picked[key]} onCheckedChange={(v) => setPicked((m) => ({ ...m, [key]: v === true }))} />
-                            <span>{label(x)}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
+                  <div key={a.id} className={s.sendGroup}>
+                    <strong>{a.name}{!a.enabled && <span className={s.personTag}>Off</span>}</strong>
+                    {actionsOf(a).filter((x) => x.id).map((x) => {
+                      const key = `${a.id}|${x.id}`;
+                      return (
+                        <label key={key}>
+                          <Checkbox checked={!!picked[key]} onCheckedChange={(v) => setPicked((m) => ({ ...m, [key]: v === true }))}
+                            className="border-[#c4cbd7] data-[state=checked]:border-[#3565e9] data-[state=checked]:bg-[#3565e9] data-[state=checked]:text-white" />
+                          <span>{label(x)}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 ))}
               </div>
             )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={sending}>Cancel</Button>
-          <Button onClick={send} disabled={!targets.length || sending}>{sending ? 'Sending...' : `Send${targets.length ? ` (${targets.length})` : ''}`}</Button>
-        </DialogFooter>
+        <div className={s.dialogActions}>
+          <button type="button" className={s.secondaryButton} onClick={onClose} disabled={sending}>Cancel</button>
+          <button type="button" className={s.primaryButton} onClick={send} disabled={!targets.length || sending}>
+            <Send size={16} />{sending ? 'Sending…' : `Send${targets.length ? ` to ${targets.length}` : ''}`}
+          </button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -129,8 +224,11 @@ function SendDialog({ purchase, onClose, onSent }) {
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState(null);
   const [search, setSearch] = useState('');
+  const [kind, setKind] = useState('all');        // all | promo | full
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [sendFor, setSendFor] = useState(null);   // the purchase whose "Send to automations" dialog is open
+  const [openId, setOpenId] = useState(null);     // purchase shown in the details sheet
+  const [sendFor, setSendFor] = useState(null);   // purchase whose "Send to automations" dialog is open
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -146,84 +244,124 @@ export default function PurchasesPage() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const stats = useMemo(() => {
+    const all = purchases || [];
+    const promo = all.filter((p) => p.promo).length;
+    return { count: all.length, newPatients: all.filter((p) => p.new_account).length, promo, fullPrice: all.length - promo };
+  }, [purchases]);
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!purchases || !q) return purchases || [];
-    return purchases.filter((p) => [p.first_name, p.last_name, p.email, p.phone].join(' ').toLowerCase().includes(q));
-  }, [purchases, search]);
-  const total = shown.reduce((sum, p) => sum + (p.amount || 0), 0);
-
-  if (purchases === null) return <div className="py-16 text-center text-muted-foreground">Loading purchases...</div>;
+    return (purchases || []).filter((p) => (kind === 'all' || (kind === 'promo') === !!p.promo)
+      && (!q || [p.first_name, p.last_name, p.email, p.phone].join(' ').toLowerCase().includes(q)));
+  }, [purchases, search, kind]);
+  const rows = shown.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const open = (purchases || []).find((p) => p.id === openId) || null;
+  const changeKind = (v) => { setKind(v); setPage(1); };
+  const changeSearch = (v) => { setSearch(v); setPage(1); };
+  const reset = () => { changeSearch(''); changeKind('all'); };
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 p-5 sm:p-8 2xl:max-w-none">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search name, email or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+    <div className={s.purchasesLyra}>
+      <div className={s.heading}>
+        <div>
+          <h1>Checkout purchases</h1>
+          <p>Every payment with its booking, receipt, and follow-up status.</p>
         </div>
-        <p className="text-sm text-muted-foreground sm:ml-auto">{shown.length} purchase{shown.length === 1 ? '' : 's'} · {money(total)}</p>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}><RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} /> Refresh</Button>
+        <div className={s.headingActions}>
+          <button type="button" className={s.secondaryButton} onClick={load} disabled={loading}>
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />Refresh
+          </button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-b hover:bg-transparent" style={{ backgroundImage: HEADER_GRADIENT }}>
-              {['Paid', 'Customer', 'Amount', 'Session', 'Account', 'Receipt', 'Automations'].map((h) => (
-                <TableHead key={h} className="h-14 px-4 align-middle text-[13px] font-semibold text-foreground">{h}</TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shown.length ? shown.map((p) => (
-              <TableRow key={p.id} className="align-top">
-                <TableCell className="whitespace-nowrap px-4 py-3 text-sm">
-                  <div className="cad-mono">{fmtDate(p.paid_at)}</div>
-                  <div className="cad-mono text-xs text-muted-foreground">{fmtTime(p.paid_at)}</div>
-                </TableCell>
-                <TableCell className="px-4 py-3 text-sm">
-                  <div className="font-medium">{[p.first_name, p.last_name].filter(Boolean).join(' ') || '—'}</div>
-                  <div className="text-xs text-muted-foreground">{p.email}</div>
-                  {p.phone && <div className="text-xs text-muted-foreground">{p.phone}</div>}
-                </TableCell>
-                <TableCell className="px-4 py-3 text-sm">
-                  <div className="font-medium">{money(p.amount)}</div>
-                  {p.promo && <Badge className="mt-1 bg-amber-100 text-amber-800 hover:bg-amber-100">Promo</Badge>}
-                  {p.payment_intent && (
-                    <a href={stripeUrl(p)} target="_blank" rel="noreferrer" className="mt-1 flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground">
-                      Stripe <ExternalLink className="size-3" />
-                    </a>
-                  )}
-                </TableCell>
-                <TableCell className="px-4 py-3 text-sm"><Session p={p} /></TableCell>
-                <TableCell className="px-4 py-3 text-sm">
-                  <div className="whitespace-nowrap">{p.new_account ? 'New account' : 'Existing account'}</div>
-                  {p.current_step != null && <div className="text-xs text-muted-foreground">Step {p.current_step}</div>}
-                </TableCell>
-                <TableCell className="space-y-1 px-4 py-3 text-sm">
-                  <Check ok={p.receipt_sent}><span className="whitespace-nowrap">{p.receipt_sent ? 'Emailed' : 'Not emailed'}</span></Check>
-                  {p.receipt_filed && p.receipt_drive_file_id
-                    ? <a href={driveUrl(p.receipt_drive_file_id)} target="_blank" rel="noreferrer" className="block"><Check ok><span className="whitespace-nowrap">PDF in Drive</span></Check></a>
-                    : <Check ok={false}><span className="whitespace-nowrap">Not in Drive</span></Check>}
-                </TableCell>
-                <TableCell className="min-w-[240px] px-4 py-3 text-sm">
-                  <Automations p={p} />
-                  {p.status === 'fulfilled' && (
-                    <Button variant="outline" size="sm" className="mt-2 h-7 px-2 text-xs" onClick={() => setSendFor(p)}><Send className="size-3" /> Send to automations</Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            )) : (
-              <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                  {purchases.length ? 'No purchases match your search.' : 'No purchases through /checkout yet. GHL checkout purchases are in GHL.'}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <section className={`${s.purchaseOverview} ${s.overviewThree}`} aria-label="Purchase overview">
+        <div className={s.purchaseHero}><span>NEW PATIENTS</span><UserPlus size={21} /><strong>{purchases ? stats.newPatients : '—'}</strong><p>Portal accounts created by checkout</p></div>
+        <div className={s.purchaseMetric}><span>FULL PRICE</span><CreditCard size={19} /><strong>{purchases ? stats.fullPrice : '—'}</strong><p>{share(stats.fullPrice, stats.count)}</p></div>
+        <div className={s.purchaseMetric}><span>PROMO SALES</span><Tag size={19} /><strong>{purchases ? stats.promo : '—'}</strong><p>{share(stats.promo, stats.count)}</p></div>
+      </section>
+
+      <Tabs value={kind} onValueChange={changeKind} className={`${s.surface} ${s.analyticsSurface}`}>
+        <div className={`${s.analyticsToolbar} ${s.usersToolbar}`}>
+          <div>
+            <span className={s.analyticsKicker}>PURCHASE LEDGER</span>
+            <h2>All purchases<span className={s.peopleCount}>{plural(shown.length, 'purchase')}</span></h2>
+          </div>
+          <div className={s.usersSearchRow}>
+            <div className={s.usersSearch}><SearchBox value={search} onChange={changeSearch} label="Search name, email or phone" placeholder="Name, email or phone" /></div>
+          </div>
+          <TabsList className={s.lyraTabs} aria-label="Purchase type">
+            <TabsTrigger value="all">All <span className={s.tabCount}>{stats.count}</span></TabsTrigger>
+            <TabsTrigger value="promo">Promo <span className={s.tabCount}>{stats.promo}</span></TabsTrigger>
+            <TabsTrigger value="full">Full price <span className={s.tabCount}>{stats.fullPrice}</span></TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value={kind} className="mt-0" aria-busy={loading}>
+          {purchases === null ? (
+            <p className={s.loadingRow} role="status">Loading purchases…</p>
+          ) : rows.length ? (
+            <div className={s.tableArea} data-busy={loading}>
+              <div className={s.desktopTable}>
+                <Table className={`${s.table} ${s.purchaseTable}`}>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Customer</TableHead><TableHead>Paid</TableHead><TableHead>Session</TableHead><TableHead>Amount</TableHead>
+                      <TableHead>Automations</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Details</span></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((p) => {
+                      const b = p.booking;
+                      return (
+                        <TableRow key={p.id} className={s.purchaseRow} onClick={() => setOpenId(p.id)}>
+                          <TableCell><Person p={p} /></TableCell>
+                          <TableCell><span className={s.monoDate}>{fmtDate(p.paid_at)}</span><span className={s.monoTime}>{fmtTime(p.paid_at)}</span></TableCell>
+                          <TableCell>
+                            {b ? <>
+                              <span className={s.sessionCell}>{fmtDate(b.slot_start_utc)}</span>
+                              <span className={s.monoTime}>{fmtTime(b.slot_start_utc)}{b.host && <> · <span className={s.hostName}>{b.host}</span></>}</span>
+                            </> : <span className={s.monoTime}>{p.outcome === 'needs_new_time' ? 'Picking a new time' : '—'}</span>}
+                          </TableCell>
+                          <TableCell>
+                            <div className={s.purchaseAmount}><strong>{money(p.amount)}</strong><span data-tone={p.promo ? 'promo' : 'full'}>{p.promo ? 'Promo' : 'Full price'}</span></div>
+                          </TableCell>
+                          <TableCell><AutomationChip p={p} /></TableCell>
+                          <TableCell><StatusChip p={p} /></TableCell>
+                          <TableCell>
+                            <button type="button" className={s.iconButton} aria-label={`View ${fullName(p)}’s purchase`} onClick={(e) => { e.stopPropagation(); setOpenId(p.id); }}><ChevronRight size={17} /></button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className={s.mobileList}>
+                {rows.map((p) => (
+                  <button key={p.id} type="button" className={s.purchaseMobileRow} onClick={() => setOpenId(p.id)}>
+                    <div className={s.purchaseMobileTop}><Person p={p} /><strong>{money(p.amount)}</strong></div>
+                    <div className={s.purchaseMobileMeta}>
+                      <span><CalendarDays size={14} />{p.booking ? `${fmtDate(p.booking.slot_start_utc)} · ${fmtTime(p.booking.slot_start_utc)}` : '—'}</span>
+                      <StatusChip p={p} />
+                    </div>
+                    <div className={s.purchaseMobileBottom}>
+                      <span data-tone={p.promo ? 'promo' : 'full'}>{p.promo ? 'Promo' : 'Full price'}</span>
+                      <AutomationChip p={p} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : purchases.length ? (
+            <NoResults reset={reset} />
+          ) : (
+            <p className={s.loadingRow}>No purchases through /checkout yet. GHL checkout purchases are in GHL.</p>
+          )}
+          <TablePager page={page} count={shown.length} pageSize={PAGE_SIZE} onChange={setPage} />
+        </TabsContent>
+      </Tabs>
+
+      <PurchaseSheet purchase={open} onClose={() => setOpenId(null)} onSend={setSendFor} />
       {sendFor && <SendDialog purchase={sendFor} onClose={() => setSendFor(null)} onSent={() => { setSendFor(null); load(); }} />}
     </div>
   );
