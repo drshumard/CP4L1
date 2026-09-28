@@ -64,7 +64,8 @@
 
 /* Workspace */
 .workspace { display: flex; flex: 1; flex-direction: column; min-width: 0; }
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 88px; padding: 0 36px; border-bottom: 1px solid var(--line); background: #fff; }
+/* Same height as the sidebar's brand block so the two bottom edges line up. */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 102px; padding: 0 36px; border-bottom: 1px solid var(--line); background: #fff; }
 .breadcrumb { display: flex; align-items: center; gap: 12px; color: #8a96a8; font-size: .8125rem; }
 .breadcrumb strong { color: #4c5d75; font-weight: 500; white-space: nowrap; }
 .shell .navToggle { width: 36px; height: 36px; margin-right: 4px; color: #7a889e; }
@@ -171,7 +172,7 @@
 @media (max-width: 767px) {
   .shell .sideHeader { justify-content: space-between; min-height: 86px; padding: 24px; }
   .closeNav { display: grid; place-items: center; min-width: 35px; min-height: 35px; }
-  .topbar { min-height: 64px; padding: 0 16px; gap: 10px; }
+  .topbar { min-height: 86px; padding: 0 16px; gap: 10px; }
   .search kbd, .commandBar kbd, .keysHint, .tileTop kbd { display: none; }
   .main { padding: 20px 16px 32px; }
   .hero { padding: 26px 22px; }
