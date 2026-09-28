@@ -813,6 +813,14 @@ button.person:hover strong { color: #3565d0; }
 .patientPicker[data-empty] { color: #6b7280; }
 .patientPicker > svg { flex: none; opacity: .55; }
 .patientPicker:focus-visible { outline: none; border-color: #8daaf1; box-shadow: 0 0 0 3px #edf2ff; }
+/* Its results menu (a cmdk list in a popover), in the AdminSelect menus' frame with inset rows. The search row is the
+   menu's header: no focus ring at all — never the app's global teal one (index.css, 0,3,1) (user, 2026-09-28). */
+.patientMenu { padding: 3px; border: 1px solid #dfe5ef; }
+.patientMenu [cmdk-input-wrapper] { gap: 8px; margin-bottom: 3px; padding: 0 9px; border-bottom: 1px solid #edf0f5; }
+.patientMenu [cmdk-input-wrapper] > svg { margin: 0; }
+.patientMenu [cmdk-input] { color: #111; }
+.patientMenu [cmdk-input]:not([type=checkbox]):not([type=radio]):focus { border-color: transparent; outline: none; box-shadow: none; }
+.patientMenu [cmdk-empty] { color: #444; }
 .successActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 25px; }
 .success .successActions .primaryButton { margin-top: 0; }
 /* Black text (main #111, secondary #444) + Inter's aligned figures. */
