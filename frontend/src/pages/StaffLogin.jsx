@@ -129,7 +129,7 @@ export default function StaffLogin() {
       <main id="sign-in" className={s.main}>
         <section className={s.signIn} aria-labelledby="staff-title">
           <h1 id="staff-title">Sign in to<br /><span>your workspace.</span></h1>
-          <p className={s.copy}>For the Dr. Shumard practice team.</p>
+          <p className={s.copy}>Good to see you. Sign in to pick up where you left off.</p>
 
           <div className={s.card}>
             <form className={s.form} onSubmit={submitPassword} noValidate>
