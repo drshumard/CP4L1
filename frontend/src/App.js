@@ -41,6 +41,8 @@ import ResetPassword from './pages/ResetPassword';
 import OutcomePage from './pages/OutcomePage';
 import AutoLogin from './pages/AutoLogin';
 import BookingThankYou from './pages/BookingThankYou';
+import Checkout from './pages/checkout/Checkout';
+import CheckoutComplete from './pages/checkout/CheckoutComplete';
 import RefundedPage from './pages/RefundedPage';
 import SupportPopup from './components/SupportPopup';
 import { Toaster } from './components/ui/sonner';
@@ -305,7 +307,8 @@ function AxiosInterceptor() {
   return null;
 }
 
-// Hide the floating support chat inside the admin area.
+// Hide the floating support chat inside the admin area (and on the checkout, which has its own
+// "Need help?" link and a fixed mobile reservation bar the bubble would cover).
 function GlobalSupport() {
   const { pathname } = useLocation();
   const [isMobile, setIsMobile] = useState(
@@ -320,7 +323,7 @@ function GlobalSupport() {
 
   // The help box is a PATIENT affordance: never on admin/staff surfaces or the
   // prototype preview ('/staff' also covers /staff-login).
-  if (['/admin', '/staff', '/prototype'].some((p) => pathname.startsWith(p))) return null;
+  if (['/admin', '/staff', '/prototype', '/checkout'].some((p) => pathname.startsWith(p))) return null;
   // On phones it crowds the UI — only the login page and the dashboard keep it.
   if (isMobile && !['/', '/dashboard', '/login'].includes(pathname)) return null;
   return <SupportPopup />;
@@ -350,6 +353,8 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/auto-login/:token" element={<AutoLogin />} />
             <Route path="/booking-complete" element={<BookingThankYou />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout/complete" element={<CheckoutComplete />} />
             <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
             <Route path="/" element={isStaffHost() ? <Navigate to="/staff" replace /> : <JourneyRoute><PortalDashboard /></JourneyRoute>} />
             <Route path="/dashboard" element={<JourneyRoute><PortalDashboard /></JourneyRoute>} />

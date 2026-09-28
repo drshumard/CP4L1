@@ -50,6 +50,257 @@
                 document.head.appendChild(tailwindScript);
             }
         </script>
+        <!--
+        Marketing tracking for the book-first checkout (/checkout) ONLY. The scripts inside the template
+        are verbatim from marketing and inert here; the loader below copies them into <head> in the same
+        order, but only on /checkout (and not on localhost / 127.0.0.1 unless the URL has ?tracking=1).
+        -->
+        <template id="checkout-head-scripts">
+<script src="https://tether.drshumard.com/api/shumard.js"></script>
+<script src="https://analytics.drshumard.com/shumard.js"></script>
+<script src="https://zsh.drshumard.com/api/page.js?k=tk_0ouP_GwLM8Tl"></script>
+
+
+<script>
+    !function(){
+    var d = document, q = [], r = d.referrer;
+    window.e_g = window.e_g || function(){ q.push(arguments) };
+    e_g.q = q;
+    var s = d.createElement("script");
+    s.async = 1;
+    s.src = "https://e.drshumardworkshop.com/e/";
+    d.head.appendChild(s);
+    }();
+    e_g("init", "9856890908232");
+    e_g('set','clicks','enabled');e_g('track','PageView');
+
+    function e_g_purchase(){
+        try {
+            var user_data = JSON.parse(localStorage.getItem('_ud'));
+            var session_data = JSON.parse(localStorage.getItem('v2_history_'+ user_data.location_id));
+            var order_data = JSON.parse(localStorage.getItem('_pl_'+ session_data.sessions[0].funnel.id));
+            var contents = [];
+            order_data.products.forEach(function(product) {
+                contents.push({
+                    id: product._id,
+                    quantity: product.quantity.max,
+                    item_price: product.price.amount
+                });
+            });
+            console.log("Contents:", contents);
+            var eg_data = {
+                transaction_id: order_data.orderIds[0],
+                value: order_data.total,
+                currency: order_data.products[0].price.currency,
+                tax: order_data.tax,
+                content_ids: contents.map(item => item.id),
+                contents: contents,
+                num_items: contents.reduce((acc, item) => acc + item.quantity, 0),
+                content_type: 'product_group',
+                // Customer data (optional)
+                first_name: user_data.first_name,
+                last_name: user_data.last_name,
+                email_address: user_data.email_address,
+                phone_number: user_data.phone,
+                countryCode: user_data.country
+            };
+            e_g('track', 'Purchase', eg_data);
+        } catch (error) {
+            console.error("Error capturing purchase data for e_g:", error);
+        };
+    }
+    var confirmation_pages = ['confirm-booking', 'order-confirmation'];
+    var reload_flag = window.performance.getEntriesByType('navigation').map(function(nav){ return nav.type }).includes('reload');
+    if (confirmation_pages.includes(window.location.pathname.split('/').pop()) && !reload_flag) {
+        e_g_purchase();
+    }
+    window.addEventListener('message', e => {
+        if (e.origin !== 'https://joinnow.live') return;
+        if(!e.data.email) return;
+        e_g('track', 'Lead', {email_address: e.data.email, value: 5, currency: 'USD'});
+    });
+
+    function crawlProducts() {
+        var nodes = document.querySelectorAll('section.product-detail .product-description');
+        var contents = [];
+        nodes.forEach(function(node){
+            // id: prefer element id, fallback to input value
+            var id = node.id || (node.querySelector('input[type=checkbox],input[type=radio]') || {}).value || '';
+            var nameEl = node.querySelector('.product-name');
+            var name = nameEl ? nameEl.textContent.trim() : '';
+            // quantity
+            var qtyText = (node.querySelector('.text-center.item') || {}).textContent || '1';
+            var quantity = parseInt(qtyText.replace(/\D+/g,''),10) || 1;
+            // price
+            var priceTextRaw = (node.querySelector('.item-price') || {}).textContent || '';
+            var priceNumber = parseFloat((priceTextRaw.match(/[\d,.]+/) || ['0'])[0].replace(/,/g,'')) || 0;
+
+            contents.push({
+                id: id,
+                quantity: quantity,
+                item_price: priceNumber,
+            });
+        });
+        return contents;
+    }
+
+
+    function trackCheckout() {
+
+        if (window.location.pathname.split('/').pop() !== 'checkout') return;
+        var product_contents = crawlProducts();
+        console.log("Crawled Products:", product_contents);
+        if (!product_contents.length) return;
+        e_g('track', 'checkout_started', {
+            content_type: 'product_group',
+            content_name: 'Checkout',
+            content_ids: product_contents.map(item => item.id),
+            contents: product_contents,
+            num_items: product_contents.reduce((acc, item) => acc + item.quantity, 0),
+            value: product_contents.reduce((acc, item) => acc + (item.item_price * item.quantity), 0),
+            currency: 'USD'
+        });
+    }
+    if (document.readyState === 'complete') {
+        setTimeout(trackCheckout, 3000);
+    } else {
+        window.addEventListener('load', setTimeout(trackCheckout, 3000));
+    }
+</script>
+
+<script>
+var hyrosHead = document.head;
+var hyrosScript = document.createElement('script');
+hyrosScript.type = 'text/javascript';
+hyrosScript.src = "https://h.drshumardworkshop.com/v1/bec124149e4bfb02f573e3c8dfa7811fc273b0d377b3fa7b814eabffb9c4741c?tag=!clicked&ref_url=" + encodeURI(document.URL) ;
+hyrosHead.appendChild(hyrosScript);
+</script>
+
+
+<script>
+  // EdgeTag initialization
+  (function () {
+    let edgeURL = 'https://duthc.drshumardworkshop.com';
+    window.edgetag =
+      window.edgetag ||
+      function () {
+        (edgetag.stubs = edgetag.stubs || []).push(arguments);
+      };
+    let t = document.createElement('script');
+    t.type = 'text/javascript';
+    t.src = edgeURL + '/load';
+    t.async = true;
+    let e = document.getElementsByTagName('script')[0];
+    e.parentNode.insertBefore(t, e);
+    let url = new URL(window.location.href);
+    let params = new URLSearchParams(url.search);
+    let userId = params.get('et_u_id') || '';
+    edgetag('init', {
+      edgeURL: edgeURL,
+      disableConsentCheck: true,
+      userId: userId,
+    });
+    edgetag('tag', 'PageView');
+  })();
+</script>
+
+<script>
+  window.addEventListener('edgetag-initialized', function () {
+    const sendUser = (user) => {
+      if (!user) {
+        return;
+      }
+      Object.entries(user).forEach(([key, value]) => {
+        if (!value) {
+          delete user[key];
+        }
+      });
+      if (!Object.keys(user).length) {
+        return;
+      }
+      edgetag('data', user);
+    };
+    if (window.location.href.includes('webinar.drshumardworkshop.com')) {
+      try {
+        if (sessionStorage.getItem('edgetag_lead_fired') !== 'true') {
+          edgetag('tag', 'Lead');
+          sessionStorage.setItem('edgetag_lead_fired', true);
+        }
+      } catch (e) {
+        console.error('Error in edgetag lead logic:', e);
+      }
+    }
+    if (window.location.href.includes('checkout')) {
+      edgetag('tag', 'InitiateCheckout');
+    }
+    document.addEventListener(
+      'click',
+      function (e) {
+        let target = e.target;
+        if (target.closest('button.form-btn')) {
+          let name = document.querySelector('input[name="name"]')?.value || '';
+          let email =
+            document.querySelector('input[name="email"]')?.value || '';
+          let phone =
+            document.querySelector('input[name="phone"]')?.value || '';
+          let user = {
+            email: email,
+            phone: phone.replace(/\s+/g, ''),
+          };
+          if (name) {
+            let nameParts = name.split(' ');
+            user.firstName = nameParts[0] || '';
+            user.lastName = nameParts.slice(1).join(' ') || '';
+          }
+          sendUser(user);
+          let orderTotalElem = document.querySelector(
+            '.order-total .item-price'
+          );
+          let finalPrice = 0;
+          if (orderTotalElem) {
+            let priceText = orderTotalElem.textContent.replace(/[^0-9.]+/g, '');
+            finalPrice = parseFloat(priceText) || 0;
+          }
+          edgetag('tag', 'AddPaymentInfo', {
+            currency: 'USD',
+            value: finalPrice,
+          });
+        }
+      },
+      true
+    );
+  });
+</script>
+
+
+
+<script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "x7zzw5k3pd");
+</script>
+        </template>
+        <script>
+            (function () {
+                var devHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+                if (location.pathname.replace(/\/+$/, '') !== '/checkout') return;
+                if (devHost && !/[?&]tracking=1(&|$)/.test(location.search)) return;
+                var scripts = document.getElementById('checkout-head-scripts').content.querySelectorAll('script');
+                // One at a time, waiting for each external file, so everything runs in the supplied
+                // order exactly as plain <script> tags in <head> would.
+                (function next(i) {
+                    if (i >= scripts.length) return;
+                    var orig = scripts[i], s = document.createElement('script');
+                    for (var a = 0; a < orig.attributes.length; a++) s.setAttribute(orig.attributes[a].name, orig.attributes[a].value);
+                    s.text = orig.text;
+                    if (orig.src) s.onload = s.onerror = function () { next(i + 1); };
+                    document.head.appendChild(s);
+                    if (!orig.src) next(i + 1);
+                })(0);
+            })();
+        </script>
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>

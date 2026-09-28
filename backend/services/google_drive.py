@@ -57,11 +57,12 @@ def upload_pdf_to_drive(pdf_bytes: bytes, filename: str, folder_id: str = None) 
             resumable=True
         )
         
-        # Upload file to personal Drive (no supportsAllDrives needed)
+        # supportsAllDrives: the target may also be a shared drive (checkout receipts go to one)
         file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webViewLink'
+            fields='id, webViewLink',
+            supportsAllDrives=True
         ).execute()
         
         return {
