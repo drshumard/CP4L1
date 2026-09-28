@@ -3,7 +3,6 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { ArrowUpRight, Plus, Search } from 'lucide-react';
 import { adminApi } from '../admin/api';
 import { ROLE_LABELS } from '@/lib/staffApps';
-import { appCode } from './StaffLayout';
 import s from './staff-shell.module.css';
 
 // Workspace home, ported from shumard-checkout-portal/app/staff: welcome band, app rack,
@@ -73,7 +72,7 @@ export default function StaffHome() {
           {apps.map((app, i) => (
             <li key={app.key}>
               <Link to={app.path} className={s.tile} aria-label={`${app.label}: ${app.blurb}`} aria-keyshortcuts={String(i + 1)}>
-                <span className={s.tileTop}><span className={s.code}>{appCode(i)}</span><kbd aria-hidden="true">{i + 1}</kbd></span>
+                <span className={s.tileTop}><kbd aria-hidden="true">{i + 1}</kbd></span>
                 <span className={s.tileIcon} data-tone={app.tone}><app.icon size={20} strokeWidth={1.8} aria-hidden="true" /></span>
                 <span className={s.tileName}>{app.label}</span>
                 <span className={s.tileCopy}>{app.blurb}</span>
@@ -82,7 +81,6 @@ export default function StaffHome() {
             </li>
           ))}
           <li className={s.socket}>
-            <span className={s.code}>{appCode(apps.length)}</span>
             <span className={s.socketIcon} aria-hidden="true"><Plus size={18} /></span>
             <span className={s.tileName}>Next app</span>
             <span className={s.tileCopy}>More apps will appear here as they're added to the workspace.</span>

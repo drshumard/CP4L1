@@ -176,7 +176,7 @@ export default function StaffLayout() {
   const openPalette = () => setPaletteOpen(true);
 
   return (
-    <SidebarProvider className={s.shell} style={{ '--sidebar-width': '232px' }}>
+    <SidebarProvider className={s.shell} defaultOpen={false} style={{ '--sidebar-width': '232px' }}>
       <Sidebar className={s.sidebar}>
         <StaffNav pathname={pathname} apps={apps} profile={profile} name={name} role={role} onLogout={logout} />
       </Sidebar>

@@ -101,7 +101,7 @@
 .tile { display: flex; flex-direction: column; align-items: flex-start; width: 100%; min-height: 260px; padding: 18px 20px 16px; border: 0; background: #fff; color: inherit; text-align: left; transition: background .25s var(--ease), box-shadow .25s var(--ease); }
 .tile:hover { background: #f8faff; box-shadow: inset 0 2px var(--brand); }
 .shell .tile:focus-visible { outline-offset: -3px; }
-.tileTop { display: flex; align-items: center; justify-content: space-between; align-self: stretch; }
+.tileTop { display: flex; align-items: center; justify-content: flex-end; align-self: stretch; min-height: 20px; }
 .code { color: #8a96a8; font-family: var(--mono); font-size: .6875rem; letter-spacing: .08em; transition: color .25s var(--ease); }
 .tile:hover .code { color: var(--brand); }
 .tileIcon { display: grid; place-items: center; width: 44px; height: 44px; margin-top: 24px; border: 1px solid #dce5fa; border-radius: 3px; background: #edf2ff; color: var(--brand); }
@@ -116,7 +116,7 @@
 .arrow { flex-shrink: 0; color: #9aa6b8; transition: color .25s var(--ease), transform .25s var(--ease); }
 .tile:hover .arrow { color: var(--brand); transform: translate(2px, -2px); }
 .rack > .socket { display: flex; flex-direction: column; align-items: flex-start; min-height: 260px; padding: 18px 20px 16px; background: #fafbfd repeating-linear-gradient(135deg, transparent 0 11px, rgba(49, 95, 209, .045) 11px 12px); }
-.socketIcon { display: grid; place-items: center; width: 44px; height: 44px; margin-top: 24px; border: 1px dashed #b9c6db; border-radius: 3px; background: #fff; color: #8a96a8; }
+.socketIcon { display: grid; place-items: center; width: 44px; height: 44px; margin-top: 44px; border: 1px dashed #b9c6db; border-radius: 3px; background: #fff; color: #8a96a8; }
 .socket .tileName { color: #54647c; }
 
 .glance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
