@@ -1,28 +1,88 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Home, ChevronsUpDown, LogOut, Settings } from 'lucide-react';
+import { ArrowUpRight, ChevronRight, CircleHelp, Home, LogOut, Settings, X } from 'lucide-react';
 import {
-  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarHeader,
-  SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider,
-  SidebarRail, SidebarTrigger,
+  Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarProvider, SidebarTrigger, useSidebar,
 } from '@/components/ui/sidebar';
-import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { adminApi } from '../admin/api';
 import { appsForCapabilities, TEAM_ROLES, ROLE_LABELS, loginPath } from '@/lib/staffApps';
 import { endSession } from '@/lib/session';
+import logo from '../checkout/dr-shumard-logo.png';
+import s from './staff-shell.module.css';
 import '../admin/admin.css';
 
-const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
+// Team workspace shell — layout ported from shumard-checkout-portal/app/admin (Lyra).
 
 function pageTitle(pathname, apps) {
   if (pathname.startsWith('/staff/settings')) return 'Settings';
   const app = apps.find((a) => pathname.startsWith(a.path));
   return app ? app.label : 'Home';
+}
+
+const initialsOf = (name) => (name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
+
+function AccountAvatar({ profile, name }) {
+  return (
+    <span className={s.accountAvatar}>
+      {profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : initialsOf(name)}
+    </span>
+  );
+}
+
+// Inside SidebarProvider so the mobile sheet can close itself after a navigation.
+function StaffNav({ pathname, apps, profile, name, role, userMenuContent }) {
+  const { setOpenMobile } = useSidebar();
+  const close = () => setOpenMobile(false);
+  const items = [{ key: 'home', label: 'Home', path: '/staff', icon: Home, exact: true }, ...apps];
+  return (
+    <>
+      <SidebarHeader className={s.sideHeader}>
+        <Link to="/staff" className={s.sideBrand} onClick={close}>
+          <img src={logo} alt="Dr. Shumard" width={1024} height={152} />
+          <span>Team workspace</span>
+        </Link>
+        <button type="button" onClick={close} aria-label="Close navigation" className={s.closeNav}><X size={20} /></button>
+      </SidebarHeader>
+      <SidebarContent className={s.sideContent}>
+        <p className={s.navLabel}>Workspace</p>
+        <nav aria-label="Workspace navigation" className={s.sideNav}>
+          {items.map((item, i) => {
+            const active = item.exact ? pathname === item.path : pathname.startsWith(item.path);
+            return (
+              <Link key={item.key} to={item.path} aria-current={active ? 'page' : undefined} onClick={close}>
+                <span className={s.navIcon}><item.icon size={17} /></span>
+                <span>{item.label}</span>
+                <small>{String(i + 1).padStart(2, '0')}</small>
+              </Link>
+            );
+          })}
+        </nav>
+        <div className={s.sideHelp}>
+          <span className={s.sideHelpLabel}>SUPPORT</span>
+          <CircleHelp size={19} />
+          <h3>A little help?</h3>
+          <p>Get in touch with the team.</p>
+          <a href="https://drshumardworkshop.com/contact-us" target="_blank" rel="noreferrer">Contact support <ArrowUpRight size={14} /></a>
+        </div>
+      </SidebarContent>
+      <SidebarFooter className={s.sideFooter}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={s.account} aria-label="Account menu">
+              <AccountAvatar profile={profile} name={name} />
+              <div><strong>{name}</strong><span>{ROLE_LABELS[role] || role}</span></div>
+              <span className={s.onlineDot} aria-hidden="true" />
+            </button>
+          </DropdownMenuTrigger>
+          {userMenuContent('top', 'start')}
+        </DropdownMenu>
+      </SidebarFooter>
+    </>
+  );
 }
 
 export default function StaffLayout() {
@@ -33,6 +93,12 @@ export default function StaffLayout() {
   // Only genuine rejection may redirect — a flaky backend must never dump staff
   // into the patient portal.
   const [failed, setFailed] = useState(null);
+
+  useEffect(() => {
+    const previous = document.title;
+    document.title = 'Team Workspace | Dr. Shumard';
+    return () => { document.title = previous; };
+  }, []);
 
   useEffect(() => {
     const load = () => {
@@ -83,12 +149,11 @@ export default function StaffLayout() {
   }
 
   const name = profile.name || 'Team member';
-  const initials = (name.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('') || 'T').toUpperCase();
 
   // Explicit logout: clears Portal tokens + Learn cookie, hard-redirects to sign-in.
   const logout = () => endSession(loginPath());
 
-  // One menu, two triggers: the sidebar-footer chip and the navbar avatar share it.
+  // One menu, two triggers: the sidebar-footer chip and the topbar avatar share it.
   const userMenuContent = (side, align) => (
     <DropdownMenuContent side={side} align={align} sideOffset={4} className="min-w-56 rounded-lg">
       <DropdownMenuLabel className="p-0 font-normal">
@@ -108,78 +173,37 @@ export default function StaffLayout() {
   );
 
   return (
-    <SidebarProvider className="admin-geist" style={{ background: 'hsl(40 6% 91%)' }}>
-      <Sidebar variant="floating" collapsible="icon">
-        <SidebarHeader>
-          <Link to="/staff" className="flex h-10 items-center px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <img src={LOGO} alt="Dr. Shumard" className="h-7 w-auto object-contain group-data-[collapsible=icon]:hidden" />
-          </Link>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === '/staff'} tooltip="Home">
-                  <Link to="/staff"><Home /><span>Home</span></Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {apps.map((a) => (
-                <SidebarMenuItem key={a.key}>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith(a.path)} tooltip={a.label}>
-                    <Link to={a.path}><a.icon /><span>{a.label}</span></Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-                    <Avatar className="size-8 rounded-lg">
-                      <AvatarImage src={profile.avatar_url || undefined} alt={name} />
-                      <AvatarFallback className="rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-                    </Avatar>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">{name}</span>
-                      <span className="truncate text-xs text-muted-foreground">{ROLE_LABELS[role] || role}</span>
-                    </div>
-                    <ChevronsUpDown className="ml-auto size-4" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                {userMenuContent('top', 'end')}
-              </DropdownMenu>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-        <SidebarRail />
+    <SidebarProvider className={s.shell} style={{ '--sidebar-width': '232px' }}>
+      <Sidebar className={s.sidebar}>
+        <StaffNav pathname={pathname} apps={apps} profile={profile} name={name} role={role} userMenuContent={userMenuContent} />
       </Sidebar>
-
-      <SidebarInset className="md:m-2 md:ml-0 md:rounded-xl md:border md:shadow-sm md:h-[calc(100svh-1rem)] overflow-hidden bg-card">
-        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-1 h-4" />
-          <h1 className="text-base font-semibold">{pageTitle(pathname, apps)}</h1>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button type="button" aria-label="Account menu"
-                className="ml-auto flex items-center gap-2 rounded-full outline-none transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-ring">
-                <Avatar className="size-8">
-                  <AvatarImage src={profile.avatar_url || undefined} alt={name} />
-                  <AvatarFallback className="bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">{initials}</AvatarFallback>
-                </Avatar>
-              </button>
-            </DropdownMenuTrigger>
-            {userMenuContent('bottom', 'end')}
-          </DropdownMenu>
+      <div className={s.workspace}>
+        <header className={s.topbar}>
+          <div className={s.breadcrumb}>
+            <SidebarTrigger className={s.navToggle} />
+            <span>Workspace</span>
+            <ChevronRight size={14} />
+            <strong>{pageTitle(pathname, apps)}</strong>
+          </div>
+          <div className={s.topbarRight}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label="Account menu" className={s.topbarAvatar}>
+                  <AccountAvatar profile={profile} name={name} />
+                </button>
+              </DropdownMenuTrigger>
+              {userMenuContent('bottom', 'end')}
+            </DropdownMenu>
+          </div>
         </header>
-        <div className={`flex-1 overflow-y-auto min-w-0 [scrollbar-gutter:stable] animate-in fade-in-0 duration-200 ${pathname.startsWith('/staff/supplements') ? '' : 'p-6'}`}>
+        <main id="staff-main" className={s.main}>
           <Outlet context={{ profile, role, apps }} />
-        </div>
-      </SidebarInset>
+        </main>
+        <footer className={s.workspaceFooter}>
+          <span>Dr. Shumard · Team workspace</span>
+          <span>Signed in as {profile.email}</span>
+        </footer>
+      </div>
     </SidebarProvider>
   );
 }
