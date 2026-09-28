@@ -28,7 +28,8 @@ export const STAFF_APPS = [
     path: '/admin',
     icon: ShieldCheck,
     capability: 'portal',
-    blurb: 'The admin portal — patients, scheduling, analytics, team.',
+    blurb: 'The admin portal for patients, scheduling, analytics and the team.',
+    tone: 'blue', tags: ['Patients', 'Scheduling', 'Analytics'],
   },
   {
     key: 'learn',
@@ -36,7 +37,8 @@ export const STAFF_APPS = [
     path: '/staff/learn',
     icon: GraduationCap,
     capability: 'learn',
-    blurb: 'Training, SOPs, and onboarding material for the whole team.',
+    blurb: 'Training, SOPs and onboarding material for the whole team.',
+    tone: 'aqua', tags: ['Training', 'SOPs', 'Onboarding'],
   },
   {
     key: 'supplements',
@@ -45,6 +47,7 @@ export const STAFF_APPS = [
     icon: Pill,
     capability: 'supplements',
     blurb: 'The supplement protocol manager for health coaches.',
+    tone: 'amber', tags: ['Protocols', 'Coaching'],
   },
   {
     key: 'team',
@@ -53,6 +56,7 @@ export const STAFF_APPS = [
     icon: UserCog,
     capability: 'team',
     blurb: 'Create team members and assign their roles.',
+    tone: 'green', tags: ['Members', 'Roles'],
   },
 ];
 
