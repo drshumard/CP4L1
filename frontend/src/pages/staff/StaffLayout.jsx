@@ -155,7 +155,8 @@ export default function StaffLayout() {
 
   // One menu, two triggers: the sidebar-footer chip and the topbar avatar share it.
   const userMenuContent = (side, align) => (
-    <DropdownMenuContent side={side} align={align} sideOffset={4} className="min-w-56 rounded-lg">
+    <DropdownMenuContent side={side} align={align} sideOffset={4} className="min-w-56 rounded-lg"
+      style={{ fontFamily: '"Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif' }}>  {/* portalled outside .shell */}
       <DropdownMenuLabel className="p-0 font-normal">
         <div className="grid px-2 py-1.5 text-sm leading-tight">
           <span className="truncate font-semibold">{name}</span>

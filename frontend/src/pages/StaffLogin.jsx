@@ -10,7 +10,7 @@ import s from './staff-login.module.css';
 // Google (primary) or email + password (alternative). Either way the backend only learns
 // the email — the Team page (users collection) decides membership/role. The one portal
 // JWT it returns then governs the admin portal, Supplements, and Learn (via SSO handoff).
-// Layout ported from shumard-checkout-portal/app/staff-login (Lyra).
+// Layout ported from shumard-checkout-portal/app/sign-in inside the welcome frame (Lyra).
 
 const API = process.env.REACT_APP_BACKEND_URL + '/api';
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_OAUTH_CLIENT_ID || '';
@@ -82,7 +82,7 @@ export default function StaffLogin() {
       });
       window.google.accounts.id.renderButton(googleBtnRef.current, {
         theme: 'outline', size: 'large', shape: 'rectangular', text: 'signin_with',
-        width: Math.min(372, googleBtnRef.current.clientWidth || 372),
+        width: Math.min(392, googleBtnRef.current.clientWidth || 392),
       });
     }).catch(() => setNotice('Could not load Google sign-in — you can still use email and password.'));
     return () => { cancelled = true; };
@@ -113,29 +113,33 @@ export default function StaffLogin() {
     }
   };
 
+  const patientLink = isStaffHost()
+    ? <a href={PATIENT_LOGIN}>Go to patient sign in <ArrowRight size={14} aria-hidden="true" /></a>
+    : <Link to="/login">Go to patient sign in <ArrowRight size={14} aria-hidden="true" /></Link>;
+
   return (
-    <main className={s.page}>
-      <div className={s.column}>
-        <section className={s.card} aria-labelledby="staff-title">
-          <div className={s.brand}>
-            <img src={logo} alt="Dr. Shumard" width={1024} height={152} />
-            <span>Team workspace</span>
-          </div>
+    <div className={s.page}>
+      <header className={s.header}>
+        <a href="https://drshumardworkshop.com" aria-label="Dr. Shumard home">
+          <img src={logo} alt="Dr. Shumard" width={1024} height={152} className={s.logo} />
+        </a>
+        <span className={s.portalLabel}>Team workspace</span>
+      </header>
 
-          <div className={s.body}>
-            <h1 id="staff-title">Sign in to your workspace</h1>
-            <p className={s.intro}>For the Dr. Shumard practice team.</p>
+      <main id="sign-in" className={s.main}>
+        <section className={s.signIn} aria-labelledby="staff-title">
+          <h1 id="staff-title">Sign in to<br /><span>your workspace.</span></h1>
+          <p className={s.copy}>For the Dr. Shumard practice team.</p>
 
-            {notice && <p className={s.notice} role="alert"><CircleAlert size={17} aria-hidden="true" /><span>{notice}</span></p>}
-
-            {GOOGLE_CLIENT_ID && (
-              <>
-                <div ref={googleBtnRef} className={s.google} />
-                <div className={s.divider}>or</div>
-              </>
-            )}
-
+          <div className={s.card}>
             <form className={s.form} onSubmit={submitPassword} noValidate>
+              {GOOGLE_CLIENT_ID && (
+                <>
+                  <div ref={googleBtnRef} className={s.google} />
+                  <div className={s.divider}>or</div>
+                </>
+              )}
+
               <label htmlFor="staff-email" className={s.label}>Work email</label>
               <input
                 id="staff-email"
@@ -150,7 +154,7 @@ export default function StaffLogin() {
                 aria-invalid={Boolean(errors.email)}
                 aria-describedby={errors.email ? 'staff-email-error' : undefined}
               />
-              {errors.email && <p id="staff-email-error" className={s.error} role="alert">{errors.email}</p>}
+              {errors.email && <p id="staff-email-error" className={s.error} role="alert"><CircleAlert size={16} aria-hidden="true" />{errors.email}</p>}
 
               <label htmlFor="staff-password" className={s.label}>Password</label>
               <div className={s.passwordField}>
@@ -169,27 +173,28 @@ export default function StaffLogin() {
                   {showPassword ? <EyeOff size={17} aria-hidden="true" /> : <Eye size={17} aria-hidden="true" />}
                 </button>
               </div>
-              {errors.password && <p id="staff-password-error" className={s.error} role="alert">{errors.password}</p>}
+              {errors.password && <p id="staff-password-error" className={s.error} role="alert"><CircleAlert size={16} aria-hidden="true" />{errors.password}</p>}
+              {notice && <p className={s.error} role="alert"><CircleAlert size={16} aria-hidden="true" />{notice}</p>}
 
               <button type="submit" className={s.primary} disabled={busy}>
                 {busy ? 'Signing in…' : <>Sign in <ArrowRight size={18} aria-hidden="true" /></>}
               </button>
             </form>
+
+            <div className={s.alternative}>
+              <span className={s.altIcon}><KeyRound size={17} aria-hidden="true" /></span>
+              <div><strong>Forgot your password?</strong><p>Ask an admin to reset it on the Team page.</p></div>
+            </div>
           </div>
 
-          <div className={s.help}>
-            <span className={s.helpIcon}><KeyRound size={16} aria-hidden="true" /></span>
-            <p><strong>Forgot your password?</strong>Ask an admin to reset it on the Team page.</p>
-          </div>
+          <p className={s.patient}>Are you a patient? {patientLink}</p>
         </section>
+      </main>
 
-        <p className={s.patient}>
-          Are you a patient?{' '}
-          {isStaffHost()
-            ? <a href={PATIENT_LOGIN}>Go to patient sign in <ArrowRight size={14} aria-hidden="true" /></a>
-            : <Link to="/login">Go to patient sign in <ArrowRight size={14} aria-hidden="true" /></Link>}
-        </p>
-      </div>
-    </main>
+      <footer className={s.footer}>
+        <span>A healthier tomorrow starts with you.</span>
+        <a href="https://drshumardworkshop.com/contact-us" target="_blank" rel="noreferrer">Need a hand?</a>
+      </footer>
+    </div>
   );
 }
