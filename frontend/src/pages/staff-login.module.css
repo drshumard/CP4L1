@@ -66,9 +66,10 @@
 }
 .input::placeholder { color: #9aa5b4; }
 .input:hover { border-color: #b3bfd0; }
-.input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px #dfe7fb; }
+/* Specificity beats index.css's global teal `input:not(...):not(...):focus` ring. */
+.page .form .input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px #dfe7fb; }
 .input[aria-invalid="true"] { border-color: #b4473d; }
-.input[aria-invalid="true"]:focus { box-shadow: 0 0 0 3px #f6e1de; }
+.page .form .input[aria-invalid="true"]:focus { border-color: #b4473d; box-shadow: 0 0 0 3px #f6e1de; }
 .passwordField { position: relative; margin-top: 8px; }
 .passwordField .input { margin-top: 0; padding-right: 48px; }
 .reveal { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 46px; height: 46px; border: 0; background: transparent; color: #6f7d92; }
