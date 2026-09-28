@@ -3036,6 +3036,52 @@ async def get_all_users(
         "total_pages": (total + page_size - 1) // page_size
     }
 
+
+class AdminCreateUserRequest(BaseModel):
+    first_name: str
+    last_name: str = ""
+    email: EmailStr
+    phone: Optional[str] = None
+    send_welcome_email: bool = True
+
+
+@api_router.post("/admin/users")
+async def admin_create_user(data: AdminCreateUserRequest, admin_user: dict = Depends(get_admin_user)):
+    """Admin → Users "Add user": a portal account at step 1, built like the checkout's (_ensure_user).
+    The welcome email (same one a purchase sends) is optional."""
+    email = data.email.strip().lower()
+    first, last = data.first_name.strip(), data.last_name.strip()
+    if not first:
+        raise HTTPException(status_code=400, detail="First name is required")
+    if await db.users.find_one({"email": email}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+    password = generate_portal_password()
+    user_dict = User(email=email, name=f"{first} {last}".strip(),
+                     password_hash=get_password_hash(password) if LEGACY_PASSWORD_LOGIN else None).model_dump()
+    user_dict["created_at"] = user_dict["created_at"].isoformat()
+    if not LEGACY_PASSWORD_LOGIN:
+        user_dict.pop("password_hash", None)
+    user_dict.update(first_name=first, last_name=last, signup_source="admin")
+    if data.phone and data.phone.strip():
+        user_dict["phone"] = normalize_phone(data.phone) or data.phone.strip()
+    await db.users.insert_one(dict(user_dict))
+
+    details = {"name": user_dict["name"], "source": "admin", "created_by": admin_user.get("email"),
+               "welcome_email": data.send_welcome_email}
+    await log_activity(event_type="USER_CREATED", user_email=email, user_id=user_dict["id"], details=details, status="success")
+    await log_admin_action("ADMIN_USER_CREATED", admin_user=admin_user, details=details,
+                           target_email=email, target_user_id=user_dict["id"])
+
+    if data.send_welcome_email:
+        token = await create_auto_login_token(user_dict["id"], email)
+        frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
+        await send_portal_welcome_email(email, user_dict["name"], user_dict["id"], password,
+                                        f"{frontend_url}/auto-login/{token}")
+
+    user_dict.pop("password_hash", None)
+    return {"user": user_dict, "welcome_email": data.send_welcome_email}
+
 # Public API endpoint to lookup user step by email
 @api_router.get("/user/lookup")
 async def lookup_user_by_email(
@@ -4315,8 +4361,9 @@ async def get_activity_logs(
     if event_type:
         query["event_type"] = event_type
     
-    if user_email:
-        query["user_email"] = user_email.lower()
+    if user_email and user_email.strip():
+        # Contains-match, so the admin Analytics event-stream search narrows as you type (a full address still matches).
+        query["user_email"] = {"$regex": re.escape(user_email.strip().lower()), "$options": "i"}
 
     # Admin vs patient activity. Legacy logs predate the `category` field, so treat
     # anything not explicitly "admin" as patient activity.
