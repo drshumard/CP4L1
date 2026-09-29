@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, Loader2, ShieldCheck, HelpCircle } from 'lucide-react';
-import { Button } from './ui/button';
+import { MessageCircle, X, Send, Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 import { 
@@ -186,6 +185,8 @@ const SupportPopup = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const close = () => { setIsOpen(false); trackSupportPopupClosed(); };
+
   return (
     <>
       {/* Floating Button — desktop only. On mobile the navbar Help icon opens this
@@ -194,89 +195,83 @@ const SupportPopup = () => {
         <motion.button
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          whileHover={{ scale: 1.1 }}
+          whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => {
             setIsOpen(true);
             trackSupportPopupOpened();
           }}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white shadow-lg hover:shadow-xl flex items-center justify-center transition-shadow"
+          className="fixed bottom-6 right-6 z-50 flex size-14 items-center justify-center rounded-full bg-[#3565e9] text-white shadow-[0_10px_24px_-6px_rgba(53,101,233,0.6)] transition-colors hover:bg-[#2d5bdc]"
           aria-label="Open support"
         >
           <MessageCircle size={24} />
         </motion.button>
       )}
 
-      {/* Modal */}
+      {/* Modal — the patient dashboard's look: white 18px card, brand-blue panel, gold primary button */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => {
-              setIsOpen(false);
-              trackSupportPopupClosed();
-            }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f172a]/50 p-4 backdrop-blur-[2px]"
+            onClick={close}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden"
+              initial={{ scale: 0.96, opacity: 0, y: 8 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 8 }}
+              transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="support-title"
+              className="w-full max-w-4xl overflow-hidden rounded-[18px] border border-[#e0e6ef] bg-white font-['Inter_Checkout',Inter,'Helvetica_Neue',Arial,sans-serif] text-[#242f43] shadow-[0_24px_60px_-12px_rgba(35,52,76,0.35)] antialiased"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Horizontal Layout */}
               <div className="flex flex-col md:flex-row">
-                {/* Left Side - Header/Info */}
-                <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-4 md:p-8 text-white md:w-2/5 relative">
-                  <button
-                    onClick={() => {
-                      setIsOpen(false);
-                      trackSupportPopupClosed();
-                    }}
-                    className="absolute top-3 right-3 text-white/80 hover:text-white transition-colors"
-                  >
-                    <X size={20} />
+                {/* Left: brand panel */}
+                <div className="relative overflow-hidden bg-[#3565e9] p-5 text-white md:w-2/5 md:p-8">
+                  <span className="pointer-events-none absolute -right-14 -top-16 size-48 rounded-full bg-white/10" />
+                  <span className="pointer-events-none absolute -bottom-20 right-10 size-40 rounded-full bg-white/[0.06]" />
+                  {/* z-10: the panel's content below is `relative` and later in the DOM, so it painted over most of this button. */}
+                  <button type="button" onClick={close} aria-label="Close"
+                    className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-white/15 text-white/90 transition-colors hover:bg-white/25 hover:text-white">
+                    <X size={18} />
                   </button>
-                  
-                  <div className="flex items-center gap-3 md:mb-4">
-                    <div className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-white/20 flex items-center justify-center">
-                      <HelpCircle size={20} className="md:hidden" />
-                      <HelpCircle size={28} className="hidden md:block" />
-                    </div>
-                    <div className="md:hidden">
-                      <h2 className="text-lg font-bold">Need Help?</h2>
-                      <p className="text-white/80 text-xs">We'll get back to you shortly</p>
+
+                  <div className="relative flex items-center gap-3 md:block">
+                    <span className="grid size-11 shrink-0 place-items-center rounded-full border border-white/25 bg-white/15 md:size-12">
+                      <MessageCircle size={22} />
+                    </span>
+                    <div className="md:mt-6">
+                      <h2 id="support-title" className="text-xl font-medium tracking-[-0.03em] md:text-[28px] md:leading-tight">Need help?</h2>
+                      <p className="mt-0.5 text-xs text-[#dbe5ff] md:hidden">We’ll get back to you shortly.</p>
                     </div>
                   </div>
-                  
-                  <h2 className="hidden md:block text-2xl font-bold mb-3">Need Help?</h2>
-                  <p className="hidden md:block text-white/80 text-sm mb-6">
-                    We're here to help! Fill out the form and we'll get back to you as soon as possible.
+                  <p className="relative mt-3 hidden max-w-xs text-[15px] leading-relaxed text-[#e4ecff] md:block">
+                    Questions about your booking, your health profile or your add-ons? Send us a message and our team will get back to you shortly.
                   </p>
 
                   {/* Turnstile Widget - Desktop only */}
-                  <div className="hidden md:block mt-auto overflow-hidden">
-                    <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
+                  <div className="relative mt-8 hidden overflow-hidden md:block">
+                    <div className="mb-2 flex items-center gap-2 text-sm text-[#e4ecff]">
                       <ShieldCheck size={16} />
-                      <span>Security Verification</span>
+                      <span>Security verification</span>
                     </div>
-                    <div 
-                      ref={desktopTurnstileRef} 
+                    <div
+                      ref={desktopTurnstileRef}
                       className="overflow-hidden"
                       style={{ maxWidth: '100%', transform: 'scale(0.9)', transformOrigin: 'left top' }}
                     />
                     {!turnstileReady && (
-                      <div className="flex items-center gap-2 text-white/60 mt-2">
+                      <div className="mt-2 flex items-center gap-2 text-white/70">
                         <Loader2 className="animate-spin" size={16} />
                         <span className="text-sm">Loading...</span>
                       </div>
                     )}
                     {turnstileToken && (
-                      <p className="text-sm text-white flex items-center gap-1 mt-2">
+                      <p className="mt-2 flex items-center gap-1 text-sm text-white">
                         <ShieldCheck size={14} />
                         Verified successfully
                       </p>
@@ -284,97 +279,46 @@ const SupportPopup = () => {
                   </div>
                 </div>
 
-                {/* Right Side - Form */}
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 md:w-3/5">
-                  {/* Email - full width on mobile */}
-                  <div className="mb-3">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">
-                      Purchase Email <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="your@email.com"
-                      required
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Phone - full width on mobile */}
-                  <div className="mb-3">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Subject */}
-                  <div className="mb-3">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">
-                      Subject <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="subject"
-                      value={formData.subject}
-                      onChange={handleChange}
-                      placeholder="What is this about?"
-                      required
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Message */}
-                  <div className="mb-3">
-                    <label className="text-xs font-medium text-gray-600 mb-1 block">
-                      Message <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="message"
-                      value={formData.message}
-                      onChange={handleChange}
-                      placeholder="Please describe your issue in detail..."
-                      required
-                      rows={3}
-                      className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
-                    />
-                  </div>
+                {/* Right: form */}
+                <form onSubmit={handleSubmit} className="space-y-4 p-5 md:w-3/5 md:p-8">
+                  <Field label="Purchase email" required>
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" required className={FIELD} />
+                  </Field>
+                  <Field label="Phone number">
+                    <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+1 (555) 000-0000" className={FIELD} />
+                  </Field>
+                  <Field label="Subject" required>
+                    <input type="text" name="subject" value={formData.subject} onChange={handleChange} placeholder="What is this about?" required className={FIELD} />
+                  </Field>
+                  <Field label="Message" required>
+                    <textarea name="message" value={formData.message} onChange={handleChange} placeholder="Tell us how we can help..." required rows={4} className={`${FIELD} resize-none`} />
+                  </Field>
 
                   {/* Turnstile on mobile only */}
-                  <div className="md:hidden mb-3">
-                    <div className="flex items-center gap-2 text-gray-600 text-xs mb-2">
-                      <ShieldCheck size={14} className="text-teal-600" />
-                      <span>Security Verification</span>
+                  <div className="md:hidden">
+                    <div className="mb-2 flex items-center gap-2 text-xs text-[#5d6a7e]">
+                      <ShieldCheck size={14} className="text-[#3565e9]" />
+                      <span>Security verification</span>
                     </div>
                     <div ref={mobileTurnstileRef} className="flex justify-center" />
                     {!turnstileReady && (
-                      <div className="flex items-center justify-center gap-2 text-gray-400 mt-2">
+                      <div className="mt-2 flex items-center justify-center gap-2 text-[#8d96a4]">
                         <Loader2 className="animate-spin" size={14} />
                         <span className="text-xs">Loading verification...</span>
                       </div>
                     )}
                     {turnstileToken && (
-                      <p className="text-xs text-green-600 text-center flex items-center justify-center gap-1 mt-2">
+                      <p className="mt-2 flex items-center justify-center gap-1 text-xs text-[#2b7457]">
                         <ShieldCheck size={12} />
                         Verified
                       </p>
                     )}
                   </div>
 
-                  {/* Submit Button */}
-                  <Button
+                  <button
                     type="submit"
                     disabled={isSubmitting || !turnstileToken}
-                    className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex min-h-[50px] w-full items-center justify-center gap-2.5 rounded-[9px] border border-[#edb43f] bg-[#ffc24a] px-5 text-[15px] font-semibold text-[#382d19] shadow-[0_2px_3px_#7555120a] transition-colors hover:bg-[#ffb92f] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isSubmitting ? (
                       <>
@@ -384,10 +328,10 @@ const SupportPopup = () => {
                     ) : (
                       <>
                         <Send size={18} />
-                        Send Message
+                        Send message
                       </>
                     )}
-                  </Button>
+                  </button>
                 </form>
               </div>
             </motion.div>
@@ -397,5 +341,17 @@ const SupportPopup = () => {
     </>
   );
 };
+
+// Checkout-style field: overrides the portal's global teal input focus with the brand blue one.
+const FIELD = 'w-full rounded-lg border border-[#dfe3e9] bg-white px-3.5 py-2.5 text-[15px] text-[#242f43] placeholder:text-[#8d96a4] shadow-[0_1px_2px_#15274b04] outline-none focus:!border-[#7c91cf] focus:![box-shadow:0_0_0_3px_#eaf0ff]';
+
+function Field({ label, required, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[13px] font-medium text-[#3c4554]">{label}{required && <span className="text-[#b42318]"> *</span>}</span>
+      {children}
+    </label>
+  );
+}
 
 export default SupportPopup;

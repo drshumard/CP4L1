@@ -33,9 +33,11 @@ export function ConfirmRoot() {
 
   useEffect(() => {
     if (!state) return undefined;
+    // preventDefault: Enter must not also "click" whatever button still holds focus underneath
+    // (a Radix sheet keeps focus on the button that opened this confirm).
     const onKey = (e) => {
-      if (e.key === 'Escape') close(false);
-      if (e.key === 'Enter') close(true);
+      if (e.key === 'Escape') { e.preventDefault(); close(false); }
+      if (e.key === 'Enter') { e.preventDefault(); close(true); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -45,7 +47,7 @@ export function ConfirmRoot() {
   const danger = state.danger !== false;
 
   return (
-    <div className="admin-shell pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+    <div className="admin-shell pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" data-admin-overlay="">
       <div className="absolute inset-0 bg-black/40" onClick={() => close(false)} />
       <div
         className="relative bg-white w-full max-w-sm"

@@ -1,43 +1,83 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { CheckCircle2, Calendar, Play, Home, LogOut, ClipboardCheck, Heart, TrendingUp, ArrowRight, Quote, HelpCircle } from 'lucide-react';
+import { ArrowLeft, Check, Clock3, ShieldCheck, Video } from 'lucide-react';
 import { formatInTz, safeTimezone } from '../utils/tz';
-import './prototype/proto.css';
+import { clearWelcomeData, peekWelcomeData } from '../utils/welcomePrefetch';
+import { Bone } from './PatientSkeleton';
+import logo from './checkout/dr-shumard-logo.png';
+import frame from './auth/welcome.module.css';
+import s from './OutcomePage.module.css';
+
+// Step 4, onboarding done — design: shumard-checkout-portal/app/onboarding-complete (redesigned 2026-09-28): one calm
+// column with the booked strategy session. Kept from the old page: the Join link and support (the footer's Support
+// opens the pop-up).
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
+const openSupport = () => window.dispatchEvent(new Event('open-support'));
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 14 },
-  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.45, delay: i * 0.08, ease: [0.22, 0.61, 0.36, 1] } }),
-};
+// The welcome frame's header and footer, shared by the page and its skeleton.
+function Frame({ children }) {
+  return (
+    <div className={`${frame.page} ${s.page}`}>
+      <a href="#main" className={frame.skipLink}>Skip to content</a>
+      <header className={frame.header}>
+        <Link to="/dashboard" aria-label="Dr. Shumard portal overview">
+          <img src={logo} alt="Dr. Shumard" width={1024} height={152} className={frame.logo} />
+        </Link>
+        <Link to="/dashboard" className={s.back}><ArrowLeft size={15} aria-hidden="true" /><span className="sr-only">Back to </span>Overview</Link>
+      </header>
+      {children}
+      <footer className={frame.footer}>
+        <span className={s.secure}><ShieldCheck size={14} aria-hidden="true" /> Your information is handled securely.</span>
+        <button type="button" onClick={openSupport}>Support</button>
+      </footer>
+    </div>
+  );
+}
 
-const ACHIEVEMENTS = [
-  { icon: Calendar, title: 'Consultation booked', body: 'Your one-on-one call is scheduled.' },
-  { icon: ClipboardCheck, title: 'Health profile complete', body: 'We have everything we need for your visit.' },
-  { icon: Heart, title: 'Committed to your health', body: 'You took the most important step.' },
-  { icon: TrendingUp, title: 'Ready to begin', body: 'Prepared for your personalized plan.' },
-];
-
-const PREP = [
-  'Review your current medications',
-  'List your top health goals',
-  'Note any recent lab or test results',
-  'Write down questions for Dr. Shumard',
-  'Have your medical history handy',
-  'Think about lifestyle changes you want to make',
-];
+// Loading — the page's own, and the route's journey check on the way here (App.js) — so the frame never changes.
+export function OutcomeSkeleton() {
+  return (
+    <Frame>
+      <main id="main" className={s.main} aria-busy="true">
+        <p className="sr-only" role="status">Loading…</p>
+        <div className={`${s.hero} ${s.skeletonHero}`} aria-hidden="true">
+          <Bone w="min(400px, 80%)" h={52} />
+          <Bone w="min(460px, 90%)" h={52} />
+          <Bone w="min(540px, 100%)" h={14} />
+          <Bone w="min(480px, 90%)" h={14} />
+        </div>
+        <div className={s.card} aria-hidden="true">
+          <div className={s.cardHeader}><Bone w={150} h={11} /><Bone w={96} h={22} /></div>
+          <div className={s.booking}>
+            <Bone h={84} />
+            <div className={s.skeletonLines}><Bone w="62%" h={14} /><Bone w="74%" h={26} /><Bone w="40%" h={13} /></div>
+          </div>
+          <div className={s.details}><Bone w={210} h={13} /><Bone w={270} h={13} /></div>
+        </div>
+      </main>
+    </Frame>
+  );
+}
 
 export default function OutcomePage() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [appt, setAppt] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // From /ready's finish button the details are already loaded (utils/welcomePrefetch) — the page shows at once.
+  const [primed] = useState(() => peekWelcomeData());
+  const [user, setUser] = useState(primed?.user ?? null);
+  const [appt, setAppt] = useState(primed?.appointment ?? null);
+  const [loading, setLoading] = useState(!primed);
 
   useEffect(() => {
+    const previous = document.title;
+    document.title = 'Onboarding Complete | Dr. Jason Shumard';
+    return () => { document.title = previous; };
+  }, []);
+
+  useEffect(() => {
+    if (primed) { clearWelcomeData(); return; }
     (async () => {
       try {
         const token = localStorage.getItem('access_token');
@@ -56,177 +96,54 @@ export default function OutcomePage() {
         setLoading(false);
       }
     })();
-  }, [navigate]);
+  }, [navigate, primed]);
 
-  const logout = () => { localStorage.clear(); navigate('/login'); toast.success('Logged out successfully', { id: 'logout-success' }); };
+  if (loading) return <OutcomeSkeleton />;
 
-  if (loading) {
-    return (
-      <div className="proto" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 40, height: 40, borderRadius: 999, border: '3px solid var(--brand-100)', borderTopColor: 'var(--brand-600)', margin: '0 auto', animation: 'spin 0.8s linear infinite' }} />
-          <p className="proto-soft" style={{ marginTop: 14 }}>Loading...</p>
-        </div>
-        <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
-      </div>
-    );
-  }
-
-  const firstName = (user?.name || '').trim().split(' ')[0] || 'there';
+  // A first name to address them by; GHL signups can carry a placeholder ("there") instead of one.
+  const first = (user?.first_name || user?.name || '').trim().split(' ')[0];
+  const firstName = first && first.toLowerCase() !== 'there' ? first : null;
   const sessionDate = appt?.session_date ? new Date(appt.session_date) : null;
   const validDate = sessionDate && !Number.isNaN(sessionDate.getTime());
   const tz = safeTimezone(appt?.timezone) || Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const sessionWhen = validDate
-    ? formatInTz(sessionDate, tz, { weekday: 'long', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
-    : null;
-  const director = appt?.director_name || appt?.director || 'Dr. Shumard';
+  const fmt = (opts) => formatInTz(sessionDate, tz, opts);
+  const tzLabel = tz.split('/').pop().replace(/_/g, ' ');
   const durationMin = appt?.duration_minutes || appt?.duration || 30;
-  const sessionTitle = appt?.session_title || 'Strategy Session';
-  const stats = ['3/3 steps', '100% complete', appt ? 'Session booked' : 'Onboarding done'];
 
   return (
-    <div className="proto">
-      {/* Top bar */}
-      <header className="proto-topbar">
-        <div className="proto-container" style={{ height: 62, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src={LOGO} alt="Dr. Shumard" style={{ height: 22 }} />
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button className="proto-btn proto-btn--ghost proto-help-sm" style={{ padding: '8px 12px' }} aria-label="Help"
-              onClick={() => window.dispatchEvent(new Event('open-support'))}>
-              <HelpCircle size={16} />
-            </button>
-            <button className="proto-btn proto-btn--ghost" style={{ padding: '8px 12px' }} aria-label="Home" onClick={() => navigate('/dashboard')}>
-              <Home size={16} /> <span className="proto-hide-sm">Home</span>
-            </button>
-            <button className="proto-btn proto-btn--danger" style={{ padding: '8px 12px' }} aria-label="Log out" onClick={logout}>
-              <LogOut size={16} /> <span className="proto-hide-sm">Log out</span>
-            </button>
-          </div>
-        </div>
-      </header>
+    <Frame>
+      <main id="main" className={s.main}>
+        <section className={s.hero} aria-labelledby="complete-title">
+          <h1 id="complete-title">You’ve taken<br /><span>the first step.</span></h1>
+          <p className={s.lead}>Your onboarding is complete{firstName ? `, ${firstName}` : ''}. Reversing type 2 diabetes doesn’t start with a giant leap. It starts with one small step in the right direction, and the first one matters most.</p>
+        </section>
 
-      <main className="proto-container proto-main">
-        {/* HERO */}
-        <motion.section variants={fadeUp} initial="hidden" animate="show" className="proto-hero proto-card--pad" style={{ color: '#eaf3f6' }}>
-          <div className="flex flex-col items-center text-center md:items-start md:text-left">
-            <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, type: 'spring', stiffness: 220, damping: 16 }}
-              className="grid place-items-center rounded-full mb-5"
-              style={{ width: 76, height: 76, background: 'rgba(234,243,246,0.12)', boxShadow: '0 0 0 8px rgba(234,243,246,0.06)' }}>
-              <CheckCircle2 size={44} strokeWidth={2} color="#eaf3f6" />
-            </motion.div>
-            <span className="proto-eyebrow" style={{ color: 'var(--brand-200)' }}>Onboarding complete</span>
-            <h1 className="mt-2 font-extrabold leading-tight" style={{ fontSize: 'clamp(26px, 6vw, 38px)', color: '#fff' }}>
-              You&apos;re all set, {firstName}
-            </h1>
-            <p className="mt-3 max-w-md" style={{ color: '#cfe2e9', fontSize: 16, lineHeight: 1.55 }}>
-              Your consultation is booked and your health profile is in. Here&apos;s how to make the most of your time with Dr. Shumard.
-            </p>
-            <div className="mt-5 flex flex-wrap justify-center md:justify-start gap-2">
-              {stats.map((s) => (
-                <span key={s} className="inline-flex items-center gap-1.5 rounded-full font-semibold"
-                  style={{ padding: '6px 12px', fontSize: 12.5, background: 'rgba(234,243,246,0.14)', color: '#eaf3f6' }}>
-                  <CheckCircle2 size={14} strokeWidth={2.4} />{s}
-                </span>
-              ))}
-            </div>
+        <section className={s.card} aria-labelledby="session-title">
+          <div className={s.cardHeader}>
+            <h2 id="session-title" className={s.kicker}>Your strategy session</h2>
+            <span className={s.badge}><Check size={12} strokeWidth={2.4} aria-hidden="true" /> Confirmed</span>
           </div>
-        </motion.section>
-
-        {/* Main flow + side rail on large screens; stacks on phones/laptops */}
-        <div className="proto-cols" style={{ marginTop: 20 }}>
-        {/* Main column first in the DOM so keyboard/screen-reader order matches the
-            visual order (grid auto-placement puts the aside in the right rail). */}
-        <div className="proto-cols__main">
-        {/* What you've accomplished */}
-        <motion.section variants={fadeUp} custom={2} initial="hidden" animate="show" className="proto-card proto-card--pad">
-          <h2 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 19 }}>What you&apos;ve accomplished</h2>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-            {ACHIEVEMENTS.map((a) => {
-              const Icon = a.icon;
-              return (
-                <div key={a.title} className="flex items-start gap-3" style={{ padding: '12px 0' }}>
-                  <span className="grid place-items-center rounded-xl flex-none" style={{ width: 38, height: 38, background: 'var(--brand-100)', color: 'var(--brand-700)' }}>
-                    <Icon size={18} strokeWidth={2} />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 15 }}>{a.title}</h3>
-                    <p className="proto-muted mt-0.5" style={{ fontSize: 13.5, lineHeight: 1.45 }}>{a.body}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </motion.section>
-
-        {/* Prepare for your call */}
-        <motion.section variants={fadeUp} custom={3} initial="hidden" animate="show" className="proto-card proto-card--pad">
-          <h2 className="font-bold" style={{ color: 'var(--brand-900)', fontSize: 19 }}>Prepare for your call</h2>
-          <p className="proto-muted mt-1" style={{ fontSize: 14 }}>A few things to have ready before you meet.</p>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-            {PREP.map((item) => (
-              <div key={item} className="flex items-center gap-2.5" style={{ padding: '9px 0' }}>
-                <CheckCircle2 size={18} strokeWidth={2} color="var(--brand-600)" className="flex-none" />
-                <span style={{ color: 'var(--brand-900)', fontSize: 14.5 }}>{item}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 pt-5" style={{ borderTop: '1px solid var(--p-line)' }}>
-            <span className="proto-eyebrow">What comes next</span>
-            <p className="proto-muted mt-1.5 max-w-2xl" style={{ fontSize: 14, lineHeight: 1.55 }}>
-              During your consultation, Dr. Shumard will review your profile and build a personalized plan around your
-              goals — covering nutrition, lifestyle, and the right next steps for your health.
-            </p>
-          </div>
-        </motion.section>
-        </div>
-
-        <aside className="proto-cols__side">
-        {/* Booked session summary */}
-        {appt && (
-          <motion.div variants={fadeUp} custom={1} initial="hidden" animate="show" className="proto-card proto-card--pad">
-            <div className="flex items-start gap-3">
-              <span className="grid place-items-center rounded-2xl flex-none" style={{ width: 46, height: 46, background: 'var(--brand-100)', color: 'var(--brand-700)' }}>
-                <Calendar size={22} strokeWidth={2} />
-              </span>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="proto-badge proto-badge--ok">Confirmed</span>
-                  <span className="proto-muted" style={{ fontSize: 13 }}>{durationMin} min · with {director}</span>
-                </div>
-                <div className="mt-1.5 font-bold" style={{ color: 'var(--brand-900)', fontSize: 16 }}>{sessionTitle}</div>
-                {sessionWhen && <div className="mt-0.5" style={{ color: 'var(--brand-700)', fontSize: 15 }}>{sessionWhen}</div>}
+          {validDate ? (
+            <div className={s.booking}>
+              <div className={s.dateTile} aria-hidden="true"><span>{fmt({ month: 'short' })}</span><strong>{fmt({ day: 'numeric' })}</strong></div>
+              <p>
+                <span className={s.forward}>We’re looking forward to meeting you on</span>
+                <strong className={s.date}>{fmt({ weekday: 'long', month: 'long', day: 'numeric' })}</strong>
+                <span className={s.time}>{fmt({ hour: 'numeric', minute: '2-digit' })} · {tzLabel} time</span>
                 {appt.meet_link && (
-                  <a className="proto-btn proto-btn--primary mt-3" href={appt.meet_link} target="_blank" rel="noreferrer" style={{ gap: 8 }}>
-                    <Play size={16} strokeWidth={2.4} /> Join with Google Meet
-                  </a>
+                  <a className={s.meetLink} href={appt.meet_link} target="_blank" rel="noreferrer"><Video size={15} aria-hidden="true" /> Join with Google Meet</a>
                 )}
-              </div>
+              </p>
             </div>
-          </motion.div>
-        )}
-
-        {/* Quote (rail) */}
-        <motion.section variants={fadeUp} custom={4} initial="hidden" animate="show" className="proto-card proto-card--pad proto-card--flat" style={{ textAlign: 'center' }}>
-          <Quote size={26} color="var(--brand-300)" style={{ margin: '0 auto' }} />
-          <blockquote className="mt-3 font-bold" style={{ color: 'var(--brand-900)', fontSize: 20, lineHeight: 1.35 }}>
-            &ldquo;The greatest wealth is health.&rdquo;
-          </blockquote>
-          <p className="proto-muted mt-1.5" style={{ fontSize: 13.5 }}>— Virgil</p>
-        </motion.section>
-
-        {/* CTA (rail) */}
-        <motion.div variants={fadeUp} custom={5} initial="hidden" animate="show" className="flex justify-center">
-          <button className="proto-btn proto-btn--secondary proto-btn--block" onClick={() => navigate('/dashboard')} style={{ gap: 8 }}>
-            Back to your dashboard <ArrowRight size={17} strokeWidth={2.2} />
-          </button>
-        </motion.div>
-        </aside>
-        </div>
+          ) : (
+            <p className={s.pending}>Your session is booked. The date, time and meeting link are in your confirmation email.</p>
+          )}
+          <ul className={s.details}>
+            <li><Clock3 size={16} aria-hidden="true" /> {durationMin}-minute private consultation</li>
+            <li><Video size={16} aria-hidden="true" /> Google Meet link in your confirmation email</li>
+          </ul>
+        </section>
       </main>
-
-      <style>{'.proto-hide-sm{display:none}@media(min-width:720px){.proto-hide-sm{display:inline}}'}</style>
-    </div>
+    </Frame>
   );
 }

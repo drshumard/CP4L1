@@ -1,0 +1,212 @@
+.page {
+  --blue: #315fd1;
+  --yellow: #ffc24a;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: #fcfbf8;
+  color: #273249;
+}
+
+.header {
+  width: calc(100% - 80px);
+  max-width: 1360px;
+  min-height: 88px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 1px solid #e5e6e4;
+}
+
+.header a { flex-shrink: 0; }
+.logo {
+  display: block;
+  width: 205px;
+  height: auto;
+  filter: brightness(0) saturate(100%) invert(37%) sepia(67%) saturate(2428%) hue-rotate(207deg) brightness(85%) contrast(91%);
+}
+.portalLabel {
+  color: #657185;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: .6875rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.main {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  padding: 42px 24px 34px;
+}
+.welcome { width: 100%; max-width: 510px; text-align: center; }
+.doctor { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.portrait {
+  display: block;
+  width: 76px;
+  height: 86px;
+  object-fit: cover;
+  object-position: 50% 23%;
+  border-radius: 4px;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px #dce4e9, 5px 5px 0 #e5f2f1;
+}
+.doctor p { color: #647185; font-size: .8125rem; line-height: 1.5; }
+.welcome h1 {
+  margin: 25px 0 0;
+  color: #273249;
+  font-size: clamp(2.875rem, 5vw, 4rem);
+  font-weight: 500;
+  letter-spacing: -.045em;
+  line-height: 1.04;
+}
+.welcome h1 span { color: var(--blue); }
+.greeting { margin-top: 22px; font-size: 1.25rem; font-weight: 500; letter-spacing: -.02em; }
+.copy { margin-top: 10px; color: #647185; font-size: 1.0625rem; line-height: 1.75; }
+.setup { max-width: 368px; margin: 32px auto 0; }
+.track { height: 3px; width: 100%; background: #e9e7de; overflow: hidden; }
+.fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--yellow);
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: prepare 5.6s cubic-bezier(.2,.35,.5,1) forwards;
+}
+.setup[data-ready="true"] .fill { transform: scaleX(1); animation: none; }
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 49px;
+  padding: 11px 0 0;
+  color: #637087;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.statusMark { display: grid; place-items: center; width: 16px; flex: 0 0 16px; }
+.statusDot { width: 5px; height: 5px; border-radius: 50%; background: #a3adb8; }
+.setup[data-ready="true"] .status { color: #397c70; }
+.statusText { animation: arrive .5s ease-out both; }
+.actionSpace { min-height: 66px; max-width: 368px; margin: 14px auto 0; }
+.enter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 52px;
+  width: 100%;
+  border: 1px solid #ecb440;
+  border-radius: 4px;
+  padding: 13px 18px;
+  background: var(--yellow);
+  color: #382e19;
+  font-size: 1rem;
+  font-weight: 500;
+  animation: arrive .5s ease-out both;
+  transition: background .15s;
+}
+.enter:hover { background: #ffb936; }
+.waiting { display: grid; place-items: center; min-height: 52px; color: #77808d; font-size: .875rem; line-height: 1.5; }
+.replaySpace { min-height: 36px; }
+.quietButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: #6a778b;
+  font-family: inherit;
+  font-size: .8125rem;
+}
+.quietButton:hover { color: var(--blue); }
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  width: calc(100% - 80px);
+  max-width: 1360px;
+  min-height: 64px;
+  margin: 0 auto;
+  border-top: 1px solid #e5e6e4;
+  color: #758093;
+  font-size: .75rem;
+}
+.footer a { display: inline-flex; align-items: center; min-height: 44px; color: #4c6189; }
+.page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--blue); outline-offset: 5px; }
+
+@keyframes prepare { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes arrive { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 600px) {
+  .header, .footer { width: calc(100% - 40px); }
+  .header { min-height: 72px; gap: 12px; }
+  .logo { width: 166px; }
+  .portalLabel { max-width: 72px; font-size: .625rem; line-height: 1.5; text-align: right; }
+  .main { padding: 28px 24px 24px; }
+  .portrait { width: 64px; height: 72px; }
+  .doctor { gap: 10px; }
+  .welcome h1 { margin-top: 23px; font-size: 3rem; }
+  .greeting { margin-top: 20px; font-size: 1.1875rem; }
+  .copy { font-size: 1rem; line-height: 1.7; }
+  .setup { margin-top: 28px; }
+  .status { min-height: 53px; }
+  .actionSpace { margin-top: 8px; min-height: 64px; }
+  .footer { min-height: 60px; padding-bottom: env(safe-area-inset-bottom, 0px); font-size: .6875rem; gap: 14px; }
+  .footer > span { max-width: 185px; line-height: 1.55; }
+  .footer a { flex-shrink: 0; }
+}
+
+@media (max-height: 750px) {
+  .header { min-height: 68px; }
+  .main { padding-top: 20px; padding-bottom: 18px; }
+  .portrait { width: 58px; height: 66px; }
+  .doctor { gap: 8px; }
+  .welcome h1 { margin-top: 18px; font-size: 2.75rem; }
+  .greeting { margin-top: 16px; }
+  .copy { margin-top: 7px; }
+  .setup { margin-top: 24px; }
+  .footer { min-height: 54px; }
+}
+
+@media (max-width: 350px) {
+  .main { padding-right: 20px; padding-left: 20px; }
+  .logo { width: 148px; }
+  .copy { font-size: .9375rem; }
+  .status { font-size: .8125rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill { animation: none; transform: scaleX(.2); }
+  .setup:not([data-ready="true"]) .track { background: #e7e8e3; }
+  .statusText, .enter { animation: none; transition: none; }
+}
+
+/* ===================================================================================================
+   Portal adaptation (everything above is the prototype's app/welcome/welcome.module.css verbatim —
+   shumard-checkout-portal). The shared frame (header, footer) for sign-in, the welcome and the signup landing.
+   =================================================================================================== */
+.page { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+/* App.css sets every heading in Space Grotesk; Inter, not the prototype's monospace (rsms Inter has no mono cut). */
+.page h1, .portalLabel { font-family: inherit; }
+.skipLink { position: absolute; top: -60px; left: 16px; z-index: 50; padding: 12px 14px; border-radius: 4px; background: #fff; color: var(--blue); box-shadow: 0 2px 10px #1b2a4a1f; }
+.skipLink:focus { top: 12px; }
+/* Signup landing: if the account can't be set up, the status line says why (the page then heads to sign-in). */
+.setup[data-error="true"] .status { color: #a73e35; }
+.setup[data-error="true"] .fill { animation-play-state: paused; }
+/* The portal's floating support button (desktop, 24px from the corner) sat on "Need a hand?" wherever the footer
+   reaches within ~80px of the window's right edge — keep the link clear of it. */
+@media (min-width: 768px) and (max-width: 1520px) { .footer { padding-right: 72px; } }
+/* "Need a hand?" opens the support pop-up, so it's a button dressed as the footer link. */
+.footer button { display: inline-flex; flex-shrink: 0; align-items: center; min-height: 44px; padding: 0; border: 0; background: none; color: #4c6189; font: inherit; cursor: pointer; }
+/* Signing in: the brief welcome's bar fills in the time it's on screen. */
+.setup[data-brief="true"] .fill { animation-duration: 1.6s; }

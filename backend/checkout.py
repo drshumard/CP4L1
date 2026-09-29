@@ -293,24 +293,32 @@ async def fulfill_checkout(session) -> dict:
     # 5. Automations ("Checkout purchase" trigger -> e.g. GHL workflow webhooks), once
     if not order.get("automations_fired"):
         from server import execute_automations
-        _spawn_bg(execute_automations("checkout_purchase", {
-            "trigger": "checkout_purchase",
-            "first_name": patient.get("first_name"), "last_name": patient.get("last_name"),
-            "email": email, "mobile_phone": patient.get("phone"),
-            "amount": (session.get("amount_total") or 0) / 100, "currency": session.get("currency"),
-            "stripe_session_id": sid, "stripe_payment_intent_id": session.get("payment_intent"),
-            "booking_id": booking["booking_id"] if booking else None,
-            "session_date": _iso(_aware(booking["slot_start_utc"])) if booking else None,
-            "timezone": hold.get("patient_timezone"), "outcome": outcome,
-            "user_id": user["id"], "new_account": bool(order.get("user_created")),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }))
+        stored = await db.checkout_orders.find_one({"_id": sid})   # has every step's result (outcome, user, booking)
+        _spawn_bg(execute_automations("checkout_purchase", _purchase_payload(
+            stored, hold, booking, datetime.now(timezone.utc).isoformat())))
         await db.checkout_orders.update_one({"_id": sid}, {"$set": {"automations_fired": True}})
 
     done = {"status": "fulfilled", "fulfilled_at": datetime.now(timezone.utc)}
     await db.checkout_orders.update_one({"_id": sid}, {"$set": done})
     logger.info(f"Checkout {sid} fulfilled: hold {hold_id} -> {outcome}")
     return {**order, **done}
+
+
+def _purchase_payload(order: dict, hold: dict, booking: Optional[dict], timestamp: str) -> dict:
+    """What "Checkout purchase" automations receive — at fulfillment, and when resent from Admin > Purchases."""
+    patient = hold.get("patient") or {}
+    return {
+        "trigger": "checkout_purchase",
+        "first_name": patient.get("first_name"), "last_name": patient.get("last_name"),
+        "email": order.get("email"), "mobile_phone": patient.get("phone"),
+        "amount": (order.get("amount_total") or 0) / 100, "currency": order.get("currency"),
+        "stripe_session_id": order["_id"], "stripe_payment_intent_id": order.get("payment_intent"),
+        "booking_id": booking["booking_id"] if booking else None,
+        "session_date": _iso(_aware(booking["slot_start_utc"])) if booking else None,
+        "timezone": hold.get("patient_timezone"), "outcome": order.get("outcome"),
+        "user_id": order.get("user_id"), "new_account": bool(order.get("user_created")),
+        "timestamp": timestamp,
+    }
 
 
 async def _ensure_user(patient: dict, order: dict):
@@ -491,6 +499,75 @@ def _alert_office(subject: str, lines: list) -> None:
         })
     except Exception as e:
         logger.error(f"Office alert failed ({subject}): {e}")
+
+
+# ============================================================================
+# Admin > Purchases
+# ============================================================================
+
+async def list_purchases(limit: int = 200) -> list:
+    """Every /checkout payment the Stripe webhook has processed, newest first, with what fulfillment did for
+    it: the booking, the portal account, the receipt and each automation's result."""
+    orders = await db.checkout_orders.find({}).sort("created_at", -1).to_list(limit)
+    ids = lambda key: [o[key] for o in orders if o.get(key)]  # noqa: E731
+    bookings = {b["booking_id"]: b async for b in db.bookings.find(
+        {"booking_id": {"$in": ids("hold_id") + ids("booking_id")}}, {"_id": 0})}
+    users = {u["id"]: u async for u in db.users.find({"id": {"$in": ids("user_id")}}, {"_id": 0, "id": 1, "current_step": 1})}
+    hosts = {d["director_id"]: d.get("name") async for d in db.directors.find(
+        {"director_id": {"$in": [b["director_id"] for b in bookings.values() if b.get("director_id")]}},
+        {"_id": 0, "director_id": 1, "name": 1})}
+    runs = {}
+    async for log in db.automation_logs.find(
+            {"trigger": "checkout_purchase", "trigger_data.stripe_session_id": {"$in": [o["_id"] for o in orders]}},
+            {"_id": 0, "automation_name": 1, "action_name": 1, "success": 1, "response_status": 1, "error": 1,
+             "executed_at": 1, "is_retry": 1, "manual": 1, "trigger_data.stripe_session_id": 1}).sort("executed_at", 1):
+        sid = log.pop("trigger_data")["stripe_session_id"]
+        runs.setdefault(sid, []).append(log)
+    try:
+        promo_id = os.environ.get("STRIPE_PROMO_PRICE_ID")
+        promo_amount = await _price_amount(promo_id) if promo_id and _configured() else None
+    except Exception:
+        promo_amount = None
+
+    rows = []
+    for o in orders:
+        hold, booking = bookings.get(o.get("hold_id")) or {}, bookings.get(o.get("booking_id"))
+        patient = hold.get("patient") or {}
+        rows.append({
+            "id": o["_id"], "status": o.get("status"), "paid_at": _iso(_aware(o.get("created_at"))),
+            "first_name": patient.get("first_name"), "last_name": patient.get("last_name"),
+            "email": o.get("email") or patient.get("email"), "phone": patient.get("phone"),
+            "amount": o.get("amount_total"), "currency": o.get("currency"),
+            "promo": promo_amount is not None and o.get("amount_total") == promo_amount,
+            "payment_intent": o.get("payment_intent"), "outcome": o.get("outcome"),
+            "booking": booking and {
+                "booking_id": booking["booking_id"], "status": booking.get("status"),
+                "slot_start_utc": _iso(_aware(booking.get("slot_start_utc"))),
+                "timezone": booking.get("patient_timezone") or hold.get("patient_timezone"),
+                "host": hosts.get(booking.get("director_id")), "meet_link": booking.get("meet_link"),
+                "gcal_status": booking.get("gcal_status"), "pb_status": booking.get("pb_status")},
+            "user_id": o.get("user_id"), "new_account": bool(o.get("user_created")),
+            "current_step": (users.get(o.get("user_id")) or {}).get("current_step"),
+            "receipt_sent": bool(o.get("receipt_sent")), "receipt_filed": bool(o.get("receipt_filed")),
+            "receipt_drive_file_id": o.get("receipt_drive_file_id"),
+            "automations_fired": bool(o.get("automations_fired")), "automations": runs.get(o["_id"], []),
+        })
+    return rows
+
+
+async def send_purchase_to_automations(sid: str, targets: set, admin_email: str) -> Optional[list]:
+    """Admin > Purchases "Send to automations": this purchase's automation payload (as sent at fulfillment,
+    stamped with the original purchase time and manual=true) to the chosen (automation_id, action_id) actions,
+    whether or not those automations are switched on. None if there's no such fulfilled purchase."""
+    order = await db.checkout_orders.find_one({"_id": sid, "status": "fulfilled"})
+    if not order:
+        return None
+    hold = await db.bookings.find_one({"booking_id": order.get("hold_id")}, {"_id": 0}) or {}
+    booking = await db.bookings.find_one({"booking_id": order["booking_id"]}, {"_id": 0}) if order.get("booking_id") else None
+    payload = {**_purchase_payload(order, hold, booking, _iso(_aware(order.get("fulfilled_at")))), "manual": True}
+    from server import execute_automations
+    return await execute_automations("checkout_purchase", payload, only=targets,
+                                     log_extra={"manual": True, "triggered_by": admin_email})
 
 
 # ============================================================================

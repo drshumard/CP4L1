@@ -2,9 +2,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { trackAutoLogin, trackLoginFailed } from '../utils/analytics';
+import AuthFrame from './auth/AuthFrame';
+import s from './auth/sign-in.module.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -12,7 +12,7 @@ const API = `${BACKEND_URL}/api`;
 const AutoLogin = () => {
   const navigate = useNavigate();
   const { token } = useParams();
-  const [status, setStatus] = useState('loading'); // loading, success, error
+  const [status, setStatus] = useState('loading'); // loading | error (success goes straight to /welcome)
   const [errorMessage, setErrorMessage] = useState('');
   const loginAttemptedRef = useRef(false);
 
@@ -43,16 +43,8 @@ const AutoLogin = () => {
         // Track successful auto-login
         trackAutoLogin(response.data.user_id, response.data.email);
         
-        setStatus('success');
-        toast.success('Welcome back! Logging you in...', {
-          id: 'auto-login-success', // Prevents duplicate toasts
-          duration: 3000
-        });
-        
-        // Redirect to the portal home after brief success message
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 1500);
+        // Straight into the welcome (it greets them), then the portal.
+        navigate('/welcome', { replace: true });
         
       } catch (error) {
         setStatus('error');
@@ -75,75 +67,22 @@ const AutoLogin = () => {
   }, [token, navigate]);
 
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: '#F4F3F2' }}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 max-w-md w-full text-center"
-      >
-        {status === 'loading' && (
-          <>
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-              className="flex justify-center mb-4"
-            >
-              <Loader2 className="w-16 h-16 text-teal-600" />
-            </motion.div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              Logging you in...
-            </h2>
-            <p className="text-gray-600">
-              Please wait while we verify your access
-            </p>
-          </>
+    <AuthFrame mainId="sign-in">
+      <section className={s.signIn} aria-live="polite">
+        {status === 'error' ? (
+          <div key="error" className={s.step}>
+            <h1>We couldn't sign you in</h1>
+            <p className={s.copy}>{errorMessage}</p>
+            <p className={s.copy}>Redirecting you to login page...</p>
+          </div>
+        ) : (
+          <div key="loading" className={s.step}>
+            <h1>Logging you in...</h1>
+            <p className={s.copy}>Please wait while we verify your access</p>
+          </div>
         )}
-
-        {status === 'success' && (
-          <>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200 }}
-              className="flex justify-center mb-4"
-            >
-              <CheckCircle2 className="w-16 h-16 text-green-500" />
-            </motion.div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              Welcome Back!
-            </h2>
-            <p className="text-gray-600">
-              Redirecting you to your portal...
-            </p>
-          </>
-        )}
-
-        {status === 'error' && (
-          <>
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 200 }}
-              className="flex justify-center mb-4"
-            >
-              <XCircle className="w-16 h-16 text-red-500" />
-            </motion.div>
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
-              We couldn't sign you in
-            </h2>
-            <p className="text-gray-600 mb-4">
-              {errorMessage}
-            </p>
-            <p className="text-sm text-gray-500">
-              Redirecting you to login page...
-            </p>
-          </>
-        )}
-      </motion.div>
-    </div>
+      </section>
+    </AuthFrame>
   );
 };
 

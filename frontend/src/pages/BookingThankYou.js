@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import PatientSkeleton from './PatientSkeleton';
+import { ArrowRight, CheckCheck, CircleHelp, LockKeyhole } from 'lucide-react';
+import logo from './checkout/dr-shumard-logo.png';
+import './checkout/checkout.css';
 
 /**
  * BookingThankYou - Redirect Handler
@@ -10,7 +14,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
  * 
  * Flow:
  * - token exists → /steps?booking=success (show success modal)
- * - no token → Show message that original tab will auto-update
+ * - no token → the checkout's "You're booked." confirmation, with sign-in to continue
  */
 const BookingThankYou = () => {
   const [searchParams] = useSearchParams();
@@ -57,42 +61,33 @@ const BookingThankYou = () => {
     handleRedirect();
   }, [bookingStatus, navigate]);
 
-  // Show confirmation message for different tab scenario
+  // Booked, but this tab isn't signed in: the checkout's "You're booked." confirmation (pages/checkout/CheckoutComplete)
+  // — its design, with sign-in as the way on.
   if (showMessage) {
     return (
-      <div className="min-h-screen bg-[#F4F3F2] flex flex-col items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+      <div className="co min-h-screen">
+        <header className="site-header"><div className="header-inner">
+          <a href="https://drshumardworkshop.com" className="brand" aria-label="Dr. Shumard home"><img src={logo} alt="Dr. Shumard" width={1024} height={152} className="brand-logo" /></a>
+          <a className="help-link" href="https://drshumardworkshop.com/contact-us" target="_blank" rel="noreferrer"><CircleHelp size={17} /><span>Need help?</span></a>
+        </div></header>
+        <main className="page-shell">
+          <div className="complete-shell">
+            <div className="checkout-card">
+              <div className="confirmation" role="status" aria-live="polite">
+                <div className="confirmation-icon"><CheckCheck size={28} /></div>
+                <h3>You’re booked.</h3>
+                <p>30-minute video call. We’ve emailed your confirmation and next steps.</p>
+                <a className="primary-button" href="/login">Sign in to continue<ArrowRight size={17} /></a>
+              </div>
+              <div className="checkout-footer"><span><LockKeyhole size={15} /> Private &amp; secure</span></div>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Booking Confirmed!</h1>
-          <p className="text-gray-600 mb-6">
-            Your consultation has been successfully scheduled.
-          </p>
-          <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 mb-4">
-            <p className="text-sm text-teal-800">
-              <strong>Your original tab will automatically update</strong> to Step 2 within a few seconds. You can close this tab now.
-            </p>
-          </div>
-          <button
-            onClick={() => window.close()}
-            className="w-full bg-gradient-to-r from-teal-500 to-cyan-600 text-white py-3 px-6 rounded-lg font-medium hover:from-teal-600 hover:to-cyan-700 transition-all"
-          >
-            Close This Tab
-          </button>
-        </div>
+        </main>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#F4F3F2] flex flex-col items-center justify-center p-4">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mb-4"></div>
-      <p className="text-gray-600 text-sm">Confirming your booking...</p>
-    </div>
-  );
+  return <PatientSkeleton label="Confirming your booking…" />;
 };
 
 export default BookingThankYou;

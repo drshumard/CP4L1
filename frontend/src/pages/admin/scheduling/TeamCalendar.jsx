@@ -2,35 +2,28 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import {
-  Check, ChevronLeft, ChevronRight, ChevronDownIcon, RefreshCw, Users, Video, ExternalLink, TriangleAlert, MapPin, Settings2, X,
+  CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, LockKeyhole, MapPin, RefreshCw,
+  SlidersHorizontal, TriangleAlert, Users, Video,
 } from 'lucide-react';
 import { adminApi } from '../api';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command';
-import { Calendar } from '@/components/ui/calendar';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 import { getAdminDisplayTz } from '../format';
 import { tzAbbrev } from '../usTimezones';
+import sc from './scheduling.module.css';
+import c from './calendar.module.css';
 
-const EYEBROW = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
-const TG_ON = 'data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary data-[state=on]:hover:text-primary-foreground';
-
-const HOUR_PX = 56;
-const GUTTER_PX = 76;
+const HOUR_PX = 70;    // the prototype's hour row
+const GUTTER_PX = 58;
 const LS_KEY = 'teamcal.prefs.v1';
 const REFETCH_MS = 120_000;
 
 // Host palette companions for the backend HOST_COLOR_PALETTE (600-level hexes):
-// tint (50) for filter chips/badges, card (100) for event blocks, text (700) for type on tints.
-// Blocks are borderless soft fills — solid host color with white text marks our own bookings.
+// tint (50) for availability / all-day, card (100) for booked sessions, text (700) for type on tints.
 const PALETTE = {
   '#2563eb': { tint: '#eff6ff', card: '#dbeafe', text: '#1d4ed8' },
   '#7c3aed': { tint: '#f5f3ff', card: '#ede9fe', text: '#6d28d9' },
@@ -48,13 +41,9 @@ const BUSY_BG = 'repeating-linear-gradient(45deg, rgba(15,23,42,0.07) 0 4px, tra
 
 const ROLE_ORDER = ['director', 'pcc', 'hc', 'va'];
 const ROLE_LABEL = { director: 'Directors', pcc: 'PCCs', hc: 'HCs', va: 'VA' };
-
-// Hour gridlines: solid hairline each hour, faint tone each half hour.
-const COL_BG = {
-  backgroundImage:
-    'repeating-linear-gradient(to bottom, #ececea 0 1px, transparent 1px 56px),' +
-    'repeating-linear-gradient(to bottom, transparent 0 28px, rgba(0,0,0,0.03) 28px 29px, transparent 29px 56px)',
-};
+const SOURCE_LABEL = { patient: 'patient portal', manual: 'manual booking', checkout: 'checkout' };
+const LONG_DATE = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+const SHORT_DATE = { weekday: 'short', month: 'short', day: 'numeric' };
 
 // ---------------------------------------------------------------- timezone math (no deps)
 // All payload times are UTC instants; the grid renders wall-clock in the selected IANA zone.
@@ -98,7 +87,6 @@ const todayYmd = (tz) => zoned(new Date(), tz).ymd;
 const weekdayIdx = (ymd) => (new Date(ymd + 'T12:00:00Z').getUTCDay() + 6) % 7; // 0=Mon (matches weekly_rules)
 const mondayOf = (ymd) => addDaysYmd(ymd, -weekdayIdx(ymd));
 const fmtYmd = (ymd, opts) => new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', ...opts }).format(new Date(ymd + 'T12:00:00Z'));
-const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const _timeCache = {};
 function fmtTime(date, tz) {
@@ -110,6 +98,30 @@ const hhmmToMin = (s) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec((s || '').trim());
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 };
+
+/** "Pacific Time" — the zone's generic name for the header line (falls back to the IANA id). */
+function tzName(tz) {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'longGeneric' })
+      .formatToParts(new Date()).find((p) => p.type === 'timeZoneName')?.value || tz;
+  } catch {
+    return tz;
+  }
+}
+const plural = (n, one) => `${n} ${n === 1 ? one : `${one}s`}`;
+// Sessions read in minutes ("90 minutes", as the prototype); only long whole-hour blocks switch to hours.
+const durationLabel = (min, unit = 'minutes') => (min <= 120 || min % 60 ? `${min} ${unit}` : `${min / 60} hours`);
+
+/** Header title in the prototype's long style: "September 21 – 27, 2026" / "September 28 – Oct 4, 2026". */
+function rangeTitle(days) {
+  const first = days[0];
+  const last = days[days.length - 1];
+  if (days.length === 1) return fmtYmd(first, LONG_DATE);
+  const sameYear = first.slice(0, 4) === last.slice(0, 4);
+  const left = fmtYmd(first, sameYear ? { month: 'long', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' });
+  const right = fmtYmd(last, first.slice(0, 7) === last.slice(0, 7) ? { day: 'numeric' } : { month: 'short', day: 'numeric' });
+  return `${left} – ${right}, ${last.slice(0, 4)}`;
+}
 
 // Merged availability windows for one weekday from a host-rule set.
 function workBands(rules, wd) {
@@ -196,23 +208,26 @@ function layoutDay(segments) {
   return evs;
 }
 
+// Card text: the patient leads a booked session (its session title underneath); other events lead with their title.
+function eventLabels(ev) {
+  if (ev.busy_only) return { primary: 'Busy', detail: null };
+  if (ev.kind === 'booking') {
+    const b = ev.booking || {};
+    return b.patient_name
+      ? { primary: b.patient_name, detail: b.session_title || ev.title }
+      : { primary: ev.title || 'Booked session', detail: null };
+  }
+  return { primary: ev.title || '(no title)', detail: ev.location && ev.location !== ev.meet_link ? ev.location : null };
+}
 
-function DatePicker({ value, onChange, className }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" className={cn('justify-between font-normal', !value && 'text-muted-foreground', className)}>
-          {value ? fmtYmd(value, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pick a date'}
-          <ChevronDownIcon className="size-4 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-        <Calendar mode="single" selected={value ? new Date(value + 'T12:00:00') : undefined}
-          defaultMonth={value ? new Date(value + 'T12:00:00') : undefined}
-          onSelect={(d) => d && onChange(toYMD(d))} />
-      </PopoverContent>
-    </Popover>
-  );
+// Booked sessions are tinted cards, other Google events white ones — both keep the host's colour on the left edge.
+function eventTone(ev, host) {
+  const color = host?.color || '#525252';
+  const pal = paletteFor(host?.color);
+  const edge = `${color}38 ${color}38 ${color}38 ${color}`;
+  if (ev.busy_only) return { background: BUSY_BG, borderColor: edge, color: '#444' };
+  if (ev.kind === 'booking') return { background: pal.card, borderColor: edge, color: pal.text };
+  return { background: '#fff', borderColor: edge, color: pal.text };
 }
 
 function loadPrefs() {
@@ -239,11 +254,11 @@ export default function TeamCalendar() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchedAt, setFetchedAt] = useState(null);
-  const [sel, setSel] = useState(null); // selected event segment for the details popover
+  const [sel, setSel] = useState(null); // the calendar entry open in the details sheet
   const [, setTick] = useState(0);      // re-render for the now line + "updated Xs ago"
   const scrollRef = useRef(null);
   const didScroll = useRef(false);
-  const popRef = useRef(null);
+  const lastSel = useRef(null);
   const fetchedIdsRef = useRef(null); // host ids the current data was fetched for (null = backend default)
 
   const savePrefs = useCallback((patch) => {
@@ -259,6 +274,7 @@ export default function TeamCalendar() {
   // Weekends are hidden client-side only — the fetch window stays the full week, so the
   // toggle (like Day ⇄ Week) never refetches.
   const displayDays = useMemo(() => (showWeekends ? weekDays : weekDays.slice(0, 5)), [weekDays, showWeekends]);
+  const shownDays = useMemo(() => (view === 'week' ? displayDays : [anchor]), [view, displayDays, anchor]);
   const today = todayYmd(tz);
 
   const load = useCallback(async ({ silent = false, force = false, ids } = {}) => {
@@ -300,19 +316,13 @@ export default function TeamCalendar() {
     return () => { clearInterval(iv); clearInterval(tick); window.removeEventListener('focus', onFocus); };
   }, [load]);
 
-  // Land the viewport on the working morning once; view toggles keep the scroll position.
+  // Land the viewport on the working morning once (just under the sticky headings); view toggles keep the scroll position.
   useEffect(() => {
     if (!didScroll.current && scrollRef.current) {
-      scrollRef.current.scrollTop = 7 * HOUR_PX + 2;
+      scrollRef.current.scrollTop = 7 * HOUR_PX;
       didScroll.current = true;
     }
   });
-
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && setSel(null);
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   const hosts = data?.hosts || [];
   const hostById = useMemo(() => new Map(hosts.map((h) => [h.host_id, h])), [hosts]);
@@ -454,17 +464,37 @@ export default function TeamCalendar() {
     return { cols: out, allDayItems: items, allDayLaneCount: Math.max(0, ...items.map((i) => i.lane + 1)) };
   }, [view, displayDays, anchor, rawByYmd, allDayRaw, visibleHosts, shadingEnabled]);
 
-  const now = zoned(new Date(), tz);
+  // Phones get the prototype's agenda: each shown day's all-day items, then its sessions in time order.
+  const agendaDays = useMemo(() => shownDays.map((ymd) => ({
+    ymd,
+    items: [
+      ...allDayRaw.filter((ev) => ev.start_utc <= ymd && ymd < ev.end_utc)
+        .map((ev) => ({ key: `ad-${ev.host_id}-${ev.id}`, ev, sel: { kind: 'allday', seg: { ev } } })),
+      ...[...(rawByYmd[ymd] || [])].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
+        .map((seg) => ({ key: `t-${seg.ev.host_id}-${seg.ev.id}`, ev: seg.ev, seg, sel: { kind: 'timed', seg } })),
+    ],
+  })), [shownDays, allDayRaw, rawByYmd]);
 
-  const rangeLabel = useMemo(() => {
-    if (view === 'day') return fmtYmd(anchor, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    const d0 = displayDays[0];
-    const dN = displayDays[displayDays.length - 1];
-    const sameMonth = d0.slice(0, 7) === dN.slice(0, 7);
-    const left = fmtYmd(d0, { month: 'short', day: 'numeric' });
-    const right = sameMonth ? fmtYmd(dN, { day: 'numeric' }) : fmtYmd(dN, { month: 'short', day: 'numeric' });
-    return `${left} – ${right}, ${fmtYmd(dN, { year: 'numeric' })}`;
-  }, [view, anchor, displayDays]);
+  // Header line: what's in view (each event once, even across days), split into our sessions and other calendar events.
+  const inView = useMemo(() => {
+    const seen = new Set();
+    let sessions = 0;
+    let other = 0;
+    const add = (ev) => {
+      const k = `${ev.host_id}|${ev.id}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      if (ev.kind === 'booking') sessions += 1; else other += 1;
+    };
+    for (const d of shownDays) for (const seg of rawByYmd[d] || []) add(seg.ev);
+    for (const ev of allDayRaw) if (shownDays.some((d) => ev.start_utc <= d && d < ev.end_utc)) add(ev);
+    const parts = [];
+    if (sessions) parts.push(plural(sessions, 'session'));
+    if (other) parts.push(plural(other, 'calendar event'));
+    return parts.length ? parts.join(' & ') : 'Nothing scheduled';
+  }, [shownDays, rawByYmd, allDayRaw]);
+
+  const now = zoned(new Date(), tz);
 
   // Recomputed every render — the 30s tick keeps it honest between refetches.
   const updatedAgo = (() => {
@@ -474,418 +504,395 @@ export default function TeamCalendar() {
   })();
 
   const shift = (n) => { setAnchor(addDaysYmd(anchor, n)); setSel(null); };
+  const changeView = (v) => { if (v !== view) { setView(v); savePrefs({ view: v }); setSel(null); } };
+  const openDay = (ymd) => { setAnchor(ymd); setView('day'); savePrefs({ view: 'day' }); setSel(null); }; // day heading → that day
+  const changeTz = (mode) => { setTzMode(mode); savePrefs({ tz: mode }); setSel(null); };
   const nCols = Math.max(1, cols.length);
-  const gridCols = { gridTemplateColumns: `${GUTTER_PX}px repeat(${nCols}, minmax(0, 1fr))` };
-  const minWidth = view === 'week' ? 960 : Math.max(560, GUTTER_PX + nCols * 150);
+  const gridStyle = {
+    gridTemplateColumns: `${GUTTER_PX}px repeat(${nCols}, minmax(0, 1fr))`,
+    minWidth: view === 'week' ? 830 : Math.max(560, GUTTER_PX + nCols * 150),
+  };
 
-  const openSeg = (e, seg) => { e.stopPropagation(); setSel({ kind: 'timed', seg }); };
-  const openAllDay = (e, item) => { e.stopPropagation(); setSel({ kind: 'allday', seg: { ev: item.ev, colIdx: item.colIdx, startMin: 0 } }); };
-
-  // Popover placement: to the right of the event's column, flipped left near the edge.
-  const popStyle = useMemo(() => {
-    if (!sel) return null;
-    const ci = sel.seg.colIdx;
-    const top = sel.kind === 'allday' ? 8 : Math.min(Math.max((sel.seg.startMin / 60) * HOUR_PX - 6, 6), 24 * HOUR_PX - 260);
-    if (nCols === 1) return { left: GUTTER_PX + 20, top };
-    return ci <= nCols - 3
-      ? { left: `calc(${GUTTER_PX}px + (100% - ${GUTTER_PX}px) / ${nCols} * ${ci + 1} + 6px)`, top }
-      : { left: `calc(${GUTTER_PX}px + (100% - ${GUTTER_PX}px) / ${nCols} * ${ci} - 290px)`, top };
-  }, [sel, nCols]);
-
-  const selHost = sel ? hostById.get(sel.seg.ev.host_id) : null;
-  const selPal = selHost ? paletteFor(selHost.color) : null;
+  // The sheet keeps showing the last entry while it animates closed.
+  if (sel) lastSel.current = sel;
+  const shown = sel || lastSel.current;
+  const detail = useMemo(() => {
+    if (!shown) return null;
+    const ev = shown.seg.ev;
+    let date;
+    let time;
+    let timeNote = null;
+    if (shown.kind === 'allday') {
+      const last = addDaysYmd(ev.end_utc, -1);
+      const days = Math.max(1, Math.round((Date.parse(ev.end_utc) - Date.parse(ev.start_utc)) / 86_400_000));
+      date = last > ev.start_utc ? `${fmtYmd(ev.start_utc, SHORT_DATE)} – ${fmtYmd(last, SHORT_DATE)}` : fmtYmd(ev.start_utc, LONG_DATE);
+      time = 'All day';
+      if (days > 1) timeNote = `${days} days`;
+    } else {
+      const { start, end } = shown.seg;
+      const first = zoned(start, tz).ymd;
+      const lastDay = zoned(new Date(end.getTime() - 1), tz).ymd;
+      date = first === lastDay ? fmtYmd(first, LONG_DATE) : `${fmtYmd(first, SHORT_DATE)} – ${fmtYmd(lastDay, SHORT_DATE)}`;
+      time = `${fmtTime(start, tz)} – ${fmtTime(end, tz)}`;
+      timeNote = `${durationLabel(Math.round((end - start) / 60000))} · ${tzAbbrev(start, tz)}`;
+    }
+    const b = ev.booking || {};
+    const isBooking = ev.kind === 'booking';
+    return {
+      ev, b, isBooking, busy: !!ev.busy_only, host: hostById.get(ev.host_id), date, time, timeNote,
+      title: ev.busy_only ? 'Busy' : isBooking ? (b.session_title || ev.title || 'Booked session') : (ev.title || '(no title)'),
+    };
+  }, [shown, tz, hostById]);
 
   const initialLoading = loading && !data;
   const erroredHosts = visibleHosts.filter((h) => h.error);
+  const spinning = loading || refreshing;
+  const link = detail && (detail.isBooking ? detail.b.meet_link : detail.ev.meet_link);
+  const place = detail && !detail.isBooking && detail.ev.location && detail.ev.location !== detail.ev.meet_link ? detail.ev.location : null;
 
   return (
-    <div className="space-y-3">
-      <section className="rounded-xl border bg-card p-5 shadow-sm">
-        {/* Header + controls */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className={EYEBROW}>Team Calendar</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Every host&apos;s real calendar · <span className="font-medium text-foreground">{rangeLabel}</span>
-            </p>
+    <section className={sc.card} aria-labelledby="team-calendar-title">
+      {/* Header: what's in view + Day/Week, Today and the date stepper */}
+      <div className={`${sc.cardHeader} ${c.calendarHeader}`}>
+        <div>
+          <span className={sc.kicker}>Team calendar</span>
+          <h2 id="team-calendar-title" className={sc.sectionTitle}>{rangeTitle(shownDays)}</h2>
+          <p className={sc.description}>{initialLoading ? 'Loading calendars…' : inView} · {tzName(tz)}</p>
+        </div>
+        <div className={c.controls}>
+          <div className={sc.segmented} role="group" aria-label="Calendar view">
+            <button type="button" aria-pressed={view === 'day'} onClick={() => changeView('day')}>Day</button>
+            <button type="button" aria-pressed={view === 'week'} onClick={() => changeView('week')}>Week</button>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Users className="size-4" />
-                  Hosts
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] font-semibold tabular-nums">{visibleHosts.length}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Filter hosts..." />
-                  <CommandList>
-                    <CommandEmpty>No hosts found.</CommandEmpty>
-                    {ROLE_ORDER.map((role) => {
-                      const group = hosts.filter((h) => h.role === role);
-                      if (!group.length) return null;
-                      return (
-                        <CommandGroup key={role} heading={ROLE_LABEL[role]}>
-                          {group.map((h) => {
-                            const on = isVisible(h);
-                            return (
-                              <CommandItem key={h.host_id} value={`${h.name} ${h.host_id}`} onSelect={() => toggleHost(h)}>
-                                <span className={cn(
-                                  'flex size-4 shrink-0 items-center justify-center rounded-[4px] border',
-                                  on ? 'border-primary bg-primary text-primary-foreground' : 'border-input',
-                                )}>
-                                  {on && <Check className="size-3" />}
-                                </span>
-                                <span className="size-[7px] shrink-0 rounded-full" style={{ background: h.color }} />
-                                <span className="truncate">{h.name}</span>
-                                {h.error && on && <TriangleAlert className="size-3 shrink-0 text-amber-600" />}
-                                {h.active === false && (
-                                  <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Inactive</span>
-                                )}
-                              </CommandItem>
-                            );
-                          })}
-                        </CommandGroup>
-                      );
-                    })}
-                  </CommandList>
-                  <div className="flex items-center justify-between border-t p-1">
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={resetHosts}>Active directors</Button>
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearHosts}>Clear</Button>
-                  </div>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            <Button variant="outline" size="sm" onClick={() => { setAnchor(todayYmd(tz)); setSel(null); }}>Today</Button>
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="size-9" onClick={() => shift(view === 'week' ? -7 : -1)} aria-label="Previous">
-                <ChevronLeft className="size-4" />
-              </Button>
-              <DatePicker value={anchor} onChange={(v) => { setAnchor(v || todayYmd(tz)); setSel(null); }} className="w-[170px]" />
-              <Button variant="outline" size="icon" className="size-9" onClick={() => shift(view === 'week' ? 7 : 1)} aria-label="Next">
-                <ChevronRight className="size-4" />
-              </Button>
-            </div>
-            <ToggleGroup type="single" value={view} onValueChange={(v) => { if (v) { setView(v); savePrefs({ view: v }); setSel(null); } }} variant="outline" size="sm">
-              <ToggleGroupItem value="day" className={TG_ON}>Day</ToggleGroupItem>
-              <ToggleGroupItem value="week" className={TG_ON}>Week</ToggleGroupItem>
-            </ToggleGroup>
-            {localTz !== displayTz && (
-              <ToggleGroup type="single" value={tzMode} onValueChange={(v) => { if (v) { setTzMode(v); savePrefs({ tz: v }); setSel(null); } }} variant="outline" size="sm">
-                <ToggleGroupItem value="clinic" className={TG_ON}>{tzAbbrev(new Date(), displayTz) || 'Clinic'}</ToggleGroupItem>
-                <ToggleGroupItem value="local" className={TG_ON}>My time</ToggleGroupItem>
-              </ToggleGroup>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="size-9" aria-label="Calendar display options">
-                  <Settings2 className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuCheckboxItem
-                  checked={showWeekends}
-                  onCheckedChange={(v) => { setShowWeekends(!!v); savePrefs({ weekends: !!v }); setSel(null); }}
-                >
-                  Show weekends
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => load({ force: true })} disabled={loading || refreshing}>
-              <RefreshCw className={`size-4 ${loading || refreshing ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            {updatedAgo && <span className="text-xs text-muted-foreground">Updated {updatedAgo}</span>}
+          <button type="button" className={sc.secondary} onClick={() => { setAnchor(todayYmd(tz)); setSel(null); }}>Today</button>
+          <div className={c.dateControl}>
+            <button type="button" className={sc.iconButton} aria-label={`Previous ${view}`} onClick={() => shift(view === 'week' ? -7 : -1)}><ChevronLeft size={16} /></button>
+            <input aria-label="Calendar date" type="date" value={anchor} onChange={(e) => { if (e.target.value) { setAnchor(e.target.value); setSel(null); } }} />
+            <button type="button" className={sc.iconButton} aria-label={`Next ${view}`} onClick={() => shift(view === 'week' ? 7 : 1)}><ChevronRight size={16} /></button>
           </div>
         </div>
+      </div>
 
-        {erroredHosts.length > 0 && (
-          <p className="mb-1 mt-1 text-xs font-medium text-amber-700">
-            <TriangleAlert className="mr-1 inline size-3.5 align-[-2px]" />
-            Couldn&apos;t read {erroredHosts.map((h) => h.name).join(', ')} — showing everyone else.
-          </p>
-        )}
-
-        {/* Grid (full-bleed inside the card) */}
-        <div className="-mx-5 -mb-5 mt-4 overflow-hidden rounded-b-xl border-t">
-          {initialLoading ? (
-            <div className="space-y-3 p-5">
-              {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : visibleHosts.length === 0 ? (
-            <div className="py-16 text-center text-sm text-muted-foreground">No hosts selected. Pick hosts from the Hosts menu above — active or inactive.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div style={{ minWidth }}>
-                {/* Column headers: days (week) or hosts (day) */}
-                <div className="grid border-b" style={{ ...gridCols, backgroundImage: 'linear-gradient(to top, #F8F8F8, #F8F8F899, #00000000)' }}>
-                  <div />
-                  {cols.map((col) => (
-                    <div key={col.key} className="truncate border-l border-border/50 px-1.5 py-2 text-center text-xs font-semibold">
-                      {col.kind === 'day' ? (
-                        <>
-                          <span className={col.ymd === today ? 'text-foreground' : 'text-muted-foreground'}>{fmtYmd(col.ymd, { weekday: 'short' })}</span>{' '}
-                          <span className={cn(
-                            'ml-0.5 inline-flex h-[21px] min-w-[21px] items-center justify-center rounded-full px-1 tabular-nums',
-                            col.ymd === today ? 'bg-primary text-primary-foreground' : 'text-foreground',
-                          )}>
-                            {Number(col.ymd.slice(8, 10))}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="inline-flex max-w-full items-center gap-1.5 text-foreground">
-                          <span className="size-[7px] shrink-0 rounded-full" style={{ background: col.host.color }} />
-                          <span className="truncate">{col.host.name}</span>
-                          {col.host.active === false && <span className="shrink-0 font-medium text-muted-foreground">· inactive</span>}
-                          {col.host.error && <TriangleAlert className="size-3 shrink-0 text-amber-600" />}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* All-day lane */}
-                {allDayLaneCount > 0 && (
-                  <div className="grid border-b bg-card" style={gridCols}>
-                    <div className="py-1.5 pr-2 text-right text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">all-day</div>
-                    <div className="relative border-l border-border/50" style={{ gridColumn: `2 / span ${nCols}`, height: allDayLaneCount * 26 + 6 }}>
-                      {allDayItems.map((item) => {
-                        const h = hostById.get(item.ev.host_id);
-                        const pal = paletteFor(h?.color);
-                        const busy = item.ev.busy_only;
+      {/* Hosts picker · legend · display options · refresh */}
+      <div className={c.filterBar}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className={sc.secondary}><Users size={15} />Hosts <span className={c.count}>{visibleHosts.length}</span></button>
+          </PopoverTrigger>
+          <PopoverContent align="start" className={c.hostsPopover}>
+            <Command>
+              <strong className={c.hostsTitle}>Show on calendar</strong>
+              <CommandInput placeholder="Filter hosts…" />
+              <CommandList>
+                <CommandEmpty>No hosts found.</CommandEmpty>
+                {ROLE_ORDER.map((role) => {
+                  const group = hosts.filter((h) => h.role === role);
+                  if (!group.length) return null;
+                  return (
+                    <CommandGroup key={role} heading={ROLE_LABEL[role]}>
+                      {group.map((h) => {
+                        const on = isVisible(h);
                         return (
-                          <button
-                            key={`${item.ev.host_id}-${item.ev.id}-${item.colIdx}`}
-                            type="button"
-                            onClick={(e) => openAllDay(e, item)}
-                            className="cad-event absolute overflow-hidden truncate rounded-md px-2 py-0.5 text-left text-[11px] font-semibold"
-                            style={{
-                              top: item.lane * 26 + 3,
-                              left: `calc(100% / ${nCols} * ${item.colIdx} + 3px)`,
-                              width: `calc(100% / ${nCols} * ${item.span} - 6px)`,
-                              background: busy ? BUSY_BG : pal.card,
-                              color: busy ? '#475569' : pal.text,
-                            }}
-                          >
-                            {item.clipStart && '‹ '}{busy ? 'Busy' : item.ev.title}{item.clipEnd && ' ›'}
-                          </button>
+                          <CommandItem key={h.host_id} value={`${h.name} ${h.host_id}`} onSelect={() => toggleHost(h)}>
+                            <span className={c.hostCheck} data-on={on}>{on && <Check />}</span>
+                            <i className={c.hostDot} style={{ background: h.color }} />
+                            <span className={c.hostName}>{h.name}</span>
+                            {h.error && on && <TriangleAlert className={c.hostError} />}
+                            {h.active === false && <span className={c.hostTag}>Inactive</span>}
+                          </CommandItem>
                         );
                       })}
-                    </div>
+                    </CommandGroup>
+                  );
+                })}
+              </CommandList>
+              <div className={c.hostsFoot}>
+                <button type="button" className={sc.secondary} onClick={resetHosts}>Active directors</button>
+                <button type="button" className={sc.secondary} onClick={clearHosts}>Clear</button>
+              </div>
+            </Command>
+          </PopoverContent>
+        </Popover>
+        <div className={c.legend}>
+          {visibleHosts.slice(0, 4).map((h) => <span key={h.host_id}><i style={{ background: h.color }} />{h.name}</span>)}
+          {visibleHosts.length > 4 && <span>+{visibleHosts.length - 4} more</span>}
+        </div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className={sc.iconButton} aria-label="Calendar display options"><SlidersHorizontal size={16} /></button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className={c.popover}>
+            <strong>Display options</strong>
+            <label>
+              <input type="checkbox" checked={showWeekends} onChange={(e) => { setShowWeekends(e.target.checked); savePrefs({ weekends: e.target.checked }); setSel(null); }} />
+              Show weekends
+            </label>
+            {localTz !== displayTz && (
+              <div className={c.tzChoice} role="radiogroup" aria-label="Show times in">
+                <span>Show times in</span>
+                <label><input type="radio" name="teamcal-tz" checked={tzMode === 'clinic'} onChange={() => changeTz('clinic')} />Workspace time · {tzAbbrev(new Date(), displayTz) || 'Clinic'}</label>
+                <label><input type="radio" name="teamcal-tz" checked={tzMode === 'local'} onChange={() => changeTz('local')} />My time · {tzAbbrev(new Date(), localTz)}</label>
+              </div>
+            )}
+            <p>{tzMode === 'local' ? `Times follow this device's timezone (${tzName(localTz)}).` : 'Times follow the workspace timezone in the top bar.'}</p>
+          </PopoverContent>
+        </Popover>
+        <button type="button" className={sc.iconButton} aria-label="Refresh calendar" onClick={() => load({ force: true })} disabled={spinning}>
+          <RefreshCw size={16} className={spinning ? 'animate-spin' : undefined} />
+        </button>
+      </div>
+
+      {erroredHosts.length > 0 && (
+        <p role="status" className={c.hostWarning} title={erroredHosts.map((h) => `${h.name}: ${h.error}`).join('\n')}>
+          <TriangleAlert size={14} />
+          <span>Couldn&apos;t read {erroredHosts.map((h) => h.name).join(', ')} — showing everyone else.</span>
+        </p>
+      )}
+
+      {initialLoading ? (
+        <div className={c.loadingState}>
+          {Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-12 w-full rounded-[3px]" />)}
+        </div>
+      ) : visibleHosts.length === 0 ? (
+        <div className={sc.empty}>No hosts selected. Pick hosts from the Hosts menu above — active or inactive.</div>
+      ) : (
+        <>
+          {/* Desktop grid: one scroller, sticky headings (+ all-day lane) above every event layer */}
+          <div ref={scrollRef} className={c.desktopCalendar}>
+            <div className={c.calendarGrid} style={gridStyle}>
+              <div className={c.corner}>{tzAbbrev(new Date(), tz)}</div>
+              {cols.map((col) => (col.kind === 'day' ? (
+                <button key={col.key} type="button" className={c.dayHeading} data-today={col.ymd === today}
+                  aria-label={`Show ${fmtYmd(col.ymd, { weekday: 'long', month: 'long', day: 'numeric' })} in day view`}
+                  onClick={() => openDay(col.ymd)}>
+                  <span>{fmtYmd(col.ymd, { weekday: 'short' })}</span>
+                  <strong>{Number(col.ymd.slice(8, 10))}</strong>
+                </button>
+              ) : (
+                <div key={col.key} className={`${c.dayHeading} ${c.hostHeading}`}>
+                  <span>
+                    <i style={{ background: col.host.color }} />
+                    <b>{col.host.name}</b>
+                    {col.host.active === false && <em>Inactive</em>}
+                    {col.host.error && <TriangleAlert size={12} />}
+                  </span>
+                </div>
+              )))}
+
+              {allDayLaneCount > 0 && (
+                <>
+                  <div className={c.allDayLabel}>All day</div>
+                  <div className={c.allDayCell} style={{ gridColumn: `2 / span ${nCols}`, height: allDayLaneCount * 26 + 6 }}>
+                    {allDayItems.map((item) => {
+                      const h = hostById.get(item.ev.host_id);
+                      return (
+                        <button
+                          key={`${item.ev.host_id}-${item.ev.id}-${item.colIdx}`}
+                          type="button"
+                          className={c.allDayEvent}
+                          data-selected={(sel?.kind === 'allday' && sel.seg.ev === item.ev) || undefined}
+                          onClick={() => setSel({ kind: 'allday', seg: { ev: item.ev } })}
+                          style={{
+                            ...eventTone(item.ev, h),
+                            top: item.lane * 26 + 3,
+                            left: `calc(100% / ${nCols} * ${item.colIdx} + 3px)`,
+                            width: `calc(100% / ${nCols} * ${item.span} - 6px)`,
+                          }}
+                        >
+                          {item.clipStart && '‹ '}{eventLabels(item.ev).primary}{item.clipEnd && ' ›'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              <div className={c.hourColumn}>
+                {Array.from({ length: 24 }, (_, h) => <span key={h}>{hourLabel(h)}</span>)}
+              </div>
+
+              {cols.map((col) => (
+                <div key={col.key} className={c.dayColumn} style={{ height: 24 * HOUR_PX }}>
+                  {Array.from({ length: 24 }, (_, h) => <div key={h} className={c.hourRule} />)}
+
+                  {/* Off-hours shading */}
+                  {col.offBands.map(([a, b]) => (
+                    <div key={`${a}-${b}`} className={c.offBand} style={{ top: (a / 60) * HOUR_PX, height: ((b - a) / 60) * HOUR_PX }} />
+                  ))}
+
+                  {col.segs.map((seg, i) => {
+                    const h = hostById.get(seg.ev.host_id);
+                    const mins = seg.endMin - seg.startMin;
+                    const height = Math.max(18, (mins / 60) * HOUR_PX - 3);
+                    // Both views share the cluster/column packing. Week view renders it the
+                    // way Google Calendar does (measured from their live DOM): step = 100/n,
+                    // each card 1.7 steps wide so it tucks under only its right neighbor
+                    // (never the whole stack), z rises left→right, and selection is a pure
+                    // z-lift — a fronted card can never blanket the cards to its right.
+                    // Day view (per-host columns) keeps the exact side-by-side split.
+                    const step = 100 / seg.cols;
+                    const gcalOverlap = col.kind === 'day';
+                    const span = seg.span || 1;
+                    // span-1 whole free columns, plus the GCal 1.7 overhang into the next
+                    // occupied one (capped at the column edge — a row with nothing to the
+                    // right stretches to the edge).
+                    const width = gcalOverlap
+                      ? Math.min((span - 1 + 1.7) * step, 100 - seg.col * step)
+                      : step * span;
+                    const box = {
+                      top: (seg.startMin / 60) * HOUR_PX + 1, height,
+                      left: `calc(${seg.col * step}% + 3px)`, width: `calc(${width}% - 6px)`,
+                    };
+                    // Availability pseudo-events: same cascade geometry as real events,
+                    // tint + dashed border, never clickable (clicks fall through).
+                    if (seg.ev.kind === 'availability') {
+                      const pal = paletteFor(h?.color);
+                      return (
+                        <div
+                          key={`${seg.ev.id}-${i}`}
+                          className={c.availability}
+                          style={{ ...box, zIndex: 1 + seg.col, background: pal.tint, color: pal.text, borderColor: `${h?.color || '#525252'}66` }}
+                        >
+                          <strong>{h?.name}</strong>
+                          {height >= 38 && <span>Availability</span>}
+                        </div>
+                      );
+                    }
+                    const selected = sel?.seg === seg;
+                    const { primary, detail: sub } = eventLabels(seg.ev);
+                    const when = col.kind === 'day'
+                      ? `${fmtTime(seg.start, tz)} · ${h?.name || ''}`
+                      : `${fmtTime(seg.start, tz)} – ${fmtTime(seg.end, tz)}`;
+                    return (
+                      <button
+                        key={`${seg.ev.id}-${i}`}
+                        type="button"
+                        className={c.event}
+                        data-compact={mins <= 30}
+                        data-selected={selected || undefined}
+                        aria-label={`${primary}, ${h?.name || ''}, ${fmtTime(seg.start, tz)} – ${fmtTime(seg.end, tz)}`}
+                        onClick={() => setSel({ kind: 'timed', seg })}
+                        style={{ ...box, ...eventTone(seg.ev, h), zIndex: selected ? 15 : 1 + seg.col }}
+                      >
+                        <strong>{seg.clipStart && '‹ '}{primary}{seg.clipEnd && ' ›'}</strong>
+                        {height >= 26 && <span>{when}</span>}
+                        {mins >= 60 && sub && <small>{sub}</small>}
+                      </button>
+                    );
+                  })}
+
+                  {/* Now line */}
+                  {col.ymd === today && <div className={c.nowLine} style={{ top: (now.minutes / 60) * HOUR_PX }} />}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Phones: the day-by-day agenda */}
+          <div className={c.agenda}>
+            {agendaDays.map(({ ymd, items }) => (
+              <section key={ymd} className={c.agendaDay}>
+                <h3>{fmtYmd(ymd, { weekday: 'long', month: 'short', day: 'numeric' })}<span>{items.length}</span></h3>
+                {items.length ? items.map((it) => {
+                  const h = hostById.get(it.ev.host_id);
+                  const { primary, detail: sub } = eventLabels(it.ev);
+                  return (
+                    <button key={it.key} type="button" className={c.agendaEvent} onClick={() => setSel(it.sel)}>
+                      {it.seg ? (
+                        <time dateTime={it.seg.start.toISOString()}>
+                          {it.seg.clipStart ? 'Cont.' : fmtTime(it.seg.start, tz)}
+                          <small>{it.seg.clipStart ? `to ${fmtTime(it.seg.end, tz)}` : durationLabel(Math.round((it.seg.end - it.seg.start) / 60000), 'min')}</small>
+                        </time>
+                      ) : <time>All day</time>}
+                      <div>
+                        <span className={c.agendaHost} style={{ color: paletteFor(h?.color).text }}>{h?.name}</span>
+                        <strong>{primary}</strong>
+                        {sub && <p>{sub}</p>}
+                      </div>
+                      <ChevronRight size={16} />
+                    </button>
+                  );
+                }) : <p className={c.noEvents}>No sessions scheduled.</p>}
+              </section>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className={c.calendarFoot}>
+        <span><CalendarDays size={14} /> Select a session to view its details.</span>
+        {updatedAgo && <span>Updated {updatedAgo}</span>}
+      </div>
+
+      {/* Details */}
+      <Sheet open={!!sel} onOpenChange={(open) => { if (!open) setSel(null); }}>
+        <SheetContent className={`${sc.sheet} ${c.eventSheet}`}>
+          <SheetHeader className={c.sheetHeader}>
+            <SheetTitle className={c.sheetTitle}>{detail?.isBooking ? 'Session details' : detail?.busy ? 'Private event' : 'Calendar event'}</SheetTitle>
+            <SheetDescription className={c.sheetDescription}>
+              {detail?.busy ? 'Marked private by its owner, so only the time is shared.' : 'All the details for this calendar entry.'}
+            </SheetDescription>
+          </SheetHeader>
+          {detail && (
+            <>
+              <div className={c.badgeRow}>
+                {detail.isBooking
+                  ? <span className={sc.badge} data-tone="green"><Check size={12} />Booking</span>
+                  : detail.busy
+                    ? <span className={sc.badge} data-tone="muted"><LockKeyhole size={12} />Private</span>
+                    : <span className={sc.badge}><CalendarDays size={12} />Google Calendar</span>}
+                {detail.isBooking && detail.b.source && <small>via {SOURCE_LABEL[detail.b.source] || detail.b.source}</small>}
+              </div>
+              <h3 className={c.detailTitle}>{detail.title}</h3>
+              {detail.isBooking && detail.b.patient_name && <div className={c.detailPerson}>{detail.b.patient_name}</div>}
+              <dl className={c.details}>
+                <div><dt><CalendarDays size={16} />Date</dt><dd>{detail.date}</dd></div>
+                <div><dt><Clock3 size={16} />Time</dt><dd>{detail.time}{detail.timeNote && <small>{detail.timeNote}</small>}</dd></div>
+                <div>
+                  <dt><Users size={16} />Host</dt>
+                  <dd>
+                    <span className={c.detailHost}>
+                      <i style={{ background: detail.host?.color || '#525252' }} />
+                      {detail.host?.name || 'Unknown host'}
+                      {detail.host?.active === false && <em>Inactive</em>}
+                    </span>
+                  </dd>
+                </div>
+                {detail.isBooking ? (
+                  <div>
+                    <dt><Video size={16} />Location</dt>
+                    <dd>
+                      Google Meet
+                      <small>{link ? <a href={link} target="_blank" rel="noreferrer">{link.replace(/^https?:\/\//, '')}</a> : 'No Meet link on this booking yet.'}</small>
+                    </dd>
+                  </div>
+                ) : (link || place) && (
+                  <div>
+                    <dt>{place ? <MapPin size={16} /> : <Video size={16} />}Location</dt>
+                    <dd>
+                      {place || 'Video call'}
+                      {link && <small><a href={link} target="_blank" rel="noreferrer">{link.replace(/^https?:\/\//, '')}</a></small>}
+                    </dd>
                   </div>
                 )}
-
-                {/* Time grid */}
-                <div ref={scrollRef} className="max-h-[max(640px,calc(100dvh-360px))] overflow-y-auto">
-                  <div className="relative grid" style={gridCols} onClick={() => setSel(null)}>
-                    {/* Hour gutter */}
-                    <div className="relative" style={{ height: 24 * HOUR_PX }}>
-                      {Array.from({ length: 23 }, (_, i) => (
-                        <span key={i} className="absolute right-2 -translate-y-1/2 text-[10px] font-medium tabular-nums text-muted-foreground/80" style={{ top: (i + 1) * HOUR_PX }}>
-                          {hourLabel(i + 1)}
-                        </span>
-                      ))}
-                    </div>
-
-                    {cols.map((col) => (
-                      <div key={col.key} className="relative border-l border-border/50" style={{ height: 24 * HOUR_PX, ...COL_BG }}>
-                        {/* Off-hours shading */}
-                        {col.offBands.map(([a, b]) => (
-                          <div key={`${a}-${b}`} className="pointer-events-none absolute inset-x-0" style={{ top: (a / 60) * HOUR_PX, height: ((b - a) / 60) * HOUR_PX, background: 'rgba(0,0,0,0.026)' }} />
-                        ))}
-
-                        {/* Events — borderless soft cards; solid host color marks our bookings */}
-                        {col.segs.map((seg, i) => {
-                          const h = hostById.get(seg.ev.host_id);
-                          const pal = paletteFor(h?.color);
-                          const isBooking = seg.ev.kind === 'booking';
-                          const busy = seg.ev.busy_only;
-                          const top = (seg.startMin / 60) * HOUR_PX;
-                          const height = Math.max(20, ((seg.endMin - seg.startMin) / 60) * HOUR_PX - 2);
-                          const selected = sel?.seg === seg;
-                          // Both views share the cluster/column packing. Week view renders it the
-                          // way Google Calendar does (measured from their live DOM): step = 100/n,
-                          // each card 1.7 steps wide so it tucks under only its right neighbor
-                          // (never the whole stack), z rises left→right, and selection is a pure
-                          // z-lift — a fronted card can never blanket the cards to its right.
-                          // Day view (per-host columns) keeps the exact side-by-side split.
-                          const step = 100 / seg.cols;
-                          const gcalOverlap = col.kind === 'day';
-                          const span = seg.span || 1;
-                          // span-1 whole free columns, plus the GCal 1.7 overhang into the next
-                          // occupied one (capped at the column edge — a row with nothing to the
-                          // right stretches to the edge).
-                          const width = gcalOverlap
-                            ? Math.min((span - 1 + 1.7) * step, 100 - seg.col * step)
-                            : step * span;
-                          const leftPct = seg.col * step;
-                          // Availability pseudo-events: same cascade geometry as real events,
-                          // solid tint + dashed border, never clickable (clicks fall through).
-                          if (seg.ev.kind === 'availability') {
-                            return (
-                              <div
-                                key={`${seg.ev.id}-${i}`}
-                                className="pointer-events-none absolute overflow-hidden rounded-lg px-2 py-[3px] leading-[1.3]"
-                                style={{
-                                  top, height, zIndex: 1 + seg.col,
-                                  left: `calc(${leftPct}% + 3px)`, width: `calc(${width}% - 6px)`,
-                                  background: pal.tint, color: pal.text,
-                                  border: `1.5px dashed ${(h?.color || '#525252')}66`,
-                                  boxShadow: '0 0 0 1px #fff',
-                                }}
-                              >
-                                <span className="block truncate text-[11px] font-semibold">{h?.name}</span>
-                                {height >= 38 && <span className="block truncate text-[10px] font-medium opacity-75">Availability</span>}
-                              </div>
-                            );
-                          }
-                          const style = {
-                            top, height,
-                            left: `calc(${leftPct}% + 3px)`,
-                            width: `calc(${width}% - 6px)`,
-                            zIndex: selected ? 15 : 1 + seg.col,
-                            ...(isBooking
-                              ? { background: h?.color || '#525252', color: '#fff' }
-                              : busy
-                                ? { background: BUSY_BG, color: '#475569' }
-                                : { background: pal.card, color: pal.text }),
-                            ...(selected
-                              // Ring drawn INSET so it never bleeds onto back-to-back events above/below.
-                              ? { boxShadow: 'inset 0 0 0 1px #fff, inset 0 0 0 2px hsl(0 0% 9%), 0 0 0 1px #fff' }
-                              : { boxShadow: '0 0 0 1px #fff' }), // hairline so stacked cards read as separate
-                          };
-                          const label = busy ? 'Busy' : seg.ev.title || '(no title)';
-                          return (
-                            <button
-                              key={`${seg.ev.id}-${i}`}
-                              type="button"
-                              onClick={(e) => openSeg(e, seg)}
-                              className="cad-event absolute overflow-hidden rounded-lg px-2 py-[3px] text-left leading-[1.3]"
-                              style={style}
-                            >
-                              <span className="block truncate text-[11px] font-semibold">
-                                {seg.clipStart && '‹ '}{label}{seg.clipEnd && ' ›'}
-                              </span>
-                              {height >= 38 && (
-                                <span className={cn('block truncate text-[10px] font-medium tabular-nums', isBooking ? 'text-white/85' : 'opacity-75')}>
-                                  {fmtTime(seg.start, tz)} – {fmtTime(seg.end, tz)}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-
-                        {/* Now line */}
-                        {col.ymd === today && (
-                          <div className="pointer-events-none absolute inset-x-0 z-[12]" style={{ top: (now.minutes / 60) * HOUR_PX }}>
-                            <div className="relative h-[2px] bg-[#e11d48]">
-                              <span className="absolute -left-[3px] -top-[3px] size-2 rounded-full bg-[#e11d48]" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    {/* Details popover */}
-                    {sel && popStyle && selHost && (
-                      <div
-                        ref={popRef}
-                        className="absolute z-20 w-[284px] rounded-[10px] border bg-card p-3.5"
-                        style={{ ...popStyle, boxShadow: '0 12px 32px rgba(15,23,42,0.16)' }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="mb-1.5 flex items-center gap-1.5">
-                          <span
-                            className="inline-flex items-center gap-1.5 rounded-[5px] px-2 py-0.5 text-[10.5px] font-semibold"
-                            style={sel.seg.ev.busy_only
-                              ? { background: '#f1f5f9', color: '#475569' }
-                              : { background: selPal.tint, color: selPal.text }}
-                          >
-                            <span className="size-1.5 rounded-full" style={{ background: sel.seg.ev.busy_only ? '#94a3b8' : selHost.color }} />
-                            {sel.seg.ev.kind === 'booking' ? 'Booking' : sel.seg.ev.busy_only ? 'Private' : 'Google Calendar'}
-                          </span>
-                          {sel.seg.ev.kind === 'booking' && sel.seg.ev.booking?.source && (
-                            <span className="text-[10.5px] font-medium text-muted-foreground">via {sel.seg.ev.booking.source}</span>
-                          )}
-                          <button type="button" className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-muted" onClick={() => setSel(null)} aria-label="Close">
-                            <X className="size-3.5" />
-                          </button>
-                        </div>
-                        <p className="text-[13px] font-semibold leading-snug text-foreground">
-                          {sel.seg.ev.busy_only ? 'Busy' : sel.seg.ev.title || '(no title)'}
-                        </p>
-                        <p className="mt-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-                          {sel.kind === 'allday'
-                            ? `${fmtYmd(sel.seg.ev.start_utc, { weekday: 'short', month: 'short', day: 'numeric' })} · all-day`
-                            : `${fmtYmd(zoned(sel.seg.start, tz).ymd, { weekday: 'short', month: 'short', day: 'numeric' })} · ${fmtTime(sel.seg.start, tz)} – ${fmtTime(sel.seg.end, tz)}`}
-                        </p>
-                        <div className="my-2.5 h-px bg-border/70" />
-                        <div className="space-y-1 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-muted-foreground">Host</span>
-                            <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                              <span className="size-[7px] rounded-full" style={{ background: selHost.color }} />
-                              {selHost.name}
-                            </span>
-                          </div>
-                          {sel.seg.ev.kind === 'booking' && (
-                            <>
-                              {sel.seg.ev.booking?.patient_name && (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-muted-foreground">Patient</span>
-                                  <span className="truncate font-medium text-foreground">{sel.seg.ev.booking.patient_name}</span>
-                                </div>
-                              )}
-                              {sel.seg.ev.booking?.session_title && (
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-muted-foreground">Session</span>
-                                  <span className="truncate font-medium text-foreground">{sel.seg.ev.booking.session_title}</span>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          {sel.seg.ev.kind === 'gcal' && sel.seg.ev.location && sel.seg.ev.location !== sel.seg.ev.meet_link && (
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-muted-foreground"><MapPin className="mr-0.5 inline size-3 align-[-2px]" />Location</span>
-                              <span className="truncate font-medium text-foreground" title={sel.seg.ev.location}>{sel.seg.ev.location}</span>
-                            </div>
-                          )}
-                        </div>
-                        {sel.seg.ev.kind === 'booking' ? (
-                          <div className="mt-3 flex gap-2">
-                            {sel.seg.ev.booking?.meet_link && (
-                              <Button size="sm" className="h-8 flex-1" asChild>
-                                <a href={sel.seg.ev.booking.meet_link} target="_blank" rel="noreferrer"><Video className="size-3.5" /> Join Meet</a>
-                              </Button>
-                            )}
-                            <Button size="sm" variant="outline" className="h-8 flex-1" onClick={() => navigate('/admin/scheduling/bookings')}>
-                              View booking
-                            </Button>
-                          </div>
-                        ) : (!sel.seg.ev.busy_only && (sel.seg.ev.meet_link || sel.seg.ev.html_link) && (
-                          <div className="mt-3 flex gap-2">
-                            {sel.seg.ev.meet_link && (
-                              <Button size="sm" className="h-8 flex-1" asChild>
-                                <a href={sel.seg.ev.meet_link} target="_blank" rel="noreferrer"><Video className="size-3.5" /> Join</a>
-                              </Button>
-                            )}
-                            {sel.seg.ev.html_link && (
-                              <Button size="sm" variant="outline" className="h-8 flex-1" asChild>
-                                <a href={sel.seg.ev.html_link} target="_blank" rel="noreferrer">Google Cal <ExternalLink className="size-3" /></a>
-                              </Button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              </dl>
+              {detail.isBooking ? (
+                <div className={c.sheetActions}>
+                  {link && <a className={sc.button} href={link} target="_blank" rel="noreferrer"><Video size={16} />Join Meet</a>}
+                  <button type="button" className={sc.secondary} onClick={() => navigate('/admin/scheduling/bookings')}>View booking</button>
                 </div>
-              </div>
-            </div>
+              ) : !detail.busy && (link || detail.ev.html_link) && (
+                <div className={c.sheetActions}>
+                  {link && <a className={sc.button} href={link} target="_blank" rel="noreferrer"><Video size={16} />Join</a>}
+                  {detail.ev.html_link && (
+                    <a className={sc.secondary} href={detail.ev.html_link} target="_blank" rel="noreferrer">Open in Google Calendar<ExternalLink size={14} /></a>
+                  )}
+                </div>
+              )}
+            </>
           )}
-        </div>
-      </section>
-    </div>
+        </SheetContent>
+      </Sheet>
+    </section>
   );
 }

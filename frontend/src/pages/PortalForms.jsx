@@ -6,17 +6,20 @@ import { motion } from 'framer-motion';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
-  LogOut, Home, HelpCircle, ArrowLeft, ArrowRight, CheckCircle2, Check, Loader2, Plus, Trash2,
+  ArrowLeft, ArrowRight, CheckCircle2, Check, Loader2, Plus, Trash2,
   User, MapPin, Stethoscope, Target, FileText, Pill, Activity, AlertTriangle,
   FlaskConical, Users, ShieldCheck, Video, PenLine,
 } from 'lucide-react';
 import SafeSignatureCanvas from '../components/ui/SafeSignatureCanvas';
 import ProtoSelect from './prototype/ProtoSelect';
 import AddressAutocomplete from './prototype/AddressAutocomplete';
+import { PatientFooter, PatientHeader } from './PatientShell';
+import { FormsSkeleton } from './PatientSkeleton';
+import shell from './PortalDashboard.module.css';
 import './prototype/proto.css';
+import './prototype/patient-brand.css';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
 
 /* ------------------------------------------------------------------ options */
 const RELATIONSHIP_OPTIONS = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Partnered'];
@@ -186,6 +189,7 @@ export default function PortalForms() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [missingFields, setMissingFields] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [user, setUser] = useState(null);
 
   const printNameManuallyEdited = useRef(false);
   const saveTimer = useRef(null);
@@ -246,6 +250,7 @@ export default function PortalForms() {
       // prefill from /user/me
       try {
         const { data: u } = await axios.get(`${API}/user/me`, { headers: authHeaders() });
+        setUser(u);
         const parts = (u.name || '').trim().split(' ');
         setFormData((prev) => ({
           ...prev,
@@ -474,48 +479,31 @@ export default function PortalForms() {
 
   if (!loaded) {
     return (
-      <div className="proto proto-book">
-        <main className="proto-container proto-container--form proto-main">
-          <div className="proto-card proto-card--pad" style={{ textAlign: 'center', color: 'var(--p-ink-soft)' }}>
-            <Loader2 size={20} className="proto-spin" style={{ marginBottom: 8 }} /> Loading your forms...
-          </div>
-        </main>
+      <div className={shell.page}>
+        <PatientHeader user={user} />
+        <div className="proto proto-book patient-brand">
+          <main className="proto-container proto-container--form proto-main">
+            <FormsSkeleton />
+          </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="proto proto-book">
-      {/* top bar */}
-      <header className="proto-topbar">
-        <div className="proto-container" style={{ height: 62, display: 'flex', alignItems: 'center' }}>
-          <img src={LOGO} alt="Dr. Shumard" style={{ height: 22 }} />
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button className="proto-btn proto-btn--ghost proto-help-sm" style={{ padding: '8px 12px' }} aria-label="Help"
-              onClick={() => window.dispatchEvent(new Event('open-support'))}>
-              <HelpCircle size={16} />
-            </button>
-            <button className="proto-btn proto-btn--ghost" style={{ padding: '8px 12px' }} aria-label="Home" onClick={() => navigate('/dashboard')}>
-              <Home size={16} /> <span className="proto-hide-sm">Home</span>
-            </button>
-            <button className="proto-btn proto-btn--danger" style={{ padding: '8px 12px' }} aria-label="Log out"
-              onClick={() => { localStorage.clear(); navigate('/login'); }}>
-              <LogOut size={16} /> <span className="proto-hide-sm">Log out</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
+    <div className={shell.page}>
+      <PatientHeader user={user} />
+      <div className="proto proto-book patient-brand">
       <main className="proto-container proto-container--form proto-main">
         {/* page header */}
         <div style={{ marginBottom: 18 }}>
-          <p className="proto-eyebrow">Step 2 of 3 · Health profile</p>
+          <p className="proto-eyebrow proto-forms-eyebrow">Step 2 of 3 · Health profile</p>
           <h1 style={{ marginTop: 6 }}>Tell us about your health</h1>
           <p className="proto-soft proto-book-sub" style={{ marginTop: 8 }}>This helps our team prepare for your Diabetes Reversal Strategy Session. It takes about 8 minutes - everything saves automatically as you go.</p>
         </div>
 
         {/* stepper + autosave indicator */}
-        <div className="proto-card" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 18px', marginBottom: 18 }}>
+        <div className="proto-card proto-forms-stepper" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, padding: '14px 18px', marginBottom: 18 }}>
           <div className="proto-seg" role="tablist" aria-label="Form parts">
             {partLabel.map((lbl, i) => (
               <button
@@ -659,8 +647,8 @@ export default function PortalForms() {
         .proto-spin { animation: proto-spin 0.8s linear infinite; }
         @keyframes proto-spin { to { transform: rotate(360deg); } }
         .proto-flash { box-shadow: 0 0 0 2px #ef4444 !important; border-radius: 12px; }
-        .proto-hide-sm { display: none; }
-        @media (min-width: 560px) { .proto-hide-sm { display: inline; } }
+        .proto-forms-stepper { justify-content: space-between; }
+        @media (max-width: 720px) { .proto-forms-eyebrow { text-align: center; } .proto-forms-stepper { justify-content: center; } }
         .proto-sec-grid { display: grid; gap: 13px; grid-template-columns: 1fr; }
         @media (min-width: 640px) { .proto-sec-grid { gap: 16px; grid-template-columns: 1fr 1fr; } }
         .proto-sec-head { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
@@ -674,6 +662,8 @@ export default function PortalForms() {
         .proto-notice p { margin-bottom: 10px; }
         .proto-notice ol, .proto-notice ul { margin: 0 0 10px 18px; display: grid; gap: 3px; }
       `}</style>
+      </div>
+      <PatientFooter />
     </div>
   );
 }

@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, CircleAlert } from 'lucide-react';
+import AuthFrame from './auth/AuthFrame';
+import frame from './auth/welcome.module.css';
+import s from './auth/sign-in.module.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// /reset-password?token=… from a reset email — in the sign-in page's design (user, 2026-09-28). Problems show on the
+// page, as on sign-in; success goes back to sign-in.
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -18,22 +19,24 @@ const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);   // { text, fields: true when it's about what they typed }
+
+  useEffect(() => {
+    const previous = document.title;
+    document.title = 'Reset Password | Dr. Jason Shumard';
+    return () => { document.title = previous; };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      setError({ text: 'Passwords do not match', fields: true });
       return;
     }
 
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-
-    if (!token) {
-      toast.error('Invalid reset token');
+      setError({ text: 'Password must be at least 8 characters', fields: true });
       return;
     }
 
@@ -47,91 +50,78 @@ const ResetPassword = () => {
 
       toast.success('Password reset successful!');
       navigate('/login');
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Password reset failed');
+    } catch (err) {
+      setError({ text: err.response?.data?.detail || 'Password reset failed', fields: false });
     } finally {
       setLoading(false);
     }
   };
 
+  const edit = (set) => (event) => { set(event.target.value); setError(null); };
+  const invalid = Boolean(error?.fields);
+
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
-        <Card className="glass-dark shadow-2xl border-0 max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>Invalid Reset Link</CardTitle>
-            <CardDescription>This password reset link is invalid or has expired.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to="/login">
-              <Button className="w-full">Return to Login</Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <AuthFrame mainId="reset-password" skipLabel="Skip to reset password">
+        <section className={s.signIn} aria-labelledby="reset-title">
+          <div className={s.step}>
+            <h1 id="reset-title">This link has<br /><span>expired.</span></h1>
+            <p className={s.copy}>This password reset link is invalid or has expired.</p>
+            <div className={s.card}>
+              <div className={s.form}>
+                <Link to="/login" className={s.primary}>Back to sign in <ArrowRight size={18} aria-hidden="true" /></Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </AuthFrame>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #BFDBFE 100%)' }}>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full"
-      >
-        <Card className="glass-dark shadow-2xl border-0 max-w-md mx-auto" data-testid="reset-password-card">
-          <CardHeader className="space-y-1 text-center pb-6">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">DS</span>
-              </div>
-            </div>
-            <CardTitle className="text-3xl font-bold" style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Reset Your Password</CardTitle>
-            <CardDescription className="text-base">Enter your new password below</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4" data-testid="reset-password-form">
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  data-testid="new-password-input"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  data-testid="confirm-new-password-input"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-6 rounded-lg shadow-lg"
-                disabled={loading}
-                data-testid="reset-password-submit-button"
-              >
-                {loading ? 'Resetting...' : 'Reset Password'}
-              </Button>
+    <AuthFrame mainId="reset-password" skipLabel="Skip to reset password">
+      <section className={s.signIn} aria-labelledby="reset-title">
+        <div className={s.step}>
+          <h1 id="reset-title">Reset your<br /><span>password.</span></h1>
+          <p id="reset-copy" className={s.copy}>Enter your new password below. It needs at least 8 characters.</p>
+
+          <div className={s.card}>
+            <form className={s.form} onSubmit={handleSubmit} noValidate>
+              <label htmlFor="password" className={s.label}>New password</label>
+              <input
+                id="password"
+                className={s.input}
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={edit(setPassword)}
+                required
+                aria-invalid={invalid}
+                aria-describedby={error ? 'reset-copy reset-error' : 'reset-copy'}
+              />
+              <label htmlFor="confirmPassword" className={s.label}>Confirm new password</label>
+              <input
+                id="confirmPassword"
+                className={s.input}
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={edit(setConfirmPassword)}
+                required
+                aria-invalid={invalid}
+                aria-describedby={error ? 'reset-error' : undefined}
+              />
+              {error && <p id="reset-error" className={s.error} role="alert"><CircleAlert size={16} aria-hidden="true" />{error.text}</p>}
+              <button type="submit" className={s.primary} disabled={loading}>
+                {loading ? 'Resetting…' : <>Reset password <ArrowRight size={18} aria-hidden="true" /></>}
+              </button>
             </form>
-            <div className="mt-6 text-center">
-              <Link to="/login" className="text-sm text-blue-600 hover:text-blue-700 font-semibold" data-testid="back-to-login-link">
-                Back to Login
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
+          </div>
+
+          <Link to="/login" className={`${frame.quietButton} ${s.back}`}><ArrowLeft size={13} aria-hidden="true" /> Back to sign in</Link>
+        </div>
+      </section>
+    </AuthFrame>
   );
 };
 

@@ -1,0 +1,186 @@
+.controls { display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap; }
+.dateControl { display:flex;align-items:center;gap:4px; }
+.dateControl input { width:136px;height:39px;min-width:0;padding:8px;border:1px solid #dce3ed;border-radius:3px;color:#536984;background:#fff;font:11px "SFMono-Regular",Consolas,monospace; }
+.filterBar { display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid #e0e6ef; }
+.count { padding:2px 5px;background:#eef2f8;border-radius:2px;font:10px "SFMono-Regular",Consolas,monospace;color:#7a8a9f; }
+.legend { display:flex;align-items:center;gap:17px;flex:1;flex-wrap:wrap; }
+.legend span { display:flex;align-items:center;gap:6px;color:#7a8aa1;font-size:11px; }
+.legend i,.popover i { width:7px;height:7px;border-radius:2px;background:#6684d3; }
+.legend [data-tone=teal],.popover [data-tone=teal] { background:#51a696; }
+.legend [data-tone=purple],.popover [data-tone=purple] { background:#967fbd; }
+.legend [data-tone=amber],.popover [data-tone=amber] { background:#c59952; }
+.popover { width:245px;padding:18px;border:1px solid #dfe5ee;border-radius:4px;background:#fff;color:#576c85; }
+.popover strong { display:block;margin-bottom:13px;font-size:13px;font-weight:500; }
+.popover label { display:flex;align-items:center;gap:9px;min-height:37px;font-size:13px; }
+.popover input { width:15px;height:15px;accent-color:#315fd1; }
+.popover p { margin-top:10px;color:#8593a7;font-size:12px;line-height:1.7; }
+.popover > button { margin-top:12px;width:100%; }
+.refresh { padding:9px 22px;font-size:12px;color:#438573;border-bottom:1px solid #e2ebe7;background:#f6faf8; }
+.desktopCalendar { max-height:680px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin; }
+.calendarGrid { display:grid;min-width:830px;align-items:start; }
+.corner,.dayHeading { position:sticky;top:0;z-index:5;min-height:68px;border:0;border-bottom:1px solid #dfe5ee;border-right:1px solid #e8edf4;background:#fbfcfe; }
+.corner { display:grid;place-items:center;font:10px "SFMono-Regular",Consolas,monospace;color:#8b9ab0; }
+.dayHeading { display:flex;align-items:center;justify-content:center;gap:9px;min-width:0; }
+.dayHeading span { color:#8996a9;font:10px "SFMono-Regular",Consolas,monospace;text-transform:uppercase; }
+.dayHeading strong { display:grid;place-items:center;width:30px;height:30px;border:1px solid transparent;font-size:15px;font-weight:500;color:#4d627d; }
+.dayHeading[data-today=true] strong { color:#315fd1;background:#eaf0ff;border-color:#dbe4fa;border-radius:3px; }
+.dayHeading:hover { background:#f0f4fc; }
+.hourColumn { background:#fcfdff; }
+.hourColumn span { display:block;height:70px;padding:8px 7px 0;text-align:right;border-bottom:1px solid #edf0f6;color:#9ba7b7;font:9px "SFMono-Regular",Consolas,monospace; }
+.dayColumn { position:relative;border-right:1px solid #e5eaf1;background:#fff; }
+.dayColumn:last-child { border-right:0; }
+.hourRule { height:70px;border-bottom:1px solid #e5eaf1;background:linear-gradient(transparent 34px,#f3f5f9 34px,#f3f5f9 35px,transparent 35px); }
+.event { position:absolute;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:5px 7px;border:1px solid #d5e0fa;border-left:2px solid #7c99dc;border-radius:3px;background:#edf3ff;color:#4668b1;text-align:left;overflow:hidden;transition:filter .15s,box-shadow .15s; }
+.event strong { display:block;max-width:100%;font-size:11px;font-weight:500;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.event span { display:block;max-width:100%;font-size:9px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.event small { font-size:10px;line-height:1.5;max-width:100%;overflow:hidden;margin-top:5px; }
+.event[data-tone=teal] { background:#edf7f3;border-color:#d5e9e3;border-left-color:#62a993;color:#488675; }
+.event[data-tone=purple] { background:#f3eff9;border-color:#e4dcef;border-left-color:#a28ac2;color:#80669e; }
+.event[data-tone=amber] { background:#fff6e7;border-color:#f2e4c8;border-left-color:#d7b36c;color:#aa8146; }
+.event:hover { filter:brightness(.97);box-shadow:0 2px 6px #384c6c15;z-index:4; }
+.event:focus-visible { outline:2px solid #315fd1;outline-offset:1px;z-index:6; }
+.agenda { display:none; }
+.calendarFoot { display:flex;align-items:center;justify-content:space-between;gap:15px;padding:15px 22px;border-top:1px solid #e1e7f0;color:#8a98ad;font-size:11px; }
+.calendarFoot span { display:flex;align-items:center;gap:7px; }
+.detailTitle { margin:10px 0 0;font-size:1.375rem;font-weight:500;line-height:1.5;letter-spacing:-.025em;color:#34445d; }
+.detailPerson { color:#70849f;font-size:.9375rem; }
+.details { margin:12px 0 20px; }
+.details > div { padding:16px 0;border-bottom:1px solid #e5eaf2; }
+.details dt { display:flex;align-items:center;gap:8px;color:#8392a7;font-size:12px;margin-bottom:9px; }
+.details dd { margin-left:24px;color:#4d647f;font-size:14px; }
+.details small { display:block;font-size:12px;margin-top:5px;color:#8a98ad;line-height:1.6; }
+@media(max-width:1100px) { .controls { justify-content:flex-start; }.legend { gap:9px; }.filterBar { gap:9px; } }
+@media(max-width:767px) {
+  .controls { width:100%;gap:8px;justify-content:space-between; }
+  .dateControl { order:3;width:100%; }
+  .dateControl input { flex:1;width:auto;font-size:14px;text-align:center;min-height:42px; }
+  .filterBar { padding:13px 17px;flex-wrap:wrap; }
+  .legend { order:4;flex:1 1 100%;padding-top:5px;gap:10px 17px; }
+  .filterBar > button:nth-last-child(2) { margin-left:auto; }
+  .desktopCalendar { display:none; }
+  .agenda { display:block; }
+  .agendaDay h3 { display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#f6f8fb;border-top:1px solid #e3e9f1;border-bottom:1px solid #e3e9f1;color:#70839e;font:11px "SFMono-Regular",Consolas,monospace; }
+  .agendaDay:first-child h3 { border-top:0; }
+  .agendaDay h3 span { color:#9da9b9; }
+  .agendaEvent { width:100%;display:grid;grid-template-columns:64px minmax(0,1fr) 16px;align-items:center;gap:12px;padding:18px 16px;border:0;border-bottom:1px solid #edf1f6;background:#fff;color:#7f91aa;text-align:left; }
+  .agendaEvent:hover { background:#f8faff; }
+  .agendaEvent time { align-self:start;font:11px/1.4 "SFMono-Regular",Consolas,monospace;color:#546b89; }
+  .agendaEvent time small { display:block;font-size:10px;color:#93a1b5;margin-top:5px; }
+  .agendaEvent strong { display:block;color:#405771;font-size:14px;font-weight:500;margin:6px 0 3px; }
+  .agendaEvent p { color:#8797ab;font-size:11px;line-height:1.6; }
+  .agendaHost { color:#5577bc;font-size:10px; }
+  .agendaHost[data-tone=teal] { color:#40836f; }.agendaHost[data-tone=purple] { color:#8c76a8; }.agendaHost[data-tone=amber] { color:#a9844e; }
+  .noEvents { padding:20px 18px;color:#98a5b6;font-size:12px; }
+  .calendarFoot { flex-direction:column;align-items:flex-start;padding:15px 18px;font-size:10px; }
+}
+
+.event[data-compact=true] { padding:2px 6px;gap:0; }.event[data-compact=true] strong { font-size:10px;line-height:12px; }.event[data-compact=true] span { font-size:9px;line-height:11px; }
+
+/* ===================================================================================================
+   Portal adaptation (everything above is the prototype's scheduling/calendar/calendar.module.css verbatim —
+   shumard-checkout-portal/app/admin/scheduling/calendar). Maps it onto the live Team Calendar: host colours,
+   availability, all-day and busy events, the now line, and our shadcn v3 popovers + sheet.
+   =================================================================================================== */
+/* Inter throughout (user, 2026-09-27: rsms Inter has no mono cut) — Inter's tabular figures where the design sets mono. */
+.dateControl input, .count, .corner, .dayHeading span, .hourColumn span, .agendaDay h3, .agendaEvent time {
+  font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+.dateControl input { font-size: 13px; }
+.corner { font-size: 11px; }
+.dayHeading span { font-size: 11px; }
+.hourColumn span { font-size: 10px; }
+/* Beat the app's global teal input focus (index.css — specificity 0,3,1). */
+.dateControl input:not([type=checkbox]):not([type=radio]):focus { border-color: #dce3ed; box-shadow: none; outline: 2px solid #adc2f4; outline-offset: 1px; }
+/* Black text (user, 2026-09-27): main #111, secondary #444; host colours, today's blue and warnings keep theirs. */
+.dateControl input, .dayHeading strong, .popover, .popover strong, .detailTitle, .details dd, .agendaEvent strong,
+.agendaEvent time { color: #111; }
+.legend span, .count, .corner, .dayHeading span, .hourColumn span, .popover p, .calendarFoot, .detailPerson, .details dt,
+.details small, .agendaEvent p, .agendaEvent time small, .agendaDay h3, .agendaDay h3 span, .noEvents { color: #444; }
+
+/* One scroller, both axes: the headings and the all-day lane stay pinned above every event layer. */
+.desktopCalendar { max-height: max(680px, calc(100dvh - 360px)); }
+.corner, .dayHeading { z-index: 30; }
+.dayHeading { cursor: pointer; font-family: inherit; }
+.hostHeading { cursor: default; padding: 0 10px; }
+.hostHeading:hover { background: #fbfcfe; }
+.hostHeading > span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; }
+.hostHeading span, .hostHeading b { overflow: hidden; color: #111; font-family: inherit; font-size: 12px; font-weight: 500; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.hostHeading i { width: 7px; height: 7px; flex: none; border-radius: 2px; }
+.hostHeading em { flex: none; color: #444; font-size: 11px; font-style: normal; }
+.hostHeading svg { flex: none; color: #b7791f; }
+.allDayLabel, .allDayCell { position: sticky; top: 68px; z-index: 29; border-bottom: 1px solid #dfe5ee; background: #fff; }
+.allDayLabel { align-self: stretch; padding: 8px 7px 0; border-right: 1px solid #e8edf4; background: #fcfdff; color: #444; font-size: 10px; text-align: right; }
+.allDayEvent { position: absolute; height: 22px; padding: 0 7px; border: 1px solid; border-left-width: 2px; border-radius: 3px; box-shadow: 0 0 0 1px #fff; overflow: hidden; font-family: inherit; font-size: 11px; font-weight: 500; line-height: 20px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.allDayEvent:hover { filter: brightness(.97); }
+.allDayEvent[data-selected] { box-shadow: inset 0 0 0 1px #315fd1, 0 0 0 1px #fff; }
+
+/* Events: the prototype card, coloured per host (inline), with a white hairline so stacked cards read apart. */
+.event { cursor: pointer; font-family: inherit; box-shadow: 0 0 0 1px #fff; }
+.event:hover { box-shadow: 0 0 0 1px #fff, 0 2px 6px #384c6c15; }
+.event[data-selected] { box-shadow: inset 0 0 0 1px #fff, inset 0 0 0 2px #315fd1, 0 0 0 1px #fff; }
+.event span { font-size: 10px; opacity: .85; font-variant-numeric: tabular-nums; }
+.event small { margin-top: 3px; opacity: .85; white-space: nowrap; text-overflow: ellipsis; }
+.event[data-compact=true] span { font-size: 9.5px; }
+.availability { position: absolute; display: flex; flex-direction: column; gap: 1px; padding: 3px 7px; border: 1.5px dashed; border-radius: 3px; box-shadow: 0 0 0 1px #fff; overflow: hidden; pointer-events: none; }
+.availability strong, .availability span { max-width: 100%; overflow: hidden; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.availability strong { font-size: 11px; font-weight: 500; }
+.availability span { font-size: 10px; opacity: .75; }
+.offBand { position: absolute; left: 0; right: 0; background: rgba(15, 23, 42, .028); pointer-events: none; }
+.nowLine { position: absolute; left: 0; right: 0; z-index: 12; height: 2px; background: #e11d48; pointer-events: none; }
+.nowLine::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: #e11d48; }
+
+.hostWarning { display: flex; align-items: flex-start; gap: 8px; padding: 9px 22px; border-bottom: 1px solid #f1e4c4; background: #fffaf0; color: #8a5d14; font-size: 12px; line-height: 1.5; }
+.hostWarning svg { flex: none; margin-top: 2px; }
+.loadingState { display: grid; gap: 12px; padding: 22px; }
+.filterBar button:disabled { cursor: default; }
+@media (max-width: 1100px) { .calendarHeader { flex-wrap: wrap; } }   /* the controls drop under the title rather than squeezing it */
+
+/* Hosts picker: our Command (search + role groups) in the prototype popover's clothes. */
+.hostsPopover { width: 280px; padding: 0; overflow: hidden; border: 1px solid #dfe5ee; border-radius: 4px; background: #fff; box-shadow: 0 10px 28px #1e355914; color: #111; }
+.hostsPopover [cmdk-root] { border-radius: 0; background: #fff; color: #111; }
+.hostsTitle { display: block; padding: 16px 14px 10px; font-size: 13px; font-weight: 500; }
+.hostsPopover [cmdk-input-wrapper] { margin: 0 12px 4px; padding: 0 10px; border: 1px solid #dfe5ee; border-radius: 3px; }
+.hostsPopover [cmdk-input-wrapper]:focus-within { outline: 2px solid #adc2f4; outline-offset: 1px; }
+.hostsPopover [cmdk-input] { height: 36px; padding: 0; color: #111; font-size: 13px; }
+.hostsPopover input:not([type=checkbox]):not([type=radio]):focus { box-shadow: none; }
+.hostsPopover [cmdk-list] { max-height: 300px; padding: 0 6px 6px; }
+.hostsPopover [cmdk-group] { padding: 0; }
+.hostsPopover [cmdk-group-heading] { padding: 12px 8px 5px; color: #444; font-size: 11px; font-weight: 500; }   /* sentence case keeps "PCCs" readable */
+.hostsPopover [cmdk-item] { gap: 9px; min-height: 36px; padding: 6px 8px; border-radius: 3px; color: #111; font-size: 13px; cursor: pointer; }
+.hostsPopover [cmdk-item][data-selected=true] { background: #f3f6fb; color: #111; }
+.hostsPopover [cmdk-empty] { color: #444; font-size: 13px; }
+.hostCheck { display: grid; place-items: center; width: 15px; height: 15px; flex: none; border: 1px solid #c3cddb; border-radius: 3px; background: #fff; color: #fff; }
+.hostCheck[data-on=true] { border-color: #315fd1; background: #315fd1; }
+.hostCheck svg { width: 11px; height: 11px; stroke-width: 3; }
+.hostDot { width: 7px; height: 7px; flex: none; border-radius: 2px; }
+.hostName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hostTag { margin-left: auto; color: #444; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; }
+.hostError { color: #b7791f; }
+.hostsFoot { display: flex; gap: 8px; padding: 10px 12px 12px; border-top: 1px solid #e7ecf3; }
+.hostsFoot > button { flex: 1; min-height: 34px; padding: 6px 10px; font-size: 12px; }
+/* Display options */
+.popover { box-shadow: 0 10px 28px #1e355914; }
+.popover label { cursor: pointer; }
+.tzChoice { margin-top: 8px; padding-top: 10px; border-top: 1px solid #e7ecf3; }
+.tzChoice > span { display: block; color: #444; font-size: 11px; }
+
+/* Details sheet (shadcn v3: no data-slot hooks, so the header parts carry classes). */
+.eventSheet { width: min(480px, 100%) !important; max-width: 100% !important; padding: 30px !important; color: #111; }
+.eventSheet h2, .eventSheet h3 { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }   /* portaled outside .admin-geist: beat App.css's global Space Grotesk headings */
+.sheetHeader { margin-bottom: 20px; padding: 4px 28px 18px 0; border-bottom: 1px solid #e7ebf1; text-align: left; }
+.sheetTitle { color: #111; font-size: 1.35rem; font-weight: 500; letter-spacing: -.025em; }
+.sheetDescription { color: #444; font-size: .875rem; line-height: 1.65; }
+.badgeRow { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+.badgeRow small { color: #444; font-size: 12px; }
+.detailHost { display: inline-flex; align-items: center; gap: 8px; }
+.detailHost i { width: 7px; height: 7px; flex: none; border-radius: 2px; }
+.detailHost em { color: #444; font-size: 12px; font-style: normal; }
+.details a { color: #2f5ed6; overflow-wrap: anywhere; text-underline-offset: 3px; }
+.details a:hover { text-decoration: underline; }
+.sheetActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.sheetActions > a { text-decoration: none; }
+.agendaEvent { cursor: pointer; font-family: inherit; }
+@media (max-width: 767px) {
+  .hostWarning { padding: 9px 17px; }
+  .eventSheet { padding: 25px 20px !important; }
+  .sheetActions > * { flex: 1; }
+}

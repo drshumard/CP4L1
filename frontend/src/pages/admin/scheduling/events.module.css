@@ -1,0 +1,179 @@
+.page, .sheet, .dialog, .previewDialog { --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace; color: #34445d; font-size: .875rem; line-height: 1.5; }
+.page { display: grid; gap: 23px; min-width: 0; }
+.card { min-width: 0; border: 1px solid #dfe5ed; border-radius: 4px; background: #fff; overflow: hidden; }
+.cardHeader { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 22px 24px; border-bottom: 1px solid #e3e8f0; }
+.kicker { display: block; color: #8b98aa; font: .625rem/1.5 var(--mono); letter-spacing: .09em; }
+.cardHeader h2, .sectionIntro h2 { margin: 5px 0; color: #34445d; font-size: 1.125rem; font-weight: 500; letter-spacing: -.025em; }
+.cardHeader p, .sectionIntro p { margin: 5px 0 0; color: #7d8ca1; font-size: .8125rem; }
+.primary, .secondary, .textButton { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 9px 13px; border-radius: 3px; font-family: inherit; font-size: .75rem; font-weight: 500; line-height: 1.3; white-space: nowrap; cursor: pointer; }
+.primary { border: 1px solid #edb440; color: #584219; background: #ffc24a; }
+.primary:hover { background: #ffb934; }
+.primary:disabled { cursor: default; opacity: .5; }
+.secondary { border: 1px solid #dce3ed; color: #62758f; background: #fff; }
+.secondary:hover { border-color: #bfcee7; background: #f7f9fe; }
+.textButton { border: 0; background: none; color: #7c8ca1; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid #e6eaf1; }
+.search { display: flex; align-items: center; gap: 9px; width: 310px; max-width: 100%; min-height: 38px; border: 1px solid #dfe5ed; border-radius: 3px; padding: 0 11px; color: #95a2b4; }
+.search input { width: 100%; min-width: 0; padding: 0; border: 0; background: none; font: inherit; font-size: .8125rem; color: #4a5d78; outline: none; }
+.search:focus-within { border-color: #779bec; box-shadow: 0 0 0 2px #e8efff; }
+.segmented { display: flex; flex-shrink: 0; border: 1px solid #dfe5ed; border-radius: 3px; overflow: hidden; }
+.segmented button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 7px 10px; border: 0; border-right: 1px solid #dfe5ed; background: #fff; color: #7c8ba0; font: .6875rem var(--mono); cursor: pointer; white-space: nowrap; }
+.segmented button:last-child { border-right: 0; }
+.segmented button[aria-pressed=true] { background: #edf2ff; color: #315fd1; }
+.segmented button span { padding: 1px 4px; color: #7b90b6; background: #f0f3f9; font-size: .5625rem; }
+.tableScroll { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; text-align: left; }
+.table th { padding: 12px 20px; border-bottom: 1px solid #e3e8f0; background: #fafbfd; color: #8390a4; font: .625rem var(--mono); letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; }
+.table td { padding: 12px 20px; border-bottom: 1px solid #eaf0f6; }
+.table tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover { background: #fafcff; }
+.table th:last-child, .table td:last-child { text-align: right; width: 56px; padding-left: 8px; }
+.eventName { display: flex; align-items: center; gap: 12px; border: 0; padding: 0; background: none; color: #43546e; text-align: left; cursor: pointer; }
+.eventName strong { display: block; color: #43546e; font-size: .8125rem; font-weight: 500; }
+.eventName:hover strong { color: #315fd1; }
+.eventName small { display: block; margin-top: 3px; color: #97a3b4; font-size: .6875rem; }
+.eventIcon { display: grid; place-items: center; width: 32px; height: 32px; flex-shrink: 0; border: 1px solid #e2e8f3; border-radius: 3px; color: #7a93be; background: #f8faff; }
+.duration { display: inline-flex; gap: 6px; align-items: center; font: .6875rem var(--mono); color: #6f8098; white-space: nowrap; }
+.duration svg { color: #a0adbd; }
+.access { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #e2e7ef; border-radius: 2px; padding: 4px 6px; background: #f8fafc; color: #8090a6; font: .625rem var(--mono); white-space: nowrap; }
+.access[data-portal=true] { border-color: #dce9e4; background: #f0f8f4; color: #44826b; }
+.service { color: #95a1b3; font: .625rem var(--mono); white-space: nowrap; }
+.iconButton { display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: 3px; width: 34px; height: 34px; flex-shrink: 0; color: #92a0b3; background: transparent; cursor: pointer; }
+.iconButton:hover { background: #edf2ff; border-color: #dbe5fc; color: #315fd1; }
+.tableFoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid #e6ebf2; padding: 13px 24px; color: #94a1b3; font: .625rem var(--mono); }
+.tableFoot > span { display: inline-flex; align-items: center; gap: 6px; }
+.settingsSection { display: grid; grid-template-columns: minmax(200px,.8fr) minmax(0,1.8fr); gap: 45px; padding: 28px 26px; }
+.sectionIntro p { max-width: 250px; line-height: 1.65; }
+.sectionIntro > button { margin-top: 20px; }
+.hint { display: flex; align-items: flex-start; gap: 8px; max-width: 230px; margin-top: 25px; color: #96a3b4; font-size: .6875rem; }
+.hint svg { flex-shrink: 0; margin-top: 2px; }
+.rulesFields { display: grid; grid-template-columns: 1fr 1fr; gap: 26px 25px; }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; color: #52647e; font-size: .8125rem; }
+.field > span { font-weight: 500; }
+.field > span > em { margin-left: 6px; color: #a0acbc; font-size: .6875rem; font-style: normal; font-weight: 400; }
+.field input, .field select { width: 100%; min-width: 0; height: 43px; padding: 9px 12px; border: 1px solid #dce4ee; border-radius: 3px; background: #fff; color: #465b79; font: inherit; outline: none; }
+.field input:focus, .field select:focus { border-color: #779bec; box-shadow: 0 0 0 2px #e8efff; }
+.field small { color: #96a2b2; font-size: .6875rem; line-height: 1.5; }
+.unitInput { display: flex; align-items: center; border: 1px solid #dce4ee; border-radius: 3px; overflow: hidden; }
+.unitInput:focus-within { border-color: #779bec; box-shadow: 0 0 0 2px #e8efff; }
+.unitInput input { height: 40px; border: 0; border-radius: 0; box-shadow: none !important; }
+.unitInput > span { display: flex; align-items: center; align-self: stretch; padding: 0 11px; border-left: 1px solid #e8edf5; background: #fafbfd; color: #93a0b2; font: .625rem var(--mono); }
+.noClosures { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 146px; border: 1px dashed #dce5ef; border-radius: 3px; text-align: center; background: #fcfdff; color: #a2b1c4; }
+.noClosures strong { margin-top: 12px; color: #657992; font-size: .8125rem; font-weight: 500; }
+.noClosures p { margin-top: 5px; color: #95a3b6; font-size: .75rem; }
+.closureList { border: 1px solid #e1e7f0; border-radius: 3px; }
+.closure { display: flex; align-items: center; gap: 12px; padding: 14px; border-bottom: 1px solid #e6ebf3; }
+.closure:last-child { border-bottom: 0; }
+.closureIcon { display: grid; place-items: center; width: 36px; height: 38px; flex-shrink: 0; border: 1px solid #f0e5cc; border-radius: 3px; color: #a48a56; background: #fffaed; }
+.closure > div { min-width: 0; flex: 1; }
+.closure strong { display: block; font-size: .8125rem; font-weight: 500; overflow-wrap: anywhere; }
+.closure > div > span { display: block; color: #8595aa; font: .625rem/1.6 var(--mono); margin-top: 4px; }
+.closure small { display: block; color: #a2adbc; font-size: .625rem; margin-top: 4px; }
+.saveBar { position: sticky; z-index: 10; bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 15px; background: #fff; border: 1px solid #dfe5ed; border-radius: 4px; box-shadow: 0 5px 18px #22375809; padding: 14px 18px; }
+.saveBar > div { display: flex; gap: 9px; align-items: center; }
+.saveState { display: flex; align-items: center; gap: 7px; color: #91a0b4; font: .625rem var(--mono); }
+.saveState > i { width: 5px; height: 5px; border-radius: 50%; background: #8fb5a4; }
+.saveState[data-dirty=true] { color: #9c7c3d; }
+.saveState[data-dirty=true] > i { background: #ddb855; }
+.feedback { display: flex; align-items: center; gap: 8px; padding: 12px 15px; border: 1px solid #dce9e3; border-radius: 3px; color: #4e846e; background: #f4faf6; font-size: .75rem; }
+.feedback > svg { flex-shrink: 0; }
+.feedback button { margin-left: auto; padding: 3px; border: 0; background: none; color: #7d9b8d; font-size: .6875rem; }
+.error { color: #ac5959; padding: 10px 12px; border: 1px solid #eed5d5; border-radius: 3px; background: #fff8f8; font-size: .75rem; }
+.empty { display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 230px; gap: 10px; color: #8193ad; }
+.empty h3 { font-weight: 500; color: #526680; }
+.empty p { font-size: .75rem; }
+.mobileEvents { display: none; }
+.sheet { width: min(480px,100%); max-width: 100%; padding: 0; background: white; overflow-y: auto; gap: 0; }
+.sheetHeader { padding: 34px 28px 23px; border-bottom: 1px solid #e6ebf2; gap: 9px; }
+.sheetHeader h2, .dialog h2, .previewDialog h2 { font-size: 1.4rem; font-weight: 500; color: #334760; letter-spacing: -.03em; }
+.sheetHeader p, .dialog [data-slot=dialog-description], .previewDialog [data-slot=dialog-description] { color: #8796ab; font-size: .8125rem; line-height: 1.7; }
+.eventForm { display: flex; flex-direction: column; gap: 25px; padding: 28px; flex: 1; }
+.bookingChoice { display: flex; flex-direction: column; gap: 9px; padding: 0; border: 0; }
+.bookingChoice legend { font-size: .8125rem; color: #52647e; font-weight: 500; margin-bottom: 10px; }
+.bookingChoice label { display: flex; align-items: center; gap: 12px; padding: 15px 13px; border: 1px solid #e0e6ef; border-radius: 3px; cursor: pointer; }
+.bookingChoice label[data-selected=true] { border-color: #c9d9fb; background: #f7f9ff; }
+.bookingChoice input { width: 14px; height: 14px; accent-color: #315fd1; }
+.bookingChoice svg { color: #7896c4; flex-shrink: 0; }
+.bookingChoice strong { display: block; font-size: .8125rem; font-weight: 500; }
+.bookingChoice small { display: block; margin-top: 4px; font-size: .6875rem; color: #8e9fb7; }
+.mono { font-family: var(--mono) !important; font-size: .75rem !important; }
+.eventPreview { display: flex; flex-direction: column; gap: 9px; padding: 18px; border: 1px solid #e0e7f2; border-radius: 3px; background: #fafcff; }
+.eventPreview strong { color: #4a6387; font-weight: 500; font-size: .875rem; }
+.eventPreview > span:last-child { display: flex; gap: 7px; align-items: center; color: #8ca0bb; font-size: .6875rem; }
+.formFooter { margin-top: auto; padding-top: 15px; }
+.formFooter > p { color: #9aa8ba; font-size: .6875rem; margin-bottom: 17px; }
+.formFooter > div, .dialogActions { display: flex; gap: 10px; justify-content: flex-end; }
+.dialog, .previewDialog { border: 1px solid #dfe5ed; border-radius: 4px; background: #fff; padding: 29px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.dialog [data-slot=dialog-header], .previewDialog [data-slot=dialog-header] { text-align: left; gap: 9px; padding-right: 14px; }
+.dialog { max-width: min(480px,calc(100vw - 28px)); }
+.closureForm { display: grid; gap: 20px; padding-top: 8px; }
+.twoFields { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.helper { color: #92a0b4; font-size: .6875rem; margin-top: -8px; }
+.dialogActions { border-top: 1px solid #e6ebf3; padding-top: 18px; }
+.previewDialog { width: 680px; max-width: calc(100vw - 28px); gap: 18px; }
+.previewMeta { color: #8e9fb6; font: .625rem/1.8 var(--mono); margin-top: -6px; }
+.previewDays { border: 1px solid #e2e8f1; border-radius: 3px; }
+.previewDay { display: grid; grid-template-columns: 112px 1fr; gap: 10px; align-items: center; min-height: 49px; padding: 12px; border-bottom: 1px solid #e7ecf4; }
+.previewDay:last-child { border-bottom: 0; }
+.previewDay > strong { color: #6c7e96; font: .625rem var(--mono); }
+.slotList { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.slotList span { padding: 3px 6px; border: 1px solid #dce5f8; background: #f4f7ff; color: #6987ba; font: .625rem var(--mono); border-radius: 2px; }
+.slotList small { color: #91a2b8; font-size: .625rem; margin-left: 3px; }
+.noSlots { font-size: .6875rem; color: #a0adbe; }
+.noSlots[data-closed=true] { color: #a18a53; }
+.previewFoot { display: flex; align-items: center; justify-content: space-between; color: #8da0b9; font: .625rem var(--mono); }
+.page button:focus-visible, .sheet button:focus-visible, .dialog button:focus-visible, .previewDialog button:focus-visible { outline: 3px solid #b3c8f7; outline-offset: 3px; }
+@media (max-width: 1250px) { .table th, .table td { padding-left: 14px; padding-right: 14px; } .settingsSection { gap: 24px; grid-template-columns: minmax(170px,.8fr) minmax(0,1.6fr); } .eventIcon { display: none; } }
+@media (max-width: 850px) { .toolbar { flex-wrap: wrap; } .search { width: 100%; } .settingsSection { grid-template-columns: 1fr; gap: 24px; } .sectionIntro p { max-width: 100%; } .hint { display: none; } .saveBar { flex-wrap: wrap; } .saveBar > div { margin-left: auto; } }
+@media (max-width: 640px) { .page { gap: 18px; } .cardHeader { padding: 18px 16px; align-items: flex-start; } .cardHeader h2 { font-size: 1rem; } .cardHeader p { font-size: .75rem; max-width: 185px; } .cardHeader .primary { padding: 9px; font-size: .75rem; } .toolbar { padding: 15px 16px; gap: 12px; } .segmented { width: 100%; } .segmented button { justify-content: center; flex: 1; min-height: 40px; font-size: .625rem; } .search { min-height: 42px; } .search input { min-height: 40px; font-size: .875rem; } .tableScroll { display: none; } .mobileEvents { display: block; } .mobileEvent { width: 100%; display: flex; flex-direction: column; gap: 12px; padding: 17px 16px; border: 0; border-bottom: 1px solid #e8edf4; color: #586e8f; background: #fff; text-align: left; } .mobileEvent:last-child { border-bottom: 0; } .mobileEventTitle { display: flex; align-items: center; gap: 9px; width: 100%; } .mobileEventTitle > svg { flex-shrink: 0; color: #849fc9; } .mobileEventTitle > svg:last-child { margin-left: auto; color: #a4b3c7; } .mobileEventTitle > strong { font-size: .875rem; font-weight: 500; color: #506580; } .mobileEventMeta { display: flex; gap: 18px; align-items: center; padding-left: 24px; } .mobileEventMeta > span:first-child { display: flex; gap: 6px; align-items: center; color: #90a0b5; font: .625rem var(--mono); } .tableFoot { padding: 13px 16px; font-size: .5625rem; gap: 15px; } .tableFoot > span:last-child { max-width: 150px; } .settingsSection { padding: 23px 18px; } .rulesFields { gap: 21px 14px; } .field { font-size: .75rem; } .field input, .field select { font-size: 16px; } .field small { font-size: .625rem; } .unitInput > span { font-size: .5625rem; padding: 0 8px; } .unitInput input { padding: 8px; } .saveBar { bottom: 8px; padding: 13px; gap: 13px; } .saveBar > div { width: 100%; flex-wrap: wrap; gap: 8px; } .saveBar .primary { flex: 1; } .saveBar .secondary { flex: 1; } .saveBar .textButton { order: 2; width: 100%; min-height: 32px; } .saveState { font-size: .625rem; } .sheetHeader { padding: 33px 21px 23px; } .eventForm { padding: 25px 21px; gap: 24px; } .dialog, .previewDialog { padding: 25px 18px; } .dialog h2, .previewDialog h2 { font-size: 1.25rem; } .previewDay { grid-template-columns: 86px 1fr; padding: 11px 9px; } .previewDay > strong { font-size: .5625rem; } .slotList span { font-size: .5625rem; } .closure { padding: 12px 10px; gap: 9px; } .closureIcon { width: 29px; } .feedback { align-items: flex-start; font-size: .6875rem; } }
+@media (prefers-reduced-motion: reduce) { .sheet, .dialog, .previewDialog { animation: none !important; transition: none !important; } }
+
+/* ===================================================================================================
+   Portal adaptation (everything above is the prototype's scheduling/events/events.module.css verbatim —
+   shumard-checkout-portal/app/admin/scheduling/events). Maps it onto the CRA app: Inter, black text, our
+   shadcn v3 Sheet/Dialog (no data-slot hooks), and the real-data extras (description, delete, closure times).
+   =================================================================================================== */
+/* Inter throughout (user, 2026-09-27: rsms Inter has no mono cut) — Inter's tabular figures where the design sets mono. */
+.page, .sheet, .dialog, .previewDialog { --mono: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; color: #111; }
+.kicker, .segmented button, .table th, .duration, .access, .service, .tableFoot, .unitInput input, .unitInput > span, .closure > div > span,
+.saveState, .previewMeta, .previewDay > strong, .slotList span, .previewFoot, .mobileEventMeta > span:first-child, .mono { font-variant-numeric: tabular-nums; }
+/* Beat the app's global teal input focus (index.css — specificity 0,3,1). */
+.search input:not([type=checkbox]):not([type=radio]):focus { box-shadow: none; outline: none; }
+.field input:not([type=checkbox]):not([type=radio]):focus, .field select:focus, .field textarea:focus { border-color: #779bec; box-shadow: 0 0 0 2px #e8efff; }
+/* Black text (user, 2026-09-27): main #111, secondary #444; accents (blue active states, status tones, the gold
+   button, red errors, the amber unsaved state) keep theirs. */
+.cardHeader h2, .sectionIntro h2, .eventName, .eventName strong, .duration, .search input, .field, .field input, .field select,
+.field textarea, .bookingChoice legend, .sheetHeader h2, .dialog h2, .previewDialog h2, .eventPreview strong, .secondary, .empty h3,
+.noClosures strong, .mobileEvent, .mobileEventTitle > strong, .previewDay > strong, .checkRow { color: #111; }
+.kicker, .cardHeader p, .sectionIntro p, .eventName small, .segmented button, .segmented button span, .table th, .access, .service,
+.iconButton, .tableFoot, .hint, .field small, .field > span > em, .unitInput > span, .noClosures p, .closure > div > span,
+.closure small, .saveState, .empty, .sheetHeader p, .dialogDescription, .bookingChoice small, .eventPreview > span:last-child,
+.formFooter > p, .helper, .previewMeta, .slotList small, .noSlots, .previewFoot, .mobileEventMeta > span:first-child, .textButton { color: #444; }
+.empty > svg { color: #8193ad; }
+/* Long event names wrap; a long description stays on one line. */
+.eventName > span:last-child { min-width: 0; }
+.eventName small { max-width: 440px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field textarea { width: 100%; min-width: 0; min-height: 84px; padding: 9px 12px; border: 1px solid #dce4ee; border-radius: 3px; background: #fff; font: inherit; line-height: 1.55; resize: vertical; outline: none; }
+.field input[aria-invalid=true] { border-color: #d9a3a3; }
+.checkRow { display: flex; align-items: center; gap: 9px; width: max-content; font-size: .8125rem; cursor: pointer; }
+.checkRow input { width: 15px; height: 15px; accent-color: #315fd1; }
+.loading { padding: 60px 24px; text-align: center; color: #444; font-size: .875rem; }
+/* Our shadcn v3 Sheet: the content isn't a flex column (the form's footer sits at the bottom of one), its base
+   width/padding utilities need beating, and the header is a plain div (no data-slot). */
+.sheet { display: flex; flex-direction: column; width: min(480px, 100%) !important; max-width: 100% !important; padding: 0 !important; }
+.sheetHeader { display: flex; flex-direction: column; text-align: left; }
+/* The sheet and dialogs are portaled outside .admin-geist, so App.css's global Space Grotesk headings reach them. */
+.sheetHeader h2, .dialog h2, .previewDialog h2 { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }
+/* Dialogs: plain header div + description class (no data-slot); DialogTitle ships leading-none. */
+.dialogHeader { display: flex; flex-direction: column; gap: 9px; padding-right: 14px; text-align: left; }
+.dialog h2, .previewDialog h2 { line-height: 1.3; }
+.dialogDescription { font-size: .8125rem; line-height: 1.7; }
+.previewNotice { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border: 1px solid #f0e5cc; border-radius: 3px; background: #fffaed; color: #8a6a2a; font-size: .75rem; }
+.previewNotice > svg { flex-shrink: 0; }
+.previewLoading { padding: 28px 0; text-align: center; color: #444; font-size: .8125rem; }
+/* Event sheet footer: delete on the left, cancel + save on the right. */
+.formFooter > div { flex-wrap: wrap; }
+.dangerButton { gap: 6px; margin-right: auto; padding-left: 0; padding-right: 0; color: #b42318; }
+.dangerButton:hover { color: #912018; }
+.textButton:disabled, .secondary:disabled { opacity: .5; cursor: default; }
+@media (max-width: 640px) { .field textarea { font-size: 16px; } }

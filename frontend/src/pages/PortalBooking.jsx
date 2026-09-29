@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import {
-  Clock, Globe, ArrowLeft, ArrowRight, CheckCircle2, CalendarPlus, LogOut, Home, RefreshCw, HelpCircle, Video, CalendarCheck,
+  Clock, Globe, ArrowLeft, ArrowRight, CheckCircle2, CalendarPlus, RefreshCw, Video, CalendarCheck,
 } from 'lucide-react';
 import {
   useAvailability, useBookSession, detectTimezone, getTodayString,
@@ -12,10 +12,12 @@ import {
 import ProtoSelect from './prototype/ProtoSelect';
 import ProtoSpinner from './prototype/ProtoSpinner';
 import useSortedTimezones from './admin/scheduling/useSortedTimezones';
+import { PatientFooter, PatientHeader } from './PatientShell';
+import shell from './PortalDashboard.module.css';
 import './prototype/proto.css';
+import './prototype/patient-brand.css';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const LOGO = 'https://portal-drshumard.b-cdn.net/logo.png';
 
 // All timezone math is done by the browser's Intl engine (DST-correct) - no manual offsets.
 const localDateInTz = (iso, tz) => new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso)); // -> YYYY-MM-DD
@@ -57,6 +59,7 @@ export default function PortalBooking() {
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState(null);
   const [availDays, setAvailDays] = useState(null);
+  const [user, setUser] = useState(null);   // for the shared header (admin links, logout tracking)
 
   // Prefill from the account. (Step gating lives in App.js's JourneyRoute — only step-1
   // users ever reach this page.)
@@ -66,6 +69,7 @@ export default function PortalBooking() {
         const token = localStorage.getItem('access_token');
         const meRes = await axios.get(`${API}/user/me`, { headers: { Authorization: `Bearer ${token}` } });
         const u = meRes.data;
+        setUser(u);
         const parts = (u.name || '').trim().split(' ');
         setForm((f) => ({
           ...f,
@@ -168,26 +172,9 @@ export default function PortalBooking() {
   );
 
   return (
-    <div className="proto proto-book">
-      <header className="proto-topbar">
-        <div className="proto-container" style={{ height: 62, display: 'flex', alignItems: 'center' }}>
-          <img src={LOGO} alt="Dr. Shumard" style={{ height: 22 }} />
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button className="proto-btn proto-btn--ghost proto-help-sm" style={{ padding: '8px 12px' }} aria-label="Help"
-              onClick={() => window.dispatchEvent(new Event('open-support'))}>
-              <HelpCircle size={16} />
-            </button>
-            <button className="proto-btn proto-btn--ghost" style={{ padding: '8px 12px' }} aria-label="Home" onClick={() => navigate('/dashboard')}>
-              <Home size={16} /> <span className="proto-hide-sm">Home</span>
-            </button>
-            <button className="proto-btn proto-btn--danger" style={{ padding: '8px 12px' }} aria-label="Log out"
-              onClick={() => { localStorage.clear(); navigate('/login'); }}>
-              <LogOut size={16} /> <span className="proto-hide-sm">Log out</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
+    <div className={shell.page}>
+      <PatientHeader user={user} />
+      <div className="proto proto-book patient-brand">
       <main className="proto-container proto-main">
         {stage !== 'confirmed' && (
         <div className="proto-book-shell">
@@ -298,7 +285,7 @@ export default function PortalBooking() {
                 <div className="proto-card proto-card--pad">
                   <button className="proto-btn proto-btn--ghost" style={{ marginBottom: 12, paddingLeft: 0 }} onClick={() => setStage('time')}><ArrowLeft size={16} /> Back</button>
                   <div className="proto-card proto-card--flat" style={{ background: 'var(--brand-50)', border: '1px solid var(--p-line)', padding: '14px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <Clock size={18} style={{ color: 'var(--brand-600)' }} />
+                    <Clock size={18} style={{ color: '#111' }} />
                     <span style={{ fontWeight: 700, fontSize: 16 }}>{fmtFullDate(selectedDate)} · {fmtTime(selectedSlot.start_time, tz)}</span>
                     <span className="proto-muted" style={{ fontSize: 13.5 }}>{tz.split('/').pop().replace(/_/g, ' ')}</span>
                   </div>
@@ -369,9 +356,10 @@ export default function PortalBooking() {
 
       <style>{`
         .proto-form-row { display: grid; gap: 16px; grid-template-columns: 1fr; }
-        .proto-hide-sm { display: none; }
-        @media (min-width: 560px) { .proto-form-row { grid-template-columns: 1fr 1fr; } .proto-hide-sm { display: inline; } }
+        @media (min-width: 560px) { .proto-form-row { grid-template-columns: 1fr 1fr; } }
       `}</style>
+      </div>
+      <PatientFooter />
     </div>
   );
 }
@@ -389,7 +377,7 @@ function Field({ label, req, error, children }) {
 function AsideRow({ icon: Icon, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <Icon size={17} style={{ color: 'var(--brand-500)', flex: 'none' }} />
+      <Icon size={17} style={{ color: '#111', flex: 'none' }} />
       <span className="proto-soft" style={{ fontSize: 14.5, minWidth: 0 }}>{children}</span>
     </div>
   );

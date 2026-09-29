@@ -3,26 +3,31 @@ import { useNavigate } from 'react-router-dom';
 import { loginPath } from '@/lib/staffApps';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Plus, Trash2, Play, RotateCcw, Zap, Calendar, CalendarX, CreditCard, CheckCircle, XCircle, ChevronDown, ChevronUp, Key, MoreHorizontalIcon, Loader2 } from 'lucide-react';
+import { Activity, Calendar, CalendarX, CheckCircle, ChevronDown, CreditCard, Key, Link2, Loader2, Pencil, Play, Plus, RotateCcw, Trash2, XCircle, Zap } from 'lucide-react';
 import { confirmDialog } from './admin/confirm';
+import { fmtDate, fmtTime } from './admin/format';
+import { EYEBROW, INK, IconTile, LYRA_CARD, LYRA_GOLD_BUTTON, LYRA_INPUT, LYRA_INSET, LYRA_OUTLINE_BUTTON, MUTED, PageHeader, Pill, SWITCH } from './admin/brand';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// crypto.randomUUID only exists in secure contexts (https / localhost) — e.g. not on http://<LAN IP>:3007, where
+// calling it in the form's initial state crashed the page. Same fallback as scheduling/Events.jsx.
+const newId = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `a_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
 const API = `${BACKEND_URL}/api`;
 
+// Admin > Automations: brand colours (./admin/brand) in shadcncraft's Lyra style — square corners, crisp
+// borders, no shadows — with the portal's own font.
 const TRIGGERS = [
-  { value: 'new_booking', icon: Calendar, label: 'New booking', desc: 'When a new appointment is booked', color: 'text-emerald-600' },
-  { value: 'cancelled_booking', icon: CalendarX, label: 'Cancelled booking', desc: 'When an appointment is cancelled', color: 'text-red-600' },
-  { value: 'checkout_purchase', icon: CreditCard, label: 'Checkout purchase', desc: 'When someone pays on the /checkout page', color: 'text-blue-600' },
+  { value: 'new_booking', icon: Calendar, label: 'New booking', desc: 'When a new appointment is booked', tone: 'teal' },
+  { value: 'cancelled_booking', icon: CalendarX, label: 'Cancelled booking', desc: 'When an appointment is cancelled', tone: 'red' },
+  { value: 'checkout_purchase', icon: CreditCard, label: 'Checkout purchase', desc: 'When someone pays on the /checkout page', tone: 'blue' },
 ];
 
 const AutomationsPage = () => {
@@ -39,7 +44,7 @@ const AutomationsPage = () => {
 
   const [formData, setFormData] = useState({
     name: '', trigger: 'new_booking',
-    actions: [{ id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true, headers: [{ key: '', value: '' }] }],
+    actions: [{ id: newId(), name: '', url: '', method: 'POST', includeData: true, headers: [{ key: '', value: '' }] }],
     enabled: true,
   });
 
@@ -67,13 +72,13 @@ const AutomationsPage = () => {
 
   const resetForm = () => setFormData({
     name: '', trigger: 'new_booking',
-    actions: [{ id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true, headers: [{ key: '', value: '' }] }],
+    actions: [{ id: newId(), name: '', url: '', method: 'POST', includeData: true, headers: [{ key: '', value: '' }] }],
     enabled: true,
   });
 
   const addAction = () => setFormData({
     ...formData,
-    actions: [...formData.actions, { id: crypto.randomUUID(), name: '', url: '', method: 'POST', includeData: true, headers: [{ key: '', value: '' }] }],
+    actions: [...formData.actions, { id: newId(), name: '', url: '', method: 'POST', includeData: true, headers: [{ key: '', value: '' }] }],
   });
 
   const removeAction = (index) => {
@@ -185,7 +190,7 @@ const AutomationsPage = () => {
     setFormData({
       name: automation.name, trigger: automation.trigger,
       actions: actions.map((a) => ({
-        id: a.id || crypto.randomUUID(), name: a.name || '', url: a.url || '', method: a.method || 'POST',
+        id: a.id || newId(), name: a.name || '', url: a.url || '', method: a.method || 'POST',
         includeData: a.include_data !== false, headers: headersObjectToArray(a.headers),
       })),
       enabled: automation.enabled,
@@ -206,230 +211,263 @@ const AutomationsPage = () => {
     finally { setRetryingLogId(null); }
   };
 
-  const getTriggerIcon = (trigger, cls = 'size-4') => {
-    if (trigger === 'new_booking') return <Calendar className={`${cls} text-emerald-600`} />;
-    if (trigger === 'cancelled_booking') return <CalendarX className={`${cls} text-red-600`} />;
-    if (trigger === 'checkout_purchase') return <CreditCard className={`${cls} text-blue-600`} />;
-    return <Zap className={cls} />;
-  };
   const getTriggerLabel = (trigger) => TRIGGERS.find((t) => t.value === trigger)?.label || trigger;
-  const getActionsCount = (a) => (a.actions || (a.action ? [a.action] : [])).length;
-  const formatDate = (dateString) => (dateString
-    ? new Date(dateString).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })
-    : 'N/A');
+  const triggerOf = (trigger) => TRIGGERS.find((t) => t.value === trigger) || { icon: Zap, label: trigger, tone: 'gray' };
+  const actionsOf = (a) => a.actions || (a.action ? [a.action] : []);
+  const actionLabel = (x) => { if (x.name) return x.name; try { return new URL(x.url).host; } catch { return x.url || 'Webhook'; } };
+  const lastRunOf = (automationId) => logs.find((l) => l.automation_id === automationId);   // logs are newest first
+  const when = (iso) => (iso ? `${fmtDate(iso)} · ${fmtTime(iso)}` : 'N/A');
+  const openCreate = () => { resetForm(); setShowCreateModal(true); };
 
   const closeModal = () => { setShowCreateModal(false); setEditingAutomation(null); resetForm(); };
 
-  if (loading) return <div className="py-16 text-center text-muted-foreground">Loading automations...</div>;
+  if (loading) return <div className={`py-16 text-center text-sm ${MUTED}`}>Loading automations...</div>;
 
   return (
-    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto w-full">
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === 'logs') fetchLogs(); }}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="automations">Automations<Badge variant="secondary" className="ml-1.5">{automations.length}</Badge></TabsTrigger>
-            <TabsTrigger value="logs">Execution logs<Badge variant="secondary" className="ml-1.5">{logs.length}</Badge></TabsTrigger>
-          </TabsList>
-          <Button onClick={() => { resetForm(); setShowCreateModal(true); }}><Plus className="size-4" /> Create automation</Button>
-        </div>
+    <div className="w-full space-y-6">
+      <PageHeader title="Workflow" accent="automations"
+        description="Send bookings and checkout purchases to GHL, n8n and any other webhook.">
+        <Button className={`h-10 ${LYRA_GOLD_BUTTON}`} onClick={openCreate}><Plus className="size-4" /> Create automation</Button>
+      </PageHeader>
+
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === 'logs') fetchLogs(); }} className="space-y-5">
+        <TabsList className="h-10 !rounded-none border border-[#dde2e9] bg-white p-1">
+          {[['automations', 'Automations', automations.length], ['logs', 'Execution logs', logs.length]].map(([value, label, count]) => (
+            <TabsTrigger key={value} value={value}
+              className="group gap-2 !rounded-none px-4 text-[#4b5566] data-[state=active]:bg-[#3565e9] data-[state=active]:text-white data-[state=active]:shadow-none">
+              {label}
+              <span className="bg-[#eef1f5] px-1.5 text-[11px] font-semibold text-[#5f6b7c] group-data-[state=active]:bg-white/20 group-data-[state=active]:text-white">{count}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
         {/* Automations */}
-        <TabsContent value="automations" className="mt-4 space-y-4">
-          <div className="flex items-start gap-3 rounded-xl border bg-card p-4 shadow-sm">
-            <Zap className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
-            <div>
-              <h3 className="font-semibold text-foreground">How automations work</h3>
-              <p className="mt-1 text-sm text-muted-foreground">When a booking webhook is received, all enabled automations matching the trigger run. Each automation can have <strong className="text-foreground">multiple actions</strong>, executed in parallel.</p>
-            </div>
-          </div>
-
+        <TabsContent value="automations" className="mt-0 space-y-4">
           {automations.length === 0 ? (
-            <div className="rounded-xl border bg-card py-12 text-center shadow-sm">
-              <Zap className="mx-auto mb-3 size-10 text-muted-foreground/40" />
-              <h3 className="font-medium text-foreground">No automations yet</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Create your first automation to forward booking data to external services.</p>
-              <Button className="mt-4" onClick={() => { resetForm(); setShowCreateModal(true); }}><Plus className="size-4" /> Create automation</Button>
+            <div className={`${LYRA_CARD} py-14 text-center`}>
+              <IconTile icon={Zap} tone="blue" className="mx-auto size-12" iconClass="size-5" />
+              <h3 className={`mt-4 font-semibold ${INK}`}>No automations yet</h3>
+              <p className={`mt-1 text-sm ${MUTED}`}>Create your first automation to forward bookings and purchases to other tools.</p>
+              <Button className={`mt-5 h-10 ${LYRA_GOLD_BUTTON}`} onClick={openCreate}><Plus className="size-4" /> Create automation</Button>
             </div>
           ) : (
-            <div className="space-y-3">
-              {automations.map((automation) => (
-                <div key={automation.id} className={cn('flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-4 shadow-sm', !automation.enabled && 'opacity-70')}>
-                  <div className="flex items-center gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-muted">{getTriggerIcon(automation.trigger)}</div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">{automation.name}</span>
-                        <span className={`text-xs font-semibold ${automation.enabled ? 'text-emerald-600' : 'text-muted-foreground'}`}>{automation.enabled ? 'Active' : 'Disabled'}</span>
+            <div className="grid gap-4 xl:grid-cols-2">
+              {automations.map((automation) => {
+                const t = triggerOf(automation.trigger);
+                const actions = actionsOf(automation);
+                const lastRun = lastRunOf(automation.id);
+                return (
+                  <div key={automation.id} className={`${LYRA_CARD} flex flex-col p-5`}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <IconTile icon={t.icon} tone={automation.enabled ? t.tone : 'gray'} className="size-10" iconClass="size-5" />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className={`truncate text-[15px] font-semibold ${INK}`}>{automation.name}</p>
+                            <Pill square tone={automation.enabled ? 'green' : 'gray'}>{automation.enabled ? 'Active' : 'Off'}</Pill>
+                          </div>
+                          <p className={`mt-0.5 text-sm ${MUTED}`}>{t.label} → {actions.length} webhook{actions.length !== 1 ? 's' : ''}</p>
+                        </div>
                       </div>
-                      <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
-                        <span>{getTriggerLabel(automation.trigger)}</span>
-                        <span className="text-muted-foreground/50">&rarr;</span>
-                        <span>{getActionsCount(automation)} webhook{getActionsCount(automation) !== 1 ? 's' : ''}</span>
+                      <Switch checked={!!automation.enabled} onCheckedChange={() => handleToggleEnabled(automation)} className={SWITCH}
+                        aria-label={`${automation.enabled ? 'Turn off' : 'Turn on'} ${automation.name}`} />
+                    </div>
+
+                    <div className="mb-4 mt-4 flex flex-wrap gap-1.5">
+                      {actions.map((x, i) => (
+                        <span key={x.id || i} className="inline-flex max-w-full items-center gap-1.5 border border-[#e6e9ef] bg-[#f7f9fc] px-2.5 py-1 text-xs text-[#4b5566]" title={x.url}>
+                          <Link2 className="size-3 shrink-0 text-[#3565e9]" /><span className="truncate">{actionLabel(x)}</span>
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-[#eef1f5] pt-3">
+                      <span className={`flex items-center gap-1.5 text-xs ${MUTED}`}>
+                        {lastRun
+                          ? <>{lastRun.success ? <CheckCircle className="size-3.5 text-[#17794a]" /> : <XCircle className="size-3.5 text-[#b42318]" />} Last run {when(lastRun.executed_at)}</>
+                          : 'No runs yet'}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <Button variant="outline" size="sm" className={LYRA_OUTLINE_BUTTON} onClick={() => handleTest(automation)} disabled={testingId === automation.id}>
+                          {testingId === automation.id ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Test
+                        </Button>
+                        <Button variant="outline" size="sm" className={LYRA_OUTLINE_BUTTON} onClick={() => openEditModal(automation)}><Pencil className="size-3.5" /> Edit</Button>
+                        <Button variant="ghost" size="icon" className="size-8 !rounded-none text-[#8a94a6] hover:bg-[#fdecec] hover:text-[#b42318]"
+                          onClick={() => handleDelete(automation)} aria-label={`Delete ${automation.name}`}><Trash2 className="size-4" /></Button>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleTest(automation)} disabled={testingId === automation.id}>
-                      {testingId === automation.id ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Test
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8"><MoreHorizontalIcon /><span className="sr-only">Open menu</span></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditModal(automation)}>Edit</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleToggleEnabled(automation)}>{automation.enabled ? 'Disable' : 'Enable'}</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(automation)}>Delete</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
 
         {/* Logs */}
-        <TabsContent value="logs" className="mt-4 space-y-3">
-          {logs.length === 0 ? (
-            <div className="rounded-xl border bg-card py-12 text-center shadow-sm">
-              <h3 className="font-medium text-foreground">No execution logs yet</h3>
-              <p className="mt-1 text-sm text-muted-foreground">Logs appear here when automations are triggered.</p>
-            </div>
-          ) : logs.map((log) => (
-            <div key={log.id} className={cn('rounded-xl border border-l-4 bg-card shadow-sm', log.success ? 'border-l-emerald-500' : 'border-l-red-500')}>
-              <div className="flex cursor-pointer flex-wrap items-center justify-between gap-3 p-4" onClick={() => setExpandedLogId(expandedLogId === log.id ? null : log.id)}>
-                <div className="flex items-center gap-3">
-                  {log.success ? <CheckCircle className="size-5 text-emerald-500" /> : <XCircle className="size-5 text-red-500" />}
-                  <div>
-                    <p className="font-medium text-foreground">{log.automation_name}{log.action_name && <span className="font-normal text-muted-foreground"> &rarr; {log.action_name}</span>}</p>
-                    <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                      <span>{getTriggerLabel(log.trigger)}</span><span>·</span><span>{formatDate(log.executed_at)}</span>
-                      {log.duration_ms && <><span>·</span><span>{log.duration_ms}ms</span></>}
-                      {log.trigger_data?._test && <><span>·</span><span className="font-medium text-amber-600">Test</span></>}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {!log.success && log.action_url && (
-                    <Button variant="outline" size="sm" className="text-amber-600 hover:text-amber-700" onClick={(e) => { e.stopPropagation(); handleRetryLog(log); }} disabled={retryingLogId === log.id}>
-                      {retryingLogId === log.id ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />} Retry
-                    </Button>
-                  )}
-                  {log.response_status && <span className={`text-sm font-semibold ${log.success ? 'text-emerald-600' : 'text-red-600'}`}>{log.response_status}</span>}
-                  {expandedLogId === log.id ? <ChevronUp className="size-4 text-muted-foreground" /> : <ChevronDown className="size-4 text-muted-foreground" />}
+        <TabsContent value="logs" className="mt-0">
+          <div className={`${LYRA_CARD} overflow-hidden`}>
+            <div className="flex items-center justify-between gap-3 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <IconTile icon={Activity} tone="blue" className="size-9" />
+                <div>
+                  <p className={`text-sm font-semibold ${INK}`}>Execution logs</p>
+                  <p className={`text-xs ${MUTED}`}>The last 100 webhook calls. Click one to see what was sent and returned.</p>
                 </div>
               </div>
-              {expandedLogId === log.id && (
-                <div className="space-y-3 border-t px-4 pb-4 pt-3">
-                  {log.action_url && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Webhook URL</Label>
-                      <p className="mt-1 break-all rounded bg-muted p-2 font-mono text-sm">{log.action_method || 'POST'} {log.action_url}</p>
-                    </div>
-                  )}
-                  {log.error && (
-                    <div>
-                      <Label className="text-xs text-red-600">Error</Label>
-                      <pre className="mt-1 overflow-auto rounded bg-red-50 p-2 text-xs text-red-800">{log.error_type && <span className="font-bold">{log.error_type}: </span>}{log.error}</pre>
-                    </div>
-                  )}
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Trigger data sent</Label>
-                    <pre className="mt-1 max-h-40 overflow-auto rounded bg-muted p-2 text-xs">{JSON.stringify(log.trigger_data, null, 2)}</pre>
-                  </div>
-                  {log.response_body && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Response body</Label>
-                      <pre className="mt-1 max-h-40 overflow-auto rounded bg-muted p-2 text-xs">{log.response_body}</pre>
-                    </div>
-                  )}
-                </div>
-              )}
+              <Button variant="outline" size="icon" className={`size-9 shrink-0 text-[#3565e9] ${LYRA_OUTLINE_BUTTON}`} onClick={fetchLogs} aria-label="Refresh logs"><RotateCcw className="size-4" /></Button>
             </div>
-          ))}
+            {logs.length === 0 ? (
+              <div className={`border-t border-[#eef1f5] py-14 text-center text-sm ${MUTED}`}>No execution logs yet. They appear here when automations run.</div>
+            ) : (
+              <div className="divide-y divide-[#eef1f5] border-t border-[#eef1f5]">
+                {logs.map((log) => {
+                  const t = triggerOf(log.trigger);
+                  const open = expandedLogId === log.id;
+                  return (
+                    <div key={log.id}>
+                      <div className="flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 hover:bg-[#f5f8ff]" onClick={() => setExpandedLogId(open ? null : log.id)}>
+                        <IconTile icon={log.success ? CheckCircle : XCircle} tone={log.success ? 'green' : 'red'} className="size-8" />
+                        <div className="min-w-0 flex-1">
+                          <p className={`truncate text-sm font-medium ${INK}`}>
+                            {log.automation_name}{log.action_name && log.action_name !== log.automation_name && <span className={`font-normal ${MUTED}`}> › {log.action_name}</span>}
+                          </p>
+                          <p className={`text-xs ${MUTED}`}>{when(log.executed_at)}{log.duration_ms ? ` · ${log.duration_ms}ms` : ''}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Pill square tone={t.tone}>{getTriggerLabel(log.trigger)}</Pill>
+                          {log.trigger_data?._test && <Pill square tone="gold" dot={false}>Test</Pill>}
+                          {log.manual && <Pill square tone="blue" dot={false}>Manual</Pill>}
+                          {log.is_retry && <Pill square tone="gray" dot={false}>Retry</Pill>}
+                          <Pill square tone={log.success ? 'green' : 'red'} dot={false}>{log.response_status || log.error_type || 'Error'}</Pill>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!log.success && log.action_url && (
+                            <Button variant="outline" size="sm" className={LYRA_OUTLINE_BUTTON} onClick={(e) => { e.stopPropagation(); handleRetryLog(log); }} disabled={retryingLogId === log.id}>
+                              {retryingLogId === log.id ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />} Retry
+                            </Button>
+                          )}
+                          <ChevronDown className={`size-4 text-[#b5bfcd] transition-transform ${open ? 'rotate-180 text-[#3565e9]' : ''}`} />
+                        </div>
+                      </div>
+                      {open && (
+                        <div className="space-y-3 bg-[#fafbfd] px-5 pb-5 pt-1">
+                          {log.action_url && (
+                            <div>
+                              <p className={`mb-1.5 ${EYEBROW} ${MUTED}`}>Webhook</p>
+                              <p className={`${LYRA_INSET} break-all px-3 py-2 font-mono text-xs ${INK}`}><span className="font-semibold text-[#2654cc]">{log.action_method || 'POST'}</span> {log.action_url}</p>
+                            </div>
+                          )}
+                          {log.error && (
+                            <div>
+                              <p className={`mb-1.5 ${EYEBROW} text-[#b42318]`}>Error</p>
+                              <pre className="overflow-auto border border-[#f6cfcc] bg-[#fdecec] px-3 py-2 text-xs text-[#8f1d13]">{log.error_type && <span className="font-bold">{log.error_type}: </span>}{log.error}</pre>
+                            </div>
+                          )}
+                          <div>
+                            <p className={`mb-1.5 ${EYEBROW} ${MUTED}`}>Data sent</p>
+                            <pre className={`${LYRA_INSET} max-h-48 overflow-auto px-3 py-2 text-xs ${INK}`}>{JSON.stringify(log.trigger_data, null, 2)}</pre>
+                          </div>
+                          {log.response_body && (
+                            <div>
+                              <p className={`mb-1.5 ${EYEBROW} ${MUTED}`}>Response</p>
+                              <pre className={`${LYRA_INSET} max-h-48 overflow-auto px-3 py-2 text-xs ${INK}`}>{log.response_body}</pre>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 
       {/* Create / edit dialog */}
       <Dialog open={showCreateModal || !!editingAutomation} onOpenChange={(o) => { if (!o) closeModal(); }}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto !rounded-none border-[#dde2e9] bg-white">
           <DialogHeader>
-            <DialogTitle>{editingAutomation ? 'Edit automation' : 'Create automation'}</DialogTitle>
-            <DialogDescription>Configure the trigger and one or more webhook actions.</DialogDescription>
+            <p className={`flex items-center gap-2 ${EYEBROW} text-[#2d5fdc]`}><Zap className="size-3.5" /> Automation</p>
+            <DialogTitle className={`text-xl tracking-[-0.5px] ${INK}`}>{editingAutomation ? 'Edit automation' : 'Create automation'}</DialogTitle>
+            <DialogDescription className={`text-sm ${MUTED}`}>Pick what triggers it, then add one or more webhooks to send to.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5">
             <div className="space-y-1.5">
-              <Label htmlFor="a-name">Automation name</Label>
-              <Input id="a-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Sync to CRM" />
+              <Label htmlFor="a-name" className={INK}>Automation name</Label>
+              <Input id="a-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Checkout to GHL" className={LYRA_INPUT} />
             </div>
 
             <div className="space-y-1.5">
-              <Label>Trigger</Label>
-              <div className="grid grid-cols-2 gap-3">
-                {TRIGGERS.map((t) => (
-                  <button key={t.value} type="button" onClick={() => setFormData({ ...formData, trigger: t.value })}
-                    className={cn('rounded-lg border p-3 text-left transition-colors', formData.trigger === t.value ? 'border-primary bg-accent ring-1 ring-primary' : 'hover:border-muted-foreground/40')}>
-                    <div className="flex items-center gap-2"><t.icon className={`size-5 ${t.color}`} /><span className="font-medium">{t.label}</span></div>
-                    <p className="mt-1 text-xs text-muted-foreground">{t.desc}</p>
-                  </button>
-                ))}
+              <Label className={INK}>Trigger</Label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {TRIGGERS.map((t) => {
+                  const on = formData.trigger === t.value;
+                  return (
+                    <button key={t.value} type="button" onClick={() => setFormData({ ...formData, trigger: t.value })}
+                      className={cn('border p-3 text-left transition-colors', on ? 'border-[#3565e9] bg-[#f5f8ff] ring-1 ring-[#3565e9]' : 'border-[#e6e9ef] hover:border-[#c4cbd7]')}>
+                      <IconTile icon={t.icon} tone={on ? t.tone : 'gray'} className="size-8" />
+                      <p className={`mt-2 text-sm font-medium ${INK}`}>{t.label}</p>
+                      <p className={`mt-0.5 text-xs ${MUTED}`}>{t.desc}</p>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <Label>Webhook actions</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addAction}><Plus className="size-3.5" /> Add action</Button>
+                <Label className={INK}>Webhooks</Label>
+                <Button type="button" variant="outline" size="sm" className={LYRA_OUTLINE_BUTTON} onClick={addAction}><Plus className="size-3.5" /> Add webhook</Button>
               </div>
               <div className="space-y-3">
                 {formData.actions.map((action, index) => (
-                  <div key={action.id} className="rounded-lg border bg-muted/30 p-4">
+                  <div key={action.id} className={`${LYRA_INSET} p-4`}>
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">Action {index + 1}</span>
+                      <span className={`${EYEBROW} ${MUTED}`}>Webhook {index + 1}</span>
                       {formData.actions.length > 1 && (
-                        <Button type="button" variant="ghost" size="icon" className="size-7 text-muted-foreground hover:text-destructive" onClick={() => removeAction(index)}><Trash2 className="size-4" /></Button>
+                        <Button type="button" variant="ghost" size="icon" className="size-7 !rounded-none text-[#8a94a6] hover:bg-[#fdecec] hover:text-[#b42318]" onClick={() => removeAction(index)}><Trash2 className="size-4" /></Button>
                       )}
                     </div>
                     <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Label (optional)</Label>
-                        <Input value={action.name} onChange={(e) => updateAction(index, 'name', e.target.value)} placeholder="e.g. Send to Slack" />
+                        <Label className={`text-xs ${INK}`}>Label (optional)</Label>
+                        <Input value={action.name} onChange={(e) => updateAction(index, 'name', e.target.value)} placeholder="e.g. Post-purchase workflow" className={LYRA_INPUT} />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs">Webhook URL</Label>
-                        <Input value={action.url} onChange={(e) => updateAction(index, 'url', e.target.value)} placeholder="https://your-service.com/webhook" />
+                        <Label className={`text-xs ${INK}`}>Webhook URL</Label>
+                        <Input value={action.url} onChange={(e) => updateAction(index, 'url', e.target.value)} placeholder="https://your-service.com/webhook" className={LYRA_INPUT} />
                       </div>
                       <div className="flex flex-wrap items-end gap-4">
                         <div className="space-y-1.5">
-                          <Label className="text-xs">Method</Label>
+                          <Label className={`text-xs ${INK}`}>Method</Label>
                           <Select value={action.method} onValueChange={(v) => updateAction(index, 'method', v)}>
-                            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className={`w-28 ${LYRA_INPUT}`}><SelectValue /></SelectTrigger>
                             <SelectContent><SelectItem value="POST">POST</SelectItem><SelectItem value="GET">GET</SelectItem></SelectContent>
                           </Select>
                         </div>
                         <div className="flex items-center gap-2 pb-2">
-                          <Switch id={`inc-${action.id}`} checked={action.includeData} onCheckedChange={(v) => updateAction(index, 'includeData', v)} />
-                          <Label htmlFor={`inc-${action.id}`} className="cursor-pointer text-sm font-normal">Send booking data</Label>
+                          <Switch id={`inc-${action.id}`} checked={action.includeData} onCheckedChange={(v) => updateAction(index, 'includeData', v)} className={SWITCH} />
+                          <Label htmlFor={`inc-${action.id}`} className={`cursor-pointer text-sm font-normal ${INK}`}>Send the event data</Label>
                         </div>
                       </div>
-                      <div className="border-t pt-3">
+                      <div className="border-t border-[#e6e9ef] pt-3">
                         <div className="mb-2 flex items-center justify-between">
-                          <Label className="flex items-center gap-1 text-xs"><Key className="size-3" /> Headers (optional)</Label>
-                          <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addHeader(index)}><Plus className="size-3" /> Add header</Button>
+                          <Label className={`flex items-center gap-1 text-xs ${INK}`}><Key className="size-3 text-[#3565e9]" /> Headers (optional)</Label>
+                          <Button type="button" variant="ghost" size="sm" className="!rounded-none text-[#2654cc] hover:bg-[#e8efff]" onClick={() => addHeader(index)}><Plus className="size-3" /> Add header</Button>
                         </div>
                         <div className="space-y-2">
                           {(action.headers || []).map((header, hIndex) => (
                             <div key={hIndex} className="flex items-center gap-2">
-                              <Input value={header.key} onChange={(e) => updateHeader(index, hIndex, 'key', e.target.value)} placeholder="Header name (e.g. X-API-Key)" className="h-8 flex-1 text-xs" />
-                              <Input value={header.value} onChange={(e) => updateHeader(index, hIndex, 'value', e.target.value)} placeholder="Value" className="h-8 flex-1 text-xs"
+                              <Input value={header.key} onChange={(e) => updateHeader(index, hIndex, 'key', e.target.value)} placeholder="Header name (e.g. X-API-Key)" className={`h-8 flex-1 text-xs ${LYRA_INPUT}`} />
+                              <Input value={header.value} onChange={(e) => updateHeader(index, hIndex, 'value', e.target.value)} placeholder="Value" className={`h-8 flex-1 text-xs ${LYRA_INPUT}`}
                                 type={header.key?.toLowerCase().includes('key') || header.key?.toLowerCase().includes('secret') ? 'password' : 'text'} />
-                              <Button type="button" variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" onClick={() => removeHeader(index, hIndex)}><Trash2 className="size-3.5" /></Button>
+                              <Button type="button" variant="ghost" size="icon" className="size-8 !rounded-none text-[#8a94a6] hover:bg-[#fdecec] hover:text-[#b42318]" onClick={() => removeHeader(index, hIndex)}><Trash2 className="size-3.5" /></Button>
                             </div>
                           ))}
                           {(!action.headers || action.headers.length === 0) && (
-                            <p className="text-xs italic text-muted-foreground">No custom headers. Content-Type: application/json is sent by default.</p>
+                            <p className={`text-xs italic ${MUTED}`}>No custom headers. Content-Type: application/json is sent by default.</p>
                           )}
                         </div>
                       </div>
@@ -439,14 +477,14 @@ const AutomationsPage = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 rounded-lg border px-3 py-2">
-              <Switch id="a-enabled" checked={formData.enabled} onCheckedChange={(v) => setFormData({ ...formData, enabled: v })} />
-              <Label htmlFor="a-enabled" className="cursor-pointer font-normal">Enabled (runs when triggered)</Label>
+            <div className="flex items-center gap-3 border border-[#e6e9ef] px-4 py-3">
+              <Switch id="a-enabled" checked={formData.enabled} onCheckedChange={(v) => setFormData({ ...formData, enabled: v })} className={SWITCH} />
+              <Label htmlFor="a-enabled" className={`cursor-pointer font-normal ${INK}`}>On — runs automatically when triggered</Label>
             </div>
 
-            <div className="rounded-lg bg-muted/40 p-4">
-              <Label className="text-xs text-muted-foreground">Sample payload that will be sent</Label>
-              <pre className="mt-2 max-h-32 overflow-auto text-xs">{formData.trigger === 'checkout_purchase'
+            <div>
+              <p className={`mb-1.5 ${EYEBROW} ${MUTED}`}>Sample data that will be sent</p>
+              <pre className={`${LYRA_INSET} max-h-40 overflow-auto px-3 py-2 text-xs ${INK}`}>{formData.trigger === 'checkout_purchase'
                 ? '{\n  "trigger": "checkout_purchase",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "amount": 97.0,\n  "currency": "usd",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "timezone": "America/Chicago",\n  "outcome": "booked",\n  "new_account": true,\n  "stripe_session_id": "cs_...",\n  "stripe_payment_intent_id": "pi_...",\n  "user_id": "...",\n  "timestamp": "2026-02-14T..."\n}'
                 : formData.trigger === 'new_booking'
                 ? '{\n  "trigger": "new_booking",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "user_found": true,\n  "step_advanced": true,\n  "timestamp": "2026-02-14T..."\n}'
@@ -454,9 +492,9 @@ const AutomationsPage = () => {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button onClick={editingAutomation ? handleUpdate : handleCreate}>{editingAutomation ? 'Save changes' : 'Create automation'}</Button>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" className={LYRA_OUTLINE_BUTTON} onClick={closeModal}>Cancel</Button>
+            <Button className={LYRA_GOLD_BUTTON} onClick={editingAutomation ? handleUpdate : handleCreate}>{editingAutomation ? 'Save changes' : 'Create automation'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

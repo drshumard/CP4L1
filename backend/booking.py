@@ -170,6 +170,15 @@ AVAILABILITY_CACHE_TTL = int(os.environ.get("AVAILABILITY_CACHE_TTL", "120"))  #
 BACKGROUND_REFRESH_INTERVAL = int(os.environ.get("BACKGROUND_REFRESH_INTERVAL", "120"))  # 2 minutes
 
 _availability_cache: dict = {}
+
+# The clinic's calendar day (Pacific). Availability starts from "today" and the cache is keyed by that start date, so
+# every "today" here must agree. date.today() is the server clock's date — UTC on Railway, already tomorrow from 5pm
+# Pacific (4pm in winter) — which silently dropped the rest of the clinic's day.
+CLINIC_TZ = ZoneInfo("America/Los_Angeles")
+
+
+def clinic_today() -> date:
+    return datetime.now(CLINIC_TZ).date()
 _background_task: Optional[asyncio.Task] = None
 _background_task_running = False
 
@@ -394,8 +403,9 @@ async def get_availability(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
-    if date.fromisoformat(start_date) < date.today():
-        start_date = date.today().isoformat()
+    today = clinic_today()
+    if date.fromisoformat(start_date) < today:
+        start_date = today.isoformat()
 
     logger.info(f"[{correlation_id}] Fetching availability from {start_date} for {days} days")
 
@@ -444,7 +454,7 @@ async def get_availability_for_date(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
     
-    if target_date < date.today():
+    if target_date < clinic_today():
         raise HTTPException(status_code=400, detail="Cannot fetch availability for past dates")
 
     engine = await _booking_engine()
@@ -2081,7 +2091,7 @@ async def _reschedule_booking(booking: dict, new_start_iso: str,
         # reschedule picker showed. Best-effort: PB enforces its own conflicts regardless.
         consultant_id = booking.get("consultant_id")
         try:
-            slots, _ = await get_cached_availability(date.today().isoformat(), 60, pb_service)
+            slots, _ = await get_cached_availability(clinic_today().isoformat(), 60, pb_service)
             slot_ok = any((not consultant_id or s.consultant_id == consultant_id)
                           and int(s.start_time.timestamp()) == int(new_start.timestamp())
                           for s in slots)
@@ -2366,7 +2376,7 @@ async def book_session(
     
     try:
         # Use the main 60-day cache (same as what the frontend fetches)
-        today = date.today().isoformat()
+        today = clinic_today().isoformat()
         cached_slots, _ = await get_cached_availability(today, 60, pb_service)
         
         # Find any slot at the requested time (frontend may send different consultant due to deduplication)

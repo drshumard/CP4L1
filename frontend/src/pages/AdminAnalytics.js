@@ -5,15 +5,18 @@ import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import { BarChart3, RefreshCw, Calendar, ChevronDown, Users, TrendingUp, Clock, UserX } from 'lucide-react';
-import { Button } from '../components/ui/button';
-import { Switch } from '../components/ui/switch';
+import { Calendar, CheckCircle2, ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover';
+import EventStream from './admin/EventStream';
+import { fmtDate } from './admin/format';
+import s from './admin/workspace.module.css';
+
+// Admin → Analytics: the patient-journey metrics and, below them, the event stream (the activity log, which
+// used to be its own page). Design: shumard-checkout-portal/app/admin/analytics/page.tsx — its overview strip
+// carries the journey KPIs here, and the funnel / timing / no-show sections follow in the same geometry.
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
-const EYEBROW = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground';
 
 const DATE_PRESETS = [
   { label: 'Today', getValue: () => { const today = new Date(); return { start: today, end: today }; } },
@@ -25,6 +28,17 @@ const DATE_PRESETS = [
   { label: 'All Time', getValue: () => ({ start: null, end: null }) },
   { label: 'Custom', getValue: () => null },
 ];
+
+const pct = (n, total) => (total ? Math.round((n / total) * 100) : 0);
+
+function InsightCard({ kicker, title, children }) {
+  return (
+    <section className={s.insightCard}>
+      <div className={s.insightHead}><div><span className={s.analyticsKicker}>{kicker}</span><h2>{title}</h2></div></div>
+      <div className={s.insightRows}>{children}</div>
+    </section>
+  );
+}
 
 const AdminAnalytics = () => {
   const navigate = useNavigate();
@@ -44,13 +58,15 @@ const AdminAnalytics = () => {
   const [selectedPreset, setSelectedPreset] = useState('Last 7 Days');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [streamKey, setStreamKey] = useState(0);   // bump to re-fetch the event stream
 
   const startDateRef = useRef(startDate);
   const endDateRef = useRef(endDate);
   useEffect(() => { startDateRef.current = startDate; endDateRef.current = endDate; }, [startDate, endDate]);
 
-  const formatDateForAPI = (date) => (date ? date.toISOString().split('T')[0] : '');
+  // The picked calendar day as-is (the API reads it as a Pacific date). toISOString() would send the UTC date — a day
+  // early for a date picked under BST, a day late for a US evening's "Today".
+  const formatDateForAPI = (date) => (date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '');
 
   const fetchAnalytics = useCallback(async (start, end) => {
     try {
@@ -72,11 +88,17 @@ const AdminAnalytics = () => {
 
   useEffect(() => { const { start, end } = getDefaultDates(); fetchAnalytics(start, end); }, [fetchAnalytics]);
 
+  // The metrics refresh themselves every 30s; the event stream refreshes with "Refresh data" (rows don't jump mid-read).
   useEffect(() => {
-    if (!autoRefresh) return undefined;
     const interval = setInterval(() => fetchAnalytics(startDateRef.current, endDateRef.current), 30000);
     return () => clearInterval(interval);
-  }, [autoRefresh, fetchAnalytics]);
+  }, [fetchAnalytics]);
+
+  const refreshAll = () => {
+    setAnalyticsLoading(true);
+    fetchAnalytics(startDateRef.current, endDateRef.current);
+    setStreamKey((k) => k + 1);
+  };
 
   const handlePresetSelect = (preset) => {
     setSelectedPreset(preset.label);
@@ -117,209 +139,143 @@ const AdminAnalytics = () => {
     return selectedPreset;
   };
 
-  const stepDistribution = [
-    { label: 'Refunded', count: analytics?.step_distribution?.refunded || 0, color: 'bg-rose-500' },
-    { label: 'Step 1', count: analytics?.step_distribution?.step_1 || 0, color: 'bg-slate-300' },
-    { label: 'Step 2', count: analytics?.step_distribution?.step_2 || 0, color: 'bg-slate-400' },
-    { label: 'Step 3', count: analytics?.step_distribution?.step_3 || 0, color: 'bg-slate-500' },
-    { label: 'Complete', count: analytics?.step_distribution?.step_4 || 0, color: 'bg-emerald-500' },
-  ];
-  const maxStepCount = Math.max(...stepDistribution.map((s) => s.count), 1);
-
   if (loading) {
-    return <div className="py-16 text-center text-muted-foreground">Loading analytics...</div>;
+    return <p className={s.loadingRow} role="status">Loading analytics…</p>;
   }
 
-  const kpis = [
-    { label: 'Total users', value: analytics?.total_users || 0, sub: 'all signups' },
-    { label: 'Day-1 ready', value: `${analytics?.total_users ? Math.round((analytics?.day1_ready || 0) / analytics.total_users * 100) : 0}%`, sub: `${analytics?.day1_ready || 0} of ${analytics?.total_users || 0}` },
-    { label: 'Activation rate', value: `${analytics?.completion_stats?.completion_rate || 0}%`, sub: `${analytics?.completion_stats?.completed || 0} completed`, accent: 'text-emerald-600' },
-    { label: 'Refund rate', value: `${analytics?.completion_stats?.refund_rate || 0}%`, sub: `${analytics?.completion_stats?.refunded || 0} refunded`, accent: 'text-rose-600' },
-    { label: 'No-show rate', value: `${analytics?.booking_stats?.no_show_rate || 0}%`, sub: `${analytics?.booking_stats?.no_shows || 0} of ${analytics?.booking_stats?.past_sessions || 0} sessions`, accent: 'text-orange-600' },
-    { label: 'Avg time to activate', value: analytics?.step_transition_times?.total_journey?.avg_formatted || '—', sub: 'booking → activation' },
+  const a = analytics || {};
+  const totalUsers = a.total_users || 0;
+  const steps = [
+    { label: 'Refund', title: 'Refunded', count: a.step_distribution?.refunded || 0 },
+    { label: 'Step 1', title: 'Step 1', count: a.step_distribution?.step_1 || 0 },
+    { label: 'Step 2', title: 'Step 2', count: a.step_distribution?.step_2 || 0 },
+    { label: 'Step 3', title: 'Step 3', count: a.step_distribution?.step_3 || 0 },
+    { label: 'Done', title: 'Complete', count: a.step_distribution?.step_4 || 0 },
   ];
+  const maxStep = Math.max(...steps.map((x) => x.count), 1);
 
   const funnel = [
-    { label: 'Started', data: analytics?.funnel_data?.started, color: 'bg-slate-300' },
-    { label: 'Booked consultation', data: analytics?.funnel_data?.completed_booking, color: 'bg-slate-400' },
-    { label: 'Submitted intake', data: analytics?.funnel_data?.completed_intake, color: 'bg-slate-500' },
-    { label: 'Activated portal', data: analytics?.funnel_data?.activated_portal, color: 'bg-emerald-500' },
+    { label: 'Started', data: a.funnel_data?.started },
+    { label: 'Booked consultation', data: a.funnel_data?.completed_booking },
+    { label: 'Submitted intake', data: a.funnel_data?.completed_intake },
+    { label: 'Activated portal', data: a.funnel_data?.activated_portal },
   ];
-
   const transitions = [
-    { label: 'Booking → Intake form', data: analytics?.step_transition_times?.booking_to_intake },
-    { label: 'Intake → Completion', data: analytics?.step_transition_times?.intake_to_completion },
-    { label: 'Completion → Activated', data: analytics?.step_transition_times?.completion_to_activated },
-    { label: 'Total journey', data: analytics?.step_transition_times?.total_journey, highlight: true },
+    { label: 'Booking → Intake form', data: a.step_transition_times?.booking_to_intake },
+    { label: 'Intake → Completion', data: a.step_transition_times?.intake_to_completion },
+    { label: 'Completion → Activated', data: a.step_transition_times?.completion_to_activated },
+    { label: 'Total journey · booking → activation', data: a.step_transition_times?.total_journey, strong: true },
   ];
-
   const today = [
-    { label: 'New signups', value: analytics?.realtime_stats?.today?.signups || 0 },
-    { label: 'Logins', value: analytics?.realtime_stats?.today?.logins || 0 },
-    { label: 'Bookings', value: analytics?.realtime_stats?.today?.bookings || 0 },
-    { label: 'Forms submitted', value: analytics?.realtime_stats?.today?.form_submissions || 0 },
+    { label: 'New signups', value: a.realtime_stats?.today?.signups || 0 },
+    { label: 'Logins', value: a.realtime_stats?.today?.logins || 0 },
+    { label: 'Bookings', value: a.realtime_stats?.today?.bookings || 0 },
+    { label: 'Forms submitted', value: a.realtime_stats?.today?.form_submissions || 0 },
   ];
+  const noShows = a.booking_stats?.by_session || [];
 
   return (
-    <div className="p-5 sm:p-8 max-w-7xl 2xl:max-w-none mx-auto w-full space-y-6">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={s.analyticsLyra}>
+      <div className={s.heading}>
         <div>
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <BarChart3 className="size-4" /> Patient journey & activation metrics
-          </p>
-          {analytics?.filters_applied?.start_date && (
-            <p className="mt-1 text-xs text-muted-foreground">{analytics.filters_applied.start_date} to {analytics.filters_applied.end_date || 'now'}</p>
-          )}
+          <h1>Analytics</h1>
+          <p>Track patient activity and the events that keep onboarding moving.</p>
         </div>
-        <div className="flex items-center gap-2">
-          {analyticsLoading && <RefreshCw className="size-4 animate-spin text-muted-foreground" />}
+        <div className={s.headingActions}>
           <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Calendar className="size-4" /> {getDisplayLabel()} <ChevronDown className="size-4 opacity-50" />
-              </Button>
+              <button type="button" className={`${s.secondaryButton} ${s.rangeButton}`}>
+                <Calendar size={16} />{getDisplayLabel()}<ChevronDown size={15} />
+              </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto min-w-[200px] p-1">
+            <PopoverContent align="end" className={s.rangeMenu}>
               {DATE_PRESETS.filter((p) => p.label !== 'Custom').map((preset) => (
-                <button key={preset.label} type="button" onClick={() => handlePresetSelect(preset)}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-accent ${selectedPreset === preset.label ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  <span>{preset.label}</span>
-                  {selectedPreset === preset.label && <span className="size-1.5 rounded-full bg-primary" />}
+                <button key={preset.label} type="button" onClick={() => handlePresetSelect(preset)} aria-current={selectedPreset === preset.label ? 'true' : undefined}>
+                  <span>{preset.label}</span>{selectedPreset === preset.label && <i />}
                 </button>
               ))}
-              <div className="mt-1 border-t pt-1">
-                <button type="button" onClick={() => setSelectedPreset('Custom')}
-                  className={`flex w-full items-center justify-between rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-accent ${selectedPreset === 'Custom' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  <span>Custom range</span>
-                  <ChevronDown className={`size-3.5 transition-transform ${selectedPreset === 'Custom' ? 'rotate-180' : ''}`} />
+              <div className={s.rangeCustom}>
+                <button type="button" onClick={() => setSelectedPreset('Custom')} aria-current={selectedPreset === 'Custom' ? 'true' : undefined}>
+                  <span>Custom range</span><ChevronDown size={14} style={{ transform: selectedPreset === 'Custom' ? 'rotate(180deg)' : 'none' }} />
                 </button>
                 {selectedPreset === 'Custom' && (
-                  <div className="mt-1 border-t p-2">
-                    <DatePicker selected={startDate} onChange={handleCustomDateChange} startDate={startDate} endDate={endDate}
-                      selectsRange inline monthsShown={1} maxDate={new Date()} calendarClassName="!border-0 !shadow-none" />
-                  </div>
+                  <DatePicker selected={startDate} onChange={handleCustomDateChange} startDate={startDate} endDate={endDate}
+                    selectsRange inline monthsShown={1} maxDate={new Date()} calendarClassName="!border-0 !shadow-none" />
                 )}
               </div>
             </PopoverContent>
           </Popover>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-            <Switch checked={autoRefresh} onCheckedChange={setAutoRefresh} />
-            <span className="flex items-center gap-1.5">Live {autoRefresh && <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />}</span>
-          </label>
+          <button type="button" className={s.secondaryButton} onClick={refreshAll} disabled={analyticsLoading}>
+            <RefreshCw size={16} className={analyticsLoading ? 'animate-spin' : ''} />Refresh data
+          </button>
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
-        {kpis.map((k) => (
-          <div key={k.label} className="rounded-xl border bg-card p-5 shadow-sm">
-            <p className={EYEBROW}>{k.label}</p>
-            <p className={`mt-2 text-3xl font-semibold tabular-nums ${k.accent || 'text-foreground'}`}>{k.value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{k.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Step distribution */}
-      <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Users className="size-4 text-muted-foreground" /> Step distribution</h3>
-        <div className="mt-4 space-y-3">
-          {stepDistribution.map((step, index) => {
-            const percentage = analytics?.total_users ? Math.round((step.count / analytics.total_users) * 100) : 0;
-            const barWidth = maxStepCount > 0 ? Math.round((step.count / maxStepCount) * 100) : 0;
-            return (
-              <div key={step.label} className="flex items-center gap-4">
-                <div className="w-20 flex-shrink-0 text-sm font-medium text-foreground">{step.label}</div>
-                <div className="relative h-7 flex-1 overflow-hidden rounded-lg bg-muted">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${barWidth}%` }} transition={{ duration: 0.6, delay: index * 0.08 }}
-                    className={`flex h-full items-center rounded-lg ${step.color}`}>
-                    {barWidth > 15 && <span className="px-3 text-sm font-medium text-white">{step.count}</span>}
-                  </motion.div>
-                  {barWidth <= 15 && step.count > 0 && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm font-medium text-foreground">{step.count}</span>}
-                </div>
-                <div className="w-12 flex-shrink-0 text-right text-sm tabular-nums text-muted-foreground">{percentage}%</div>
+      <section className={s.analyticsOverview} aria-label="Journey overview">
+        <div className={s.analyticsHeroMetric}>
+          <span>TOTAL USERS · {getDisplayLabel().toUpperCase()}</span>
+          <strong>{totalUsers.toLocaleString()}</strong>
+          <p><Sparkles size={15} /> {pct(a.day1_ready || 0, totalUsers)}% Day-1 ready ({a.day1_ready || 0} of {totalUsers})</p>
+        </div>
+        <div className={s.analyticsMetrics}>
+          <div><span>Activation rate</span><strong>{a.completion_stats?.completion_rate || 0}%</strong><small><CheckCircle2 size={13} /> {a.completion_stats?.completed || 0} completed</small></div>
+          <div><span>Refund rate</span><strong>{a.completion_stats?.refund_rate || 0}%</strong><small>{a.completion_stats?.refunded || 0} refunded</small></div>
+          <div><span>No-show rate</span><strong>{a.booking_stats?.no_show_rate || 0}%</strong><small>{a.booking_stats?.no_shows || 0} of {a.booking_stats?.past_sessions || 0} sessions</small></div>
+        </div>
+        <div className={s.activityChart} aria-label="Users by journey step">
+          <div className={s.chartHeading}><div><span>JOURNEY</span><strong>Where users are now</strong></div><span>{pct(steps[4].count, totalUsers)}% complete</span></div>
+          <div className={`${s.bars} ${s.journeyBars}`}>
+            {steps.map((st) => (
+              <div key={st.label} title={`${st.title}: ${st.count} (${pct(st.count, totalUsers)}%)`}>
+                <b>{st.count}</b>
+                <i style={{ height: `${Math.round((st.count / maxStep) * 100)}%` }} />
+                <span>{st.label}</span>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Funnel + transition times */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><TrendingUp className="size-4 text-muted-foreground" /> Completion funnel</h3>
-          <div className="mt-4 space-y-1">
-            {funnel.map((stage, i) => (
-              <div key={stage.label} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
-                <div className="flex items-center gap-2.5">
-                  <span className={`size-2.5 rounded-full ${stage.color}`} />
-                  <span className="text-sm text-foreground">{stage.label}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium tabular-nums">{stage.data?.count || 0}</span>
-                  <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">{stage.data?.percentage || 0}%</span>
-                  {stage.data?.drop_off > 0 ? <span className="text-xs font-medium text-rose-600">-{stage.data.drop_off}</span> : <span className="w-6" />}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><Clock className="size-4 text-muted-foreground" /> Average time between steps</h3>
-          <div className="mt-4 space-y-1">
-            {transitions.map((t, i) => (
-              <div key={t.label} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
-                <span className={`text-sm ${t.highlight ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>{t.label}</span>
-                <div className="flex items-center gap-2">
-                  {t.data?.avg_formatted ? (
-                    <>
-                      <span className={`text-sm tabular-nums ${t.highlight ? 'font-semibold text-foreground' : 'font-medium'}`}>{t.data.avg_formatted}</span>
-                      <span className="text-xs text-muted-foreground">({t.data.count})</span>
-                    </>
-                  ) : <span className="text-sm text-muted-foreground">No data</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* No-shows by event type */}
-      {(analytics?.booking_stats?.by_session?.length || 0) > 0 && (
-        <section className="rounded-xl border bg-card p-5 shadow-sm">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground"><UserX className="size-4 text-muted-foreground" /> No-shows by event</h3>
-          <div className="mt-4 space-y-1">
-            {analytics.booking_stats.by_session.map((s, i) => (
-              <div key={s.session_id} className={`flex items-center justify-between py-2 ${i ? 'border-t' : ''}`}>
-                <span className="min-w-0 truncate pr-4 text-sm text-foreground">{s.title}</span>
-                <div className="flex flex-shrink-0 items-center gap-3">
-                  <span className="text-xs tabular-nums text-muted-foreground">{s.no_shows} of {s.past_sessions}</span>
-                  <span className={`w-14 text-right text-sm font-semibold tabular-nums ${s.no_shows > 0 ? 'text-orange-600' : 'text-muted-foreground'}`}>{s.no_show_rate}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Today */}
-      <section>
-        <h3 className={`${EYEBROW} mb-3`}>Today</h3>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {today.map((m) => (
-            <div key={m.label} className="rounded-xl border bg-card p-5 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <span className={EYEBROW}>Live</span>
-                <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
-              </div>
-              <div className="text-2xl font-semibold tabular-nums text-foreground">{m.value}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{m.label}</div>
+      <div className={s.insightGrid}>
+        <InsightCard kicker="FUNNEL" title="Completion funnel">
+          {funnel.map((f) => (
+            <div key={f.label} className={s.insightRow}>
+              <span>{f.label}</span>
+              <b>{f.data?.count || 0}</b>
+              <em>{f.data?.percentage || 0}%</em>
+              <small>{f.data?.drop_off > 0 ? `−${f.data.drop_off}` : ''}</small>
             </div>
           ))}
-        </div>
+        </InsightCard>
+        <InsightCard kicker="TIMING" title="Average time between steps">
+          {transitions.map((t) => (
+            <div key={t.label} className={s.insightRow} data-strong={t.strong || undefined}>
+              <span>{t.label}</span>
+              <b>{t.data?.avg_formatted || 'No data'}</b>
+              <em>{t.data?.avg_formatted ? `(${t.data.count})` : ''}</em>
+            </div>
+          ))}
+        </InsightCard>
+      </div>
+
+      {noShows.length > 0 && (
+        <InsightCard kicker="NO-SHOWS" title="No-shows by event">
+          {noShows.map((x) => (
+            <div key={x.session_id} className={s.insightRow}>
+              <span>{x.title}</span>
+              <em>{x.no_shows} of {x.past_sessions}</em>
+              <b data-alert={x.no_shows > 0 || undefined}>{x.no_show_rate}%</b>
+            </div>
+          ))}
+        </InsightCard>
+      )}
+
+      <section className={s.todayStrip} aria-label="Today">
+        <div><span className={s.analyticsKicker}>TODAY</span><p>{fmtDate(new Date())}</p></div>
+        {today.map((m) => <div key={m.label}><strong>{m.value}</strong><p>{m.label}</p></div>)}
       </section>
+
+      <EventStream refreshKey={streamKey} />
     </div>
   );
 };

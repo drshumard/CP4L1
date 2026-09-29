@@ -5,10 +5,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-/* Redesigned admin uses Geist throughout — override the global Space Grotesk headings. */
+/* The admin (workspace.module.css) uses Inter throughout — override the global Space Grotesk headings, and
+   give <body> the font while the admin is mounted so portaled menus, dialogs and sheets match. */
 .admin-geist h1, .admin-geist h2, .admin-geist h3, .admin-geist h4, .admin-geist h5, .admin-geist h6 {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif;
 }
+body:has(.admin-geist) { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }
+/* Sheet and dialog titles are portaled outside .admin-geist, where App.css's global Space Grotesk headings reach them. */
+body:has(.admin-geist) :is(h1, h2, h3, h4, h5, h6) { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; }
 
 /* Roomier sidebar nav: 16px text + doubled (16px) padding. */
 .admin-geist [data-sidebar="content"] [data-sidebar="menu-button"],
@@ -205,3 +209,17 @@ body:has(.admin-geist) button:active,
    transform re-rasterizes the card and makes fractional-position cards shimmer.
    Interactivity is signalled by the cursor alone, shadcn-style. */
 .cad-event, .cad-event:hover, .cad-event:active { transform: none; transition: none; cursor: pointer; }
+
+/* Date pickers in the admin: brand blue instead of the app-wide teal (index.css, all !important). Range ends and the
+   selected day solid blue, the days between light blue. body:has() so portaled popovers are covered too. */
+body:has(.admin-geist) .react-datepicker__day:hover { background-color: #eef3ff !important; }
+body:has(.admin-geist) .react-datepicker__day--keyboard-selected,
+body:has(.admin-geist) .react-datepicker__day--in-range,
+body:has(.admin-geist) .react-datepicker__day--in-selecting-range { background: #e8efff !important; color: #2448b8 !important; }
+body:has(.admin-geist) .react-datepicker__day--selected,
+body:has(.admin-geist) .react-datepicker__day--range-start,
+body:has(.admin-geist) .react-datepicker__day--range-end,
+body:has(.admin-geist) .react-datepicker__day--selecting-range-start { background: #3565e9 !important; color: #fff !important; }
+body:has(.admin-geist) .react-datepicker__navigation:hover *::before { border-color: #3565e9 !important; }
+body:has(.admin-geist) .react-datepicker__month-option--selected,
+body:has(.admin-geist) .react-datepicker__year-option--selected { background: #3565e9 !important; }

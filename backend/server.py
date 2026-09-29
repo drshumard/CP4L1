@@ -1035,15 +1035,15 @@ async def ghl_webhook(data: GHLWebhookData, webhook_secret: str = None):
 
 
 # Automation Execution Helper
-async def execute_automations(trigger: str, data: dict):
-    """Execute all enabled automations for a given trigger - supports multiple actions per automation"""
+async def execute_automations(trigger: str, data: dict, only: Optional[set] = None, log_extra: Optional[dict] = None):
+    """Execute all enabled automations for a given trigger - supports multiple actions per automation.
+    `only` = {(automation_id, action_id), ...} runs just those actions, switched on or not (a manual send
+    from Admin > Purchases); `log_extra` is added to their log entries."""
     import httpx
     
-    # Find all enabled automations for this trigger
-    automations = await db.automations.find({
-        "trigger": trigger,
-        "enabled": True
-    }).to_list(100)
+    # Find all enabled automations for this trigger (or the ones holding the `only` actions)
+    query = {"trigger": trigger, "id": {"$in": [a for a, _ in only]}} if only else {"trigger": trigger, "enabled": True}
+    automations = await db.automations.find(query).to_list(100)
     
     results = []
     
@@ -1059,6 +1059,8 @@ async def execute_automations(trigger: str, data: dict):
         
         for action in actions:
             action_id = action.get("id", str(uuid.uuid4()))
+            if only and (automation_id, action_id) not in only:
+                continue
             action_name = action.get("name") or action.get("url", "Unnamed Action")[:50]
             
             try:
@@ -1104,7 +1106,8 @@ async def execute_automations(trigger: str, data: dict):
                         "response_body": response.text[:2000] if response.text else None,  # Increased limit
                         "duration_ms": duration_ms,
                         "success": success,
-                        "executed_at": datetime.now(timezone.utc).isoformat()
+                        "executed_at": datetime.now(timezone.utc).isoformat(),
+                        **(log_extra or {}),
                     })
                     
                     results.append({
@@ -1132,7 +1135,8 @@ async def execute_automations(trigger: str, data: dict):
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "success": False,
-                    "executed_at": datetime.now(timezone.utc).isoformat()
+                    "executed_at": datetime.now(timezone.utc).isoformat(),
+                    **(log_extra or {}),
                 })
                 
                 results.append({
@@ -3441,10 +3445,17 @@ async def get_all_users(
     admin_user: dict = Depends(require_capability("patients.view")),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=10, le=200, description="Users per page"),
-    search: str = Query("", description="Search by name, email, or phone")
+    search: str = Query("", description="Search by name, email, or phone"),
+    onboarding: str = Query("all", pattern="^(all|in_progress|complete)$", description="all | in_progress (steps 1–3) | complete (step 4)")
 ):
+    # Onboarding buckets (the admin Users tabs). Refunded (step 0) only shows under "all".
+    onboarding_filters = {
+        "in_progress": {"current_step": {"$nin": [0, 4]}},
+        "complete": {"current_step": 4},
+    }
+
     # Build filter
-    query = {}
+    query = dict(onboarding_filters.get(onboarding, {}))
     if search.strip():
         search_regex = {"$regex": search.strip(), "$options": "i"}
         query["$or"] = [
@@ -3455,6 +3466,11 @@ async def get_all_users(
     
     # Get total count for pagination
     total = await db.users.count_documents(query)
+    # Whole-directory tab/stat counts (not narrowed by the search or the tab).
+    counts = {
+        "all": await db.users.count_documents({}),
+        **{k: await db.users.count_documents(f) for k, f in onboarding_filters.items()},
+    }
     
     # Fetch paginated users sorted by created_at desc (newest first)
     skip = (page - 1) * page_size
@@ -3499,10 +3515,57 @@ async def get_all_users(
     return {
         "users": users,
         "total": total,
+        "counts": counts,
         "page": page,
         "page_size": page_size,
         "total_pages": (total + page_size - 1) // page_size
     }
+
+
+class AdminCreateUserRequest(BaseModel):
+    first_name: str
+    last_name: str = ""
+    email: EmailStr
+    phone: Optional[str] = None
+    send_welcome_email: bool = True
+
+
+@api_router.post("/admin/users")
+async def admin_create_user(data: AdminCreateUserRequest, admin_user: dict = Depends(get_admin_user)):
+    """Admin → Users "Add user": a portal account at step 1, built like the checkout's (_ensure_user).
+    The welcome email (same one a purchase sends) is optional."""
+    email = data.email.strip().lower()
+    first, last = data.first_name.strip(), data.last_name.strip()
+    if not first:
+        raise HTTPException(status_code=400, detail="First name is required")
+    if await db.users.find_one({"email": email}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="A user with this email already exists")
+
+    password = generate_portal_password()
+    user_dict = User(email=email, name=f"{first} {last}".strip(),
+                     password_hash=get_password_hash(password) if LEGACY_PASSWORD_LOGIN else None).model_dump()
+    user_dict["created_at"] = user_dict["created_at"].isoformat()
+    if not LEGACY_PASSWORD_LOGIN:
+        user_dict.pop("password_hash", None)
+    user_dict.update(first_name=first, last_name=last, signup_source="admin")
+    if data.phone and data.phone.strip():
+        user_dict["phone"] = normalize_phone(data.phone) or data.phone.strip()
+    await db.users.insert_one(dict(user_dict))
+
+    details = {"name": user_dict["name"], "source": "admin", "created_by": admin_user.get("email"),
+               "welcome_email": data.send_welcome_email}
+    await log_activity(event_type="USER_CREATED", user_email=email, user_id=user_dict["id"], details=details, status="success")
+    await log_admin_action("ADMIN_USER_CREATED", admin_user=admin_user, details=details,
+                           target_email=email, target_user_id=user_dict["id"])
+
+    if data.send_welcome_email:
+        token = await create_auto_login_token(user_dict["id"], email)
+        frontend_url = os.environ.get('FRONTEND_URL', 'https://portal.drshumard.com')
+        await send_portal_welcome_email(email, user_dict["name"], user_dict["id"], password,
+                                        f"{frontend_url}/auto-login/{token}")
+
+    user_dict.pop("password_hash", None)
+    return {"user": user_dict, "welcome_email": data.send_welcome_email}
 
 # Public API endpoint to lookup user step by email
 @api_router.get("/user/lookup")
@@ -3756,6 +3819,40 @@ async def get_automation_logs(
     
     logs = await db.automation_logs.find(query, {"_id": 0}).sort("executed_at", -1).to_list(limit)
     return {"logs": logs}
+
+
+@api_router.get("/admin/purchases")
+async def get_purchases(admin_user: dict = Depends(get_admin_user)):
+    """/checkout purchases with their booking, account, receipt and automation results (Admin > Purchases)."""
+    from checkout import list_purchases
+    return {"purchases": await list_purchases()}
+
+
+class PurchaseAutomationTarget(BaseModel):
+    automation_id: str
+    action_id: str
+
+
+class PurchaseAutomationsRequest(BaseModel):
+    targets: List[PurchaseAutomationTarget]
+
+
+@api_router.post("/admin/purchases/{session_id}/automations")
+async def send_purchase_automations(session_id: str, body: PurchaseAutomationsRequest, request: Request,
+                                    admin_user: dict = Depends(get_admin_user)):
+    """Send one /checkout purchase to chosen "Checkout purchase" automation actions, e.g. a purchase made
+    while those automations were off. Runs them whether or not they're switched on."""
+    if not body.targets:
+        raise HTTPException(status_code=400, detail="Choose at least one automation")
+    from checkout import send_purchase_to_automations
+    results = await send_purchase_to_automations(
+        session_id, {(t.automation_id, t.action_id) for t in body.targets}, admin_user.get("email"))
+    if results is None:
+        raise HTTPException(status_code=404, detail="Purchase not found")
+    await log_admin_action("ADMIN_PURCHASE_AUTOMATIONS_SENT", admin_user=admin_user, request=request,
+                           details={"stripe_session_id": session_id,
+                                    "actions": [{k: r.get(k) for k in ("automation_name", "action_name", "success")} for r in results]})
+    return {"results": results}
 
 @api_router.post("/admin/automation-logs/{log_id}/retry")
 async def retry_automation_log(log_id: str, admin_user: dict = Depends(require_capability("automations.manage"))):
@@ -4755,8 +4852,9 @@ async def get_activity_logs(
     if event_type:
         query["event_type"] = event_type
     
-    if user_email:
-        query["user_email"] = user_email.lower()
+    if user_email and user_email.strip():
+        # Contains-match, so the admin Analytics event-stream search narrows as you type (a full address still matches).
+        query["user_email"] = {"$regex": re.escape(user_email.strip().lower()), "$options": "i"}
 
     # Admin vs patient activity. Legacy logs predate the `category` field, so treat
     # anything not explicitly "admin" as patient activity.

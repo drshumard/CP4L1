@@ -1,0 +1,236 @@
+.page {
+  --ink: #242f43;
+  --secondary-ink: #5d6a7e;
+  --line: #e0e6ef;
+  --brand: #3565e9;
+  min-height: 100vh;
+  background: #f8f9fc;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.header { background: var(--brand); color: #fff; }
+.headerInner { max-width: 1256px; margin: auto; padding: 0 40px; min-height: 88px; display: flex; align-items: center; gap: 52px; }
+.logo { flex-shrink: 0; }
+.logo img { width: 212px; height: auto; display: block; }
+.navigation { display: flex; align-self: stretch; gap: 28px; }
+.navigation a { display: flex; align-items: center; position: relative; color: #e4ecff; font-size: .9375rem; white-space: nowrap; }
+.navigation a[aria-current="page"] { color: #fff; font-weight: 600; }
+.navigation a[aria-current="page"]::after { content: ""; position: absolute; height: 3px; bottom: 0; left: 0; right: 0; background: #ffc24a; border-radius: 3px 3px 0 0; }
+.navigation a:hover { color: #fff; }
+.headerHelp { margin-left: auto; display: flex; align-items: center; gap: 8px; min-height: 48px; font-size: .875rem; white-space: nowrap; }
+.page a:focus-visible, .page button:focus-visible { outline: 3px solid #3565e9; outline-offset: 5px; }
+.header a:focus-visible { outline-color: #ffc24a; }
+
+.main { max-width: 1256px; padding: 0 40px; margin: auto; }
+.welcome { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 44px 0 34px; }
+.welcome h1 { margin: 0 0 10px; color: var(--ink); font-size: clamp(2rem, 3.3vw, 2.625rem); font-weight: 500; letter-spacing: -.045em; line-height: 1.2; }
+.welcome h1 span { color: var(--brand); }
+.welcome > div > p:last-child { color: var(--secondary-ink); font-size: 1rem; }
+.welcomeStatus { display: flex; align-items: center; gap: 9px; color: #4c6470; font-size: .875rem; white-space: nowrap; }
+.checkCircle { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #277763; background: #e5f2ec; }
+.mainGrid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr); gap: 28px; align-items: start; }
+
+.preparation { background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 3px 8px #23344c03, 0 14px 40px #23344c04; overflow: hidden; }
+.preparationHeader { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 27px 32px 0; }
+.preparationHeader h2 { font-size: 1rem; font-weight: 600; letter-spacing: -.015em; }
+.preparationHeader > span { font-size: .8125rem; color: var(--secondary-ink); }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin: 23px 32px 0; padding: 0 0 26px; border-bottom: 1px solid var(--line); list-style: none; }
+.steps li { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; position: relative; font-size: .875rem; color: #58677e; }
+.steps li:not(:last-child)::after { content: ""; position: absolute; top: 17px; left: 45px; right: 2px; height: 1px; background: #d9e3f2; }
+.stepCircle { height: 35px; width: 35px; border-radius: 50%; display: grid; place-items: center; background: #edf2ff; color: #3565d4; font-size: .875rem; font-weight: 600; }
+.steps li[aria-current] { color: var(--ink); font-weight: 600; }
+.steps li[aria-current] .stepCircle { color: #68501a; background: #fff0c8; box-shadow: inset 0 0 0 1px #f0d28b; }
+.nextStep { padding: 27px 32px 30px; }
+.nextLabel { display: inline-block; color: #355cbc; background: #edf2ff; font-size: .8125rem; padding: 4px 10px; border-radius: 5px; font-weight: 500; }
+.nextStep h3 { color: var(--ink); margin: 15px 0 13px; font-size: clamp(1.75rem, 2.4vw, 2.125rem); font-weight: 500; letter-spacing: -.035em; line-height: 1.22; }
+.nextStep > p { max-width: 460px; color: var(--secondary-ink); font-size: 1rem; line-height: 1.7; }
+.preparationList { display: flex; flex-direction: column; gap: 18px; list-style: none; margin: 27px 0 0; padding: 0; }
+.preparationList li { display: flex; align-items: flex-start; gap: 12px; }
+.preparationList li > span { width: 34px; height: 34px; flex: 0 0 34px; display: grid; place-items: center; color: #63808e; background: #f1f6f8; border-radius: 8px; margin-top: 2px; }
+.preparationList strong { display: block; font-size: .9375rem; font-weight: 600; }
+.preparationList p { margin: 3px 0 0; font-size: .875rem; color: var(--secondary-ink); line-height: 1.6; }
+.primaryButton { display: flex; width: fit-content; max-width: 100%; min-height: 52px; margin-top: 23px; padding: 12px 21px; align-items: center; justify-content: center; gap: 25px; background: #ffc24a; color: #382d19; border: 1px solid #edb43f; border-radius: 9px; font-size: .9375rem; font-weight: 600; box-shadow: 0 2px 3px #7555120a; transition: background .15s; }
+.primaryButton:hover { background: #ffb92f; }
+.preparationNote { display: flex; align-items: center; gap: 8px; border-top: 1px solid #e9edf3; padding: 16px 32px; background: #fbfcfe; color: #5d6d80; font-size: .8125rem; }
+.preparationNote svg { color: #388170; }
+
+.aside { min-width: 0; }
+.appointment { border: 1px solid var(--line); border-radius: 18px; background: #fff; padding: 27px 27px 25px; scroll-margin-top: 24px; }
+.appointmentHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.appointmentHeader h2 { font-size: 1rem; font-weight: 600; letter-spacing: -.015em; }
+.confirmed { display: inline-flex; align-items: center; gap: 5px; font-size: .75rem; background: #edf6f1; color: #2b7457; padding: 4px 8px; border-radius: 5px; }
+.dateRow { display: flex; align-items: center; gap: 16px; margin: 24px 0; }
+.dateTile { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 67px; min-height: 78px; flex-shrink: 0; color: #3565d4; background: #eef3ff; border: 1px solid #e0e8fa; border-radius: 11px; }
+.dateTile > span { font-size: .75rem; letter-spacing: .11em; font-weight: 600; }
+.dateTile strong { font-weight: 500; font-size: 1.875rem; line-height: 1.2; }
+.dateRow h3 { font-size: 1.0625rem; font-weight: 600; letter-spacing: -.025em; line-height: 1.45; }
+.dateRow p { font-size: .9375rem; margin-top: 5px; color: #4f5d74; }
+.dateRow p > span { white-space: nowrap; }
+.doctor { display: flex; align-items: center; gap: 13px; padding: 21px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.doctor img { width: 57px; height: 64px; border-radius: 10px; object-fit: cover; object-position: center 18%; }
+.doctor > div > span { display: block; color: var(--secondary-ink); font-size: .8125rem; }
+.doctor strong { display: block; font-size: .9375rem; font-weight: 600; margin-top: 3px; }
+.doctor p { margin-top: 2px; font-size: .8125rem; color: var(--secondary-ink); }
+.sessionDetails { list-style: none; padding: 0; margin: 20px 0 18px; display: flex; flex-direction: column; gap: 13px; }
+.sessionDetails li { display: flex; align-items: center; gap: 11px; color: #4e6078; font-size: .875rem; }
+.sessionDetails svg { color: #788ba5; }
+.emailNote { display: flex; align-items: flex-start; gap: 9px; padding: 12px; background: #f5f7fb; border-radius: 7px; color: var(--secondary-ink); font-size: .8125rem; line-height: 1.6; }
+.emailNote svg { margin-top: 2px; color: #7488a7; }
+.secondaryButton { display: flex; justify-content: center; align-items: center; gap: 9px; width: 100%; min-height: 46px; margin-top: 17px; border: 1px solid #dce3ee; border-radius: 8px; background: #fff; color: #40536e; font: inherit; font-size: .875rem; font-weight: 500; }
+.secondaryButton:hover { border-color: #b4c4df; background: #f8faff; }
+.calendarMessage { margin-top: 12px; color: var(--secondary-ink); font-size: .8125rem; line-height: 1.6; }
+.help { padding: 24px 8px 0; display: flex; gap: 13px; align-items: flex-start; }
+.helpIcon { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid #dce6ed; border-radius: 50%; background: #edf4f7; color: #577b8a; }
+.help h2 { font-size: .9375rem; font-weight: 600; }
+.help p { margin-top: 4px; color: var(--secondary-ink); font-size: .875rem; line-height: 1.65; }
+.help a { display: inline-flex; align-items: center; gap: 7px; color: #2e5ecb; font-size: .875rem; font-weight: 500; min-height: 44px; margin-top: 3px; }
+
+.expectations { margin-top: 43px; padding-top: 30px; border-top: 1px solid #dfe5ee; }
+.expectationsHeader { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+.expectations h2 { font-size: 1.4375rem; font-weight: 500; letter-spacing: -.025em; }
+.expectationsHeader > p { color: var(--secondary-ink); font-size: .875rem; }
+.topicGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 35px; margin-top: 28px; }
+.topic { padding-right: 26px; }
+.topic + .topic { border-left: 1px solid #dfe5ee; padding-left: 30px; }
+.topic > svg { color: #617e9c; }
+.topic h3 { font-size: 1rem; font-weight: 600; margin: 13px 0 7px; letter-spacing: -.01em; }
+.topic p { color: var(--secondary-ink); font-size: .9375rem; line-height: 1.7; max-width: 310px; }
+.footer { max-width: 1176px; margin: 39px auto 0; padding: 21px 0 27px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 24px; color: #6b788b; font-size: .75rem; }
+.footerSeparator { color: #bac4d2; margin: 0 9px; }
+.footer a { display: inline-flex; align-items: center; gap: 7px; color: #596e8d; }
+
+@media (max-width: 1180px) {
+  .headerInner { gap: 30px; }
+  .navigation { gap: 22px; }
+  .mainGrid { grid-template-columns: minmax(0, 1.3fr) minmax(330px, 1fr); gap: 23px; }
+  .preparationHeader, .nextStep { padding-left: 25px; padding-right: 25px; }
+  .steps { margin-left: 25px; margin-right: 25px; }
+  .preparationNote { padding-left: 25px; padding-right: 25px; }
+  .appointment { padding-left: 23px; padding-right: 23px; }
+  .footer { margin-left: 40px; margin-right: 40px; }
+}
+@media (max-width: 900px) {
+  .headerInner { flex-wrap: wrap; column-gap: 20px; row-gap: 0; padding: 19px 28px 0; }
+  .logo img { width: 200px; }
+  .headerHelp { min-height: 32px; }
+  .navigation { order: 3; width: 100%; gap: 28px; margin-top: 13px; min-height: 47px; }
+  .main { padding: 0 28px; }
+  .welcome { padding-top: 32px; }
+  .welcomeStatus { display: none; }
+  .mainGrid { grid-template-columns: minmax(0,1fr) minmax(300px,.85fr); gap: 20px; }
+  .preparationHeader { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .steps { gap: 8px; }
+  .steps li { font-size: .8125rem; }
+  .dateRow { gap: 12px; }
+  .dateRow p > span { display: block; }
+  .appointmentHeader { flex-wrap: wrap; }
+  .expectationsHeader { flex-direction: column; gap: 5px; }
+  .topicGrid { gap: 23px; }
+  .topic { padding-right: 0; }
+  .topic + .topic { padding-left: 23px; }
+  .footer { margin-left: 28px; margin-right: 28px; }
+}
+@media (max-width: 720px) {
+  .main { max-width: 620px; }
+  .mainGrid { grid-template-columns: minmax(0,1fr); gap: 23px; }
+  .welcome { padding-bottom: 27px; }
+  .welcome h1 { font-size: 2.125rem; }
+  .preparationHeader { flex-direction: row; align-items: center; }
+  .steps li { font-size: .875rem; }
+  .nextStep h3 { font-size: 1.9375rem; }
+  .primaryButton { width: 100%; justify-content: space-between; }
+  .appointmentHeader { flex-wrap: nowrap; }
+  .dateRow p > span { display: inline; }
+  .help { padding-top: 22px; }
+  .expectations { margin-top: 30px; }
+  .expectations h2 { font-size: 1.375rem; }
+  .topicGrid { grid-template-columns: 1fr; gap: 22px; margin-top: 23px; }
+  .topic { display: grid; grid-template-columns: 26px minmax(0,1fr); column-gap: 16px; align-items: start; }
+  .topic h3 { margin: 0 0 5px; }
+  .topic p { grid-column: 2; max-width: none; }
+  .topic + .topic { padding-left: 0; border-left: 0; }
+  .footer { max-width: 564px; margin: 30px auto 0; flex-wrap: wrap; gap: 8px; }
+  .footer a { min-height: 40px; }
+}
+@media (max-width: 440px) {
+  .headerInner { padding: 18px 20px 0; }
+  .logo img { width: 183px; }
+  .headerHelp { font-size: .8125rem; gap: 6px; }
+  .navigation { gap: 24px; }
+  .navigation a { font-size: .875rem; }
+  .main { padding: 0 18px; }
+  .welcome { padding: 28px 2px 24px; }
+  .welcome h1 { font-size: 1.9375rem; max-width: 310px; }
+  .welcome > div > p:last-child { font-size: .9375rem; line-height: 1.7; max-width: 310px; }
+  .preparationHeader { padding: 21px 21px 0; gap: 9px; }
+  .preparationHeader h2 { font-size: .9375rem; }
+  .preparationHeader > span { font-size: .75rem; }
+  .steps { margin: 21px 21px 0; gap: 9px; padding-bottom: 23px; }
+  .steps li { font-size: .8125rem; }
+  .nextStep { padding: 23px 21px 25px; }
+  .nextStep h3 { font-size: 1.8125rem; }
+  .preparationList strong { font-size: .9375rem; }
+  .preparationList p { font-size: .875rem; }
+  .preparationNote { padding: 14px 21px; align-items: flex-start; font-size: .8125rem; }
+  .preparationNote svg { margin-top: 2px; }
+  .appointment { padding: 24px 21px; }
+  .dateRow h3 { font-size: 1rem; }
+  .dateRow p { font-size: .875rem; }
+  .help { padding-left: 3px; padding-right: 3px; }
+  .footer { margin-left: 20px; margin-right: 20px; }
+}
+@media (max-width: 360px) {
+  .logo img { width: 164px; }
+  .navigation { gap: 18px; }
+  .headerInner { gap: 10px; }
+  .headerHelp span { display: none; }
+  .headerHelp { min-width: 44px; min-height: 44px; justify-content: center; }
+  .preparationHeader { flex-wrap: wrap; }
+  .steps li { overflow-wrap: anywhere; }
+  .dateTile { width: 56px; }
+  .dateRow { gap: 10px; }
+}
+
+/* ---- Portal adaptation (the design above is shumard-checkout-portal/app/dashboard/dashboard.module.css) ----
+   The prototype's globals set the font and base resets; the portal's globals set Space Grotesk on h1–h6. */
+.page { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+.page :is(h1, h2, h3, h4) { font-family: inherit; margin: 0; }
+.page p { margin: 0; }
+.page svg { flex-shrink: 0; }
+.skipLink { position: absolute; left: 16px; top: -60px; z-index: 50; padding: 12px; background: #fff; color: var(--ink); }
+.skipLink:focus { top: 12px; }
+.headerActions { margin-left: auto; display: flex; align-items: center; gap: 22px; }
+.headerActions .headerHelp { margin-left: 0; }
+.headerButton { display: flex; align-items: center; gap: 8px; min-height: 48px; font-size: .875rem; white-space: nowrap; color: #e4ecff; background: none; border: 0; padding: 0; font: inherit; font-size: .875rem; }
+.headerButton:hover, .headerHelp:hover { color: #fff; }
+.appointment p.notBooked { margin: 12px 0 0; color: var(--secondary-ink); font-size: .9375rem; line-height: 1.65; }
+.secondaryButton { text-decoration: none; }
+.secondaryButton + .secondaryButton { margin-top: 10px; }
+@media (max-width: 900px) { .headerActions { gap: 16px; } }
+@media (max-width: 440px) { .headerActions { gap: 4px; } .headerButton { min-width: 40px; justify-content: center; } .headerButton span { display: none; } }
+
+/* Icons are black (user, 2026-09-27) — the design's teal-grey icon tints are overridden here. */
+.page { --icon: #111; }
+.checkCircle { color: var(--icon); background: #eef1f5; }
+.preparationList li > span { color: var(--icon); background: #f2f4f7; }
+.preparationNote svg, .sessionDetails svg, .emailNote svg, .topic > svg { color: var(--icon); }
+.helpIcon { color: var(--icon); background: #f2f4f7; border-color: #e3e7ee; }
+.confirmed { color: var(--icon); }
+.secondaryButton svg { color: var(--icon); }
+/* Centred navigation (user, 2026-09-27): logo | nav | actions as three columns; on narrow screens the nav keeps
+   its own row (design's ≤900px wrap) and centres there too. */
+@media (min-width: 901px) {
+  .headerInner { display: grid; grid-template-columns: 1fr auto 1fr; }
+  .logo { justify-self: start; }
+  .headerActions { justify-self: end; margin-left: 0; }
+}
+@media (max-width: 900px) { .navigation { justify-content: center; } }
+/* Phones: the footer's two lines stack, centred. */
+@media (max-width: 720px) { .footer { flex-direction: column; align-items: center; text-align: center; } }
+/* Step tracker: each circle and its label centred in its column; the connector runs circle to circle
+   (no column gap, so the maths is the same at every width — the li padding keeps the labels apart). */
+.steps { column-gap: 0; }
+.steps li { align-items: center; text-align: center; padding: 0 6px; }
+.steps li:not(:last-child)::after { left: calc(50% + 28px); right: calc(-50% + 28px); }
