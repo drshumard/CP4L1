@@ -616,7 +616,7 @@ def _require_assignable_team_role(actor: dict, role: str):
 # ============================================================================
 CAPABILITIES = [
     # app entry (which workspace apps a role may open)
-    "portal", "supplements", "learn", "team",
+    "portal", "supplements", "learn", "team", "vienna",
     # admin portal sections
     "patients.view", "patients.manage",
     "scheduling.view", "scheduling.manage",
@@ -2903,6 +2903,56 @@ def _learn_capabilities_for(member: dict, snapshot: dict) -> set:
     return snapshot.get(role, set(DEFAULT_ROLE_CAPABILITIES.get(role, [])))
 
 
+class LearnRedeemRequest(BaseModel):
+    token: str
+
+
+# ---------------------------------------------------------------- Vienna SSO handoff
+# Same shape as Learn's: the workspace's Vienna tile mints a 2-minute single-use token; the
+# Vienna API redeems it server-to-server and mints its own session for that member.
+
+@api_router.post("/auth/vienna-token")
+async def vienna_sso_token(current_user: dict = Depends(get_current_user)):
+    permissions = await _learn_role_permissions_snapshot()
+    if "vienna" not in _learn_capabilities_for(current_user, permissions):
+        raise HTTPException(status_code=403, detail="Vienna is not enabled for your role")
+    token = await create_auto_login_token(current_user["id"], current_user["email"],
+                                          purpose="vienna_sso", ttl_minutes=2)
+    return {"token": token}
+
+
+@api_router.post("/auth/vienna-redeem")
+async def vienna_sso_redeem(payload: LearnRedeemRequest):
+    """Server-to-server: exchange a Vienna handoff token for the team member's identity.
+    Atomic single-use claim + 2-minute expiry; fails closed for non-team users."""
+    now = datetime.now(timezone.utc)
+    doc = await db.auto_login_tokens.find_one_and_update(
+        {"token": payload.token, "purpose": "vienna_sso", "used": {"$ne": True}},
+        {"$set": {"used": True, "used_at": now.isoformat()}},
+    )
+    if not doc:
+        raise HTTPException(status_code=401, detail="Invalid or already-used token")
+    exp = doc.get("expires_at")
+    if isinstance(exp, str):
+        exp = _parse_utc_iso(exp)
+    elif isinstance(exp, datetime) and exp.tzinfo is None:
+        exp = exp.replace(tzinfo=timezone.utc)
+    if not exp or exp < now:
+        raise HTTPException(status_code=401, detail="Token expired")
+    user = await db.users.find_one({"id": doc["user_id"]},
+                                   {"_id": 0, "id": 1, "email": 1, "name": 1, "role": 1, "active": 1,
+                                    "avatar_url": 1})
+    if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
+        raise HTTPException(status_code=403, detail="Not a team member")
+    permissions = await _learn_role_permissions_snapshot()
+    if "vienna" not in _learn_capabilities_for(user, permissions):  # access may have been revoked since mint
+        raise HTTPException(status_code=403, detail="Vienna access has been removed for your role")
+    await log_activity(event_type="VIENNA_SSO_REDEEMED", user_email=user["email"],
+                       user_id=user["id"], status="success")
+    return {"id": user["id"], "email": user["email"], "name": user.get("name", ""),
+            "role": user["role"], "avatar_url": user.get("avatar_url")}
+
+
 @api_router.post("/auth/learn-token")
 async def learn_sso_token(current_user: dict = Depends(get_current_user)):
     permissions = await _learn_role_permissions_snapshot()
@@ -2911,10 +2961,6 @@ async def learn_sso_token(current_user: dict = Depends(get_current_user)):
     token = await create_auto_login_token(current_user["id"], current_user["email"],
                                           purpose="learn_sso", ttl_minutes=2)
     return {"token": token}
-
-
-class LearnRedeemRequest(BaseModel):
-    token: str
 
 
 @api_router.post("/auth/learn-redeem")
@@ -6955,6 +7001,7 @@ CAPABILITY_CATALOG = [
     {"key": "supplements", "label": "Supplements", "group": "Apps"},
     {"key": "learn", "label": "Learn", "group": "Apps"},
     {"key": "team", "label": "Team", "group": "Apps"},
+    {"key": "vienna", "label": "Vienna", "group": "Apps"},
     {"key": "patients.view", "label": "View patients", "group": "Admin portal"},
     {"key": "patients.manage", "label": "Manage patients", "group": "Admin portal"},
     {"key": "scheduling.view", "label": "View scheduling", "group": "Admin portal"},

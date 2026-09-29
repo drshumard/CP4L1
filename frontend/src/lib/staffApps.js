@@ -1,4 +1,4 @@
-import { GraduationCap, Pill, ShieldCheck, UserCog } from 'lucide-react';
+import { GraduationCap, MessagesSquare, Pill, ShieldCheck, UserCog } from 'lucide-react';
 import { portalHomeForCapabilities } from './portalAccess';
 
 // Central registry of the team role model and the staff apps. The staff sidebar, the
@@ -57,6 +57,15 @@ export const STAFF_APPS = [
     capability: 'team',
     blurb: 'Create team members and assign their roles.',
     tone: 'green', tags: ['Members', 'Roles'],
+  },
+  {
+    key: 'vienna',
+    label: 'Vienna',
+    path: '/staff/vienna',
+    icon: MessagesSquare,
+    capability: 'vienna',
+    blurb: 'Customer messaging, journeys and campaigns on Instagram and Messenger.',
+    tone: 'violet', tags: ['Inbox', 'Automations', 'Campaigns'],
   },
 ];
 

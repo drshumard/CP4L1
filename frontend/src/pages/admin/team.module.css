@@ -70,6 +70,7 @@
 .access span[data-on="true"][data-tone="aqua"] { border-color: #cbe8eb; background: #e4f5f6; color: #2d818b; }
 .access span[data-on="true"][data-tone="amber"] { border-color: #f0dfb2; background: #fff3d7; color: #986716; }
 .access span[data-on="true"][data-tone="green"] { border-color: #cfe7de; background: #edf7f1; color: #2f7a57; }
+.access span[data-on="true"][data-tone="violet"] { border-color: #dcd6f5; background: #f0edfb; color: #5a48c4; }
 .status { display: inline-flex; padding: 4px 8px; border: 1px solid #cfe7de; border-radius: 2px; background: #f0f8f4; color: #3a7560; font-family: var(--mono); font-size: .625rem; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
 .status[data-status="Inactive"] { border-color: #e6d0cd; background: #fbf3f2; color: #9c3b31; }
 .actions { width: 64px; text-align: right; }

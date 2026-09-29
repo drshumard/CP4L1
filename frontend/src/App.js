@@ -28,6 +28,7 @@ import StaffLayout from './pages/staff/StaffLayout';
 import StaffHome from './pages/staff/StaffHome';
 import StaffAppPage from './pages/staff/StaffAppPage';
 import LearnLauncher from './pages/staff/LearnLauncher';
+import ViennaLauncher from './pages/staff/ViennaLauncher';
 import StaffSettings from './pages/staff/StaffSettings';
 import SupplementsApp from './pages/staff/supplements/SupplementsApp';
 import { homeForRole, isStaffHost, loginPath } from './lib/staffApps';
@@ -339,6 +340,7 @@ function App() {
               <Route path="settings" element={<StaffSettings />} />
               <Route path="team" element={<AdminTeam />} />
               <Route path="learn" element={<LearnLauncher />} />
+              <Route path="vienna" element={<ViennaLauncher />} />
               <Route path="supplements/*" element={<SupplementsApp />} />
             </Route>
             <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>

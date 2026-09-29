@@ -110,6 +110,7 @@
 .tileIcon[data-tone="aqua"] { border-color: #cbe8eb; background: #e4f5f6; color: #2d818b; }
 .tileIcon[data-tone="amber"] { border-color: #f0dfb2; background: #fff3d7; color: #986716; }
 .tileIcon[data-tone="green"] { border-color: #cfe7de; background: #edf7f1; color: #2f7a57; }
+.tileIcon[data-tone="violet"] { border-color: #dcd6f5; background: #f0edfb; color: #5a48c4; }
 .tileName { margin-top: 16px; color: var(--ink); font-size: 1.125rem; font-weight: 500; letter-spacing: -.02em; line-height: 1.3; }
 .tileCopy { margin: 6px 0 18px; color: var(--muted); font-size: .875rem; line-height: 1.55; }
 /* Tags get two lines of room in every module so the footers line up across the rack. */
