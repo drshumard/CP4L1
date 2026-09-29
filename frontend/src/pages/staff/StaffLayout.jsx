@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  CalendarDays, CalendarPlus, CalendarRange, ChartNoAxesCombined, ChevronRight, History, House, LogOut, Receipt,
+  ArrowLeft, CalendarDays, CalendarPlus, CalendarRange, ChartNoAxesCombined, ChevronRight, History, House, LogOut, Receipt,
   Search, Settings, UserCog, Users, Workflow, X,
 } from 'lucide-react';
 import {
@@ -192,6 +192,9 @@ export default function StaffLayout() {
             <strong>{pageTitle(pathname, apps)}</strong>
           </div>
           <div className={s.topbarRight}>
+            {pathname !== '/staff' && (
+              <Link to="/staff" className={s.dashboardLink}><ArrowLeft size={16} /><span>Back to dashboard</span></Link>
+            )}
             <button type="button" className={s.search} onClick={openPalette} aria-keyshortcuts="Meta+K Control+K">
               <Search size={15} aria-hidden="true" /><span>Search</span><kbd>⌘K</kbd>
             </button>

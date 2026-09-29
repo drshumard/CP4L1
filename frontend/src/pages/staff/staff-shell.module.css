@@ -73,6 +73,8 @@
 .search { display: inline-flex; align-items: center; gap: 9px; min-height: 40px; padding: 0 8px 0 12px; border: 1px solid var(--line); border-radius: 3px; background: #fff; color: var(--muted); font-size: .8125rem; transition: border-color .2s var(--ease), background .2s var(--ease); }
 .search:hover { border-color: #c9d6ec; background: #f7f9fd; }
 .search kbd { margin-left: 18px; }
+.dashboardLink { display: flex; align-items: center; gap: 8px; min-height: 44px; color: #59708b; font-size: .8125rem; white-space: nowrap; }
+.dashboardLink:hover { color: var(--brand); }
 .main { flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; padding: 32px 36px 48px; }
 .footer { display: flex; justify-content: space-between; gap: 15px; padding: 20px 36px; color: #8a97aa; font-size: .75rem; }
 
@@ -173,7 +175,7 @@
   .shell .sideHeader { justify-content: space-between; min-height: 86px; padding: 24px; }
   .closeNav { display: grid; place-items: center; min-width: 35px; min-height: 35px; }
   .topbar { min-height: 86px; padding: 0 16px; gap: 10px; }
-  .search kbd, .commandBar kbd, .keysHint, .tileTop kbd { display: none; }
+  .search kbd, .commandBar kbd, .keysHint, .tileTop kbd, .dashboardLink span { display: none; }
   .main { padding: 20px 16px 32px; }
   .hero { padding: 26px 22px; }
   .hero h1 { font-size: 2.25rem; }
