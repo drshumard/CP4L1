@@ -3531,7 +3531,7 @@ class AdminCreateUserRequest(BaseModel):
 
 
 @api_router.post("/admin/users")
-async def admin_create_user(data: AdminCreateUserRequest, admin_user: dict = Depends(get_admin_user)):
+async def admin_create_user(data: AdminCreateUserRequest, admin_user: dict = Depends(require_capability("patients.manage"))):
     """Admin → Users "Add user": a portal account at step 1, built like the checkout's (_ensure_user).
     The welcome email (same one a purchase sends) is optional."""
     email = data.email.strip().lower()
@@ -3822,7 +3822,7 @@ async def get_automation_logs(
 
 
 @api_router.get("/admin/purchases")
-async def get_purchases(admin_user: dict = Depends(get_admin_user)):
+async def get_purchases(admin_user: dict = Depends(require_capability("patients.view"))):
     """/checkout purchases with their booking, account, receipt and automation results (Admin > Purchases)."""
     from checkout import list_purchases
     return {"purchases": await list_purchases()}
@@ -3839,7 +3839,7 @@ class PurchaseAutomationsRequest(BaseModel):
 
 @api_router.post("/admin/purchases/{session_id}/automations")
 async def send_purchase_automations(session_id: str, body: PurchaseAutomationsRequest, request: Request,
-                                    admin_user: dict = Depends(get_admin_user)):
+                                    admin_user: dict = Depends(require_capability("automations.manage"))):
     """Send one /checkout purchase to chosen "Checkout purchase" automation actions, e.g. a purchase made
     while those automations were off. Runs them whether or not they're switched on."""
     if not body.targets:

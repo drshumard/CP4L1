@@ -117,7 +117,7 @@ export default function AdminLayout() {
                 {US_TIMEZONES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <a href="/" className={s.dashboardLink}><ArrowLeft size={16} /><span>Patient dashboard</span></a>
+            <Link to="/staff" className={s.dashboardLink}><ArrowLeft size={16} /><span>Back to staff dashboard</span></Link>
           </div>
         </header>
         <div className={s.scroll}>

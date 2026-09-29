@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  CalendarDays, CalendarRange, ChartNoAxesCombined, ChevronRight, History, House, LogOut, Search,
-  Settings, UserCog, Users, Workflow, X,
+  CalendarDays, CalendarPlus, CalendarRange, ChartNoAxesCombined, ChevronRight, History, House, LogOut, Receipt,
+  Search, Settings, UserCog, Users, Workflow, X,
 } from 'lucide-react';
 import {
   Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarProvider, SidebarTrigger, useSidebar,
@@ -25,6 +25,8 @@ import '../admin/admin.css';
 const PORTAL_PAGES = [
   { label: 'Patients', to: '/admin', icon: Users, keywords: ['Users', 'Onboarding'] },
   { label: 'Bookings', to: '/admin/scheduling/bookings', icon: CalendarDays, keywords: ['Scheduling', 'Sessions'] },
+  { label: 'New booking', to: '/admin/scheduling/new', icon: CalendarPlus, keywords: ['Book a session'] },
+  { label: 'Purchases', to: '/admin/purchases', icon: Receipt, keywords: ['Payments', 'Orders', 'Checkout'] },
   { label: 'Calendar', to: '/admin/scheduling/calendar', icon: CalendarRange, keywords: ['Availability'] },
   { label: 'Hosts', to: '/admin/scheduling/hosts', icon: UserCog, keywords: ['Directors', 'Coordinators'] },
   { label: 'Scheduling settings', to: '/admin/scheduling/settings', icon: Settings, keywords: ['Reminders', 'Engine'] },

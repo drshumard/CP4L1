@@ -41,3 +41,11 @@ test('team actions follow strict server hierarchy', () => {
   expect(canManageTeamMember(hc, { id: 'pcc', role: 'pcc' })).toBe(false);
   expect(canManageTeamMember(superAdmin, superAdmin)).toBe(false);
 });
+
+test('pages main added (Purchases, New booking) are gated like their sections', () => {
+  const viewer = ['portal', 'patients.view', 'scheduling.view'];
+  expect(canAccessPortalPath('/admin/purchases', viewer)).toBe(true);
+  expect(canAccessPortalPath('/admin/scheduling/new', viewer)).toBe(false);
+  expect(canAccessPortalPath('/admin/scheduling/new', [...viewer, 'scheduling.manage'])).toBe(true);
+  expect(canAccessPortalPath('/admin/purchases', ['portal', 'analytics.view'])).toBe(false);
+});
