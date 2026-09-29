@@ -21,7 +21,7 @@ import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from html import escape
-from typing import Optional
+from typing import Literal, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import resend
@@ -41,6 +41,9 @@ router = APIRouter(prefix="/api/checkout", tags=["checkout"])
 STRIPE_API_VERSION = "2026-08-26.dahlia"
 # Tags these sessions in the Stripe Dashboard so this flow can be compared with other checkouts.
 INTEGRATION_IDENTIFIER = "shumard_book_first_checkout_qjwvtmrk"
+# The same checkout lives on two pages, one per traffic source (user, 2026-09-29). The page a payment came from is
+# kept on the hold, in Stripe's metadata, on the order and in the automation payload ("checkout_page").
+CHECKOUT_PAGES = ("/checkout", "/session")
 SESSION_MINUTES = 31               # Stripe's minimum Checkout Session lifetime is 30 min; the sweep expires it with the 15-min hold
 CLAIM_STALE_AFTER = timedelta(minutes=2)
 LOGIN_WINDOW = timedelta(hours=2)  # the return page can swap a fulfilled order for a login, this soon after payment...
@@ -114,6 +117,7 @@ async def checkout_config():
 
 class SessionRequest(BaseModel):
     hold_id: str
+    page: Literal["/checkout", "/session"] = "/checkout"
 
 
 @router.post("/session")
@@ -136,15 +140,15 @@ async def create_checkout_session(body: SessionRequest):
         "line_items": [{"price": await _current_price_id(), "quantity": 1}],
         "customer_email": hold["patient"]["email"],
         "client_reference_id": body.hold_id,
-        "metadata": {"hold_id": body.hold_id},
-        "payment_intent_data": {"metadata": {"hold_id": body.hold_id}},
-        "return_url": f"{_frontend_url()}/checkout/complete?session_id={{CHECKOUT_SESSION_ID}}",
+        "metadata": {"hold_id": body.hold_id, "checkout_page": body.page},
+        "payment_intent_data": {"metadata": {"hold_id": body.hold_id, "checkout_page": body.page}},
+        "return_url": f"{_frontend_url()}{body.page}/complete?session_id={{CHECKOUT_SESSION_ID}}",
         "expires_at": int((now + timedelta(minutes=SESSION_MINUTES)).timestamp()),
         "integration_identifier": INTEGRATION_IDENTIFIER,
     }, options={"idempotency_key": f"checkout-session-{body.hold_id}"})
     await db.bookings.update_one({"booking_id": body.hold_id}, {"$set": {
         "stripe_session_id": session.id, "stripe_client_secret": session.client_secret,
-        "stripe_session_state": "open", "updated_at": _now_iso()}})
+        "stripe_session_state": "open", "checkout_page": body.page, "updated_at": _now_iso()}})
     return {"client_secret": session.client_secret, "publishable_key": publishable_key}
 
 
@@ -231,6 +235,7 @@ async def fulfill_checkout(session) -> dict:
             {"$set": {"status": "fulfilling", "claimed_at": now},
              "$setOnInsert": {"hold_id": hold_id, "amount_total": session.get("amount_total"),
                               "currency": session.get("currency"), "payment_intent": session.get("payment_intent"),
+                              "checkout_page": session["metadata"].get("checkout_page") or "/checkout",
                               "created_at": now}},
             upsert=True, return_document=ReturnDocument.AFTER)
     except DuplicateKeyError:
@@ -317,6 +322,7 @@ def _purchase_payload(order: dict, hold: dict, booking: Optional[dict], timestam
         "session_date": _iso(_aware(booking["slot_start_utc"])) if booking else None,
         "timezone": hold.get("patient_timezone"), "outcome": order.get("outcome"),
         "user_id": order.get("user_id"), "new_account": bool(order.get("user_created")),
+        "checkout_page": order.get("checkout_page") or "/checkout",   # orders from before /session came from /checkout
         "timestamp": timestamp,
     }
 

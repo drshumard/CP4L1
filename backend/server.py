@@ -363,12 +363,24 @@ class AutomationCreate(BaseModel):
     trigger: str  # "new_booking" or "cancelled_booking"
     actions: List[AutomationAction]  # Multiple actions supported
     enabled: bool = True
+    checkout_page: Optional[str] = None  # "Checkout purchase" only: "/checkout" or "/session"; unset/"any" = every page
 
 class AutomationUpdate(BaseModel):
     name: Optional[str] = None
     trigger: Optional[str] = None
     actions: Optional[List[AutomationAction]] = None
     enabled: Optional[bool] = None
+    checkout_page: Optional[str] = None  # "any" clears it
+
+
+def _checkout_page_filter(value: Optional[str]) -> Optional[str]:
+    """An automation's checkout-page limit: None (every page) for unset/"any", else one of the checkout pages."""
+    from checkout import CHECKOUT_PAGES
+    if not value or value == "any":
+        return None
+    if value not in CHECKOUT_PAGES:
+        raise HTTPException(status_code=400, detail=f"checkout_page must be any or one of {list(CHECKOUT_PAGES)}")
+    return value
 
 # Helper Functions
 def verify_password(plain_password, hashed_password):
@@ -892,6 +904,10 @@ async def execute_automations(trigger: str, data: dict, only: Optional[set] = No
         automation_id = automation.get("id")
         automation_name = automation.get("name", "Unnamed")
         
+        # A "Checkout purchase" automation can be limited to one checkout page; a manual send picks its own targets
+        if not only and automation.get("checkout_page") and automation["checkout_page"] != data.get("checkout_page"):
+            continue
+
         # Support both old 'action' (single) and new 'actions' (multiple) format
         actions = automation.get("actions", [])
         if not actions and automation.get("action"):
@@ -3227,6 +3243,7 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
         "trigger": automation.trigger,
         "actions": [action.model_dump() for action in automation.actions],
         "enabled": automation.enabled,
+        "checkout_page": _checkout_page_filter(automation.checkout_page) if automation.trigger == "checkout_purchase" else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": admin_user.get("email"),
         "updated_at": datetime.now(timezone.utc).isoformat()
@@ -3283,6 +3300,10 @@ async def update_automation(automation_id: str, automation: AutomationUpdate, ad
         update_data["action"] = None
     if automation.enabled is not None:
         update_data["enabled"] = automation.enabled
+    if (automation.trigger or existing.get("trigger")) != "checkout_purchase":
+        update_data["checkout_page"] = None          # the page limit only means something for checkout purchases
+    elif automation.checkout_page is not None:
+        update_data["checkout_page"] = _checkout_page_filter(automation.checkout_page)
     
     await db.automations.update_one({"id": automation_id}, {"$set": update_data})
     
@@ -3507,6 +3528,7 @@ async def test_automation(automation_id: str, admin_user: dict = Depends(get_adm
             "outcome": "booked",
             "user_id": "test-user-id",
             "new_account": True,
+            "checkout_page": automation.get("checkout_page") or "/checkout",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "_test": True
         }
