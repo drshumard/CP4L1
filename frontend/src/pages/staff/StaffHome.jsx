@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
-import { ArrowUpRight, Plus, Search } from 'lucide-react';
+import { ArrowUpRight, Search } from 'lucide-react';
 import { adminApi } from '../admin/api';
 import { ROLE_LABELS } from '@/lib/staffApps';
 import s from './staff-shell.module.css';
@@ -80,11 +80,6 @@ export default function StaffHome() {
               </Link>
             </li>
           ))}
-          <li className={s.socket}>
-            <span className={s.socketIcon} aria-hidden="true"><Plus size={18} /></span>
-            <span className={s.tileName}>Next app</span>
-            <span className={s.tileCopy}>More apps will appear here as they're added to the workspace.</span>
-          </li>
         </ul>
       </section>
 

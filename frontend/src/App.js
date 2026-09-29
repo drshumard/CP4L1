@@ -340,7 +340,7 @@ function App() {
               <Route path="settings" element={<StaffSettings />} />
               <Route path="team" element={<AdminTeam />} />
               <Route path="learn" element={<LearnLauncher />} />
-              <Route path="copy" element={<ViennaLauncher />} />
+              <Route path="vienna" element={<ViennaLauncher />} />
               <Route path="supplements/*" element={<SupplementsApp />} />
             </Route>
             <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
