@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-// Admin > Purchases: every /checkout (Stripe) payment the webhook processed. Design:
+// Admin > Purchases: every /checkout and /session (Stripe) payment the webhook processed. Design:
 // shumard-checkout-portal/app/admin/purchases/page.tsx (overview strip, purchase ledger, details sheet).
 // A row opens the sheet: booking, account, receipt, each automation run, and "Send to automations"
 // (resend to chosen Checkout-purchase webhooks, e.g. a purchase made while automations were off).
@@ -355,7 +355,7 @@ export default function PurchasesPage() {
           ) : purchases.length ? (
             <NoResults reset={reset} />
           ) : (
-            <p className={s.loadingRow}>No purchases through /checkout yet. GHL checkout purchases are in GHL.</p>
+            <p className={s.loadingRow}>No purchases through /checkout or /session yet. GHL checkout purchases are in GHL.</p>
           )}
           <TablePager page={page} count={shown.length} pageSize={PAGE_SIZE} onChange={setPage} />
         </TabsContent>

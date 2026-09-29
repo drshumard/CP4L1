@@ -220,7 +220,7 @@ function AxiosInterceptor() {
 // "Need help?" link and a fixed mobile reservation bar the bubble would cover).
 function GlobalSupport() {
   const { pathname } = useLocation();
-  if (pathname.startsWith('/admin') || pathname.startsWith('/checkout')) return null;
+  if (pathname.startsWith('/admin') || pathname.startsWith('/checkout') || pathname === '/session' || pathname.startsWith('/session/')) return null;
   return <SupportPopup />;
 }
 
@@ -247,6 +247,9 @@ function App() {
             <Route path="/booking-complete" element={<BookingThankYou />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/complete" element={<CheckoutComplete />} />
+            {/* The same checkout for a second traffic source; the payment records which page it came from. */}
+            <Route path="/session" element={<Checkout page="/session" />} />
+            <Route path="/session/complete" element={<CheckoutComplete page="/session" />} />
             <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
             <Route path="/" element={<JourneyRoute><PortalDashboard /></JourneyRoute>} />
             <Route path="/dashboard" element={<JourneyRoute><PortalDashboard /></JourneyRoute>} />

@@ -37,7 +37,9 @@ const fmtTime = (iso, tz) => new Date(iso).toLocaleTimeString('en-US', { hour: '
 const fmtSlot = (iso, tz) => new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: tz, timeZoneName: 'short' });
 const fmtClock = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
 
-export default function Checkout() {
+// `page`: the path this checkout is served on — /checkout, or /session for a second traffic source (user, 2026-09-29).
+// The payment records it, so automations can tell the two apart.
+export default function Checkout({ page = '/checkout' }) {
   const detected = useMemo(() => detectTimezone(), []);
   const today = useMemo(() => getTodayString(), []);
   const tzList = useSortedTimezones();
@@ -166,7 +168,7 @@ export default function Checkout() {
       setRemaining(body.expires_in_seconds); // same render as the stage change: no 0:00 flash
       // Stripe Checkout Session for this hold (the payment step mounts Stripe's fields with it).
       const sres = await fetch(`${API}/checkout/session`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hold_id: body.hold_id }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ hold_id: body.hold_id, page }),
       });
       const sbody = await sres.json().catch(() => ({}));
       if (sres.status === 409) { slotTaken('Your hold expired — please choose a time again.'); return; }
@@ -205,7 +207,7 @@ export default function Checkout() {
   return <div className="co min-h-screen">
     <a href="#checkout" className="skip-link">Skip to checkout</a>
     <header className="site-header"><div className="header-inner">
-      <a href="/checkout" className="brand" aria-label="Dr. Jason Shumard — back to the start of checkout"><img src={logo} alt="Dr. Shumard" width={1024} height={152} className="brand-logo" /></a>
+      <a href={page} className="brand" aria-label="Dr. Jason Shumard — back to the start of checkout"><img src={logo} alt="Dr. Shumard" width={1024} height={152} className="brand-logo" /></a>
       <div className="flex items-center gap-6"><span className="header-security"><LockKeyhole size={14} /> Secure checkout</span><a className="help-link" href="https://drshumardworkshop.com/contact-us" target="_blank" rel="noreferrer"><CircleHelp size={17} /><span>Need help?</span></a></div>
     </div></header>
 

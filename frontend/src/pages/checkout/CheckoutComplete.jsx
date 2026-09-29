@@ -3,7 +3,8 @@ import { ArrowRight, CheckCheck, CircleHelp, Clock, LockKeyhole } from 'lucide-r
 import logo from './dr-shumard-logo.png';
 import './checkout.css';
 
-// Stripe's return_url after payment (/checkout/complete?session_id=...). The booking is made by the
+// Stripe's return_url after payment (/checkout/complete?session_id=..., or /session/complete for the /session page —
+// `page` is that checkout's path, for the links back to it). The booking is made by the
 // Stripe webhook, never here: this page polls GET /api/checkout/status until the order is fulfilled,
 // then signs a brand-new patient in and sends them on (Step 2, or Step 1 if their time was taken).
 
@@ -14,7 +15,7 @@ const fmtSlot = (iso, tz) => {
   } catch { return ''; }
 };
 
-export default function CheckoutComplete() {
+export default function CheckoutComplete({ page = '/checkout' }) {
   const [status, setStatus] = useState({ state: 'confirming' });
 
   useEffect(() => {
@@ -75,7 +76,7 @@ export default function CheckoutComplete() {
     icon = <LockKeyhole size={28} />;
     title = 'Your payment wasn’t completed.';
     text = 'No charge was made. You can go back and try again.';
-    action = <a className="primary-button" href="/checkout">Back to the checkout<ArrowRight size={17} /></a>;
+    action = <a className="primary-button" href={page}>Back to the checkout<ArrowRight size={17} /></a>;
   } else if (state === 'slow') {
     text = 'We’re still confirming your payment. You’ll get an email as soon as your booking is confirmed.';
   } else if (state === 'missing' || state === 'error') {
@@ -87,7 +88,7 @@ export default function CheckoutComplete() {
 
   return <div className="co min-h-screen">
     <header className="site-header"><div className="header-inner">
-      <a href="/checkout" className="brand" aria-label="Dr. Jason Shumard — back to the start of checkout"><img src={logo} alt="Dr. Shumard" width={1024} height={152} className="brand-logo" /></a>
+      <a href={page} className="brand" aria-label="Dr. Jason Shumard — back to the start of checkout"><img src={logo} alt="Dr. Shumard" width={1024} height={152} className="brand-logo" /></a>
       <a className="help-link" href="https://drshumardworkshop.com/contact-us" target="_blank" rel="noreferrer"><CircleHelp size={17} /><span>Need help?</span></a>
     </div></header>
     <main className="page-shell">
