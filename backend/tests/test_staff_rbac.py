@@ -63,3 +63,10 @@ def test_require_capability_dependency(monkeypatch):
     with pytest.raises(HTTPException) as e:
         asyncio.run(dep(current_user=dict(HC)))
     assert e.value.status_code == 403
+
+
+def test_vienna_role_follows_the_highest_granted_capability():
+    assert s.vienna_role_for({"vienna"}) == "agent"
+    assert s.vienna_role_for({"vienna", "vienna.support"}) == "support_manager"
+    assert s.vienna_role_for({"vienna", "vienna.support", "vienna.marketing"}) == "marketing"
+    assert s.vienna_role_for(set(s.CAPABILITIES)) == "admin"

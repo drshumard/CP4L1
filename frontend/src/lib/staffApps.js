@@ -61,7 +61,7 @@ export const STAFF_APPS = [
   {
     key: 'vienna',
     label: 'Vienna',
-    path: '/staff/vienna',
+    path: '/staff/copy',
     icon: MessagesSquare,
     capability: 'vienna',
     blurb: 'Customer messaging, journeys and campaigns on Instagram and Messenger.',

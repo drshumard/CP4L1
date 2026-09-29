@@ -15,6 +15,7 @@ const REQUIRES = {
   'scheduling.view': 'portal', 'scheduling.manage': 'scheduling.view',
   'analytics.view': 'portal', 'automations.manage': 'portal', 'settings.manage': 'portal',
   'team.manage': 'team', 'supplements.manage': 'supplements', 'learn.instruct': 'learn',
+  'vienna.support': 'vienna', 'vienna.marketing': 'vienna', 'vienna.admin': 'vienna',
 };
 const dependsOn = (key, root) => { for (let cur = key; cur; cur = REQUIRES[cur]) if (cur === root) return true; return false; };
 const sameSet = (a, b) => a.size === b.size && [...a].every((k) => b.has(k));

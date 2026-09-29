@@ -624,6 +624,8 @@ CAPABILITIES = [
     "team.manage", "accounts.destroy",
     # sub-app powers
     "supplements.manage", "learn.instruct",
+    # Vienna workspace role (highest granted wins; `vienna` alone = agent)
+    "vienna.support", "vienna.marketing", "vienna.admin",
 ]
 
 # Capabilities an admin (not super_admin) may NOT grant/edit — anti-escalation.
@@ -2907,6 +2909,19 @@ class LearnRedeemRequest(BaseModel):
     token: str
 
 
+def vienna_role_for(caps) -> str:
+    """Portal capabilities → Vienna workspace role. Roles are exclusive in Vienna, so the highest
+    granted capability wins; the bare `vienna` capability opens Vienna as an agent."""
+    caps = set(caps or [])
+    if "vienna.admin" in caps:
+        return "admin"
+    if "vienna.marketing" in caps:
+        return "marketing"
+    if "vienna.support" in caps:
+        return "support_manager"
+    return "agent"
+
+
 # ---------------------------------------------------------------- Vienna SSO handoff
 # Same shape as Learn's: the workspace's Vienna tile mints a 2-minute single-use token; the
 # Vienna API redeems it server-to-server and mints its own session for that member.
@@ -2945,12 +2960,14 @@ async def vienna_sso_redeem(payload: LearnRedeemRequest):
     if not user or user.get("role") not in TEAM_ROLES or user.get("active") is False:
         raise HTTPException(status_code=403, detail="Not a team member")
     permissions = await _learn_role_permissions_snapshot()
-    if "vienna" not in _learn_capabilities_for(user, permissions):  # access may have been revoked since mint
+    user_caps = _learn_capabilities_for(user, permissions)
+    if "vienna" not in user_caps:  # access may have been revoked since mint
         raise HTTPException(status_code=403, detail="Vienna access has been removed for your role")
     await log_activity(event_type="VIENNA_SSO_REDEEMED", user_email=user["email"],
                        user_id=user["id"], status="success")
     return {"id": user["id"], "email": user["email"], "name": user.get("name", ""),
-            "role": user["role"], "avatar_url": user.get("avatar_url")}
+            "role": user["role"], "avatar_url": user.get("avatar_url"),
+            "vienna_role": vienna_role_for(user_caps)}
 
 
 @api_router.post("/auth/learn-token")
@@ -7013,6 +7030,9 @@ CAPABILITY_CATALOG = [
     {"key": "accounts.destroy", "label": "Promote / delete accounts", "group": "Admin portal"},
     {"key": "supplements.manage", "label": "Supplements admin (catalog/templates)", "group": "Sub-apps"},
     {"key": "learn.instruct", "label": "Learn instructor", "group": "Sub-apps"},
+    {"key": "vienna.support", "label": "Vienna support manager", "group": "Sub-apps"},
+    {"key": "vienna.marketing", "label": "Vienna marketing", "group": "Sub-apps"},
+    {"key": "vienna.admin", "label": "Vienna workspace admin", "group": "Sub-apps"},
 ]
 
 
