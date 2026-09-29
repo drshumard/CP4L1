@@ -4,55 +4,79 @@
    theme wins, so the module inherits the admin look. The one exception is the font: the
    original app's Inter Tight is restored below (loaded via App.css's Google Fonts import). */
 
-.supp-app {
-  /* Surfaces — calm, layered */
-  --canvas: #FAFBFB;
-  --surface: #FFFFFF;
-  --surface-hover: #F5F7F8;
-  --surface-subtle: #F1F4F5;
+@font-face { font-family: "Inter Checkout"; src: url(../../checkout/inter-var-latin.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
 
-  /* Ink scale */
-  --ink: #0A0C0E;
-  --ink-2: #1E2528;
-  --ink-3: #3B4448;
-  --ink-muted: #6A757A;
-  --ink-subtle: #98A1A5;
-  --ink-faint: #C5CBCD;
+.supp-app {
+  /* Surfaces — the Lyra workspace canvas */
+  --canvas: #f8f9fc;
+  --surface: #FFFFFF;
+  --surface-hover: #f7f9fd;
+  --surface-subtle: #f3f5f9;
+
+  /* Ink scale — Lyra */
+  --ink: #243047;
+  --ink-2: #37465d;
+  --ink-3: #4c5d75;
+  --ink-muted: #65738a;
+  --ink-subtle: #8a96a8;
+  --ink-faint: #b3bdcb;
 
   /* Hairlines */
-  --hairline: rgba(14, 24, 28, 0.08);
-  --hairline-strong: rgba(14, 24, 28, 0.14);
+  --hairline: #e7ecf3;
+  --hairline-strong: #dfe5ee;
 
-  /* Accent */
-  --accent-teal: #0D5F68;
-  --accent-teal-hover: #0A4E55;
-  --accent-teal-wash: #EAF4F3;
-  --accent-teal-wash-hover: #DCEDEB;
+  /* Accent — the brand blue (variable names kept so the pages need no edits) */
+  --brand: #315fd1;
+  --yellow: #ffc24a;
+  --accent-teal: #315fd1;
+  --accent-teal-hover: #2654cc;
+  --accent-teal-wash: #edf2ff;
+  --accent-teal-wash-hover: #dfe7fb;
 
   /* Elevation — restrained */
-  --shadow-xs: 0 1px 0 rgba(14, 24, 28, 0.04);
-  --shadow-sm: 0 1px 2px rgba(14, 24, 28, 0.05), 0 1px 3px rgba(14, 24, 28, 0.04);
-  --shadow-md: 0 4px 12px rgba(14, 24, 28, 0.06), 0 1px 3px rgba(14, 24, 28, 0.04);
-  --shadow-lg: 0 16px 40px rgba(14, 24, 28, 0.10), 0 2px 6px rgba(14, 24, 28, 0.04);
-  --shadow-inspector: -8px 0 24px rgba(14, 24, 28, 0.04);
+  --shadow-xs: 0 1px 0 rgba(36, 48, 71, 0.03);
+  --shadow-sm: 0 3px 6px rgba(35, 54, 79, 0.02), 0 10px 30px rgba(35, 54, 79, 0.03);
+  --shadow-md: 0 3px 6px rgba(35, 54, 79, 0.05), 0 10px 30px rgba(35, 54, 79, 0.08);
+  --shadow-lg: 0 12px 32px rgba(20, 35, 70, 0.14);
+  --shadow-inspector: -8px 0 24px rgba(36, 48, 71, 0.05);
 
-  /* Focus */
-  --focus: 0 0 0 3px rgba(13, 95, 104, 0.22);
-  --focus-subtle: 0 0 0 2px rgba(13, 95, 104, 0.18);
+  /* Focus — no rings (user's call); keyboard focus keeps the outline below */
+  --focus: none;
+  --focus-subtle: none;
 
   /* Motion */
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(.32, .72, 0, 1);
+  --ease-in-out: cubic-bezier(.32, .72, 0, 1);
 
-  --font-sans: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
+.supp-app a:focus-visible, .supp-app button:focus-visible { outline: 3px solid #9bb5f5; outline-offset: 3px; }
 
-/* The staff shell wraps this app in .admin-geist, whose heading rule would otherwise win. */
+/* Lyra radii: the pages were written with Tailwind's md/lg/xl; the design language is 3–4px. */
+.supp-app .rounded-md { border-radius: 3px; }
+.supp-app .rounded-lg, .supp-app .rounded-xl { border-radius: 4px; }
+.supp-app .rounded-t-lg, .supp-app .rounded-t-xl { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+.supp-app .rounded-b-lg, .supp-app .rounded-b-xl { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
+
+/* Primary actions: solid-accent buttons become the Lyra yellow CTA (badges/labels on the accent stay blue). */
+.supp-app button.bg-\[color\:var\(--accent-teal\)\] { background: var(--yellow); border: 1px solid #edb443; color: #3b311d; box-shadow: none; }
+.supp-app button.bg-\[color\:var\(--accent-teal\)\]:hover:not(:disabled) { background: #ffb936; }
+.supp-app button.bg-\[color\:var\(--accent-teal\)\]:active:not(:disabled) { transform: translateY(1px); }
+/* Segmented toggles (Yes/No, filters) keep the blue selected state — they aren't calls to action. */
+.supp-app [role="group"] button.bg-\[color\:var\(--accent-teal\)\], .supp-app [role="tablist"] button.bg-\[color\:var\(--accent-teal\)\] { background: var(--accent-teal); border-color: transparent; color: #fff; }
+.supp-app [role="group"] button.bg-\[color\:var\(--accent-teal\)\]:hover:not(:disabled) { background: var(--accent-teal-hover); }
+
+/* Text inputs: no focus ring (index.css adds a teal one at high specificity). */
+.supp-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus, .supp-app textarea:focus { box-shadow: none !important; border-color: #b3bcc7 !important; outline: none; }
+
+/* App.css puts Space Grotesk on headings (and the staff shell's .admin-geist puts Geist): Inter everywhere here. */
+.supp-app h1, .supp-app h2, .supp-app h3, .supp-app h4, .supp-app h5, .supp-app h6 { font-family: var(--font-sans); }
 .admin-geist .supp-app h1, .admin-geist .supp-app h2, .admin-geist .supp-app h3,
 .admin-geist .supp-app h4, .admin-geist .supp-app h5, .admin-geist .supp-app h6 {
   font-family: var(--font-sans);
