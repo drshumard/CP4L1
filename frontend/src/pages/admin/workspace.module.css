@@ -837,3 +837,8 @@ button.person:hover strong { color: #3565d0; }
 @media (min-width: 1600px) {
   .topbar, .workspaceFooter { padding-left: 50px; padding-right: 50px; }
 }
+/* Purchases → Refund (2026-09-30): the refunded status chip, and the dialog's confirm button, red like the admin's
+   other destructive confirmations. */
+.logStatus[data-tone=refunded] { border-color: #dbe3ef; background: #f4f6f9; color: #444; }
+.dangerButton { background: #b42318; border-color: #a11f15; color: #fff; }
+.dangerButton:hover { background: #9a1d13; }

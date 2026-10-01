@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
-import { Activity, Calendar, CalendarX, CheckCircle, ChevronDown, CreditCard, Key, Link2, Loader2, Pencil, Play, Plus, RotateCcw, Trash2, XCircle, Zap } from 'lucide-react';
+import { Activity, Calendar, CalendarX, CheckCircle, ChevronDown, CreditCard, Key, Link2, Loader2, Pencil, Play, Plus, RotateCcw, Trash2, Undo2, XCircle, Zap } from 'lucide-react';
 import { confirmDialog } from './admin/confirm';
 import { fmtDate, fmtTime } from './admin/format';
 import { EYEBROW, INK, IconTile, LYRA_CARD, LYRA_GOLD_BUTTON, LYRA_INPUT, LYRA_INSET, LYRA_OUTLINE_BUTTON, MUTED, PageHeader, Pill, SWITCH } from './admin/brand';
@@ -27,7 +27,9 @@ const TRIGGERS = [
   { value: 'new_booking', icon: Calendar, label: 'New booking', desc: 'When a new appointment is booked', tone: 'teal' },
   { value: 'cancelled_booking', icon: CalendarX, label: 'Cancelled booking', desc: 'When an appointment is cancelled', tone: 'red' },
   { value: 'checkout_purchase', icon: CreditCard, label: 'Checkout purchase', desc: 'When someone pays on /checkout or /session', tone: 'blue' },
+  { value: 'checkout_refund', icon: Undo2, label: 'Checkout refund', desc: 'When a purchase is refunded in Purchases', tone: 'gold' },
 ];
+const CHECKOUT_TRIGGERS = ['checkout_purchase', 'checkout_refund'];   // can be limited to one checkout page
 
 // The checkout pages a "Checkout purchase" automation can be limited to (backend: checkout.CHECKOUT_PAGES).
 const CHECKOUT_PAGES = [
@@ -137,7 +139,7 @@ const AutomationsPage = () => {
       headers: headersArrayToObject(a.headers), include_data: a.includeData,
     })),
     enabled: formData.enabled,
-    checkout_page: formData.trigger === 'checkout_purchase' ? formData.checkoutPage : 'any',
+    checkout_page: CHECKOUT_TRIGGERS.includes(formData.trigger) ? formData.checkoutPage : 'any',
   });
 
   const handleCreate = async () => {
@@ -408,7 +410,7 @@ const AutomationsPage = () => {
 
             <div className="space-y-1.5">
               <Label className={INK}>Trigger</Label>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 {TRIGGERS.map((t) => {
                   const on = formData.trigger === t.value;
                   return (
@@ -423,14 +425,14 @@ const AutomationsPage = () => {
               </div>
             </div>
 
-            {formData.trigger === 'checkout_purchase' && (
+            {CHECKOUT_TRIGGERS.includes(formData.trigger) && (
               <div className="space-y-1.5">
                 <Label htmlFor="a-page" className={INK}>Page</Label>
                 <Select value={formData.checkoutPage} onValueChange={(v) => setFormData({ ...formData, checkoutPage: v })}>
                   <SelectTrigger id="a-page" className={`w-full sm:w-80 ${LYRA_INPUT}`}><SelectValue /></SelectTrigger>
                   <SelectContent>{CHECKOUT_PAGES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                 </Select>
-                <p className={`text-xs ${MUTED}`}>Runs for purchases made on this page. Every purchase also sends the page as <span className="font-medium">checkout_page</span>, so one automation can branch on it instead.</p>
+                <p className={`text-xs ${MUTED}`}>Runs for {formData.trigger === 'checkout_refund' ? 'refunds of purchases' : 'purchases'} made on this page. Every one also sends the page as <span className="font-medium">checkout_page</span>, so one automation can branch on it instead.</p>
               </div>
             )}
 
@@ -504,6 +506,8 @@ const AutomationsPage = () => {
               <p className={`mb-1.5 ${EYEBROW} ${MUTED}`}>Sample data that will be sent</p>
               <pre className={`${LYRA_INSET} max-h-40 overflow-auto px-3 py-2 text-xs ${INK}`}>{formData.trigger === 'checkout_purchase'
                 ? '{\n  "trigger": "checkout_purchase",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "amount": 97.0,\n  "currency": "usd",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "timezone": "America/Chicago",\n  "outcome": "booked",\n  "new_account": true,\n  "stripe_session_id": "cs_...",\n  "stripe_payment_intent_id": "pi_...",\n  "user_id": "...",\n  "checkout_page": "' + (formData.checkoutPage === 'any' ? '/checkout' : formData.checkoutPage) + '",\n  "timestamp": "2026-02-14T..."\n}'
+                : formData.trigger === 'checkout_refund'
+                ? '{\n  "trigger": "checkout_refund",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "amount": 97.0,\n  "currency": "usd",\n  "refund_id": "re_...",\n  "refund_amount": 97.0,\n  "refunded_total": 97.0,\n  "fully_refunded": true,\n  "session_cancelled": true,\n  "marked_refunded": true,\n  "email_sent": true,\n  "booking_id": "abc123",\n  "stripe_session_id": "cs_...",\n  "stripe_payment_intent_id": "pi_...",\n  "user_id": "...",\n  "checkout_page": "' + (formData.checkoutPage === 'any' ? '/checkout' : formData.checkoutPage) + '",\n  "timestamp": "2026-02-14T..."\n}'
                 : formData.trigger === 'new_booking'
                 ? '{\n  "trigger": "new_booking",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "mobile_phone": "+1234567890",\n  "user_found": true,\n  "step_advanced": true,\n  "timestamp": "2026-02-14T..."\n}'
                 : '{\n  "trigger": "cancelled_booking",\n  "booking_id": "abc123",\n  "session_date": "2026-02-15T10:00:00Z",\n  "first_name": "John",\n  "last_name": "Doe",\n  "email": "john@example.com",\n  "timestamp": "2026-02-14T..."\n}'}</pre>
