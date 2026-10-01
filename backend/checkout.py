@@ -31,7 +31,7 @@ from pydantic import BaseModel
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 
-from booking import (BookSessionRequest, _finalize_local_booking, _iso, _now_iso, _spawn_bg, db,
+from booking import (BookSessionRequest, _cancel_booking, _finalize_local_booking, _iso, _now_iso, _spawn_bg, db,
                      get_pb_service_optional)
 from services import assignment as assignment_service
 
@@ -535,9 +535,11 @@ async def list_purchases(limit: int = 200) -> list:
     except Exception:
         promo_amount = None
 
+    await _refresh_pending_refunds(orders)
     rows = []
     for o in orders:
         hold, booking = bookings.get(o.get("hold_id")) or {}, bookings.get(o.get("booking_id"))
+        refunded, remaining = refund_totals(o)
         patient = hold.get("patient") or {}
         rows.append({
             "id": o["_id"], "status": o.get("status"), "paid_at": _iso(_aware(o.get("created_at"))),
@@ -557,6 +559,9 @@ async def list_purchases(limit: int = 200) -> list:
             "receipt_sent": bool(o.get("receipt_sent")), "receipt_filed": bool(o.get("receipt_filed")),
             "receipt_drive_file_id": o.get("receipt_drive_file_id"),
             "automations_fired": bool(o.get("automations_fired")), "automations": runs.get(o["_id"], []),
+            "refunds": [{**r, "created_at": _iso(_aware(r.get("created_at")))} for r in o.get("refunds") or []],
+            "amount_refunded": refunded,
+            "refundable": remaining if o.get("status") == "fulfilled" and o.get("payment_intent") else 0,
         })
     return rows
 
@@ -579,6 +584,180 @@ async def send_purchase_to_automations(sid: str, targets: set, admin_email: str)
 # ============================================================================
 # Hold expiry -> Stripe session expiry
 # ============================================================================
+
+# ============================================================================
+# Refunds (Admin > Purchases, user 2026-09-30): refund on Stripe, full or partial, then — as the admin ticks —
+# cancel the session quietly, move the patient to step 0 (refunded) and email them a refund confirmation.
+# ============================================================================
+
+REFUND_COUNTED = ("succeeded", "pending", "requires_action")   # refunds that count; failed/canceled gave nothing back
+REFUND_LOCK_STALE = timedelta(minutes=2)                      # a refund that crashed mid-way frees its purchase after this
+
+
+def refund_totals(order: dict) -> tuple:
+    """(refunded, remaining) cents: what a purchase's refunds add up to, and what can still be refunded."""
+    refunded = sum(r.get("amount") or 0 for r in order.get("refunds") or [] if r.get("status") in REFUND_COUNTED)
+    return refunded, max((order.get("amount_total") or 0) - refunded, 0)
+
+
+async def _refresh_pending_refunds(orders: list) -> None:
+    """Card refunds usually succeed at once; a pending one is re-read from Stripe when the purchases list loads."""
+    for o in orders:
+        for r in o.get("refunds") or []:
+            if r.get("status") not in ("pending", "requires_action") or not _configured():
+                continue
+            try:
+                fresh = await _stripe().v1.refunds.retrieve_async(r["id"])
+            except Exception as e:
+                logger.warning(f"Refund {r['id']}: status check failed: {e}")
+                continue
+            if fresh.status != r["status"]:
+                await db.checkout_orders.update_one({"_id": o["_id"], "refunds.id": r["id"]},
+                                                    {"$set": {"refunds.$.status": fresh.status}})
+                r["status"] = fresh.status
+
+
+def _refund_email_html(r: dict) -> str:
+    """The refund confirmation — the receipt's look (navy header, gold accent, details table)."""
+    e = {k: escape(v) if isinstance(v, str) else v for k, v in r.items()}
+    navy, gold, line, muted = "#0b2a5b", "#ffc24a", "#e3e6ea", "#6b6f6a"
+    heading = "font-family:Montserrat,'Trebuchet MS',Helvetica,Arial,sans-serif"
+    greeting = f"Hi {e['first_name']}," if r.get("first_name") else "Hello,"
+    lead = (f"We’ve refunded your {e['amount']} payment to the card you paid with." if r["full"]
+            else f"We’ve refunded {e['amount']} of your {e['paid']} payment to the card you paid with.")
+    session = (f'<p style="margin:0 0 14px">As part of this refund, your strategy session on <strong>{e["session"]}</strong> '
+               f'has been cancelled.</p>') if r.get("session") else ""
+    rows = [("Refund", e["amount"]), ("Original payment", e["paid"]), ("Refunded to", "The card you paid with"),
+            ("Refund date", e["date"]), ("Order ID", e["order_id"])]
+    table = "".join(
+        f'<tr><td style="padding:9px 0;{"" if i == len(rows) - 1 else f"border-bottom:1px solid {line};"}color:{muted};width:40%">{k}</td>'
+        f'<td style="padding:9px 0;{"" if i == len(rows) - 1 else f"border-bottom:1px solid {line};"}text-align:right;font-weight:700;color:{navy}">{v}</td></tr>'
+        for i, (k, v) in enumerate(rows))
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet"></head>
+<body style="margin:0;padding:0;background:#ffffff">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;margin:0 auto;border-collapse:collapse;font-family:Lato,Helvetica,Arial,sans-serif;color:#1d1d1f;font-size:15px;line-height:1.6;word-break:break-word">
+<tr><td style="background:{navy};color:#ffffff;padding:24px 14px;text-align:center">
+  <img src="https://portal-drshumard.b-cdn.net/logo.png" alt="Dr Shumard" width="200" style="width:200px;display:block;margin:0 auto 24px">
+  <h1 style="{heading};font-size:32px;line-height:38px;letter-spacing:-0.02em;font-weight:700;margin:0;color:#ffffff">Your <span style="color:{gold}">refund</span>.</h1>
+  <p style="margin:8px 0 0;color:#c9cdd3;font-size:14px">Order {e["order_id"]} · {e["date"]}</p>
+</td></tr>
+<tr><td style="padding:32px 28px">
+  <p style="margin:0 0 14px">{greeting}</p>
+  <p style="margin:0 0 14px">{lead}</p>
+  {session}
+  <p style="margin:0 0 24px">Refunds usually appear on your statement within 5–10 business days, depending on your bank.</p>
+  <p style="{heading};font-size:13px;font-weight:700;color:{navy};margin:0 0 8px">Refund details</p>
+  <div style="background:#f4f6f8;border-radius:10px;padding:8px 20px;margin:0 0 24px"><table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px">{table}</table></div>
+  <p style="margin:0">If you have any questions, just reply to this email and our team will help.</p>
+</td></tr>
+<tr><td style="background:{navy};color:#c9cdd3;padding:18px 22px;font-size:12px;text-align:center">{escape(BILLED_BY[0])} · {escape(BILLED_BY[1])}</td></tr>
+</table></body></html>"""
+
+
+async def _send_refund_email(order: dict, hold: dict, refund, cancelled: Optional[dict]) -> bool:
+    patient = hold.get("patient") or {}
+    email = order.get("email") or patient.get("email")
+    if not email:
+        return False
+    try:
+        tz = ZoneInfo(hold.get("patient_timezone") or "UTC")
+    except (ZoneInfoNotFoundError, ValueError):
+        tz = ZoneInfo("UTC")
+    paid = order.get("amount_total") or 0
+    session = None
+    if cancelled and cancelled.get("slot_start_utc"):
+        start = _aware(cancelled["slot_start_utc"]).astimezone(tz)
+        session = f"{start:%A, %B} {start.day} at {start.hour % 12 or 12}:{start:%M %p %Z}"   # Thursday, October 1 at 9:00 AM PDT
+    r = {"first_name": (patient.get("first_name") or "").strip(), "amount": _money(refund.amount), "paid": _money(paid),
+         "full": refund.amount >= paid, "order_id": order.get("payment_intent") or order["_id"],
+         "date": datetime.now(tz).strftime("%b %d, %Y"), "session": session}
+    try:
+        await asyncio.to_thread(resend.Emails.send, {
+            "from": "Billing - Dr Shumard <noreply@portal.drshumard.com>",
+            "to": [email],
+            "reply_to": ["concierge@drshumard.com"],
+            "subject": "Your refund from Dr. Shumard",
+            "html": _refund_email_html(r),
+        })
+        return True
+    except Exception as e:
+        logger.error(f"Refund email to {email} (order {order['_id']}) failed: {e}")
+        return False
+
+
+async def refund_purchase(sid: str, *, amount: Optional[int], cancel_session: bool, mark_refunded: bool,
+                          email_patient: bool, note: Optional[str], request_id: str, admin_email: str) -> dict:
+    """Refund a /checkout (or /session) payment on Stripe: `amount` cents, or everything still refundable. Then, as
+    asked: cancel the session quietly (the refund email says so), move the patient to step 0, email them, and run
+    "Checkout refund" automations. Idempotent per request_id — the same request twice refunds and emails once."""
+    now = datetime.now(timezone.utc)
+    # One refund at a time per purchase (a double click, two admins at once).
+    order = await db.checkout_orders.find_one_and_update(
+        {"_id": sid, "$or": [{"refund_lock": {"$exists": False}}, {"refund_lock": {"$lt": now - REFUND_LOCK_STALE}}]},
+        {"$set": {"refund_lock": now}})
+    if not order:
+        if await db.checkout_orders.count_documents({"_id": sid}, limit=1):
+            raise HTTPException(status_code=409, detail="Another refund of this purchase is in progress. Try again in a moment.")
+        raise HTTPException(status_code=404, detail="Purchase not found.")
+    try:
+        if order.get("status") != "fulfilled" or not order.get("payment_intent"):
+            raise HTTPException(status_code=409, detail="This purchase can't be refunded yet.")
+        _, remaining = refund_totals(order)
+        if not remaining:
+            raise HTTPException(status_code=400, detail="This purchase is already fully refunded.")
+        amount = remaining if amount is None else amount
+        if not 0 < amount <= remaining:
+            raise HTTPException(status_code=400, detail=f"The refund must be between $0.01 and {_money(remaining)}.")
+        try:
+            refund = await _stripe().v1.refunds.create_async(params={
+                "payment_intent": order["payment_intent"], "amount": amount, "reason": "requested_by_customer",
+                "metadata": {"checkout_session": sid, "refunded_by": admin_email or ""},
+            }, options={"idempotency_key": f"checkout-refund-{sid}-{request_id}"})
+        except stripe.StripeError as e:
+            logger.error(f"Refund of checkout {sid} failed at Stripe: {e}")
+            raise HTTPException(status_code=502, detail=getattr(e, "user_message", None)
+                                or "Stripe couldn't make the refund, so nothing was refunded. Please try again.")
+        pushed = await db.checkout_orders.update_one({"_id": sid, "refunds.id": {"$ne": refund.id}}, {"$push": {"refunds": {
+            "id": refund.id, "amount": refund.amount, "status": refund.status, "created_at": now,
+            "by": admin_email, "note": (note or "").strip() or None}}})
+    finally:
+        await db.checkout_orders.update_one({"_id": sid}, {"$unset": {"refund_lock": ""}})
+
+    stored = await db.checkout_orders.find_one({"_id": sid})
+    record = next(r for r in stored["refunds"] if r["id"] == refund.id)
+    done = {k: bool(record.get(k)) for k in ("session_cancelled", "marked_refunded", "email_sent")}
+    if pushed.modified_count:          # a replay of an earlier request changes nothing else
+        hold = await db.bookings.find_one({"booking_id": order.get("hold_id")}, {"_id": 0}) or {}
+        booking = await db.bookings.find_one({"booking_id": order["booking_id"]}, {"_id": 0}) if order.get("booking_id") else None
+        cancelled = None
+        if cancel_session and booking and booking.get("status") == "confirmed":
+            try:
+                await _cancel_booking(booking, get_pb_service_optional(), f"refund-{sid[-8:]}", actor=admin_email or "admin",
+                                      reason="Refunded", notify_patient=False)
+                cancelled, done["session_cancelled"] = booking, True
+            except Exception as e:
+                logger.error(f"Refund of {sid}: cancelling booking {booking['booking_id']} failed: {e}")
+        if mark_refunded and order.get("user_id"):
+            moved = await db.users.update_one({"id": order["user_id"], "current_step": {"$ne": 0}}, {"$set": {"current_step": 0}})
+            done["marked_refunded"] = moved.modified_count == 1
+        if email_patient:
+            done["email_sent"] = await _send_refund_email(order, hold, refund, cancelled)
+        await db.checkout_orders.update_one({"_id": sid, "refunds.id": refund.id},
+                                            {"$set": {f"refunds.$.{k}": v for k, v in done.items()}})
+        stored = await db.checkout_orders.find_one({"_id": sid})
+        from server import execute_automations
+        refunded, left = refund_totals(stored)
+        _spawn_bg(execute_automations("checkout_refund", {
+            **_purchase_payload(stored, hold, booking, datetime.now(timezone.utc).isoformat()),
+            "trigger": "checkout_refund", "refund_id": refund.id, "refund_amount": refund.amount / 100,
+            "refunded_total": refunded / 100, "fully_refunded": left == 0, **done}))
+    refunded, left = refund_totals(stored)
+    return {"refund": {"id": refund.id, "amount": refund.amount, "status": refund.status}, **done,
+            "refunded_total": refunded, "remaining": left, "replayed": not pushed.modified_count,
+            "email": order.get("email"), "user_id": order.get("user_id")}
+
 
 async def expire_lapsed_sessions() -> int:
     """Expire the Stripe Checkout Session of every hold that lapsed (15 min) or was replaced, so a payment
