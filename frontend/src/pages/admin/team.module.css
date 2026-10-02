@@ -58,12 +58,14 @@
 .avatar[data-role="director"] { border-color: #cfe7de; background: #edf7f1; color: #2f7a57; }
 .avatar[data-role="coordinator"] { border-color: #cbe8eb; background: #e4f5f6; color: #2d818b; }
 .avatar[data-role="coach"] { border-color: #f0dfb2; background: #fff3d7; color: #986716; }
+.avatar[data-role="marketing"] { border-color: #dcd6f5; background: #f0edfb; color: #5a48c4; }
 .role { display: inline-flex; align-items: center; gap: 8px; color: #37465d; font-size: .875rem; white-space: nowrap; }
 .role i { width: 8px; height: 8px; border-radius: 2px; background: var(--brand); }
 .role[data-role="super"] i { background: var(--ink); }
 .role[data-role="director"] i { background: #2f7a57; }
 .role[data-role="coordinator"] i { background: #2d818b; }
 .role[data-role="coach"] i { background: #c99526; }
+.role[data-role="marketing"] i { background: #5a48c4; }
 .access { display: inline-flex; gap: 4px; }
 .access span { display: grid; place-items: center; width: 26px; height: 26px; border: 1px dashed #d5dce6; border-radius: 3px; color: #b3bdcb; }
 .access span[data-on="true"] { border-style: solid; border-color: #dce5fa; background: #edf2ff; color: var(--brand); }

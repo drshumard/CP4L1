@@ -19,13 +19,13 @@ import s from './team.module.css';
 // Rendered inside the staff workspace shell, which provides the page padding and CSS variables.
 
 const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
-const ROLE_TONE = { super_admin: 'super', admin: 'admin', doa: 'director', pcc: 'coordinator', hc: 'coach' };
+const ROLE_TONE = { super_admin: 'super', admin: 'admin', doa: 'director', pcc: 'coordinator', hc: 'coach', marketing: 'marketing' };
 const initials = (name) => (name || '').trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase() || '?';
 const statusOf = (m) => (m.active === false ? 'Inactive' : 'Active');
 
 export function teamRoleChoices(actorRole, serverRoles) {
   if (!TEAM_ROLES.includes(actorRole)) return [];
-  const allowed = actorRole === 'super_admin' ? ['pcc', 'doa', 'hc', 'admin'] : ['pcc', 'doa', 'hc'];
+  const allowed = actorRole === 'super_admin' ? ['pcc', 'doa', 'hc', 'marketing', 'admin'] : ['pcc', 'doa', 'hc', 'marketing'];
   // Older running APIs omit this field. Keep the form usable during rollout,
   // while honoring an explicit empty list and never widening the actor's rank.
   return Array.isArray(serverRoles) ? allowed.filter(role => serverRoles.includes(role)) : allowed;

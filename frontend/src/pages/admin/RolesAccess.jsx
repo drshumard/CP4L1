@@ -5,7 +5,7 @@ import { adminApi } from './api';
 import s from './team.module.css';
 
 // Team → "Roles & access": the capability matrix, ported from the Lyra prototype. Super admin
-// edits everything; an admin can tune pcc/doa/hc but not the admin row, and can't grant
+// edits everything; an admin can tune pcc/doa/hc/marketing but not the admin row, and can't grant
 // super-admin-only capabilities (e.g. account deletion). The backend enforces all of this too.
 
 // A capability needs its parent on before it can be granted; turning a parent off turns its

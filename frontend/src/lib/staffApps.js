@@ -5,7 +5,7 @@ import { portalHomeForCapabilities } from './portalAccess';
 // staff-home tiles, and the per-app route guards are ALL derived from this file — to
 // integrate a future app into the portal, add one entry here and one <Route>.
 
-export const STAFF_ROLES = ['pcc', 'doa', 'hc', 'staff']; // 'staff' = legacy umbrella role
+export const STAFF_ROLES = ['pcc', 'doa', 'hc', 'marketing', 'staff']; // 'staff' = legacy umbrella role
 export const ADMIN_ROLES = ['admin', 'super_admin'];
 export const TEAM_ROLES = [...STAFF_ROLES, ...ADMIN_ROLES];
 
@@ -13,13 +13,14 @@ export const ROLE_LABELS = {
   pcc: 'Care Coordinator',
   doa: 'Director of Admissions',
   hc: 'Health Coach',
+  marketing: 'Marketing',
   staff: 'Staff',
   admin: 'Admin',
   super_admin: 'Super Admin',
 };
 
 // Roles a super admin can hand out from the Team page (super_admin itself is bootstrap-only).
-export const ASSIGNABLE_ROLES = ['pcc', 'doa', 'hc', 'admin'];
+export const ASSIGNABLE_ROLES = ['pcc', 'doa', 'hc', 'marketing', 'admin'];
 
 export const STAFF_APPS = [
   {

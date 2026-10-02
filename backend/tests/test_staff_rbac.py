@@ -35,6 +35,7 @@ def test_seeded_defaults_equal_pre_rbac_gates(monkeypatch):
     assert s.capabilities_for({"role": "doa"}) == portal_staff | {"vienna", "vienna.marketing"}
     assert "team.manage" not in portal_staff and "accounts.destroy" not in portal_staff
     assert s.capabilities_for(HC) == {"supplements", "learn"}
+    assert s.capabilities_for({"role": "marketing"}) == {"learn", "vienna", "vienna.marketing"}
     assert s.capabilities_for(PATIENT) == set()
 
 

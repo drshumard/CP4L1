@@ -98,7 +98,7 @@ const Dashboard = () => {
               />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
-              {['admin', 'super_admin', 'staff', 'pcc', 'doa', 'hc'].includes(userData?.role) && (
+              {['admin', 'super_admin', 'staff', 'pcc', 'doa', 'hc', 'marketing'].includes(userData?.role) && (
                 <>
                   <Button 
                     variant="outline" 

@@ -549,14 +549,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     return user
 
 # Role model. Patients are role='user' (the default). Team members hold exactly one of:
-#   pcc / doa / hc  — staff (Patient Care Coordinator, Director of Admissions, Health Coach)
+#   pcc / doa / hc / marketing — staff (Patient Care Coordinator, Director of Admissions,
+#                     Health Coach, Marketing)
 #   admin           — full admin area
 #   super_admin     — admin + team management (create members, assign roles)
 # 'staff' is a legacy value from the old promote endpoint; treated as team but unassignable.
-STAFF_ROLES = {"pcc", "doa", "hc", "staff"}
+STAFF_ROLES = {"pcc", "doa", "hc", "marketing", "staff"}
 ADMIN_ROLES = {"admin", "super_admin"}
 TEAM_ROLES = STAFF_ROLES | ADMIN_ROLES
-ASSIGNABLE_TEAM_ROLES = {"pcc", "doa", "hc", "admin"}
+ASSIGNABLE_TEAM_ROLES = {"pcc", "doa", "hc", "marketing", "admin"}
 # Who may use the admin (bookings) portal and its APIs: admins, plus the staff roles
 # whose job lives there — coordinators and directors. HCs work in Supplements/Learn only.
 PORTAL_ROLES = ADMIN_ROLES | {"pcc", "doa"}
@@ -594,7 +595,7 @@ async def get_super_admin_user(current_user: dict = Depends(get_current_user)):
 # delete): an actor may only modify a target they STRICTLY outrank. Peers can't
 # touch peers, and nobody can touch the super admin — closes the "ordinary admin
 # resets the super-admin's password and signs in as them" escalation.
-_ROLE_RANK = {"super_admin": 3, "admin": 2, "pcc": 1, "doa": 1, "hc": 1, "staff": 1}
+_ROLE_RANK = {"super_admin": 3, "admin": 2, "pcc": 1, "doa": 1, "hc": 1, "marketing": 1, "staff": 1}
 
 
 def _outranks(actor: dict, target: dict) -> bool:
@@ -650,11 +651,11 @@ SUPER_ADMIN_ONLY_CAPS = {"accounts.destroy"}
 # Roles whose capability set only a super_admin may edit.
 SUPER_ADMIN_ONLY_ROLES = {"admin"}
 # Roles the editor can configure at all (super_admin is implicit-all; patients aren't team).
-EDITABLE_ROLES = ["admin", "pcc", "doa", "hc"]
+EDITABLE_ROLES = ["admin", "pcc", "doa", "hc", "marketing"]
 ROLE_DISPLAY = {
     "super_admin": "Super Admin", "admin": "Admin",
     "pcc": "Care Coordinator", "doa": "Director of Admissions",
-    "hc": "Health Coach", "staff": "Staff",
+    "hc": "Health Coach", "marketing": "Marketing", "staff": "Staff",
 }
 
 # Seeded to match the pre-RBAC gates exactly (see the get_admin_user audit):
@@ -672,6 +673,7 @@ DEFAULT_ROLE_CAPABILITIES = {
     "pcc": list(_PORTAL_STAFF_CAPS) + ["vienna", "vienna.support"],
     "doa": list(_PORTAL_STAFF_CAPS) + ["vienna", "vienna.marketing"],
     "hc": ["supplements", "learn"],
+    "marketing": ["learn", "vienna", "vienna.marketing"],   # campaigns and journeys in Vienna
     "staff": ["learn"],                        # legacy umbrella role: minimal
 }
 
@@ -2830,6 +2832,7 @@ STAFF_ROLE_LABELS = [
     {"id": "hc", "name": "Health Coach"},
     {"id": "pcc", "name": "Care Coordinator"},
     {"id": "doa", "name": "Director of Admissions"},
+    {"id": "marketing", "name": "Marketing"},
 ]
 
 

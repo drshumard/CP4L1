@@ -8,9 +8,9 @@ jest.mock('./RolesAccess', () => () => null);
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
 test('an older API missing assignable_roles has a safe actor-specific fallback', () => {
-  expect(teamRoleChoices('super_admin', undefined)).toEqual(['pcc', 'doa', 'hc', 'admin']);
-  expect(teamRoleChoices('admin', undefined)).toEqual(['pcc', 'doa', 'hc']);
-  expect(teamRoleChoices('hc', undefined)).toEqual(['pcc', 'doa', 'hc']);
+  expect(teamRoleChoices('super_admin', undefined)).toEqual(['pcc', 'doa', 'hc', 'marketing', 'admin']);
+  expect(teamRoleChoices('admin', undefined)).toEqual(['pcc', 'doa', 'hc', 'marketing']);
+  expect(teamRoleChoices('hc', undefined)).toEqual(['pcc', 'doa', 'hc', 'marketing']);
   expect(teamRoleChoices(undefined, undefined)).toEqual([]);
 });
 
@@ -69,7 +69,7 @@ describe('member role drawer', () => {
   test('a normal admin can change staff roles but never sees Admin in the drawer', async () => {
     await renderTeam('admin', {});
     const labels = roleInputs().map(el => el.getAttribute('aria-label'));
-    expect(labels).toEqual(['Care Coordinator', 'Director of Admissions', 'Health Coach']);
+    expect(labels).toEqual(['Care Coordinator', 'Director of Admissions', 'Health Coach', 'Marketing']);
     expect(labels).not.toContain('Admin');
   });
 

@@ -32,6 +32,6 @@ export function canAccessPortalPath(pathname, caps = []) {
   return !!page && caps.includes(page.cap);
 }
 
-const ROLE_RANK = { super_admin: 3, admin: 2, pcc: 1, doa: 1, hc: 1, staff: 1 };
+const ROLE_RANK = { super_admin: 3, admin: 2, pcc: 1, doa: 1, hc: 1, marketing: 1, staff: 1 };
 export const canManageTeamMember = (actor, target) => !!actor && actor.id !== target.id
   && (ROLE_RANK[actor.role] || 0) > (ROLE_RANK[target.role] || 0);

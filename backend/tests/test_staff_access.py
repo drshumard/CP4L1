@@ -83,7 +83,7 @@ def test_patient_promotion_during_edit_rejects_stale_write(state):
     s.log_activity.assert_not_awaited()
 
 
-@pytest.mark.parametrize("actor_role", ["admin", "pcc", "doa", "hc"])
+@pytest.mark.parametrize("actor_role", ["admin", "pcc", "doa", "hc", "marketing"])
 def test_delegated_team_manager_cannot_create_admin(state, monkeypatch, actor_role):
     monkeypatch.setattr(s, "_role_caps_overrides", {actor_role: {"team.manage"}})
     response = request("POST", "/api/admin/team", actor={"role": actor_role},
