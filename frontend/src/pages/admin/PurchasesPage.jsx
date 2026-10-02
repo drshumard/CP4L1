@@ -312,7 +312,7 @@ function RefundDialog({ purchase: p, onClose, onRefunded }) {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o && !saving) onClose(); }}>
-      <DialogContent className={s.formDialog}>
+      <DialogContent className={`${s.formDialog} ${s.lyraDialog}`}>
         <DialogHeader>
           <DialogTitle>Refund {fullName(p)}</DialogTitle>
           <DialogDescription className={s.sheetDescription}>
@@ -332,16 +332,18 @@ function RefundDialog({ purchase: p, onClose, onRefunded }) {
               <input id="refund-note" autoComplete="off" maxLength={500} placeholder="Why, for the team" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
           </div>
-          {activeSession && (
-            <OptionRow id="refund-cancel" label="Cancel their session" checked={cancel} onChange={set('cancel')}
-              text={`${fmtDate(b.slot_start_utc)} at ${fmtTime(b.slot_start_utc)}${b.host ? ` with ${b.host}` : ''}. Frees the time and removes the calendar event.`} />
-          )}
-          {canMark && (
-            <OptionRow id="refund-mark" label="Mark them refunded" checked={mark} onChange={set('mark')}
-              text="They’ll see the refunded page instead of the portal. Paying again restores their access." />
-          )}
-          <OptionRow id="refund-email" label="Email a refund confirmation" checked={picked.email} onChange={set('email')}
-            text={`Tells them ${valid ? money(value) : 'the refund'} is on its way back${cancel ? ', and that their session is cancelled' : ''}.`} />
+          <div className={s.optionList}>
+            {activeSession && (
+              <OptionRow id="refund-cancel" label="Cancel their session" checked={cancel} onChange={set('cancel')}
+                text={`${fmtDate(b.slot_start_utc)} at ${fmtTime(b.slot_start_utc)}${b.host ? ` with ${b.host}` : ''}. Frees the time and removes the calendar event.`} />
+            )}
+            {canMark && (
+              <OptionRow id="refund-mark" label="Mark them refunded" checked={mark} onChange={set('mark')}
+                text="They’ll see the refunded page instead of the portal. Paying again restores their access." />
+            )}
+            <OptionRow id="refund-email" label="Email a refund confirmation" checked={picked.email} onChange={set('email')}
+              text={`Tells them ${valid ? money(value) : 'the refund'} is on its way back${cancel ? ', and that their session is cancelled' : ''}.`} />
+          </div>
           {error && <p id="refund-error" className={s.fieldError} role="alert">{error}</p>}
           <div className={s.dialogActions}>
             <button type="button" className={s.secondaryButton} onClick={onClose} disabled={saving}>Cancel</button>

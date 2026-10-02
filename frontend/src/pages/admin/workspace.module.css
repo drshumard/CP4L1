@@ -842,3 +842,13 @@ button.person:hover strong { color: #3565d0; }
 .logStatus[data-tone=refunded] { border-color: #dbe3ef; background: #f4f6f9; color: #444; }
 .dangerButton { background: #b42318; border-color: #a11f15; color: #fff; }
 .dangerButton:hover { background: #9a1d13; }
+/* Lyra dialog (user, 2026-10-01: "the modal does not follow the lyra style its more rounded etc"). A dialog portals out
+   of the page's Lyra scope, so the Refund dialog carries the geometry itself: a 4px panel, 3px controls, and its
+   options as one hairline list instead of rounded grey boxes. */
+.lyraDialog { border-color: #d9e0eb; border-radius: 4px; }
+.lyraDialog :is(.primaryButton, .secondaryButton) { border-radius: 3px; }
+.lyraDialog .field input { border-radius: 3px; }
+.lyraDialog .fieldError { margin-top: 14px; color: #b15c57; font-size: .8125rem; line-height: 1.55; }
+.optionList { margin-top: 22px; border: 1px solid #e0e6ef; border-radius: 4px; }
+.optionList .notificationRow { margin: 0; padding: 14px 16px; border: 0; border-radius: 0; background: #fff; }
+.optionList .notificationRow + .notificationRow { border-top: 1px solid #e7ecf3; }
