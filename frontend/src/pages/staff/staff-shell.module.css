@@ -77,7 +77,9 @@
 .search kbd { margin-left: 18px; }
 .dashboardLink { display: flex; align-items: center; gap: 8px; min-height: 44px; color: #59708b; font-size: .8125rem; white-space: nowrap; }
 .dashboardLink:hover { color: var(--brand); }
-.main { flex: 1; width: 100%; max-width: 1400px; margin: 0 auto; padding: 32px 36px 48px; }
+/* The admin portal's page width (workspace.module.css .main): 2400px ceiling, 36px gutters, 50px from 1600px up. */
+.main { flex: 1; width: 100%; max-width: 2400px; margin: 0 auto; padding: 34px 36px 48px; }
+@media (min-width: 1600px) { .main, .topbar, .footer { padding-left: 50px; padding-right: 50px; } }
 .footer { display: flex; justify-content: space-between; gap: 15px; padding: 20px 36px; color: #8a97aa; font-size: .75rem; }
 
 /* Welcome band: flat brand blue with a live clock readout and the workspace search. */

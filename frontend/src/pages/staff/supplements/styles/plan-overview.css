@@ -1,4 +1,5 @@
-.supp-app .po-content { padding: 0 32px; }
+.supp-app .po-content { padding: 0 36px; }
+@media (min-width: 1600px) { .supp-app .po-content { padding: 0 50px; } }
 .supp-app .po-overview { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, 1fr); gap: 20px; margin-bottom: 32px; }
 .supp-app .po-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border: 1px solid var(--hairline); background: white; }
 .supp-app .po-stat { display: flex; flex-direction: column; align-items: stretch; padding: 23px 20px 19px; text-align: left; border-bottom: 2px solid transparent; }
