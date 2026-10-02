@@ -43,12 +43,14 @@
 .closeNav { display: none; border: 0; background: transparent; color: #fff; }
 .shell .sideContent { gap: 0; padding: 25px 13px 16px; background: #fff; }
 .navLabel { margin: 0 9px 13px; color: #8895a8; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .625rem; letter-spacing: .1em; text-transform: uppercase; }
-.sideNav { display: flex; flex-direction: column; gap: 4px; }
-.sideNav > a { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; min-height: 45px; padding: 7px 9px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #596980; font-size: .875rem; text-align: left; font-weight: 400; }
-.sideNav > a[aria-current] { border-color: #dce5fa; background: #edf2ff; color: #315ed1; font-weight: 500; box-shadow: inset 3px 0 #3565e9; }
-.sideNav > a:not([aria-current]):hover { border-color: #e2e8f2; background: #f7f9fd; }
-.navIcon { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid #e2e7ef; border-radius: 2px; background: #f8fafc; color: #718097; }
-.sideNav > a[aria-current] .navIcon { border-color: #cad8fa; background: #fff; color: #315ed1; }
+.sideNav { display: flex; flex-direction: column; gap: 5px; }
+.sideNav > a, .sideNav > button { display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; min-height: 48px; padding: 8px 10px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #596980; font-size: .875rem; text-align: left; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+.sideNav > a[aria-current] { border-color: #dfe7f5; background: #eef3fb; color: #263650; font-weight: 600; box-shadow: 0 1px 3px rgba(36, 48, 71, .04); }
+.sideNav > a:not([aria-current]):hover, .sideNav > button:hover { background: #f5f7fb; color: #33445e; }
+.sideNav > a:focus-visible, .sideNav > button:focus-visible { outline: 3px solid #9bb5f5; outline-offset: 2px; }
+.navIcon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 3px; color: #718097; }
+.sideNav > a[aria-current] .navIcon { background: #315fd1; color: #fff; }
+.sideNav > a[aria-current] small { color: #6d81a7; }
 .sideNav small { color: #a1abba; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .5625rem; font-weight: 400; }
 .sideNav svg { stroke-width: 1.65; }
 .shell .sideFooter { flex-direction: row; align-items: center; gap: 10px; padding: 16px 12px 16px 18px; border-top: 1px solid #e2e7ef; background: #fbfcfe; }
