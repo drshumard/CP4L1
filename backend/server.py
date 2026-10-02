@@ -621,6 +621,7 @@ CAPABILITIES = [
     "patients.view", "patients.manage",
     "scheduling.view", "scheduling.manage",
     "analytics.view", "automations.manage", "settings.manage",
+    "purchases.view", "purchases.manage",
     "team.manage", "accounts.destroy",
     # sub-app powers
     "supplements.manage", "learn.instruct",
@@ -647,16 +648,52 @@ _PORTAL_STAFF_CAPS = [
     "portal", "patients.view", "patients.manage",
     "scheduling.view", "scheduling.manage",
     "analytics.view", "automations.manage", "settings.manage", "learn",
+    "purchases.view", "purchases.manage",
 ]
 DEFAULT_ROLE_CAPABILITIES = {
     "admin": list(CAPABILITIES),               # admins had everything
-    "pcc": list(_PORTAL_STAFF_CAPS),
-    "doa": list(_PORTAL_STAFF_CAPS),
+    # Vienna (customer messaging): coordinators run support, admissions runs marketing.
+    "pcc": list(_PORTAL_STAFF_CAPS) + ["vienna", "vienna.support"],
+    "doa": list(_PORTAL_STAFF_CAPS) + ["vienna", "vienna.marketing"],
     "hc": ["supplements", "learn"],
     "staff": ["learn"],                        # legacy umbrella role: minimal
 }
 
 _role_caps_overrides = None  # {role: set(caps)} loaded from db.role_permissions; None = not loaded
+
+
+# Capabilities added after the matrix first shipped. A stored role doc without `known_capabilities`
+# predates the backfill mechanism and is treated as having known everything except these.
+_CAPS_ADDED_SINCE_BASELINE = {"vienna", "vienna.support", "vienna.marketing", "vienna.admin",
+                              "purchases.view", "purchases.manage"}
+
+
+def new_caps_for_role(role: str, stored: set, known) -> list:
+    """Capabilities to add to a stored role doc: those the doc has never seen, granted where the
+    role's seeded default grants them. Admin choices on capabilities the doc already knew are kept."""
+    known_set = set(known) if known is not None else set(CAPABILITIES) - _CAPS_ADDED_SINCE_BASELINE
+    default = set(DEFAULT_ROLE_CAPABILITIES.get(role, []))
+    return [c for c in CAPABILITIES if c not in known_set and c in default and c not in stored]
+
+
+async def backfill_new_capabilities():
+    """Startup: when an app or capability is added to the catalog, stored role rows learn about it
+    once — gaining it where the role's default says so — so a new app shows up for the right roles
+    without an admin re-saving every row. Idempotent: each row records what it has seen."""
+    try:
+        docs = await db.role_permissions.find({}, {"_id": 0, "role": 1, "capabilities": 1, "known_capabilities": 1}).to_list(50)
+    except Exception as e:
+        logging.warning(f"role_permissions backfill skipped: {e}")
+        return
+    for doc in docs:
+        stored = set(doc.get("capabilities", []) or [])
+        added = new_caps_for_role(doc["role"], stored, doc.get("known_capabilities"))
+        if added or set(doc.get("known_capabilities") or []) != set(CAPABILITIES):
+            await db.role_permissions.update_one(
+                {"role": doc["role"]},
+                {"$set": {"capabilities": sorted(stored | set(added)), "known_capabilities": list(CAPABILITIES)}})
+            if added:
+                logging.info(f"[rbac] role '{doc['role']}' gained new capabilities by default: {', '.join(added)}")
 
 
 async def load_role_caps_cache():
@@ -3885,7 +3922,7 @@ async def get_automation_logs(
 
 
 @api_router.get("/admin/purchases")
-async def get_purchases(admin_user: dict = Depends(require_capability("patients.view"))):
+async def get_purchases(admin_user: dict = Depends(require_capability("purchases.view"))):
     """/checkout purchases with their booking, account, receipt and automation results (Admin > Purchases)."""
     from checkout import list_purchases
     return {"purchases": await list_purchases()}
@@ -3902,7 +3939,7 @@ class PurchaseAutomationsRequest(BaseModel):
 
 @api_router.post("/admin/purchases/{session_id}/automations")
 async def send_purchase_automations(session_id: str, body: PurchaseAutomationsRequest, request: Request,
-                                    admin_user: dict = Depends(require_capability("automations.manage"))):
+                                    admin_user: dict = Depends(require_capability("purchases.manage"))):
     """Send one /checkout purchase to chosen "Checkout purchase" automation actions, e.g. a purchase made
     while those automations were off. Runs them whether or not they're switched on."""
     if not body.targets:
@@ -7026,6 +7063,8 @@ CAPABILITY_CATALOG = [
     {"key": "analytics.view", "label": "View analytics & logs", "group": "Admin portal"},
     {"key": "automations.manage", "label": "Manage automations", "group": "Admin portal"},
     {"key": "settings.manage", "label": "Manage settings", "group": "Admin portal"},
+    {"key": "purchases.view", "label": "View purchases", "group": "Admin portal"},
+    {"key": "purchases.manage", "label": "Manage purchases (resend to automations)", "group": "Admin portal"},
     {"key": "team.manage", "label": "Manage team & roles", "group": "Admin portal"},
     {"key": "accounts.destroy", "label": "Promote / delete accounts", "group": "Admin portal"},
     {"key": "supplements.manage", "label": "Supplements admin (catalog/templates)", "group": "Sub-apps"},
@@ -7084,10 +7123,11 @@ async def set_role_permissions(role: str, payload: RolePermissionUpdate,
     changed_at = datetime.now(timezone.utc).isoformat()
     await db.role_permissions.update_one(
         {"role": role},
-        {"$set": {"role": role, "capabilities": new_caps, "updated_at": changed_at,
+        {"$set": {"role": role, "capabilities": new_caps, "known_capabilities": list(CAPABILITIES), "updated_at": changed_at,
                   "learn_sync_pending": changed_at}},
         upsert=True,
     )
+    await backfill_new_capabilities()
     await load_role_caps_cache()
     asyncio.create_task(drain_learn_push_queue())
     await log_admin_action("ADMIN_ROLE_PERMISSIONS_UPDATED", admin_user=admin_user,

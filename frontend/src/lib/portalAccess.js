@@ -10,7 +10,7 @@ export const SCHEDULING_PAGES = [
 
 const PORTAL_PAGES = [
   { to: '/admin', cap: 'patients.view' },
-  { to: '/admin/purchases', cap: 'patients.view' },
+  { to: '/admin/purchases', cap: 'purchases.view' },
   ...SCHEDULING_PAGES,
   { to: '/admin/scheduling/new', cap: 'scheduling.manage' },   // New booking (not a tab)
   { to: '/admin/analytics', cap: 'analytics.view' },

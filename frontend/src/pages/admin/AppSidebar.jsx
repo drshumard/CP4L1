@@ -22,7 +22,7 @@ import s from './workspace.module.css';
 const NAV = [
   { to: '/admin', label: 'Users', icon: Users, cap: 'patients.view', match: (p) => p === '/admin' },
   { to: '/admin/scheduling/bookings', label: 'Scheduling', icon: CalendarDays, cap: 'scheduling.view', match: (p) => p.startsWith('/admin/scheduling') },
-  { to: '/admin/purchases', label: 'Purchases', icon: Receipt, cap: 'patients.view' },
+  { to: '/admin/purchases', label: 'Purchases', icon: Receipt, cap: 'purchases.view' },
   { to: '/admin/analytics', label: 'Analytics', icon: ChartNoAxesCombined, cap: 'analytics.view' },
   { to: '/admin/automations', label: 'Automations', icon: Workflow, cap: 'automations.manage' },
 ];

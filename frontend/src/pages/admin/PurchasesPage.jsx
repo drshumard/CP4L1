@@ -1,3 +1,4 @@
+import { useOutletContext } from 'react-router-dom';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
@@ -71,7 +72,7 @@ function Person({ p }) {
   );
 }
 
-function PurchaseSheet({ purchase, onClose, onSend }) {
+function PurchaseSheet({ purchase, onClose, onSend, canManage }) {
   const p = useLastRecord(purchase);
   const b = p?.booking;
   return (
@@ -142,7 +143,7 @@ function PurchaseSheet({ purchase, onClose, onSend }) {
             </section>
 
             {p.status === 'fulfilled' && (
-              <button type="button" className={`${s.primaryButton} ${s.fullWidthButton}`} onClick={() => onSend(p)}><Send size={16} />Send to automations</button>
+              {canManage && <button type="button" className={`${s.primaryButton} ${s.fullWidthButton}`} onClick={() => onSend(p)}><Send size={16} />Send to automations</button>}
             )}
           </>
         )}
@@ -222,6 +223,9 @@ function SendDialog({ purchase, onClose, onSent }) {
 }
 
 export default function PurchasesPage() {
+  // Resending to automations needs purchases.manage; the API enforces the same.
+  const { capabilities = [] } = useOutletContext() || {};
+  const canManage = capabilities.includes('purchases.manage');
   const [purchases, setPurchases] = useState(null);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('all');        // all | promo | full
@@ -361,7 +365,7 @@ export default function PurchasesPage() {
         </TabsContent>
       </Tabs>
 
-      <PurchaseSheet purchase={open} onClose={() => setOpenId(null)} onSend={setSendFor} />
+      <PurchaseSheet purchase={open} onClose={() => setOpenId(null)} onSend={setSendFor} canManage={canManage} />
       {sendFor && <SendDialog purchase={sendFor} onClose={() => setSendFor(null)} onSent={() => { setSendFor(null); load(); }} />}
     </div>
   );

@@ -14,6 +14,7 @@ const REQUIRES = {
   'patients.view': 'portal', 'patients.manage': 'patients.view',
   'scheduling.view': 'portal', 'scheduling.manage': 'scheduling.view',
   'analytics.view': 'portal', 'automations.manage': 'portal', 'settings.manage': 'portal',
+  'purchases.view': 'portal', 'purchases.manage': 'purchases.view',
   'team.manage': 'team', 'supplements.manage': 'supplements', 'learn.instruct': 'learn',
   'vienna.support': 'vienna', 'vienna.marketing': 'vienna', 'vienna.admin': 'vienna',
 };

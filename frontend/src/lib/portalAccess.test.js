@@ -43,8 +43,9 @@ test('team actions follow strict server hierarchy', () => {
 });
 
 test('pages main added (Purchases, New booking) are gated like their sections', () => {
-  const viewer = ['portal', 'patients.view', 'scheduling.view'];
+  const viewer = ['portal', 'patients.view', 'scheduling.view', 'purchases.view'];
   expect(canAccessPortalPath('/admin/purchases', viewer)).toBe(true);
+  expect(canAccessPortalPath('/admin/purchases', ['portal', 'patients.view'])).toBe(false);
   expect(canAccessPortalPath('/admin/scheduling/new', viewer)).toBe(false);
   expect(canAccessPortalPath('/admin/scheduling/new', [...viewer, 'scheduling.manage'])).toBe(true);
   expect(canAccessPortalPath('/admin/purchases', ['portal', 'analytics.view'])).toBe(false);

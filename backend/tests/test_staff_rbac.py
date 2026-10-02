@@ -30,7 +30,9 @@ def test_seeded_defaults_equal_pre_rbac_gates(monkeypatch):
     assert s.capabilities_for(SUPER) == set(s.CAPABILITIES)
     assert s.capabilities_for(ADMIN) == set(s.CAPABILITIES)
     portal_staff = set(s._PORTAL_STAFF_CAPS)
-    assert s.capabilities_for(PCC) == portal_staff and s.capabilities_for({"role": "doa"}) == portal_staff
+    # Vienna defaults: coordinators run support, admissions runs marketing
+    assert s.capabilities_for(PCC) == portal_staff | {"vienna", "vienna.support"}
+    assert s.capabilities_for({"role": "doa"}) == portal_staff | {"vienna", "vienna.marketing"}
     assert "team.manage" not in portal_staff and "accounts.destroy" not in portal_staff
     assert s.capabilities_for(HC) == {"supplements", "learn"}
     assert s.capabilities_for(PATIENT) == set()
@@ -70,3 +72,14 @@ def test_vienna_role_follows_the_highest_granted_capability():
     assert s.vienna_role_for({"vienna", "vienna.support"}) == "support_manager"
     assert s.vienna_role_for({"vienna", "vienna.support", "vienna.marketing"}) == "marketing"
     assert s.vienna_role_for(set(s.CAPABILITIES)) == "admin"
+
+
+def test_new_capabilities_are_granted_once_from_the_role_default():
+    stored = {"portal", "patients.view", "learn"}
+    # a pre-backfill row (no known list) gains purchases + Vienna per the pcc default, nothing else
+    added = s.new_caps_for_role("pcc", stored, None)
+    assert set(added) == {"purchases.view", "purchases.manage", "vienna", "vienna.support"}
+    # a row that already knew everything gains nothing, even if it lacks defaults
+    assert s.new_caps_for_role("pcc", stored, list(s.CAPABILITIES)) == []
+    # hc's default has no purchases/Vienna, so its row stays untouched
+    assert s.new_caps_for_role("hc", {"supplements"}, None) == []
