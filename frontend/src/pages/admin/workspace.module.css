@@ -55,7 +55,8 @@
 .timezone { display: flex; align-items: center; gap: 4px; color: #8190a3; }
 .timezone .select { width: 74px; min-height: 36px; border: 0; box-shadow: none; padding-left: 4px; background: transparent; font-size: .8125rem; }
 .dashboardLink { display: flex; align-items: center; gap: 8px; color: #59708b; font-size: .8125rem; min-height: 44px; white-space: nowrap; }
-.main { width: 100%; max-width: 1600px; margin: 0 auto; padding: 34px 36px; flex: 1; }
+/* Working area: fills wide monitors up to a 2400px ceiling; 36px gutters, 50px from 1600px up (main, top bar, footer alike). */
+.main { width: 100%; max-width: 2400px; margin: 0 auto; padding: 34px 36px; flex: 1; }
 .workspaceFooter { display: flex; justify-content: space-between; gap: 15px; padding: 20px 36px; color: #8a97aa; font-size: .75rem; }
 .heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .eyebrow { font-size: .8125rem; color: #718199; margin-bottom: 7px; }
@@ -410,7 +411,7 @@ button.person:hover strong { color: #3565d0; }
 .schedulingLyra .status { border-radius: 2px; font-family: var(--lyra-mono); font-size: .625rem; }
 .scheduleMobileRow { padding: 18px 16px; border-bottom: 1px solid #e8edf4; background: #fff; }
 .scheduleMobileRow:last-child { border-bottom: 0; }
-@media (min-width: 1600px) { .main { padding-left: 50px; padding-right: 50px; } }
+@media (min-width: 1600px) { .main, .topbar, .workspaceFooter { padding-left: 50px; padding-right: 50px; } }
 @media (max-width: 1180px) {
   .topbar { padding: 0 24px; }
   .main { padding: 28px 24px; }
@@ -836,12 +837,6 @@ button.person:hover strong { color: #3565d0; }
 .dateStack { font-variant-numeric: tabular-nums; }
 /* Admin dropdowns take focus like the text fields (soft blue ring), not shadcn's thin dark ring. */
 .select:focus, .select:focus-visible { outline: none; border-color: #8daaf1; box-shadow: 0 0 0 3px #edf2ff; }
-/* Large screens (user, 2026-09-28: on 24"+ monitors the working area stopped at 1500px): fill the workspace, with a
-   ceiling so ultrawides don't stretch the tables absurdly — and the top bar / footer take the same 50px edge. */
-.main { max-width: 2400px; }
-@media (min-width: 1600px) {
-  .topbar, .workspaceFooter { padding-left: 50px; padding-right: 50px; }
-}
 /* Purchases → Refund (2026-09-30): the refunded status chip, and the dialog's confirm button, red like the admin's
    other destructive confirmations. */
 .logStatus[data-tone=refunded] { border-color: #dbe3ef; background: #f4f6f9; color: #444; }
