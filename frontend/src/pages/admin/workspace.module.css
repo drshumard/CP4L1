@@ -23,13 +23,15 @@
 .closeNav { display: none; border: 0; color: white; background: transparent; }
 .sideContent { padding: 25px 13px 16px; gap: 0; background: #fff; }
 .navLabel { color: #8895a8; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .625rem; letter-spacing: .1em; text-transform: uppercase; margin: 0 9px 13px; }
-.sideNav { display: flex; flex-direction: column; gap: 4px; }
-.sideNav > a, .sideNav > button { position: relative; display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; min-height: 45px; padding: 7px 9px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #596980; font-size: .875rem; text-align: left; font-weight: 400; }
-.sideNav > a[aria-current] { border-color: #dce5fa; background: #edf2ff; color: #315ed1; font-weight: 500; box-shadow: inset 3px 0 #3565e9; }
-.sideNav > a:hover { border-color: #e2e8f2; background: #f7f9fd; }
+.sideNav { display: flex; flex-direction: column; gap: 5px; }
+.sideNav > a, .sideNav > button { position: relative; display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 10px; min-height: 48px; padding: 8px 10px; border: 1px solid transparent; border-radius: 4px; background: transparent; color: #596980; font-size: .875rem; text-align: left; font-weight: 400; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+.sideNav > a[aria-current] { border-color: #dfe7f5; background: #eef3fb; color: #263650; font-weight: 600; box-shadow: 0 1px 3px rgba(36, 48, 71, .04); }
+.sideNav > a:not([aria-current]):hover { background: #f5f7fb; color: #33445e; }
+.sideNav > a:focus-visible, .sideNav > button:focus-visible { outline: 3px solid #9bb5f5; outline-offset: 2px; }
 .sideNav > button:disabled { opacity: .57; cursor: default; }
-.navIcon { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #e2e7ef; border-radius: 2px; background: #f8fafc; color: #718097; }
-.sideNav > a[aria-current] .navIcon { border-color: #cad8fa; background: #fff; color: #315ed1; }
+.navIcon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 3px; color: #718097; }
+.sideNav > a[aria-current] .navIcon { background: #315fd1; color: #fff; }
+.sideNav > a[aria-current] small { color: #6d81a7; }
 .sideNav small { color: #a1abba; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .5625rem; font-weight: 400; }
 .sideNav svg { stroke-width: 1.65; }
 .sideHelp { position: relative; margin: auto 0 0; padding: 20px 15px 13px; border-top: 1px solid #e2e7ef; border-bottom: 1px solid #e2e7ef; color: #6e809a; }
@@ -563,8 +565,11 @@ button.person:hover strong { color: #3565d0; }
 .shell, .sideHeader, .sideContent, .sideFooter { font-family: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
 .sideContent h3 { font-family: inherit; }   /* the mobile sheet sits outside .admin-geist (admin.css sets the headings there) */
 /* The mobile sidebar is a sheet portaled to <body>, outside .shell — its parts carry their own colours. */
-.sideNav > a { text-decoration: none; transition: background-color .12s, color .12s; }
-.sideNav > a[aria-current]:hover { border-color: #dce5fa; background: #edf2ff; color: #315ed1; }   /* the active item keeps its look on hover */
+.sideNav > a { text-decoration: none; }
+/* The prototype's re-done sidebar (user, 2026-10-02) in the admin's two text tiers (below): its active label (#263650)
+   and code (#6d81a7) would read lighter than the black items around them, and its hover would lighten them. */
+.sideNav > a[aria-current], .sideNav > a:not([aria-current]):hover { color: #111; }
+.sideNav > a[aria-current] small { color: #444; }
 .sideFooter { margin: 0; }
 .accountButton { display: flex; align-items: center; gap: 11px; width: 100%; min-width: 0; padding: 6px; margin: -6px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: pointer; font: inherit; }
 .accountButton:hover, .accountButton[data-state=open] { background: #f5f7fb; }
