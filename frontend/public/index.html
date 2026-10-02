@@ -51,9 +51,11 @@
             }
         </script>
         <!--
-        Marketing tracking for the book-first checkout (/checkout) ONLY. The scripts inside the template
-        are verbatim from marketing and inert here; the loader below copies them into <head> in the same
-        order, but only on /checkout (and not on localhost / 127.0.0.1 unless the URL has ?tracking=1).
+        Marketing tracking for the book-first checkout (/checkout, and its copy /session) ONLY. The scripts inside
+        the template are verbatim from marketing and inert here; the loader below copies them into <head> in the
+        same order, but only on those pages (and not on localhost / 127.0.0.1 unless the URL has ?tracking=1).
+        Clarity: the user's project yq01yosiny replaced marketing's x7zzw5k3pd here (2026-09-29) — Clarity supports
+        only one project per page.
         -->
         <template id="checkout-head-scripts">
 <script src="https://tether.drshumard.com/api/shumard.js"></script>
@@ -279,13 +281,14 @@ hyrosHead.appendChild(hyrosScript);
         c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
         t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
         y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "x7zzw5k3pd");
+    })(window, document, "clarity", "script", "yq01yosiny");
 </script>
         </template>
         <script>
             (function () {
                 var devHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
-                if (location.pathname.replace(/\/+$/, '') !== '/checkout') return;
+                var page = location.pathname.replace(/\/+$/, '');
+                if (page !== '/checkout' && page !== '/session') return;
                 if (devHost && !/[?&]tracking=1(&|$)/.test(location.search)) return;
                 var scripts = document.getElementById('checkout-head-scripts').content.querySelectorAll('script');
                 // One at a time, waiting for each external file, so everything runs in the supplied

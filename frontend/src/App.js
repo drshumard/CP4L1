@@ -292,7 +292,7 @@ function GlobalSupport() {
 
   // The help box is a PATIENT affordance: never on admin/staff surfaces or the
   // prototype preview ('/staff' also covers /staff-login).
-  if (['/admin', '/staff', '/prototype', '/checkout'].some((p) => pathname.startsWith(p))) return null;
+  if (['/admin', '/staff', '/prototype', '/checkout', '/session'].some((p) => pathname.startsWith(p))) return null;
   // On phones it crowds the UI — only the login page and the dashboard keep it.
   if (isMobile && !['/', '/dashboard', '/login'].includes(pathname)) return null;
   return <SupportPopup />;
@@ -325,6 +325,9 @@ function App() {
             <Route path="/booking-complete" element={<BookingThankYou />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/complete" element={<CheckoutComplete />} />
+            {/* The same checkout for a second traffic source; the payment records which page it came from. */}
+            <Route path="/session" element={<Checkout page="/session" />} />
+            <Route path="/session/complete" element={<CheckoutComplete page="/session" />} />
             <Route path="/refunded" element={<PrivateRoute><RefundedPage /></PrivateRoute>} />
             <Route path="/" element={isStaffHost() ? <Navigate to="/staff" replace /> : <JourneyRoute><PortalDashboard /></JourneyRoute>} />
             <Route path="/dashboard" element={<JourneyRoute><PortalDashboard /></JourneyRoute>} />

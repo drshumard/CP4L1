@@ -369,12 +369,28 @@ class AutomationCreate(BaseModel):
     trigger: str  # "new_booking" or "cancelled_booking"
     actions: List[AutomationAction]  # Multiple actions supported
     enabled: bool = True
+    checkout_page: Optional[str] = None  # "Checkout purchase" only: "/checkout" or "/session"; unset/"any" = every page
 
 class AutomationUpdate(BaseModel):
     name: Optional[str] = None
     trigger: Optional[str] = None
     actions: Optional[List[AutomationAction]] = None
     enabled: Optional[bool] = None
+    checkout_page: Optional[str] = None  # "any" clears it
+
+
+# Automation triggers that come from a checkout payment — they can be limited to one checkout page.
+CHECKOUT_TRIGGERS = ("checkout_purchase", "checkout_refund")
+
+
+def _checkout_page_filter(value: Optional[str]) -> Optional[str]:
+    """An automation's checkout-page limit: None (every page) for unset/"any", else one of the checkout pages."""
+    from checkout import CHECKOUT_PAGES
+    if not value or value == "any":
+        return None
+    if value not in CHECKOUT_PAGES:
+        raise HTTPException(status_code=400, detail=f"checkout_page must be any or one of {list(CHECKOUT_PAGES)}")
+    return value
 
 # Helper Functions
 def verify_password(plain_password, hashed_password):
@@ -1090,6 +1106,10 @@ async def execute_automations(trigger: str, data: dict, only: Optional[set] = No
         automation_id = automation.get("id")
         automation_name = automation.get("name", "Unnamed")
         
+        # A "Checkout purchase" automation can be limited to one checkout page; a manual send picks its own targets
+        if not only and automation.get("checkout_page") and automation["checkout_page"] != data.get("checkout_page"):
+            continue
+
         # Support both old 'action' (single) and new 'actions' (multiple) format
         actions = automation.get("actions", [])
         if not actions and automation.get("action"):
@@ -3792,7 +3812,7 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
     """Create a new automation with multiple actions"""
     
     # Validate trigger
-    valid_triggers = ["new_booking", "cancelled_booking", "checkout_purchase"]
+    valid_triggers = ["new_booking", "cancelled_booking", *CHECKOUT_TRIGGERS]
     if automation.trigger not in valid_triggers:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -3812,6 +3832,7 @@ async def create_automation(automation: AutomationCreate, admin_user: dict = Dep
         "trigger": automation.trigger,
         "actions": [action.model_dump() for action in automation.actions],
         "enabled": automation.enabled,
+        "checkout_page": _checkout_page_filter(automation.checkout_page) if automation.trigger in CHECKOUT_TRIGGERS else None,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": admin_user.get("email"),
         "updated_at": datetime.now(timezone.utc).isoformat()
@@ -3855,7 +3876,7 @@ async def update_automation(automation_id: str, automation: AutomationUpdate, ad
     if automation.name is not None:
         update_data["name"] = automation.name
     if automation.trigger is not None:
-        valid_triggers = ["new_booking", "cancelled_booking", "checkout_purchase"]
+        valid_triggers = ["new_booking", "cancelled_booking", *CHECKOUT_TRIGGERS]
         if automation.trigger not in valid_triggers:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -3868,6 +3889,10 @@ async def update_automation(automation_id: str, automation: AutomationUpdate, ad
         update_data["action"] = None
     if automation.enabled is not None:
         update_data["enabled"] = automation.enabled
+    if (automation.trigger or existing.get("trigger")) not in CHECKOUT_TRIGGERS:
+        update_data["checkout_page"] = None          # the page limit only means something for checkout payments
+    elif automation.checkout_page is not None:
+        update_data["checkout_page"] = _checkout_page_filter(automation.checkout_page)
     
     await db.automations.update_one({"id": automation_id}, {"$set": update_data})
     
@@ -3953,6 +3978,35 @@ async def send_purchase_automations(session_id: str, body: PurchaseAutomationsRe
                            details={"stripe_session_id": session_id,
                                     "actions": [{k: r.get(k) for k in ("automation_name", "action_name", "success")} for r in results]})
     return {"results": results}
+
+class PurchaseRefundRequest(BaseModel):
+    amount: Optional[int] = Field(None, gt=0)   # cents; unset = everything still refundable
+    cancel_session: bool = True
+    mark_refunded: bool = True
+    email_patient: bool = True
+    note: Optional[str] = Field(None, max_length=500)
+    request_id: str = Field(..., min_length=8, max_length=64)   # the dialog's; a resend of it refunds once
+
+
+@api_router.post("/admin/purchases/{session_id}/refund")
+async def refund_purchase_endpoint(session_id: str, body: PurchaseRefundRequest, request: Request,
+                                   admin_user: dict = Depends(require_capability("purchases.manage"))):
+    """Refund a /checkout or /session payment on Stripe (Admin > Purchases), full or partial, with the side effects
+    the admin picked: cancel the session, mark the patient refunded (step 0), email them a refund confirmation."""
+    from checkout import refund_purchase
+    result = await refund_purchase(
+        session_id, amount=body.amount, cancel_session=body.cancel_session, mark_refunded=body.mark_refunded,
+        email_patient=body.email_patient, note=body.note, request_id=body.request_id, admin_email=admin_user.get("email"))
+    if not result["replayed"]:
+        details = {"stripe_session_id": session_id, "refund_id": result["refund"]["id"], "amount": result["refund"]["amount"],
+                   **{k: result[k] for k in ("session_cancelled", "marked_refunded", "email_sent", "remaining")}}
+        await log_admin_action("ADMIN_PURCHASE_REFUNDED", admin_user=admin_user, request=request, details=details,
+                               target_email=result.get("email"), target_user_id=result.get("user_id"))
+        if result["marked_refunded"]:
+            await log_activity(event_type="USER_STEP_CHANGED", user_email=result.get("email"), user_id=result.get("user_id"),
+                               details={"new_step": 0, "new_step_name": "Refunded", "changed_by": admin_user.get("email"),
+                                        "reason": "purchase refunded"}, status="success")
+    return result
 
 @api_router.post("/admin/automation-logs/{log_id}/retry")
 async def retry_automation_log(log_id: str, admin_user: dict = Depends(require_capability("automations.manage"))):
@@ -4092,6 +4146,35 @@ async def test_automation(automation_id: str, admin_user: dict = Depends(require
             "outcome": "booked",
             "user_id": "test-user-id",
             "new_account": True,
+            "checkout_page": automation.get("checkout_page") or "/checkout",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "_test": True
+        }
+    elif trigger == "checkout_refund":  # same fields as checkout.refund_purchase sends
+        test_data = {
+            "trigger": "checkout_refund",
+            "first_name": "Test",
+            "last_name": "User",
+            "email": "test@example.com",
+            "mobile_phone": "+1234567890",
+            "amount": 97.0,
+            "currency": "usd",
+            "stripe_session_id": "cs_test_123",
+            "stripe_payment_intent_id": "pi_test_123",
+            "booking_id": "test-booking-123",
+            "session_date": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
+            "timezone": "America/New_York",
+            "outcome": "booked",
+            "user_id": "test-user-id",
+            "new_account": True,
+            "checkout_page": automation.get("checkout_page") or "/checkout",
+            "refund_id": "re_test_123",
+            "refund_amount": 97.0,
+            "refunded_total": 97.0,
+            "fully_refunded": True,
+            "session_cancelled": True,
+            "marked_refunded": True,
+            "email_sent": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "_test": True
         }
