@@ -1,120 +1,170 @@
-/* Design tokens + hand-rolled utilities from the standalone supplementor app, SCOPED to
-   .supp-app so nothing leaks into the rest of the portal (their index.css applied these
-   to :root/body). shadcn token overrides were deliberately NOT ported — the portal's
-   theme wins, so the module inherits the admin look. The one exception is the font: the
-   original app's Inter Tight is restored below (loaded via App.css's Google Fonts import). */
-
-@font-face { font-family: "Inter Checkout"; src: url(../../checkout/inter-var-latin.woff2) format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
-
-.supp-app {
-  /* Surfaces — the Lyra workspace canvas */
-  --canvas: #f8f9fc;
-  --surface: #FFFFFF;
-  --surface-hover: #f7f9fd;
-  --surface-subtle: #f3f5f9;
-
-  /* Ink scale — Lyra */
-  --ink: #243047;
-  --ink-2: #37465d;
-  --ink-3: #4c5d75;
-  --ink-muted: #65738a;
-  --ink-subtle: #8a96a8;
-  --ink-faint: #b3bdcb;
-
-  /* Hairlines */
-  --hairline: #e7ecf3;
-  --hairline-strong: #dfe5ee;
-
-  /* Accent — the brand blue (variable names kept so the pages need no edits) */
+/* LYRA: square geometry, restrained surfaces, explicit hierarchy. Rules stay
+   inside Supplementor, including .supp-theme on Radix portal content. */
+@font-face {
+  font-family: "Inter Checkout";
+  src: url(../../checkout/inter-var-latin.woff2) format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+.supp-shell, .supp-app, .supp-theme {
+  --font-sans: "Inter Checkout", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: var(--font-sans);
+  --canvas: #f7f7f8;
+  --surface: #fff;
+  --surface-hover: #f5f5f6;
+  --surface-subtle: #eeeef0;
+  --ink: #202124;
+  --ink-2: #35363a;
+  --ink-3: #505158;
+  --ink-muted: #6b6d75;
+  --ink-subtle: #777982;
+  --ink-faint: #aaadb5;
+  --hairline: #e1e3e8;
+  --hairline-strong: #ccd0d8;
+  /* The portal brand: blue identifies selections; yellow advances the workflow. */
   --brand: #315fd1;
+  --brand-hover: #2654cc;
+  --brand-ink: #244aa5;
+  --brand-wash: #edf2ff;
+  --brand-wash-hover: #dfe7fb;
+  --brand-border: #cbd8fb;
   --yellow: #ffc24a;
-  --accent-teal: #315fd1;
-  --accent-teal-hover: #2654cc;
-  --accent-teal-wash: #edf2ff;
-  --accent-teal-wash-hover: #dfe7fb;
-
-  /* Elevation — restrained */
-  --shadow-xs: 0 1px 0 rgba(36, 48, 71, 0.03);
-  --shadow-sm: 0 3px 6px rgba(35, 54, 79, 0.02), 0 10px 30px rgba(35, 54, 79, 0.03);
-  --shadow-md: 0 3px 6px rgba(35, 54, 79, 0.05), 0 10px 30px rgba(35, 54, 79, 0.08);
-  --shadow-lg: 0 12px 32px rgba(20, 35, 70, 0.14);
-  --shadow-inspector: -8px 0 24px rgba(36, 48, 71, 0.05);
-
-  /* Focus — no rings (user's call); keyboard focus keeps the outline below */
+  --action: var(--yellow);
+  --action-hover: #ffb72e;
+  --action-ink: #282614;
+  --action-border: #b98220;
+  --accent-teal: var(--brand);
+  --accent-teal-hover: var(--brand-hover);
+  --accent-teal-wash: var(--brand-wash);
+  --accent-teal-wash-hover: var(--brand-wash-hover);
+  --success: var(--brand-ink);
+  --success-wash: var(--brand-wash);
+  --success-border: var(--brand-border);
+  --shadow-xs: none;
+  --shadow-sm: none;
+  --shadow-md: 0 6px 20px #20212410;
+  --shadow-lg: 0 20px 60px #20212424;
+  --shadow-inspector: -1px 0 0 var(--hairline);
   --focus: none;
   --focus-subtle: none;
-
-  /* Motion */
-  --ease-out: cubic-bezier(.32, .72, 0, 1);
-  --ease-in-out: cubic-bezier(.32, .72, 0, 1);
-
-  --font-sans: "Inter Checkout", Inter, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-
+  --ease-out: cubic-bezier(.22,.61,.36,1);
+  --ease-in-out: cubic-bezier(.4,0,.2,1);
+  --background: 0 0% 100%;
+  --foreground: 225 6% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: var(--foreground);
+  --popover: 0 0% 100%;
+  --popover-foreground: var(--foreground);
+  --primary: 222.75 63.75% 50.59%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 5% 96%;
+  --secondary-foreground: var(--foreground);
+  --muted: 240 5% 96%;
+  --muted-foreground: 225 5% 44%;
+  --accent: 223.33 100% 96.47%;
+  --accent-foreground: 222.35 64.18% 39.41%;
+  --destructive: 0 65% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 223 13% 90%;
+  --input: 220 12% 82%;
+  --ring: var(--primary);
+  --radius: 0px;
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink-2);
+  --sidebar-border: var(--hairline);
   background: var(--canvas);
   color: var(--ink);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
 }
-.supp-app a:focus-visible, .supp-app button:focus-visible { outline: 3px solid #9bb5f5; outline-offset: 3px; }
-
-/* Lyra radii: the pages were written with Tailwind's md/lg/xl; the design language is 3–4px. */
-.supp-app .rounded-md { border-radius: 3px; }
-.supp-app .rounded-lg, .supp-app .rounded-xl { border-radius: 4px; }
-.supp-app .rounded-t-lg, .supp-app .rounded-t-xl { border-top-left-radius: 4px; border-top-right-radius: 4px; }
-.supp-app .rounded-b-lg, .supp-app .rounded-b-xl { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
-
-/* Primary actions: solid-accent buttons become the Lyra yellow CTA (badges/labels on the accent stay blue). */
-.supp-app button.bg-\[color\:var\(--accent-teal\)\] { background: var(--yellow); border: 1px solid #edb443; color: #3b311d; box-shadow: none; }
-.supp-app button.bg-\[color\:var\(--accent-teal\)\]:hover:not(:disabled) { background: #ffb936; }
-.supp-app button.bg-\[color\:var\(--accent-teal\)\]:active:not(:disabled) { transform: translateY(1px); }
-/* Segmented toggles (Yes/No, filters) keep the blue selected state — they aren't calls to action. */
-.supp-app [role="group"] button.bg-\[color\:var\(--accent-teal\)\], .supp-app [role="tablist"] button.bg-\[color\:var\(--accent-teal\)\] { background: var(--accent-teal); border-color: transparent; color: #fff; }
-.supp-app [role="group"] button.bg-\[color\:var\(--accent-teal\)\]:hover:not(:disabled) { background: var(--accent-teal-hover); }
-
-/* Text inputs: no focus ring (index.css adds a teal one at high specificity). */
-.supp-app input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus, .supp-app textarea:focus { box-shadow: none !important; border-color: #b3bcc7 !important; outline: none; }
-
-/* App.css puts Space Grotesk on headings (and the staff shell's .admin-geist puts Geist): Inter everywhere here. */
-.supp-app h1, .supp-app h2, .supp-app h3, .supp-app h4, .supp-app h5, .supp-app h6 { font-family: var(--font-sans); }
-.admin-geist .supp-app h1, .admin-geist .supp-app h2, .admin-geist .supp-app h3,
-.admin-geist .supp-app h4, .admin-geist .supp-app h5, .admin-geist .supp-app h6 {
-  font-family: var(--font-sans);
+.supp-theme { background: var(--surface); }
+body:has(.supp-shell) [data-sonner-toaster] {
+  --success-bg: #edf2ff;
+  --success-border: #cbd8fb;
+  --success-text: #244aa5;
 }
-
-.supp-app .font-mono { font-family: var(--font-mono); }
-
-.supp-app .hairline { border-color: var(--hairline); }
-.supp-app .hairline-b { border-bottom: 1px solid var(--hairline); }
-.supp-app .hairline-t { border-top: 1px solid var(--hairline); }
-.supp-app .hairline-r { border-right: 1px solid var(--hairline); }
-.supp-app .hairline-l { border-left: 1px solid var(--hairline); }
-
-.supp-app .surface { background: var(--surface); }
-.supp-app .surface-2 { background: var(--surface-hover); }
+.supp-shell :is(h1,h2,h3,h4,h5,h6,button,input,textarea,select,kbd),
+.admin-geist .supp-shell :is(h1,h2,h3,h4,h5,h6),
+.supp-theme :is(h1,h2,h3,h4,h5,h6,button,input,textarea,select,kbd),
+.supp-shell .font-mono, .supp-theme .font-mono { font-family: var(--font-sans); }
+.supp-shell button:not(:disabled), .supp-theme button:not(:disabled) { cursor: pointer; }
+.supp-shell button:disabled, .supp-theme button:disabled { cursor: not-allowed; }
+/* Focus stays functional without an outline or ring, including portaled controls. */
+:is(.supp-shell, .supp-app, .supp-theme):is(:focus, :focus-visible),
+:is(.supp-shell, .supp-app, .supp-theme) :is(:focus, :focus-visible),
+[data-sidebar="sidebar"][data-mobile="true"]:has(.supp-theme):is(:focus, :focus-visible),
+body:has(.supp-shell) [data-sonner-toaster]:is(:focus, :focus-visible),
+body:has(.supp-shell) [data-sonner-toaster] :is(:focus, :focus-visible) {
+  outline: none !important;
+  outline-offset: 0 !important;
+  --tw-ring-offset-width: 0px !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  box-shadow: none !important;
+}
+.supp-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.supp-shell textarea:focus, .supp-theme input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.supp-theme textarea:focus { border-color: var(--hairline-strong) !important; box-shadow: none !important; }
+.supp-app :is(.rounded,.rounded-sm,.rounded-md,.rounded-lg,.rounded-xl,.rounded-2xl),
+.supp-theme, .supp-theme :is(.rounded,.rounded-sm,.rounded-md,.rounded-lg,.rounded-xl,.rounded-2xl) { border-radius: 0; }
+.supp-app :is(.rounded-t-lg,.rounded-t-xl,.rounded-b-lg,.rounded-b-xl) { border-radius: 0; }
+.supp-app .hairline, .supp-theme .hairline { border-color: var(--hairline); }
+.supp-app .hairline-b, .supp-theme .hairline-b { border-bottom: 1px solid var(--hairline); }
+.supp-app .hairline-t, .supp-theme .hairline-t { border-top: 1px solid var(--hairline); }
+.supp-app .hairline-r, .supp-theme .hairline-r { border-right: 1px solid var(--hairline); }
+.supp-app .hairline-l, .supp-theme .hairline-l { border-left: 1px solid var(--hairline); }
+.supp-app .surface, .supp-theme .surface { background: var(--surface); }
+.supp-app .surface-2, .supp-theme .surface-2 { background: var(--surface-hover); }
 .supp-app .canvas { background: var(--canvas); }
-
-.supp-app .text-ink { color: var(--ink); }
-.supp-app .text-ink-2 { color: var(--ink-2); }
-.supp-app .text-ink-3 { color: var(--ink-3); }
-.supp-app .text-ink-muted { color: var(--ink-muted); }
-.supp-app .text-ink-subtle { color: var(--ink-subtle); }
-
-.supp-app .chrome-blur {
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-}
-
-.supp-app .ring-focus { box-shadow: var(--focus); }
-
+.supp-app .text-ink, .supp-theme .text-ink { color: var(--ink); }
+.supp-app .text-ink-2, .supp-theme .text-ink-2 { color: var(--ink-2); }
+.supp-app .text-ink-3, .supp-theme .text-ink-3 { color: var(--ink-3); }
+.supp-app .text-ink-muted, .supp-theme .text-ink-muted { color: var(--ink-muted); }
+.supp-app .text-ink-subtle, .supp-theme .text-ink-subtle { color: var(--ink-subtle); }
+.supp-app .text-ink-faint, .supp-theme .text-ink-faint { color: var(--ink-faint); }
+.supp-app .chrome-blur { background: var(--surface); }
 .supp-app .row-hover:hover { background: var(--surface-hover); }
-
-@keyframes supp-fade-up {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+.supp-app [data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--ink-subtle); }
+.supp-page { max-width: 1600px; min-height: 100%; margin-inline: auto; padding-bottom: 32px; }
+.supp-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 28px 32px 28px; }
+.supp-page-header h1 { margin: 0 0 6px; font-size: 32px; line-height: 1.15; font-weight: 500; letter-spacing: -.055em; }
+.supp-page-header p { color: var(--ink-muted); font-size: 13px; line-height: 1.65; }
+.supp-page-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.supp-app .supp-button, .supp-theme .supp-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 14px; border: 1px solid var(--hairline-strong); background: white; color: var(--ink); font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.supp-app .supp-button:hover, .supp-theme .supp-button:hover { background: var(--surface-hover); }
+.supp-app .supp-button-primary, .supp-theme .supp-button-primary { border-color: var(--action-border); background: var(--action); color: var(--action-ink); }
+.supp-app .supp-button-primary:hover:not(:disabled), .supp-theme .supp-button-primary:hover:not(:disabled) { background: var(--action-hover); }
+.supp-app .supp-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 7px; border: 1px solid #e8dfc9; color: #886329; background: #faf6eb; font-size: 11px; white-space: nowrap; }
+.supp-app .supp-status::before { content: ''; width: 5px; height: 5px; background: currentColor; }
+.supp-app .supp-status[data-status="finalized"] { border-color: var(--success-border); color: var(--success); background: var(--success-wash); }
+.supp-app .supp-empty { display: grid; justify-items: center; gap: 12px; padding: 52px 24px; text-align: center; color: var(--ink-muted); }
+.supp-app .supp-empty h3 { color: var(--ink); font-size: 16px; font-weight: 500; }
+.supp-app .supp-empty p { max-width: 380px; font-size: 13px; }
+.supp-app .supp-table-wrap { position: relative; overflow: auto; }
+.supp-app .supp-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+.supp-app .supp-table th { padding: 12px 18px; background: var(--surface-hover); color: var(--ink-muted); text-align: left; font-size: 11px; font-weight: 500; border-block: 1px solid var(--hairline); }
+.supp-app .supp-table td { padding: 16px 18px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.supp-app .supp-table tbody tr:last-child td { border-bottom: 0; }
+.supp-app .supp-table tbody tr:hover { background: var(--surface-hover); }
+.supp-app .supp-table .number { text-align: right; font-variant-numeric: tabular-nums; }
+.supp-app .supp-table a { color: var(--ink); font-weight: 500; text-decoration: none; }
+.supp-app .supp-table a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.supp-app .supp-table small { display: block; margin-top: 3px; color: var(--ink-muted); font-size: 11px; font-weight: 400; }
+.supp-theme[role="dialog"]:not([data-side]), .supp-theme[role="alertdialog"] { width: calc(100vw - 32px); max-height: calc(100svh - 32px); overflow-y: auto; }
+@keyframes supp-fade-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.supp-app .animate-fade-up { animation: supp-fade-up 180ms var(--ease-out); }
+@media (max-width: 767px) {
+  .supp-page-header { padding: 24px 20px 22px; align-items: flex-start; flex-direction: column; gap: 16px; }
+  .supp-page-header h1 { font-size: 28px; }
+  .supp-page > .px-8 { padding-inline: 20px; }
+  .supp-page-actions { width: 100%; }
 }
-.supp-app .animate-fade-up { animation: supp-fade-up 220ms var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .supp-shell *, .supp-theme * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 
-/* Placeholder text for empty contentEditable cells (plan editor notes). */
-.supp-app [data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--ink-faint); }
+.supp-theme[data-side] { max-width: calc(100vw - 32px); }
+
+.supp-app :is(.pw-table-scroll, .lib-table-scroll, .plan-schedule-scroll) { position: relative; }

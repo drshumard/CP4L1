@@ -5,14 +5,18 @@ import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Truck } from 'lucide-react';
+import { Plus, Trash2, Truck, Search, Pencil, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader, { PageContainer } from '../components/PageHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { formatCurrency } from '../lib/utils';
+import '../styles/library-workspace.css';
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [error, setError] = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const [editData, setEditData] = useState({ name: '', freight_charge: '', notes: '' });
   const [editId, setEditId] = useState(null);
@@ -21,8 +25,9 @@ export default function SuppliersPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError('');
     try { const res = await getSuppliers(); setSuppliers(res.suppliers || []); }
-    catch (err) { toast.error('Failed to load suppliers'); }
+    catch (err) { setError('Suppliers could not be loaded. Please try again.'); }
     finally { setLoading(false); }
   }, []);
 
@@ -58,73 +63,58 @@ export default function SuppliersPage() {
     finally { setDeleteId(null); }
   };
 
+  const visibleSuppliers = suppliers.filter(supplier => `${supplier.name} ${supplier.notes || ''}`.toLowerCase().includes(search.trim().toLowerCase()));
+
   return (
     <PageContainer>
-      <PageHeader
-        title="Suppliers"
-        subtitle="Freight is charged once per supplier per month"
-      >
-        <button
-          onClick={openAdd}
-          data-testid="admin-suppliers-add-button"
-          className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md text-[13px] font-medium bg-[color:var(--accent-teal)] text-white hover:bg-[color:var(--accent-teal-hover)] shadow-[var(--shadow-xs)]"
-        >
-          <Plus size={14} /> Add supplier
-        </button>
+      <PageHeader title="Suppliers" subtitle="Keep supplier details and freight rates in one place.">
+        <button onClick={openAdd} data-testid="admin-suppliers-add-button" className="lib-button lib-button--primary"><Plus size={15} /> Add supplier</button>
       </PageHeader>
 
-      <div className="px-8 py-6">
-        <div
-          className="rounded-lg border hairline surface overflow-hidden shadow-[var(--shadow-xs)]"
-          data-testid="admin-suppliers-table"
-        >
-          <div
-            className="grid items-center h-9 px-5 hairline-b text-[10px] font-semibold tracking-[0.09em] uppercase text-[color:var(--accent-teal)]"
-            style={{
-              gridTemplateColumns: '1fr 160px',
-              background: 'linear-gradient(90deg, rgba(13,95,104,0.08) 0%, rgba(70,152,157,0.12) 50%, rgba(13,95,104,0.08) 100%)',
-            }}
-          >
-            <span>Supplier</span>
-            <span className="text-right">Freight</span>
-          </div>
-
-          {loading ? (
-            <div className="h-40 flex items-center justify-center gap-2 text-[12px] text-ink-muted">
-              <div className="w-4 h-4 border-2 border-[color:var(--accent-teal)] border-t-transparent rounded-full animate-spin" />
-              Loading…
+      <div className="library-workspace">
+        {error && <div className="lib-error" role="alert"><AlertCircle size={17} /> {error}<button className="lib-button" onClick={fetchData}>Try again</button></div>}
+        <div className="lib-split">
+          <div>
+            <div className="lib-toolbar">
+              <div className="lib-search"><Search size={16} /><Input aria-label="Search suppliers" placeholder="Search suppliers…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+              <span className="lib-toolbar-count" aria-live="polite">{visibleSuppliers.length} supplier{visibleSuppliers.length !== 1 ? 's' : ''}</span>
             </div>
-          ) : suppliers.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center gap-2 text-ink-subtle">
-              <Truck size={26} strokeWidth={1.4} className="text-ink-faint" />
-              <p className="text-[13px] text-ink-muted">No suppliers yet</p>
-            </div>
-          ) : (
-            suppliers.map(s => (
-              <div
-                key={s._id}
-                onClick={() => openEdit(s)}
-                className="grid items-center min-h-[48px] px-5 py-2 border-b border-[color:var(--hairline)] last:border-b-0 row-hover cursor-pointer transition-colors"
-                style={{ gridTemplateColumns: '1fr 160px' }}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-md bg-[color:var(--accent-teal-wash)] flex items-center justify-center shrink-0">
-                    <Truck size={13} className="text-[color:var(--accent-teal)]" />
-                  </div>
-                  <span className="text-[13px] font-medium text-ink truncate">{s.name}</span>
+            <section className="lib-panel" data-testid="admin-suppliers-table" aria-label="Supplier directory">
+              {loading ? <div className="lib-loading" role="status">Loading suppliers…</div> : error ? null : visibleSuppliers.length === 0 ? (
+                <div className="lib-empty">
+                  <Truck size={28} strokeWidth={1.4} />
+                  <h2>{search ? 'No matching suppliers' : 'Add your first supplier'}</h2>
+                  <p>{search ? 'Search by a different name or clear your search.' : 'Connect products to a supplier so freight is included in protocol estimates.'}</p>
+                  <button className={`lib-button ${search ? '' : 'lib-button--primary'}`} onClick={search ? () => setSearch('') : openAdd}>{search ? 'Clear search' : 'Add supplier'}</button>
                 </div>
-                <span className="font-mono tabular-nums text-[13px] font-semibold text-ink text-right whitespace-nowrap">
-                  ${(s.freight_charge || 0).toFixed(2)}
-                </span>
-              </div>
-            ))
-          )}
+              ) : (
+                <div className="lib-table-scroll">
+                  <table className="lib-table" style={{ minWidth: 550 }}>
+                    <thead><tr><th scope="col">Supplier</th><th scope="col" className="lib-numeric">Monthly freight</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+                    <tbody>{visibleSuppliers.map(supplier => (
+                      <tr key={supplier._id}>
+                        <td className="lib-name">{supplier.name}<span className="lib-cell-detail">{supplier.notes || 'No additional notes'}</span></td>
+                        <td className="lib-numeric">{formatCurrency(supplier.freight_charge || 0)}<span className="lib-cell-detail">per patient plan</span></td>
+                        <td><div className="lib-row-actions"><button className="lib-row-action" onClick={() => openEdit(supplier)} aria-label={`Edit ${supplier.name}`}><Pencil size={13} /> Edit</button><button className="lib-row-action lib-row-action--danger" onClick={() => setDeleteId(supplier._id)} aria-label={`Delete ${supplier.name}`}><Trash2 size={13} /></button></div></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+          <aside className="lib-aside">
+            <div className="lib-aside-icon"><Truck size={18} strokeWidth={1.5} /></div>
+            <h2>How freight is calculated</h2>
+            <p>A supplier’s freight charge is included once per month when products from that supplier need to ship for a patient’s plan.</p>
+            <dl><div><dt>Multiple products in one shipment</dt><dd>One freight charge per month</dd></div><div><dt>No products need to ship</dt><dd>No freight charge applied</dd></div></dl>
+          </aside>
         </div>
       </div>
 
       {/* Edit dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-w-[440px] p-0 gap-0 overflow-hidden rounded-xl border hairline shadow-[var(--shadow-lg)]">
+        <DialogContent style={{ '--dialog-width': '480px' }} className="supp-theme lib-dialog max-w-[480px] p-0 gap-0 border hairline">
           <DialogHeader className="px-6 pt-6 pb-4 space-y-1">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
@@ -133,7 +123,7 @@ export default function SuppliersPage() {
               {editId && (
                 <button
                   onClick={() => { setEditOpen(false); setDeleteId(editId); }}
-                  className="inline-flex items-center gap-1 h-7 px-2 rounded text-[11px] font-medium text-red-600 hover:bg-red-50"
+                  className="lib-button lib-button--quiet lib-button--danger mr-5"
                 >
                   <Trash2 size={11} /> Delete
                 </button>
@@ -145,8 +135,9 @@ export default function SuppliersPage() {
           </DialogHeader>
           <div className="px-6 pb-5 grid gap-3.5">
             <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Supplier name <span className="text-red-600">*</span></Label>
+              <Label htmlFor="supplier-name" className="text-[13px] font-medium text-ink-3">Supplier name <span className="text-red-600">*</span></Label>
               <Input
+                id="supplier-name"
                 value={editData.name}
                 onChange={(e) => setEditData({ ...editData, name: e.target.value })}
                 className="h-9 text-[13px]"
@@ -155,20 +146,23 @@ export default function SuppliersPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Freight charge ($)</Label>
+              <Label htmlFor="supplier-freight" className="text-[13px] font-medium text-ink-3">Freight charge ($)</Label>
               <Input
+                id="supplier-freight"
                 type="number"
+                min="0"
                 step="0.01"
                 value={editData.freight_charge}
                 onChange={(e) => setEditData({ ...editData, freight_charge: e.target.value })}
-                className="h-9 text-[13px] font-mono tabular-nums"
+                className="h-9 text-[13px] tabular-nums"
                 placeholder="0.00"
               />
-              <p className="text-[11.5px] text-ink-subtle">Charged once per month when any supplement from this supplier is in a plan.</p>
+              <p className="text-[12px] text-ink-subtle">Charged once per month when any supplement from this supplier is in a plan.</p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Notes</Label>
+              <Label htmlFor="supplier-notes" className="text-[13px] font-medium text-ink-3">Notes</Label>
               <Input
+                id="supplier-notes"
                 value={editData.notes}
                 onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
                 className="h-9 text-[13px]"
@@ -179,16 +173,16 @@ export default function SuppliersPage() {
           <DialogFooter className="px-6 py-4 bg-[color:var(--surface-hover)] hairline-t gap-2">
             <button
               onClick={() => setEditOpen(false)}
-              className="h-9 px-4 rounded-md text-[13px] font-medium border hairline bg-white hover:bg-[color:var(--surface-subtle)] text-ink-3 hover:text-ink"
+              className="lib-button"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="h-9 px-4 rounded-md text-[13px] font-semibold bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)] text-white disabled:opacity-60"
+              className="lib-button lib-button--primary"
             >
-              {saving ? 'Saving…' : editId ? 'Update' : 'Add supplier'}
+              {saving ? 'Saving…' : editId ? 'Save changes' : 'Add supplier'}
             </button>
           </DialogFooter>
         </DialogContent>

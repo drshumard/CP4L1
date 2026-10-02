@@ -10,16 +10,15 @@ import { getDoseSchedule, normalizeDosageEntry, unitLabel, updateDosageEntry } f
 import { afterLatestPlanSaved, clonePlan, createPlanSaveQueue, mergeSavedPlan } from '../lib/planSaveQueue';
 import { useAuth } from '../auth';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
 import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -37,7 +36,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
 import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+  TooltipProvider,
 } from '@/components/ui/tooltip';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -47,9 +46,10 @@ import {
   ArrowLeft, Plus, Trash2, Download, FileText, Eye, EyeOff, Save,
   Snowflake, Lock, Unlock, Copy, User, CopyPlus,
   GripVertical, CalendarDays, Circle, MoreHorizontal, MoreVertical, CloudUpload, AlertTriangle,
-  Layers,
+  Layers, Check, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import '../styles/plan-workspace.css';
 
 // Backend timestamps are naive UTC — append Z so they parse as UTC, not local
 const fmtTplDate = (d) => {
@@ -99,8 +99,8 @@ function SortableRow({ id, disabled, children }) {
     zIndex: isDragging ? 10 : 'auto',
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
+    <div ref={setNodeRef} style={style}>
+      {children({ ...attributes, ...listeners })}
     </div>
   );
 }
@@ -116,7 +116,7 @@ function MonthSection({
   const [deleteRow, setDeleteRow] = useState(null);
   const [deleteFromAll, setDeleteFromAll] = useState(false);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const suppIds = (month.supplements || []).map((_, i) => `supp-${month.month_number}-${i}`);
 
@@ -138,7 +138,7 @@ function MonthSection({
     month.month_number % 1 !== 0 ? `Month ${Math.floor(month.month_number)} + 2 Weeks` :
     `Month ${month.month_number}`;
   // Mirrors the backend's days_in_period: the 2-week period is 14 days, everything else 30.
-  const supplyDays = month.month_number === 0.5 ? 14 : 30;
+  const supplyDays = month.month_number % 1 === 0.5 ? 14 : 30;
   const count = (month.supplements || []).length;
   const editable = !isFinalized && !patientView;
 
@@ -164,10 +164,10 @@ function MonthSection({
   };
 
   return (
-    <section className="mb-8" data-testid={`month-page-${month.month_number}`}>
-      <div className="rounded-xl border hairline surface shadow-[var(--shadow-xs)] px-5 pt-5 pb-5">
+    <section className="plan-month-section" data-testid={`month-page-${month.month_number}`}>
+      <div className="plan-month-card">
         {/* Header: period + supply on the left, cost roll-up on the right */}
-        <div className="flex items-start justify-between gap-6 pb-4">
+        <div className="plan-month-heading">
           <div>
             <h3 className="text-[18px] font-semibold tracking-[-0.02em] text-ink leading-tight">{monthLabel}</h3>
             <p className="mt-0.5 text-[13px] text-ink-muted">
@@ -189,28 +189,15 @@ function MonthSection({
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border hairline overflow-hidden">
-          {/* Brand accent strip (original) */}
-          <div
-            aria-hidden
-            className="h-[2px] w-full"
-            style={{ background: 'linear-gradient(90deg, #0D5F68 0%, #46989D 50%, #0D5F68 100%)' }}
-          />
-          {/* Column headers (original colors) */}
-          <div
-            className="grid items-center px-3 h-9 gap-x-3 text-[10px] font-semibold tracking-[0.09em] uppercase text-[color:var(--accent-teal)]"
-            style={{
-              gridTemplateColumns: cols,
-              background: 'linear-gradient(90deg, rgba(13,95,104,0.12) 0%, rgba(70,152,157,0.18) 50%, rgba(13,95,104,0.12) 100%)',
-            }}
-          >
+        <div className="plan-schedule-scroll"><div className="plan-schedule-table">
+          <div className="plan-schedule-columns" style={{ gridTemplateColumns: cols }}>
             {!patientView && <span />}
             <span className="pl-2">Supplement</span>
             <span className="text-center">Schedule</span>
             <span className="text-center">With food</span>
-            <span>Notes</span>
+            <span className="pl-2">Notes</span>
             {showCosts && !patientView && (<>
-              <span className="text-center">Btls</span>
+              <span className="text-center">Bottles</span>
               <span className="text-center">Cost</span>
             </>)}
             {editable && <span />}
@@ -226,15 +213,13 @@ function MonthSection({
                   const summary = dosageSummary(supp);
                   return (
                     <SortableRow key={suppIds[idx]} id={suppIds[idx]} disabled={!editable}>
-                      <div
-                        className="grid items-center px-3 py-2.5 gap-x-3 border-b border-[color:var(--hairline)] last:border-b-0 row-hover transition-colors duration-100 group"
+                      {(dragProps) => <div
+                        className="plan-schedule-row group"
                         style={{ gridTemplateColumns: cols }}
                       >
                         {/* Drag handle */}
                         {!patientView && (
-                          <div className="flex items-center justify-center cursor-grab active:cursor-grabbing drag-handle">
-                            <GripVertical size={12} className="text-ink-faint group-hover:text-ink-subtle" />
-                          </div>
+                          <button type="button" {...dragProps} disabled={!editable} className="plan-drag-handle" aria-label={`Reorder ${supp.supplement_name}`}><GripVertical size={14} /></button>
                         )}
 
                         {/* Supplement: name, refrigerate chip, then the schedule-derived dosage line */}
@@ -251,23 +236,23 @@ function MonthSection({
                         </div>
 
                         {/* Schedule cells */}
-                        <div>
+                        <div className="plan-dose-cell">
                           <div className="flex justify-center gap-2">
                             {SCHEDULE_SLOTS.map(({ time, label }) => {
                               const dose = schedule.find((d) => d.time === time);
                               const val = dose ? dose.quantity : '';
                               return (
-                                <div key={time} className="flex flex-col items-center gap-1">
-                                  <span className="text-[10.5px] text-ink-subtle">{label}</span>
+                                <div key={time} className="plan-dose-slot">
+                                  <span className="plan-dose-label">{label}</span>
                                   {editable ? (
                                     <input
                                       type="number" inputMode="decimal" min="0.01" step="any" value={val} placeholder="–"
                                       aria-label={`${supp.supplement_name} ${label} quantity`}
                                       onChange={(e) => setSlot(supp, idx, time, e.target.value)}
-                                      className="w-[54px] h-[30px] rounded-md border hairline bg-white text-center text-[13.5px] text-ink tabular-nums outline-none focus:shadow-[var(--focus-subtle)] placeholder:text-ink-faint [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      className="plan-dose-input"
                                     />
                                   ) : (
-                                    <div className="w-[54px] h-[30px] flex items-center justify-center rounded-md border hairline bg-white text-[13.5px] text-ink tabular-nums">
+                                    <div className="plan-dose-value">
                                       {val === '' ? '–' : val}
                                     </div>
                                   )}
@@ -278,15 +263,15 @@ function MonthSection({
                           {supp.dosage_error && <p role="alert" className="mt-1.5 text-center text-[11px] text-red-700">{supp.dosage_error}</p>}
                         </div>
 
-                        {/* With food */}
-                        <div className="flex justify-center">
+                        {/* With food shares the dose control row, below the time labels. */}
+                        <div className="plan-food-cell">
                           {patientView ? (
-                            <span className="text-[13px] text-ink-3">{supp.with_food ? 'Yes' : 'No'}</span>
+                            <span className="plan-food-value">{supp.with_food ? 'Yes' : 'No'}</span>
                           ) : (
-                            <div className="inline-flex items-center rounded-md border hairline bg-white p-[2px]" role="group" aria-label={`${supp.supplement_name} with food`}>
+                            <div className="plan-food-toggle" role="group" aria-label={`${supp.supplement_name} with food`}>
                               {[['Yes', true], ['No', false]].map(([label, val]) => (
                                 <button
-                                  key={label} type="button" disabled={isFinalized}
+                                  key={label} type="button" disabled={isFinalized} aria-pressed={!!supp.with_food === val}
                                   onClick={() => onUpdateField(month.month_number, idx, 'with_food', val)}
                                   className={`h-6 px-3 rounded text-[12px] font-semibold transition-colors ${
                                     !!supp.with_food === val
@@ -302,18 +287,19 @@ function MonthSection({
                         </div>
 
                         {/* Notes */}
-                        <div className="min-w-0">
+                        <div className="plan-row-field plan-notes-cell">
                           {editable ? (
                             <div
                               contentEditable
+                              role="textbox" aria-label={`${supp.supplement_name} instructions`}
                               suppressContentEditableWarning
                               data-placeholder="Add note"
-                              className="text-[12.5px] text-ink-muted outline-none min-h-[18px] break-words cursor-text rounded px-1 -mx-1 leading-snug focus:bg-white focus:shadow-[var(--focus-subtle)] focus:text-ink-3"
+                              className="plan-notes-value cursor-text"
                               onBlur={(e) => onUpdateField(month.month_number, idx, 'instructions', e.target.textContent)}
                               dangerouslySetInnerHTML={{ __html: escapeHtml(supp.instructions || '') }}
                             />
                           ) : (
-                            <span className="text-[12.5px] text-ink-muted block break-words leading-snug">
+                            <span className="plan-notes-value">
                               {(supp.instructions || '').replace(/<[^>]*>/g, '').trim() || '—'}
                             </span>
                           )}
@@ -321,17 +307,17 @@ function MonthSection({
 
                         {/* Bottles + cost (both from the existing recalculation) */}
                         {showCosts && !patientView && (<>
-                          <div className="font-mono tabular-nums text-[12px] text-ink-3 text-center">
+                          <div className="plan-row-field plan-bottles-cell tabular-nums text-[12px] text-ink-3 text-center">
                             {supp.bottles_needed || '—'}
                           </div>
-                          <div className="text-center text-[13px] font-semibold text-ink tabular-nums whitespace-nowrap">
+                          <div className="plan-row-field plan-cost-cell text-center text-[13px] font-semibold text-ink tabular-nums whitespace-nowrap">
                             {formatCurrency(supp.calculated_cost)}
                           </div>
                         </>)}
 
                         {/* Row menu */}
                         {editable && (
-                          <div className="flex justify-center">
+                          <div className="plan-row-field plan-row-menu">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
@@ -342,7 +328,7 @@ function MonthSection({
                                   <MoreVertical size={14} />
                                 </button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
+                              <DropdownMenuContent align="end" className="supp-theme">
                                 <DropdownMenuItem onClick={() => { setDeleteFromAll(false); setDeleteRow(idx); }}>
                                   <Trash2 size={13} /> Remove from this month
                                 </DropdownMenuItem>
@@ -353,14 +339,14 @@ function MonthSection({
                             </DropdownMenu>
                           </div>
                         )}
-                      </div>
+                      </div>}
                     </SortableRow>
                   );
                 })}
               </SortableContext>
             </DndContext>
           )}
-        </div>
+        </div></div>
 
         {/* Add supplement */}
         {editable && (
@@ -369,13 +355,13 @@ function MonthSection({
               <PopoverTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border-[1.5px] border-[color:var(--accent-teal)] text-[color:var(--accent-teal)] text-[13px] font-semibold hover:bg-[color:var(--accent-teal-wash)] transition-colors"
+                  className="plan-ui-button plan-ui-button-primary"
                   data-testid={`month-${month.month_number}-add-supplement`}
                 >
                   <Plus size={14} /> Add supplement
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-[460px] p-0" align="start">
+              <PopoverContent className="supp-theme w-[460px] p-0" align="start">
                 <Command>
                   <CommandInput placeholder="Search supplements…" value={searchQuery} onValueChange={setSearchQuery} />
                   <CommandList>
@@ -405,7 +391,7 @@ function MonthSection({
       </div>
 
       <AlertDialog open={deleteRow !== null} onOpenChange={() => { setDeleteRow(null); setDeleteFromAll(false); }}>
-        <AlertDialogContent className="p-0 gap-0 max-w-[440px] overflow-hidden border hairline shadow-[var(--shadow-lg)] rounded-xl">
+        <AlertDialogContent className="supp-theme p-0 gap-0 max-w-[440px] overflow-hidden border hairline shadow-[var(--shadow-lg)] rounded-xl">
           <div className="px-6 pt-6 pb-5">
             <div className="flex items-start gap-4">
               <div className="shrink-0 w-10 h-10 rounded-full bg-red-50 border border-red-100 flex items-center justify-center">
@@ -480,6 +466,8 @@ export default function PlanEditorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showCosts, setShowCosts] = useState(true);
+  const [activeMonthNumber, setActiveMonthNumber] = useState(null);
+  const [saveMessage, setSaveMessage] = useState('Changes save automatically');
   const [patientViewMode, setPatientViewMode] = useState(false);
   const [supplements, setSupplements] = useState([]);
   const [supplierFreight, setCompanyFreight] = useState({});
@@ -512,13 +500,16 @@ export default function PlanEditorPage() {
       if (activePlanIdRef.current === planId) {
         setPlan(current => mergeSavedPlan(current, planData, result));
       }
+      if (activePlanIdRef.current === planId) setSaveMessage('All changes saved');
       return result;
     } catch (err) {
+      if (activePlanIdRef.current === planId) setSaveMessage('Save failed — please retry');
       throw new Error(`Plan not saved. ${err.message || 'Please try again before continuing.'}`);
     }
   }, [planId, saveQueue, setPlan, cancelPendingSave]);
 
   const debouncedSave = useCallback((planData) => {
+    setSaveMessage('Unsaved changes');
     cancelPendingSave();
     saveTimerRef.current = setTimeout(() => {
       saveTimerRef.current = null;
@@ -591,6 +582,8 @@ export default function PlanEditorPage() {
         }
         if (cancelled) return;
         setPlan(p); setSupplements(s.supplements || []);
+        setActiveMonthNumber(null);
+        setSaveMessage('Changes save automatically');
         const freightMap = {};
         for (const co of (c.suppliers || [])) { if (co.freight_charge > 0) freightMap[co.name] = co.freight_charge; }
         setCompanyFreight(freightMap);
@@ -851,6 +844,7 @@ export default function PlanEditorPage() {
     const num = Math.ceil(last?.month_number || 0) + 1;
     np.months = [...(np.months || []), { month_number: num, supplements: (last?.supplements || []).map(s => ({ ...s })), monthly_total_cost: 0 }];
     recalcAndUpdate(np);
+    setActiveMonthNumber(num);
   };
   const addTwoWeeks = () => {
     if (!planRef.current || isFinalized || actionLockRef.current) return;
@@ -858,6 +852,7 @@ export default function PlanEditorPage() {
     const num = (last?.month_number || 0) + 0.5;
     np.months = [...(np.months || []), { month_number: num, supplements: (last?.supplements || []).map(s => ({ ...s })), monthly_total_cost: 0 }];
     recalcAndUpdate(np);
+    setActiveMonthNumber(num);
   };
   const removeLastMonth = () => {
     if (!planRef.current || isFinalized || actionLockRef.current || (planRef.current.months?.length || 0) <= 1) return;
@@ -898,399 +893,101 @@ export default function PlanEditorPage() {
   }
   if (!plan) return null;
 
-  const statusLabel = (plan.status || 'draft').toUpperCase();
+  const statusLabel = isFinalized ? 'Finalized' : 'Draft';
+  const months = plan.months || [];
+  const activeMonth = months.find(month => month.month_number === activeMonthNumber) || months[0];
+  const visibleMonths = patientViewMode ? months : activeMonth ? [activeMonth] : [];
+  const phaseLabel = number => number === 0.5 ? '2 weeks' : number % 1 ? `Month ${Math.floor(number)} + 2 weeks` : `Month ${number}`;
+  const totalSupplements = months.reduce((sum, month) => sum + (month.supplement_cost || month.monthly_total_cost || 0), 0);
+  const totalShipping = months.reduce((sum, month) => sum + (month.freight_total || 0), 0);
+  const uniqueSupplements = new Set(months.flatMap(month => (month.supplements || []).map(supp => supp.supplement_name))).size;
+  const scheduleIssues = months.reduce((sum, month) => sum + (month.supplements || []).filter(supp => supp.dosage_error || !editorDoseSchedule(supp).some(dose => Number(dose.quantity) > 0)).length, 0);
+  const handlePhaseKeyDown = (event, index) => {
+    const next = event.key === 'ArrowRight' ? (index + 1) % months.length
+      : event.key === 'ArrowLeft' ? (index - 1 + months.length) % months.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? months.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault();
+    setActiveMonthNumber(months[next].month_number);
+    event.currentTarget.parentElement.querySelectorAll('[role=tab]')[next]?.focus();
+  };
+
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="min-h-[calc(100vh-3rem)] canvas">
-
-        {/* Page header — sticky */}
-        <header className="chrome-blur hairline-b sticky top-0 z-30 px-8 pt-4 pb-3">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-1.5 text-[11px] text-ink-subtle mb-1.5">
-            <button onClick={() => navigate('/staff/supplements')} className="hover:text-ink-3 transition-colors">Dashboard</button>
-            <span className="text-ink-faint">/</span>
-            {plan?.patient_id && (
-              <>
-                <button onClick={() => navigate(`/staff/supplements/patients/${plan.patient_id}`)} className="hover:text-ink-3 transition-colors">
-                  {plan.patient_name}
-                </button>
-                <span className="text-ink-faint">/</span>
-              </>
-            )}
-            <span className="text-ink-3 font-medium">{plan?.program_name} — {plan?.step_label}</span>
-          </div>
-
-          {/* Title row */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={goBack}
-              className="h-8 w-8 flex items-center justify-center rounded-md text-ink-subtle hover:text-ink hover:bg-[color:var(--surface-hover)] transition-colors shrink-0"
-              aria-label="Back"
-            >
-              <ArrowLeft size={16} />
-            </button>
-
-            {plan.patient_id ? (
-              <button
-                onClick={() => navigate(`/staff/supplements/patients/${plan.patient_id}`)}
-                className="text-[20px] font-semibold text-ink tracking-[-0.02em] hover:text-[color:var(--accent-teal)] transition-colors truncate"
-                data-testid="plan-editor-patient-name"
-              >
-                {plan.patient_name}
-              </button>
-            ) : (
-              <Input
-                value={plan.patient_name || ''}
-                onChange={(e) => updatePatientName(e.target.value)}
-                className="text-[20px] font-semibold border-0 bg-transparent h-9 px-0 focus-visible:ring-0 focus-visible:ring-offset-0 tracking-[-0.02em] max-w-[280px] shadow-none"
-                placeholder="Patient name"
-                data-testid="plan-editor-patient-name"
-                disabled={isReadOnly}
-              />
-            )}
-
-            {/* Meta */}
-            <div className="flex items-center gap-1.5 text-[12px] text-ink-muted min-w-0 truncate">
-              <span className="text-ink-faint">·</span>
-              <span className="truncate">{plan.program_name}</span>
-              <span className="text-ink-faint">·</span>
-              <span className="truncate">{plan.step_label || `Step ${plan.step_number}`}</span>
-              <span className="text-ink-faint">·</span>
-              <span className="font-mono tabular-nums">{plan.date}</span>
-            </div>
-
-            {/* Right cluster: status · total · saving · view toggles · actions */}
-            <div className="ml-auto flex items-center gap-2 shrink-0">
-              <div className={`inline-flex items-center gap-1.5 h-6 px-2 rounded-md text-[10.5px] font-semibold uppercase tracking-[0.08em] ${
-                isFinalized
-                  ? 'bg-[color:var(--accent-teal-wash)] text-[color:var(--accent-teal)]'
-                  : 'bg-amber-50 text-amber-800'
-              }`}>
-                <Circle size={6} fill="currentColor" strokeWidth={0} />
-                {statusLabel}
+      <div className="plan-editor-page">
+        <header className="plan-editor-header">
+          <nav className="plan-breadcrumb" aria-label="Breadcrumb">
+            <button onClick={goBack}><ArrowLeft size={14} /> {plan.patient_id ? 'Patient record' : 'All plans'}</button>
+            <ChevronRight size={13} /><span>{plan.program_name} · {plan.step_label || `Step ${plan.step_number}`}</span>
+          </nav>
+          <div className="plan-editor-title-row">
+            <div className="plan-editor-identity">
+              <div className="plan-title-with-status"><h1>{plan.program_name} <span>/ {plan.step_label || `Step ${plan.step_number}`}</span></h1><span className={`plan-status ${isFinalized ? 'is-finalized' : ''}`}><Circle size={6} fill="currentColor" />{statusLabel}</span></div>
+              <div className="plan-patient-context"><User size={14} />
+                {plan.patient_id ? <button onClick={() => navigate(`/staff/supplements/patients/${plan.patient_id}`)} data-testid="plan-editor-patient-name">{plan.patient_name}</button> : <Input value={plan.patient_name || ''} onChange={e => updatePatientName(e.target.value)} aria-label="Patient name" placeholder="Patient name" data-testid="plan-editor-patient-name" disabled={isReadOnly} />}
+                <span className="plan-context-divider" /><CalendarDays size={14} /><span>{plan.date}</span>
               </div>
-
-              {effectiveShowCosts && (
-                <div
-                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-[color:var(--surface-hover)] hairline border leading-none"
-                  data-testid="plan-editor-cost-summary"
-                >
-                  <span className="text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-subtle leading-none">Total</span>
-                  <span
-                    className="font-mono tabular-nums text-[13px] font-semibold text-ink leading-none"
-                    data-testid="cost-summary-total-value"
-                  >
-                    {formatCurrency(plan.total_program_cost || 0)}
-                  </span>
-                </div>
-              )}
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={handleSaveToDrive}
-                    disabled={savingDrive || actionBusy}
-                    data-testid="plan-editor-save-drive-pill"
-                    className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md bg-white hairline border text-[12px] font-medium text-ink-3 hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors disabled:opacity-60"
-                    aria-label="Save to Dropbox"
-                  >
-                    {savingDrive ? (
-                      <span className="w-3 h-3 border-[1.5px] border-[color:var(--accent-teal)] border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <CloudUpload size={13} className="text-[color:var(--accent-teal)]" />
-                    )}
-                    <span className="hidden md:inline">{savingDrive ? 'Saving…' : 'Save to Dropbox'}</span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">Save to Dropbox</TooltipContent>
-              </Tooltip>
-
-              {saving && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center justify-center h-7 w-7" aria-label="Saving">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--accent-teal)] animate-pulse" />
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="text-xs">Saving…</TooltipContent>
-                </Tooltip>
-              )}
-
-              {/* View toggles — icon only */}
-              {!patientViewMode && (
-                <>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setShowCosts(v => !v)}
-                        className="h-7 w-7 flex items-center justify-center rounded-md text-ink-muted hover:text-ink hover:bg-[color:var(--surface-hover)] transition-colors"
-                        data-testid="plan-editor-toggle-costs"
-                        aria-label={showCosts ? 'Hide costs' : 'Show costs'}
-                      >
-                        {showCosts ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">
-                      {showCosts ? 'Hide costs' : 'Show costs'}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setPatientViewMode(true)}
-                        className="h-7 w-7 flex items-center justify-center rounded-md text-ink-muted hover:text-ink hover:bg-[color:var(--surface-hover)] transition-colors"
-                        data-testid="plan-editor-patient-view-toggle"
-                        aria-label="Patient view"
-                      >
-                        <User size={14} />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="text-xs">Patient view</TooltipContent>
-                  </Tooltip>
-                </>
-              )}
-
-              {/* Actions */}
+            </div>
+            <div className="plan-header-actions">
+              {!patientViewMode && !isFinalized && <button className="plan-ui-button plan-ui-button-secondary" onClick={() => { document.activeElement?.blur(); savePlan().catch(err => toast.error(err.message)); }} disabled={saving || actionBusy} data-testid="plan-editor-save-button"><Save size={15} />{saving ? 'Saving…' : 'Save'}</button>}
+              <button className="plan-ui-button plan-ui-button-primary" onClick={handleExportPatient} disabled={exporting || actionBusy} data-testid="plan-editor-export-patient-pdf"><Download size={15} />{exporting ? 'Exporting…' : 'Export patient PDF'}</button>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md text-[12px] font-medium text-ink-3 border hairline bg-white hover:bg-[color:var(--surface-hover)] transition-colors"
-                    aria-label="Actions"
-                    disabled={actionBusy}
-                  >
-                    <MoreHorizontal size={13} />
-                    <span>Actions</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">Export</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={handleExportPatient} disabled={exporting} data-testid="plan-editor-export-patient-pdf">
-                    <Download size={13} className="mr-2" /> Export patient PDF
-                  </DropdownMenuItem>
-                  {!patientViewMode && (
-                    <DropdownMenuItem onClick={handleExportHC} disabled={exporting} data-testid="plan-editor-export-hc-pdf">
-                      <FileText size={13} className="mr-2" /> Export HC PDF
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={handleSaveToDrive} disabled={savingDrive} data-testid="plan-editor-save-drive">
-                    <Download size={13} className="mr-2" />
-                    {savingDrive ? 'Saving to Dropbox…' : 'Save to Dropbox'}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-[0.1em] text-ink-subtle">Plan</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={openDuplicateDialog}>
-                    <Copy size={13} className="mr-2" /> Duplicate plan
-                  </DropdownMenuItem>
-                  {user?.role === 'admin' && (
-                    <DropdownMenuItem onClick={openSaveTemplateDialog} data-testid="plan-editor-save-as-template">
-                      <Layers size={13} className="mr-2" /> Save as template
-                    </DropdownMenuItem>
-                  )}
-                  {!isFinalized && !patientViewMode && (
-                    <>
-                      <DropdownMenuItem onClick={() => savePlan().catch((err) => toast.error(err.message))} disabled={saving || actionBusy} data-testid="plan-editor-save-button">
-                        <Save size={13} className="mr-2" />
-                        {saving ? 'Saving…' : 'Save plan'}
-                        <kbd className="ml-auto text-[10px] font-mono text-ink-subtle">⌘S</kbd>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setConfirmFinalize(true)} className="text-amber-800" data-testid="plan-editor-finalize-button">
-                        <Lock size={13} className="mr-2" /> Finalize plan
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {isFinalized && (
-                    <DropdownMenuItem onClick={handleReopen} className="text-amber-800">
-                      <Unlock size={13} className="mr-2" /> Reopen plan
-                    </DropdownMenuItem>
-                  )}
+                <DropdownMenuTrigger asChild><button className="plan-ui-icon-button" aria-label="Plan actions"><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="supp-theme w-60">
+                  <DropdownMenuLabel>Export & share</DropdownMenuLabel>
+                  {!patientViewMode && <DropdownMenuItem onClick={handleExportHC} disabled={exporting || actionBusy} data-testid="plan-editor-export-hc-pdf"><FileText size={15} className="mr-2" />Export clinician PDF</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={handleSaveToDrive} disabled={savingDrive || actionBusy} data-testid="plan-editor-save-drive"><CloudUpload size={15} className="mr-2" />{savingDrive ? 'Saving to Dropbox…' : 'Save to Dropbox'}</DropdownMenuItem>
+                  <DropdownMenuSeparator /><DropdownMenuLabel>Manage plan</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={openDuplicateDialog} disabled={actionBusy}><Copy size={15} className="mr-2" />Duplicate plan</DropdownMenuItem>
+                  {user?.role === 'admin' && <DropdownMenuItem onClick={openSaveTemplateDialog} disabled={actionBusy} data-testid="plan-editor-save-as-template"><Layers size={15} className="mr-2" />Save as template</DropdownMenuItem>}
+                  {isFinalized && <DropdownMenuItem onClick={handleReopen} disabled={actionBusy}><Unlock size={15} className="mr-2" />Reopen plan</DropdownMenuItem>}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </div>
+          <div className="plan-editor-utility-row"><span className="plan-save-status" role="status"><span className={saving ? 'is-saving' : ''} />{isFinalized ? 'Finalized plan · editing locked' : saving ? 'Saving changes…' : saveMessage}</span>
+            <div className="plan-view-controls">
+              <button onClick={handleSaveToDrive} disabled={savingDrive || actionBusy} data-testid="plan-editor-save-drive-pill"><CloudUpload size={14} />{savingDrive ? 'Saving to Dropbox…' : 'Save to Dropbox'}</button>
+              {!patientViewMode && <button onClick={() => setShowCosts(v => !v)} data-testid="plan-editor-toggle-costs" aria-pressed={showCosts}>{showCosts ? <EyeOff size={14} /> : <Eye size={14} />}{showCosts ? 'Hide costs' : 'Show costs'}</button>}
+              <button onClick={() => setPatientViewMode(v => !v)} data-testid="plan-editor-patient-view-toggle" aria-pressed={patientViewMode}><User size={14} />{patientViewMode ? 'Back to editor' : 'Patient preview'}</button>
+            </div>
+          </div>
         </header>
 
-        {/* Sub-toolbar */}
-        {!isReadOnly && !patientViewMode && (
-          <div className="chrome-blur hairline-b sticky top-[80px] z-20 px-8 h-10 flex items-center gap-1">
-            <Popover open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-[12px] font-medium bg-[color:var(--accent-teal)] text-white hover:bg-[color:var(--accent-teal-hover)] transition-colors"
-                  data-testid="plan-editor-add-all-months"
-                >
-                  <CopyPlus size={12} />
-                  Add to all months
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[460px] p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Search supplements…" value={globalSearchQuery} onValueChange={setGlobalSearchQuery} />
-                  <CommandList>
-                    <CommandEmpty>No supplements found.</CommandEmpty>
-                    <CommandGroup className="max-h-[300px] overflow-y-auto">
-                      {globalFiltered.slice(0, 30).map(supp => (
-                        <CommandItem
-                          key={supp._id}
-                          value={supp.supplement_name}
-                          onSelect={() => { addSupplementToAllMonths(supp); setGlobalSearchOpen(false); setGlobalSearchQuery(''); }}
-                          className="flex items-center justify-between cursor-pointer py-2.5 px-3"
-                        >
-                          <div>
-                            <div className="text-[13px] font-medium">{supp.supplement_name}</div>
-                            <div className="text-[11px] text-ink-subtle">{supp.company}</div>
-                          </div>
-                          <span className="text-[11px] font-mono text-ink-muted ml-4">{formatCurrency(supp.cost_per_bottle)}</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+        <div className="plan-editor-body">
+          {isFinalized && <div className="plan-notice"><Lock size={17} /><div><strong>This plan is finalized.</strong><span>Reopen to make changes, or duplicate it to start a new draft.</span></div><button className="plan-ui-button plan-ui-button-secondary" onClick={handleReopen} disabled={actionBusy}><Unlock size={14} />Reopen plan</button></div>}
+          {patientViewMode && <div className="plan-notice"><User size={17} /><div><strong>Patient preview</strong><span>Review the complete schedule. Costs and editing controls are hidden.</span></div><button className="plan-ui-button plan-ui-button-secondary" onClick={() => setPatientViewMode(false)}>Back to editor</button></div>}
 
-            <Separator orientation="vertical" className="h-4 mx-1.5" />
-
-            <button
-              onClick={addMonth}
-              className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-[12px] font-medium text-ink-3 hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors"
-              data-testid="plan-editor-add-month"
-            >
-              <Plus size={12} /> Add month
-            </button>
-            <button
-              onClick={addTwoWeeks}
-              className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-[12px] font-medium text-ink-3 hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors"
-            >
-              <Plus size={12} /> Add 2 weeks
-            </button>
-            {(plan.months?.length || 0) > 1 && (
-              <button
-                onClick={removeLastMonth}
-                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-md text-[12px] font-medium text-ink-subtle hover:bg-red-50 hover:text-red-600 transition-colors"
-              >
-                <Trash2 size={11} /> Remove last
-              </button>
-            )}
-
-            <div className="ml-auto flex items-center gap-1.5 text-[11px] text-ink-subtle">
-              <CalendarDays size={12} />
-              <span>{(plan.months || []).length} {(plan.months || []).length === 1 ? 'month' : 'months'}</span>
+          {!patientViewMode && <section className="plan-phase-navigation" aria-label="Plan phases">
+            <div className="plan-section-label"><div><span className="plan-ui-eyebrow">Treatment schedule</span><h2>{months.length} {months.length === 1 ? 'phase' : 'phases'} in this plan</h2></div>
+              {!isFinalized && <DropdownMenu><DropdownMenuTrigger asChild><button className="plan-ui-button plan-ui-button-secondary" disabled={actionBusy}><Plus size={14} />Extend plan<ChevronDown size={13} /></button></DropdownMenuTrigger><DropdownMenuContent className="supp-theme" align="end"><DropdownMenuItem onClick={addMonth} data-testid="plan-editor-add-month"><Plus size={14} className="mr-2" />Add month</DropdownMenuItem><DropdownMenuItem onClick={addTwoWeeks}><Plus size={14} className="mr-2" />Add 2 weeks</DropdownMenuItem>{months.length > 1 && <><DropdownMenuSeparator /><DropdownMenuItem onClick={removeLastMonth} className="text-red-700"><Trash2 size={14} className="mr-2" />Remove last phase</DropdownMenuItem></>}</DropdownMenuContent></DropdownMenu>}
             </div>
-          </div>
-        )}
-
-        {/* Banners */}
-        {isFinalized && (
-          <div className="mx-8 mt-4 rounded-md bg-amber-50/60 border border-amber-200/70 px-4 py-3 flex items-center gap-3">
-            <Lock size={14} className="text-amber-700 shrink-0" />
-            <span className="text-[13px] text-amber-900 font-medium">This plan is finalized.</span>
-            <div className="ml-auto flex gap-2">
-              <Button size="sm" onClick={handleReopen} className="gap-1.5 h-7 px-3 text-[12px] font-medium bg-amber-700 hover:bg-amber-800 text-white">
-                <Unlock size={12} /> Reopen
-              </Button>
-              <Button variant="outline" size="sm" onClick={openDuplicateDialog} className="gap-1.5 h-7 px-3 text-[12px] font-medium">
-                <Copy size={12} /> Duplicate
-              </Button>
+            <div className="plan-phase-list" role="tablist" aria-label="Choose a phase">
+              {months.map((month, index) => <button type="button" key={month.month_number} id={`plan-phase-${index}`} role="tab" tabIndex={activeMonth?.month_number === month.month_number ? 0 : -1} onKeyDown={event => handlePhaseKeyDown(event, index)} aria-selected={activeMonth?.month_number === month.month_number} aria-controls="plan-active-phase" onClick={() => setActiveMonthNumber(month.month_number)} className={`plan-phase-tab ${activeMonth?.month_number === month.month_number ? 'is-active' : ''}`}><span className="plan-phase-index">{String(index + 1).padStart(2, '0')}</span><span><strong>{phaseLabel(month.month_number)}</strong><small>{month.supplements?.length || 0} supplements{effectiveShowCosts ? ` · ${formatCurrency(month.monthly_total_cost || 0)}` : ''}</small></span><ChevronRight size={15} /></button>)}
             </div>
-          </div>
-        )}
-        {patientViewMode && (
-          <div className="mx-8 mt-4 rounded-md bg-[color:var(--accent-teal-wash)] border border-[color:var(--accent-teal)]/20 px-4 py-3 flex items-center gap-3">
-            <User size={14} className="text-[color:var(--accent-teal)] shrink-0" />
-            <span className="text-[13px] text-[color:var(--accent-teal)] font-medium">Patient view — costs hidden.</span>
-            <Button size="sm" onClick={() => setPatientViewMode(false)} className="ml-auto h-7 px-3 text-[12px] font-medium bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)] text-white">
-              Exit
-            </Button>
-          </div>
-        )}
+          </section>}
 
-        {/* Months */}
-        <div className="px-8 py-6">
-          <div className="animate-fade-up">
-            {(plan.months || []).map((month) => (
-              <MonthSection
-                key={month.month_number}
-                month={month}
-                showCosts={effectiveShowCosts}
-                patientView={patientViewMode}
-                isFinalized={isReadOnly}
-                onUpdateField={updateField}
-                onRemoveRow={removeRow}
-                onRemoveFromAll={removeFromAllMonths}
-                onReorder={reorderSupplements}
-                onAddSupplement={addSupplementToMonth}
-                supplements={supplements}
-                formatCurrency={formatCurrency}
-              />
-            ))}
+          {!isFinalized && !patientViewMode && <div className="plan-workspace-toolbar"><div><strong>Make this phase personal</strong><span>Set the quantity at each time of day. Leave a time blank to skip it.</span></div>
+            <Popover open={globalSearchOpen} onOpenChange={setGlobalSearchOpen}><PopoverTrigger asChild><button className="plan-ui-button plan-ui-button-secondary" disabled={actionBusy} data-testid="plan-editor-add-all-months"><CopyPlus size={15} />Add to all phases</button></PopoverTrigger><PopoverContent className="supp-theme w-[460px] p-0" align="end"><Command><CommandInput placeholder="Search supplements…" value={globalSearchQuery} onValueChange={setGlobalSearchQuery} /><CommandList><CommandEmpty>No supplements found.</CommandEmpty><CommandGroup className="max-h-[300px] overflow-y-auto">{globalFiltered.slice(0, 30).map(supp => <CommandItem key={supp._id} value={supp.supplement_name} onSelect={() => { addSupplementToAllMonths(supp); setGlobalSearchOpen(false); setGlobalSearchQuery(''); }} className="flex items-center justify-between py-3"><div><div>{supp.supplement_name}</div><div className="text-xs text-ink-muted">{supp.company}</div></div><span className="text-xs text-ink-muted">{formatCurrency(supp.cost_per_bottle)}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent></Popover>
+          </div>}
 
-            {/* Program cost breakdown */}
-            {effectiveShowCosts && (plan.months || []).length > 0 && (() => {
-              const totalSupps = (plan.months || []).reduce(
-                (sum, m) => sum + (m.supplement_cost || m.monthly_total_cost || 0), 0
-              );
-              const totalShip = (plan.months || []).reduce(
-                (sum, m) => sum + (m.freight_total || 0), 0
-              );
-              const grand = plan.total_program_cost || 0;
-              return (
-                <div
-                  className="rounded-lg border hairline overflow-hidden shadow-[var(--shadow-xs)] mt-2"
-                  data-testid="plan-editor-program-summary"
-                >
-                  <div
-                    aria-hidden
-                    className="h-[2px] w-full"
-                    style={{ background: 'linear-gradient(90deg, #0D5F68 0%, #46989D 50%, #0D5F68 100%)' }}
-                  />
-                  <div
-                    className="flex items-stretch"
-                    style={{
-                      background: 'linear-gradient(90deg, rgba(13,95,104,0.09) 0%, rgba(70,152,157,0.13) 50%, rgba(13,95,104,0.09) 100%)',
-                    }}
-                  >
-                    <div className="flex-1 px-5 py-4">
-                      <div className="text-[10px] uppercase tracking-[0.1em] font-semibold text-[color:var(--accent-teal)] mb-2">
-                        Program breakdown
-                      </div>
-                      <div className="flex items-center gap-6 flex-wrap">
-                        <div>
-                          <div className="text-[11px] text-ink-subtle">Supplements</div>
-                          <div className="font-mono tabular-nums text-[15px] text-ink font-medium">
-                            {formatCurrency(totalSupps)}
-                          </div>
-                        </div>
-                        <div className="w-px h-8 bg-[color:var(--hairline)]" />
-                        <div>
-                          <div className="text-[11px] text-ink-subtle">Shipping</div>
-                          <div className="font-mono tabular-nums text-[15px] text-ink font-medium">
-                            {formatCurrency(totalShip)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="hairline-l px-6 py-4 flex flex-col items-end justify-center bg-white/40">
-                      <div className="text-[10px] uppercase tracking-[0.1em] font-semibold text-ink-subtle">Program total</div>
-                      <div className="font-mono tabular-nums text-[22px] font-semibold text-ink tracking-tight">
-                        {formatCurrency(grand)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="px-5 py-2 hairline-t text-[10.5px] text-ink-subtle">
-                    Cost visible to HC only · Patient PDFs exclude all cost info
-                  </div>
-                </div>
-              );
-            })()}
+          <div id="plan-active-phase" role={patientViewMode ? undefined : 'tabpanel'} aria-labelledby={patientViewMode ? undefined : `plan-phase-${months.indexOf(activeMonth)}`} tabIndex={patientViewMode ? undefined : 0}>
+            {visibleMonths.map(month => <MonthSection key={month.month_number} month={month} showCosts={effectiveShowCosts} patientView={patientViewMode} isFinalized={isReadOnly} onUpdateField={updateField} onRemoveRow={removeRow} onRemoveFromAll={removeFromAllMonths} onReorder={reorderSupplements} onAddSupplement={addSupplementToMonth} supplements={supplements} formatCurrency={formatCurrency} />)}
           </div>
+
+          {!patientViewMode && <section className="plan-overview" data-testid="plan-editor-program-summary">
+            <div className="plan-overview-context"><span className="plan-ui-eyebrow">Whole plan</span><h2>{plan.program_name} · {plan.step_label || `Step ${plan.step_number}`}</h2><p>{uniqueSupplements} supplements across {months.length} {months.length === 1 ? 'phase' : 'phases'}.</p>{scheduleIssues > 0 ? <div className="plan-review-hint"><AlertTriangle size={15} /><span>{scheduleIssues} {scheduleIssues === 1 ? 'schedule needs' : 'schedules need'} a review before sharing.</span></div> : <div className="plan-review-hint is-complete"><Check size={15} /><span>Review the instructions before sharing with your patient.</span></div>}
+              {!isFinalized && <button className="plan-ui-button plan-ui-button-secondary" onClick={() => setConfirmFinalize(true)} disabled={actionBusy} data-testid="plan-editor-finalize-button"><Lock size={14} />Finalize plan</button>}
+            </div>
+            {effectiveShowCosts && <div className="plan-cost-summary" data-testid="plan-editor-cost-summary"><span className="plan-ui-eyebrow">Estimated program cost</span><dl><div><dt>Supplements</dt><dd>{formatCurrency(totalSupplements)}</dd></div><div><dt>Shipping</dt><dd>{formatCurrency(totalShipping)}</dd></div><div className="plan-cost-total"><dt>Program total</dt><dd data-testid="cost-summary-total-value">{formatCurrency(plan.total_program_cost || 0)}</dd></div></dl><p>For clinicians only. Patient PDFs exclude costs.</p></div>}
+          </section>}
         </div>
       </div>
 
       {/* Duplicate dialog */}
       <Dialog open={dupOpen} onOpenChange={setDupOpen}>
-        <DialogContent className="max-w-[440px] p-7">
+        <DialogContent className="supp-theme max-w-[440px] p-7">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold tracking-[-0.01em]">Duplicate plan</DialogTitle>
             <DialogDescription className="text-[13px] mt-1 text-ink-muted">
@@ -1302,7 +999,7 @@ export default function PlanEditorPage() {
               <Label className="text-[12px] font-medium text-ink-3">Assign to</Label>
               <Select value={dupTarget} onValueChange={setDupTarget}>
                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="supp-theme">
                   <SelectItem value="same">Same patient</SelectItem>
                   <SelectItem value="existing">Existing patient</SelectItem>
                   <SelectItem value="new">New patient</SelectItem>
@@ -1314,7 +1011,7 @@ export default function PlanEditorPage() {
                 <Label className="text-[12px] font-medium text-ink-3">Select patient</Label>
                 <Select value={dupSelectedPatientId} onValueChange={setDupSelectedPatientId}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Choose a patient…" /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="supp-theme">
                     {dupPatients.map(p => (
                       <SelectItem key={p._id} value={p._id}>{p.name}</SelectItem>
                     ))}
@@ -1340,7 +1037,7 @@ export default function PlanEditorPage() {
             <Button
               onClick={handleDuplicate}
               disabled={dupLoading || (dupTarget === 'existing' && !dupSelectedPatientId) || (dupTarget === 'new' && !dupNewName.trim())}
-              className="h-9 px-4 bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)] text-white text-[13px] font-medium"
+              className="supp-button-primary h-9 px-4 text-[13px] font-medium"
             >
               {dupLoading ? 'Duplicating…' : 'Duplicate'}
             </Button>
@@ -1350,7 +1047,7 @@ export default function PlanEditorPage() {
 
       {/* Save as Template dialog */}
       <Dialog open={tplOpen} onOpenChange={setTplOpen}>
-        <DialogContent className="max-w-[440px] p-7">
+        <DialogContent className="supp-theme max-w-[440px] p-7">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold tracking-[-0.01em]">Save as template</DialogTitle>
             <DialogDescription className="text-[13px] mt-1 text-ink-muted">
@@ -1362,7 +1059,7 @@ export default function PlanEditorPage() {
               <Label className="text-[12px] font-medium text-ink-3">Mode</Label>
               <Select value={tplMode} onValueChange={setTplMode}>
                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="supp-theme">
                   <SelectItem value="new">Create new template</SelectItem>
                   <SelectItem value="overwrite">Overwrite existing template</SelectItem>
                 </SelectContent>
@@ -1402,7 +1099,7 @@ export default function PlanEditorPage() {
                       : 'Choose a template…'
                     } />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="supp-theme">
                     {tplOptions.map(t => (
                       <SelectItem key={t._id} value={t._id}>
                         {t.program_name} — Step {t.step_number}
@@ -1424,7 +1121,7 @@ export default function PlanEditorPage() {
             <Button
               onClick={handleSaveTemplate}
               disabled={tplSaving || (tplMode === 'new' && !tplName.trim()) || (tplMode === 'overwrite' && !tplId)}
-              className="h-9 px-4 bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)] text-white text-[13px] font-medium"
+              className="supp-button-primary h-9 px-4 text-[13px] font-medium"
             >
               {tplSaving ? 'Saving…' : 'Save template'}
             </Button>
@@ -1433,7 +1130,7 @@ export default function PlanEditorPage() {
       </Dialog>
 
       <AlertDialog open={confirmFinalize} onOpenChange={setConfirmFinalize}>
-        <AlertDialogContent className="p-7">
+        <AlertDialogContent className="supp-theme p-7">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-base font-semibold tracking-[-0.01em]">Finalize this plan?</AlertDialogTitle>
             <AlertDialogDescription className="text-[13px] mt-2 text-ink-muted">

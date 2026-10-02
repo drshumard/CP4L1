@@ -1,21 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { getPatients, createPatient, deletePatient, searchPbClients } from '../lib/api';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Plus, Search, Trash2, ChevronRight, UserPlus } from 'lucide-react';
+import { Search, Trash2, ArrowUpRight, UserPlus, Users, X, ArrowDownAZ, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader, { PageContainer } from '../components/PageHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
+import '../styles/patient-workspace.css';
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [newPatient, setNewPatient] = useState({ name: '', email: '', phone: '', notes: '' });
   const [saving, setSaving] = useState(false);
@@ -24,19 +26,38 @@ export default function PatientsPage() {
   const [pbResults, setPbResults] = useState([]);
   const [pbLoading, setPbLoading] = useState(false);
   const [pbError, setPbError] = useState(false);
+  const requestGeneration = useRef(0);
+  const activeSearch = useRef(search);
   const navigate = useNavigate();
 
   const fetchData = useCallback(async () => {
+    if (activeSearch.current !== search) return;
+    const generation = ++requestGeneration.current;
     setLoading(true);
+    setError('');
     try {
       const res = await getPatients(search);
+      if (generation !== requestGeneration.current) return;
       setPatients(res.patients || []);
       setTotal(res.total || 0);
-    } catch (err) { toast.error('Failed to load patients'); }
-    finally { setLoading(false); }
+    } catch (err) {
+      if (generation === requestGeneration.current) setError('Patient records could not be loaded. Please try again.');
+    } finally {
+      if (generation === requestGeneration.current) setLoading(false);
+    }
   }, [search]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    activeSearch.current = search;
+    setLoading(true);
+    setError('');
+    const timer = setTimeout(fetchData, search ? 250 : 0);
+    return () => {
+      clearTimeout(timer);
+      ++requestGeneration.current;
+      activeSearch.current = null;
+    };
+  }, [fetchData, search]);
 
   // Reset portal search whenever the Add dialog closes
   useEffect(() => {
@@ -98,212 +119,138 @@ export default function PatientsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Patients" subtitle={`${total} patient${total !== 1 ? 's' : ''}`}>
-        <button
-          onClick={() => setAddOpen(true)}
-          data-testid="add-patient-button"
-          className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md text-[13px] font-medium bg-[color:var(--accent-teal)] text-white hover:bg-[color:var(--accent-teal-hover)] transition-colors shadow-[var(--shadow-xs)]"
-        >
-          <UserPlus size={14} /> Add patient
+      <PageHeader title="Patients" subtitle="A clear view of every patient and their supplement plans.">
+        <button onClick={() => setAddOpen(true)} data-testid="add-patient-button" className="pw-button pw-button-primary">
+          <UserPlus size={15} /> Add patient
         </button>
       </PageHeader>
 
-      <div className="px-8 py-6">
-        <div className="relative max-w-[360px] mb-4">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" />
-          <Input
-            placeholder="Search patients…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            data-testid="patients-search"
-            className="pl-9 h-9 text-[13px] bg-white"
-          />
-        </div>
-
-        <div
-          className="rounded-lg border hairline surface overflow-hidden shadow-[var(--shadow-xs)]"
-          data-testid="patients-table"
-        >
-          <div
-            className="grid items-center h-9 px-5 hairline-b text-[10px] font-semibold tracking-[0.09em] uppercase text-[color:var(--accent-teal)]"
-            style={{
-              gridTemplateColumns: 'minmax(200px,1.5fr) 1fr 160px 80px 60px',
-              background: 'linear-gradient(90deg, rgba(13,95,104,0.08) 0%, rgba(70,152,157,0.12) 50%, rgba(13,95,104,0.08) 100%)',
-            }}
-          >
-            <span>Name</span>
-            <span>Email</span>
-            <span>Phone</span>
-            <span className="text-center">Plans</span>
-            <span />
+      <div className="pw-workspace">
+        <section className="pw-panel" aria-labelledby="patient-directory-heading">
+          <div className="pw-section-heading">
+            <div>
+              <div className="pw-eyebrow">Patient records</div>
+              <h2 id="patient-directory-heading">Your patient directory</h2>
+              <p>Open a record to review details, continue a plan, or start a new one.</p>
+            </div>
+            <span className="pw-count" aria-label={loading || error ? 'Patient count unavailable' : `${total} ${search ? 'matching ' : ''}patients`}>{loading || error ? '—' : total}</span>
           </div>
 
-          {loading ? (
-            <div className="h-40 flex items-center justify-center gap-2 text-[12px] text-ink-muted">
-              <div className="w-4 h-4 border-2 border-[color:var(--accent-teal)] border-t-transparent rounded-full animate-spin" />
-              Loading…
+          <div className="pw-directory-toolbar">
+            <div className="pw-search">
+              <Search size={16} aria-hidden="true" />
+              <Input
+                aria-label="Search patients by name or email"
+                placeholder="Search by name or email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                data-testid="patients-search"
+              />
+              {search && <button onClick={() => setSearch('')} aria-label="Clear patient search"><X size={14} /></button>}
             </div>
-          ) : patients.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center gap-3 text-ink-subtle">
-              <UserPlus size={28} strokeWidth={1.4} className="text-ink-faint" />
-              <p className="text-[13px] text-ink-muted">No patients yet</p>
-              <button
-                onClick={() => setAddOpen(true)}
-                className="h-8 px-3.5 rounded-md text-[12.5px] font-medium bg-[color:var(--accent-teal)] text-white hover:bg-[color:var(--accent-teal-hover)]"
-              >
-                Add your first patient
-              </button>
-            </div>
-          ) : (
-            patients.map(p => (
-              <div
-                key={p._id}
-                onClick={() => navigate(`/staff/supplements/patients/${p._id}`)}
-                className="grid items-center min-h-[48px] px-5 py-1.5 border-b border-[color:var(--hairline)] last:border-b-0 row-hover cursor-pointer transition-colors group"
-                style={{ gridTemplateColumns: 'minmax(200px,1.5fr) 1fr 160px 80px 60px' }}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-7 h-7 rounded-full bg-[color:var(--accent-teal-wash)] flex items-center justify-center text-[11px] font-semibold text-[color:var(--accent-teal)] shrink-0">
-                    {p.name?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                  <span className="text-[13px] font-medium text-ink truncate">{p.name}</span>
-                </div>
-                <span className="text-[12.5px] text-ink-muted truncate">{p.email || '—'}</span>
-                <span className="text-[12.5px] text-ink-muted truncate">{p.phone || '—'}</span>
-                <span className="text-center">
-                  <span className="inline-flex items-center justify-center h-5 min-w-[24px] px-1.5 rounded bg-[color:var(--accent-teal-wash)] text-[10.5px] font-semibold text-[color:var(--accent-teal)]">
-                    {p.plan_count || 0}
-                  </span>
-                </span>
-                <span className="flex items-center justify-end gap-0.5">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteId(p._id); }}
-                    className="h-7 w-7 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity text-ink-subtle hover:text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                  <ChevronRight size={14} className="text-ink-faint" />
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+            <span className="pw-sort-label"><ArrowDownAZ size={15} aria-hidden="true" /> Name, A–Z</span>
+          </div>
+
+          <div className="pw-table-scroll" data-testid="patients-table" aria-busy={loading}>
+            <table className="pw-records-table">
+              <caption className="sr-only">Patient directory, sorted by name</caption>
+              <thead><tr><th>Patient</th><th>Contact details</th><th>Plans</th><th className="pw-added-column">Added</th><th><span className="sr-only">Actions</span></th></tr></thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={5}><div className="pw-empty-state pw-loading" role="status"><span className="pw-spinner" /> Loading patient records…</div></td></tr>
+                ) : error ? (
+                  <tr><td colSpan={5}>
+                    <div className="pw-empty-state" role="alert">
+                      <div className="pw-empty-icon"><AlertCircle size={24} strokeWidth={1.5} /></div>
+                      <h3>Unable to load patients</h3>
+                      <p>{error}</p>
+                      <button onClick={fetchData} className="pw-button pw-button-secondary">Try again</button>
+                    </div>
+                  </td></tr>
+                ) : patients.length === 0 ? (
+                  <tr><td colSpan={5}>
+                    <div className="pw-empty-state">
+                      <div className="pw-empty-icon">{search ? <Search size={24} strokeWidth={1.5} /> : <Users size={24} strokeWidth={1.5} />}</div>
+                      <h3>{search ? 'No matching patients' : 'Start with your first patient'}</h3>
+                      <p>{search ? `No records match “${search}”. Try a different name or email address.` : 'Create a patient record to keep their details and supplement plans together.'}</p>
+                      {search ? (
+                        <button onClick={() => setSearch('')} className="pw-button pw-button-secondary">Clear search</button>
+                      ) : (
+                        <button onClick={() => setAddOpen(true)} className="pw-button pw-button-primary"><UserPlus size={15} /> Add patient</button>
+                      )}
+                    </div>
+                  </td></tr>
+                ) : patients.map(p => (
+                  <tr key={p._id}>
+                    <td>
+                      <Link to={`/staff/supplements/patients/${p._id}`} className="pw-patient-link">
+                        <span className="pw-avatar">{p.name?.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase() || '?'}</span>
+                        <span><strong>{p.name}</strong><span className="pw-record-link">View patient record <ArrowUpRight size={11} /></span></span>
+                      </Link>
+                    </td>
+                    <td><div className="pw-contact-stack"><span>{p.email || 'No email added'}</span><span>{p.phone || 'No phone added'}</span></div></td>
+                    <td><span className={`pw-plan-count ${p.plan_count ? 'pw-plan-count-active' : ''}`}>{p.plan_count || 0} {p.plan_count === 1 ? 'plan' : 'plans'}</span></td>
+                    <td className="pw-added-column pw-muted">{p.created_at ? new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
+                    <td><div className="pw-row-actions">
+                      <button onClick={() => setDeleteId(p._id)} className="pw-icon-button pw-destructive" aria-label={`Delete ${p.name}`} title="Delete patient"><Trash2 size={14} /></button>
+                      <Link to={`/staff/supplements/patients/${p._id}`} className="pw-icon-button" aria-label={`Open ${p.name}'s record`} title="Open patient record"><ArrowUpRight size={16} /></Link>
+                    </div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="pw-table-footer" aria-live="polite">
+            <span>{loading ? 'Updating directory…' : error ? 'Directory unavailable' : `${patients.length} of ${total} ${search ? 'matching ' : ''}patient${total === 1 ? '' : 's'}`}</span>
+            <span>{error ? 'Your search has been kept.' : total > patients.length ? 'Search to find a specific patient.' : 'Patient details and plans, in one place.'}</span>
+          </div>
+        </section>
       </div>
 
-      {/* Add patient dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-[460px] p-0 gap-0 overflow-hidden rounded-xl border hairline shadow-[var(--shadow-lg)]">
-          <DialogHeader className="px-6 pt-6 pb-4 space-y-1">
-            <DialogTitle className="text-[15px] font-semibold tracking-[-0.01em] text-ink">Add patient</DialogTitle>
-            <DialogDescription className="text-[13px] text-ink-muted">
-              Search the portal's patient list to prefill, or enter details manually.
-            </DialogDescription>
+        <DialogContent className="supp-theme pw-dialog max-w-[520px] p-0 gap-0 overflow-hidden">
+          <DialogHeader className="pw-dialog-header">
+            <div className="pw-eyebrow">Patient records</div>
+            <DialogTitle>Add a patient</DialogTitle>
+            <DialogDescription>Create a record to organise their supplement plans.</DialogDescription>
           </DialogHeader>
-          <div className="px-6 pb-5 grid gap-3.5">
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Search portal patients</Label>
-              <div className="relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-subtle" />
-                <Input
-                  value={pbQuery}
-                  onChange={(e) => setPbQuery(e.target.value)}
-                  className="pl-9 h-9 text-[13px]"
-                  placeholder="Search Practice Better by name or email…"
-                  data-testid="patient-pb-search"
-                  autoFocus
-                />
-              </div>
-              {(pbLoading || pbError) && (
-                <p className="text-[11.5px] text-ink-subtle">
-                  {pbLoading ? 'Searching…' : 'Portal search unavailable — enter details manually'}
-                </p>
-              )}
-              {pbResults.length > 0 && (
-                <div className="rounded-md border hairline overflow-hidden max-h-[176px] overflow-y-auto">
-                  {pbResults.map((c) => (
-                    <button
-                      key={c.record_id}
-                      type="button"
-                      onClick={() => pickPbClient(c)}
-                      data-testid="patient-pb-result"
-                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-[color:var(--surface-hover)] border-b border-[color:var(--hairline)] last:border-b-0"
-                    >
-                      <span className="text-[12.5px] font-medium text-ink truncate">
-                        {[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Unnamed'}
-                      </span>
-                      <span className="text-[11.5px] text-ink-muted truncate max-w-[45%]">{c.email || ''}</span>
-                    </button>
-                  ))}
+          <form onSubmit={(e) => { e.preventDefault(); handleAdd(); }}>
+            <div className="pw-dialog-fields">
+              <div className="pw-import-field">
+                <Label htmlFor="portal-patient-search">Import details from Practice Better</Label>
+                <div className="pw-search">
+                  <Search size={15} aria-hidden="true" />
+                  <Input id="portal-patient-search" value={pbQuery} onChange={(e) => setPbQuery(e.target.value)} placeholder="Search portal by name or email…" data-testid="patient-pb-search" autoFocus />
                 </div>
-              )}
+                <p className="pw-field-hint">Search with at least two characters, or add details below.</p>
+                {(pbLoading || pbError) && <p className="pw-field-hint" role="status">{pbLoading ? 'Searching…' : 'Portal search unavailable — enter details below.'}</p>}
+                {pbResults.length > 0 && (
+                  <div className="pw-portal-results">
+                    {pbResults.map((c) => (
+                      <button key={c.record_id} type="button" onClick={() => pickPbClient(c)} data-testid="patient-pb-result">
+                        <strong>{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email || 'Unnamed'}</strong>
+                        <span>{c.email || ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="pw-field"><Label htmlFor="new-patient-name">Full name <span aria-hidden="true">*</span></Label><Input id="new-patient-name" value={newPatient.name} onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })} placeholder="e.g. Alex Morgan" data-testid="patient-form-name" autoComplete="name" required /></div>
+              <div className="pw-form-columns">
+                <div className="pw-field"><Label htmlFor="new-patient-email">Email <span className="pw-optional">Optional</span></Label><Input id="new-patient-email" type="email" value={newPatient.email} onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })} placeholder="patient@example.com" autoComplete="email" /></div>
+                <div className="pw-field"><Label htmlFor="new-patient-phone">Phone <span className="pw-optional">Optional</span></Label><Input id="new-patient-phone" type="tel" value={newPatient.phone} onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })} placeholder="Phone number" autoComplete="tel" /></div>
+              </div>
+              <div className="pw-field"><Label htmlFor="new-patient-notes">Notes <span className="pw-optional">Optional</span></Label><textarea id="new-patient-notes" value={newPatient.notes} onChange={(e) => setNewPatient({ ...newPatient, notes: e.target.value })} placeholder="Add useful context for their care…" rows={3} /></div>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Full name <span className="text-red-600">*</span></Label>
-              <Input
-                value={newPatient.name}
-                onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
-                className="h-9 text-[13px]"
-                placeholder="e.g. John Smith"
-                data-testid="patient-form-name"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Email</Label>
-              <Input
-                type="email"
-                value={newPatient.email}
-                onChange={(e) => setNewPatient({ ...newPatient, email: e.target.value })}
-                className="h-9 text-[13px]"
-                placeholder="patient@email.com"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Phone</Label>
-              <Input
-                value={newPatient.phone}
-                onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
-                className="h-9 text-[13px]"
-                placeholder="(555) 123-4567"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Notes</Label>
-              <Input
-                value={newPatient.notes}
-                onChange={(e) => setNewPatient({ ...newPatient, notes: e.target.value })}
-                className="h-9 text-[13px]"
-                placeholder="Any relevant notes"
-              />
-            </div>
-          </div>
-          <DialogFooter className="px-6 py-4 bg-[color:var(--surface-hover)] hairline-t gap-2">
-            <button
-              onClick={() => setAddOpen(false)}
-              className="h-9 px-4 rounded-md text-[13px] font-medium border hairline bg-white hover:bg-[color:var(--surface-subtle)] text-ink-3 hover:text-ink"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleAdd}
-              disabled={saving}
-              data-testid="patient-form-submit"
-              className="h-9 px-4 rounded-md text-[13px] font-semibold bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)] text-white disabled:opacity-60"
-            >
-              {saving ? 'Adding…' : 'Add patient'}
-            </button>
-          </DialogFooter>
+            <DialogFooter className="pw-dialog-footer">
+              <button type="button" onClick={() => setAddOpen(false)} className="pw-button pw-button-secondary">Cancel</button>
+              <button type="submit" disabled={saving} data-testid="patient-form-submit" className="pw-button pw-button-primary">{saving ? 'Adding…' : 'Create patient record'}<ArrowUpRight size={15} /></button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
-      <ConfirmDialog
-        open={!!deleteId}
-        onOpenChange={() => setDeleteId(null)}
-        title="Delete this patient?"
-        description="This will also delete all their plans. This cannot be undone."
-        confirmLabel="Delete patient"
-        destructive
-        onConfirm={handleDelete}
-      />
+      <ConfirmDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)} title="Delete this patient?" description="This will also delete all their plans. This cannot be undone." confirmLabel="Delete patient" destructive onConfirm={handleDelete} />
     </PageContainer>
   );
 }

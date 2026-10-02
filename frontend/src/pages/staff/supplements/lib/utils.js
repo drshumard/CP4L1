@@ -23,6 +23,15 @@ function daysInPeriod(monthNumber) {
   return 30;
 }
 
+export function formatPlanDuration(months = []) {
+  const fullMonths = months.filter(month => daysInPeriod(month.month_number) === 30).length;
+  const weeks = (months.length - fullMonths) * 2;
+  return [
+    fullMonths ? `${fullMonths} month${fullMonths === 1 ? '' : 's'}` : '',
+    weeks ? `${weeks} weeks` : '',
+  ].filter(Boolean).join(' + ') || 'No phases';
+}
+
 export function calculateDailyDosage(qty, freq, schedule = null) {
   if (schedule?.length) return Math.round(schedule.reduce((total, dose) => total + Number(dose.quantity), 0) * 1e10) / 1e10;
   return Math.max(0, (qty || 0) * (freq || 0));

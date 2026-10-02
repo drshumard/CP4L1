@@ -17,7 +17,7 @@ export default function ConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="p-0 gap-0 max-w-[440px] overflow-hidden border hairline shadow-[var(--shadow-lg)] rounded-xl">
+      <AlertDialogContent className="supp-theme p-0 gap-0 max-w-[440px] overflow-hidden border hairline shadow-[var(--shadow-lg)] rounded-xl">
         <div className="px-6 pt-6 pb-5">
           <div className="flex items-start gap-4">
             <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center border ${
@@ -49,7 +49,7 @@ export default function ConfirmDialog({
             className={`h-9 px-4 text-[13px] font-semibold text-white shadow-[0_1px_0_rgba(0,0,0,0.05)] border-0 ${
               destructive
                 ? 'bg-red-600 hover:bg-red-700'
-                : 'bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)]'
+                : 'supp-button-primary'
             }`}
           >
             {confirmLabel}

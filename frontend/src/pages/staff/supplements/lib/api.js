@@ -82,8 +82,8 @@ export const savePlanAsTemplate = (data) =>
   request('/templates/save-from-plan', { method: 'POST', body: JSON.stringify(data) });
 
 // Plans
-export const getPlans = (search = '', program = '', status = '', createdBy = '') =>
-  request(`/plans?search=${encodeURIComponent(search)}&program=${encodeURIComponent(program)}&status=${encodeURIComponent(status)}&created_by=${encodeURIComponent(createdBy)}`);
+export const getPlans = (search = '', program = '', status = '', createdBy = '', { skip = 0, limit = 50 } = {}) =>
+  request(`/plans?search=${encodeURIComponent(search)}&program=${encodeURIComponent(program)}&status=${encodeURIComponent(status)}&created_by=${encodeURIComponent(createdBy)}&skip=${skip}&limit=${limit}`);
 
 export const getPlanCreators = () =>
   request('/plans/creators');

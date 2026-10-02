@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getTemplates, updateTemplate, createTemplate, deleteTemplate, getSupplements } from '../lib/api';
 import { calculateDailyDosage, formatCurrency } from '../lib/utils';
 import { getDoseSchedule, normalizeDosageEntry, updateDosageEntry } from '../lib/dosageParser';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors,
 } from '@dnd-kit/core';
 import {
-  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Input } from '@/components/ui/input';
@@ -23,22 +23,22 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from '@/components/ui/dialog';
-import { Plus, Minus, Trash2, Save, Layers, Snowflake, GripVertical } from 'lucide-react';
+import { Plus, Minus, Trash2, Save, Layers, Snowflake, GripVertical, AlertCircle, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import PageHeader, { PageContainer } from '../components/PageHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
+import '../styles/library-workspace.css';
 
 const DEFAULT_PROGRAMS = ['Detox 1', 'Detox 2', 'Maintenance'];
 const TIMES_ORDER = ['AM', 'Afternoon', 'PM'];
-const ROW_COLS = '14px 96px minmax(150px,1fr) 104px 56px 140px minmax(140px,1fr) 44px 72px 28px';
+const DEFAULT_MONTH_OPTIONS = [0.5, ...Array.from({ length: 12 }, (_, index) => index + 1)];
+const monthLabel = (number) => number === 0.5 ? '2 weeks' : number % 1 === 0.5 ? `Month ${Math.floor(number)} + 2 weeks` : `Month ${number}`;
 
 const freqToTimes = (freq) => {
   if (freq >= 3) return ['AM', 'Afternoon', 'PM'];
   if (freq === 2) return ['AM', 'PM'];
   return ['AM'];
 };
-
-const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 // Backend timestamps are naive UTC — append Z so they parse as UTC, not local
 const parseTs = (d) => {
@@ -63,45 +63,37 @@ const templatesForProgram = (templates, program) =>
     .filter(t => (t.program_name || '').trim() === program)
     .sort((a, b) => (a.step_number - b.step_number) || (b.updated_at || '').localeCompare(a.updated_at || ''));
 
-function NumberStepper({ value, onChange, min = 0, max = Infinity }) {
+function NumberStepper({ value, onChange, min = 0, max = Infinity, label }) {
   const num = value ?? 0;
   return (
-    <div className="inline-flex items-center h-[24px] rounded-md border hairline overflow-hidden select-none bg-white">
-      <button
-        type="button"
-        disabled={num <= min}
-        onClick={() => onChange(Math.max(min, num - 1))}
-        className="w-5 h-full flex items-center justify-center text-ink-subtle hover:bg-[color:var(--surface-hover)] hover:text-ink disabled:opacity-30 transition-colors"
-      >
-        <Minus size={10} />
-      </button>
-      <span className="w-6 h-full flex items-center justify-center font-mono text-[11px] font-semibold text-ink tabular-nums">
-        {num}
-      </span>
-      <button
-        type="button"
-        disabled={num >= max}
-        onClick={() => onChange(num + 1)}
-        className="w-5 h-full flex items-center justify-center text-ink-subtle hover:bg-[color:var(--surface-hover)] hover:text-ink transition-colors"
-      >
-        <Plus size={10} />
-      </button>
+    <div className="lib-stepper" role="group" aria-label={label}>
+      <button type="button" aria-label={`Decrease ${label}`} disabled={num <= min} onClick={() => onChange(Math.max(min, num - 1))}><Minus size={12} /></button>
+      <span aria-live="polite">{num}</span>
+      <button type="button" aria-label={`Increase ${label}`} disabled={num >= max} onClick={() => onChange(num + 1)}><Plus size={12} /></button>
     </div>
   );
 }
 
 function SortableRow({ id, children }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    position: 'relative',
-    zIndex: isDragging ? 10 : 'auto',
-  };
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, position: 'relative', zIndex: isDragging ? 10 : 'auto' }}>
+      {children({ ...attributes, ...listeners, ref: setActivatorNodeRef })}
+    </div>
+  );
+}
+
+function TemplateTextField({ value, onCommit, label, error, id, placeholder }) {
+  const [draft, setDraft] = useState(value || '');
+  useEffect(() => { setDraft(value || ''); }, [value]);
+  return (
+    <div className="lib-field">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} value={draft} onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => { if (draft !== (value || '')) onCommit(draft); }}
+        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+        placeholder={placeholder} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined} />
+      {error && <p id={`${id}-error`} role="alert" className="text-[12px] text-red-600">{error}</p>}
     </div>
   );
 }
@@ -117,13 +109,15 @@ function MonthAddSupplement({ monthNum, supplements, onAdd }) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[12px] font-medium text-ink-muted hover:text-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-wash)] border border-dashed border-[color:var(--hairline-strong)] hover:border-[color:var(--accent-teal)]/40 transition-colors w-full justify-center"
+          className="lib-button"
+          type="button"
+          data-add-supplement
         >
           <Plus size={13} /> Add supplement
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-[420px] p-0" align="start">
-        <Command>
+      <PopoverContent className="supp-theme w-[420px] max-w-[calc(100vw-32px)] p-0" align="start">
+        <Command shouldFilter={false}>
           <CommandInput placeholder="Search supplements…" value={q} onValueChange={setQ} />
           <CommandList>
             <CommandEmpty>No supplements found.</CommandEmpty>
@@ -137,9 +131,9 @@ function MonthAddSupplement({ monthNum, supplements, onAdd }) {
                 >
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium text-ink truncate">{s.supplement_name}</div>
-                    <div className="text-[11.5px] text-ink-muted truncate">{s.company}</div>
+                    <div className="text-[12px] text-ink-muted truncate">{s.company}</div>
                   </div>
-                  <span className="text-[12px] font-mono tabular-nums text-ink-muted shrink-0 ml-3">
+                  <span className="text-[12px] tabular-nums text-ink-muted shrink-0 ml-3">
                     {formatCurrency(s.cost_per_bottle)}
                   </span>
                 </CommandItem>
@@ -180,7 +174,13 @@ export default function TemplatesPage() {
   const [currentTemplate, setCurrentTemplate] = useState(null);
   const [editMonths, setEditMonths] = useState(1);
   const [editSupps, setEditSupps] = useState([]);
+  const [activeMonthNumber, setActiveMonthNumber] = useState(null);
+  const monthPanelRef = useRef(null);
+  const focusNewMonth = useRef(null);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [pendingSelection, setPendingSelection] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -190,9 +190,9 @@ export default function TemplatesPage() {
   const [deleteSupp, setDeleteSupp] = useState(null);
   const [deleteFromAll, setDeleteFromAll] = useState(false);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
-  const programNames = [...new Set([...DEFAULT_PROGRAMS, ...templates.map(t => (t.program_name || '').trim())])].sort();
+  const programNames = [...new Set([...DEFAULT_PROGRAMS, ...templates.map(t => (t.program_name || '').trim()).filter(Boolean)])].sort();
   const programTemplates = templatesForProgram(templates, selectedProgram);
   const stepCounts = programTemplates.reduce((acc, t) => {
     acc[t.step_number] = (acc[t.step_number] || 0) + 1;
@@ -200,11 +200,14 @@ export default function TemplatesPage() {
   }, {});
 
   const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError('');
     try {
       const [tRes, sRes] = await Promise.all([getTemplates(), getSupplements('', true)]);
       setTemplates(tRes.templates || []);
       setSupplements(sRes.supplements || []);
-    } catch (err) { toast.error('Failed to load data'); }
+    } catch (err) { setError('Protocol templates could not be loaded. Please try again.'); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -223,6 +226,42 @@ export default function TemplatesPage() {
     setEditMonths(tmpl?.default_months || 1);
     setEditSupps((tmpl?.months || []).map(month => ({ ...month, supplements: (month.supplements || []).map(normalizeDosageEntry) })));
   }, [selectedProgram, selectedId, templates]);
+
+  useEffect(() => {
+    setActiveMonthNumber(null);
+    focusNewMonth.current = null;
+  }, [selectedProgram, selectedId]);
+
+  const activeMonth = editSupps.find(month => month.month_number === activeMonthNumber) || editSupps[0];
+  const monthOptions = DEFAULT_MONTH_OPTIONS.includes(editMonths) ? DEFAULT_MONTH_OPTIONS : [...DEFAULT_MONTH_OPTIONS, editMonths].sort((a, b) => a - b);
+
+  useEffect(() => {
+    if (!activeMonth || focusNewMonth.current !== activeMonth.month_number) return;
+    focusNewMonth.current = null;
+    document.getElementById(`template-month-${activeMonth.month_number}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    monthPanelRef.current?.scrollIntoView?.({ block: 'nearest' });
+    monthPanelRef.current?.querySelector('[data-add-supplement]')?.focus({ preventScroll: true });
+  }, [activeMonth]);
+
+  const addMonth = () => {
+    if (editSupps.length >= 12) return;
+    const nextNumber = Math.floor(Math.max(0, ...editSupps.map(month => month.month_number))) + 1;
+    setEditSupps(previous => [...previous, { month_number: nextNumber, supplements: [] }]);
+    setEditMonths(previous => Math.max(previous, editSupps.length + 1));
+    focusNewMonth.current = nextNumber;
+    setActiveMonthNumber(nextNumber);
+  };
+
+  const handleMonthKeyDown = (event, index) => {
+    const nextIndex = event.key === 'ArrowRight' ? (index + 1) % editSupps.length
+      : event.key === 'ArrowLeft' ? (index + editSupps.length - 1) % editSupps.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? editSupps.length - 1 : null;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const month = editSupps[nextIndex];
+    setActiveMonthNumber(month.month_number);
+    document.getElementById(`template-month-${month.month_number}`)?.focus();
+  };
 
   const addTemplateSupp = (monthNum, supp) => {
     const entry = makeSuppEntry(supp);
@@ -316,316 +355,154 @@ export default function TemplatesPage() {
   );
 
   const totalSupps = editSupps.reduce((acc, m) => acc + (m.supplements?.length || 0), 0);
+  const originalMonths = (currentTemplate?.months || []).map(month => ({ ...month, supplements: (month.supplements || []).map(normalizeDosageEntry) }));
+  const hasChanges = !!currentTemplate && (editMonths !== (currentTemplate.default_months || 1) || JSON.stringify(editSupps) !== JSON.stringify(originalMonths));
+
+  useEffect(() => {
+    if (!hasChanges) return undefined;
+    const warnBeforeLeaving = (event) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warnBeforeLeaving);
+    return () => window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }, [hasChanges]);
+
+  const applySelection = (selection) => {
+    if (selection.create) {
+      setEditMonths(currentTemplate?.default_months || 1);
+      setEditSupps(originalMonths);
+      setNewTemplate({ program_name: selectedProgram, step_number: 1, default_months: 1 });
+      setAddOpen(true);
+    } else {
+      setSelectedProgram(selection.program);
+      setSelectedId(selection.id || '');
+    }
+    setPendingSelection(null);
+  };
+  const requestSelection = (selection) => {
+    if (hasChanges) setPendingSelection(selection);
+    else applySelection(selection);
+  };
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Protocol templates"
-        subtitle={currentTemplate
-          ? `${currentTemplate.program_name} · Step ${currentTemplate.step_number} · ${totalSupps} supplement${totalSupps !== 1 ? 's' : ''} · Created ${fmtDate(currentTemplate.created_at)} · Updated ${fmtDate(currentTemplate.updated_at)}`
-          : 'Manage default supplement lists for each program and step'}
-      >
-        {currentTemplate && (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-[13px] font-medium text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100"
-          >
-            <Trash2 size={13} /> Delete
-          </button>
-        )}
-        <button
-          onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md text-[13px] font-medium border hairline bg-white text-ink-3 hover:text-ink hover:bg-[color:var(--surface-hover)]"
-        >
-          <Plus size={14} /> New template
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving || !currentTemplate}
-          data-testid="admin-templates-save-button"
-          className="inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md text-[13px] font-medium bg-[color:var(--accent-teal)] text-white hover:bg-[color:var(--accent-teal-hover)] disabled:opacity-60 shadow-[var(--shadow-xs)]"
-        >
-          <Save size={13} /> {saving ? 'Saving…' : 'Save'}
-        </button>
+      <PageHeader title="Protocol templates" subtitle="Build a consistent starting point for every patient protocol.">
+        <button onClick={() => requestSelection({ create: true })} className="lib-button"><Plus size={15} /> New template</button>
+        <button onClick={handleSave} disabled={saving || loading || !currentTemplate} data-testid="admin-templates-save-button" className="lib-button lib-button--primary"><Save size={14} /> {saving ? 'Saving…' : 'Save changes'}</button>
       </PageHeader>
 
-      <div className="px-8 py-6">
-        {/* Filter bar */}
-        <div className="flex items-end gap-3 mb-5">
-          <div className="space-y-1">
-            <Label className="text-[11px] font-medium text-ink-subtle uppercase tracking-[0.06em]">Program</Label>
-            <Select value={selectedProgram} onValueChange={setSelectedProgram}>
-              <SelectTrigger className="w-[200px] h-9 text-[13px] bg-white" data-testid="admin-templates-program-select">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {programNames.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[11px] font-medium text-ink-subtle uppercase tracking-[0.06em]">Step</Label>
-            <Select value={selectedId} onValueChange={setSelectedId}>
-              <SelectTrigger className="w-[220px] h-9 text-[13px] bg-white" data-testid="admin-templates-step-select">
-                <SelectValue placeholder="No templates" />
-              </SelectTrigger>
-              <SelectContent>
-                {programTemplates.map(t => (
-                  <SelectItem key={t._id} value={t._id}>
-                    Step {t.step_number}
-                    {stepCounts[t.step_number] > 1 ? ` · created ${fmtDateTime(t.created_at)}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[11px] font-medium text-ink-subtle uppercase tracking-[0.06em]">Default months</Label>
-            <Input
-              type="number"
-              min={1}
-              max={12}
-              value={editMonths}
-              onChange={(e) => setEditMonths(Math.max(1, parseInt(e.target.value) || 1))}
-              className="w-[100px] h-9 font-mono tabular-nums text-[13px] bg-white"
-            />
-          </div>
-
-          {currentTemplate && (
-            <div className="ml-auto flex items-center gap-2">
-              <Popover open={searchOpen} onOpenChange={setSearchOpen}>
-                <PopoverTrigger asChild>
-                  <button className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md text-[13px] font-medium border hairline bg-white text-ink-3 hover:text-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-wash)]">
-                    <Plus size={13} /> Add to all months
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[440px] p-0" align="end">
-                  <Command>
-                    <CommandInput placeholder="Search supplements…" value={searchQuery} onValueChange={setSearchQuery} />
-                    <CommandList>
-                      <CommandEmpty>No supplements found.</CommandEmpty>
-                      <CommandGroup className="max-h-[300px] overflow-y-auto">
-                        {filteredSupps.slice(0, 30).map(supp => (
-                          <CommandItem
-                            key={supp._id}
-                            value={supp.supplement_name}
-                            onSelect={() => { addToAllMonths(supp); setSearchOpen(false); setSearchQuery(''); }}
-                            className="flex items-center justify-between cursor-pointer py-2"
-                          >
-                            <div className="min-w-0">
-                              <div className="text-[13px] font-medium text-ink truncate">{supp.supplement_name}</div>
-                              <div className="text-[11.5px] text-ink-muted truncate">{supp.company}</div>
-                            </div>
-                            <span className="text-[12px] font-mono tabular-nums text-ink-muted shrink-0 ml-3">
-                              {formatCurrency(supp.cost_per_bottle)}
-                            </span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-        </div>
-
-        {currentTemplate ? (
-          <div className="space-y-4">
-            {editSupps.map((month) => {
-              const suppCount = (month.supplements || []).length;
-              const suppIds = (month.supplements || []).map((_, i) => `supp-${month.month_number}-${i}`);
-              const handleDragEnd = ({ active, over }) => {
-                if (!over || active.id === over.id) return;
-                const oldIdx = suppIds.indexOf(active.id);
-                const newIdx = suppIds.indexOf(over.id);
-                if (oldIdx !== -1 && newIdx !== -1) reorderTemplateSupp(month.month_number, oldIdx, newIdx);
-              };
-              return (
-                <div
-                  key={month.month_number}
-                  className="rounded-lg border hairline surface overflow-hidden shadow-[var(--shadow-xs)]"
-                >
-                  <div
-                    className="flex items-center justify-between h-9 px-5 hairline-b"
-                    style={{
-                      background: 'linear-gradient(90deg, rgba(13,95,104,0.12) 0%, rgba(70,152,157,0.18) 50%, rgba(13,95,104,0.12) 100%)',
-                    }}
-                  >
-                    <span className="text-[10px] font-semibold tracking-[0.09em] uppercase text-[color:var(--accent-teal)]">
-                      {month.month_number === 0.5 ? '2 Weeks' : `Month ${month.month_number}`}
-                    </span>
-                    <span className="text-[10px] font-medium tracking-[0.04em] text-[color:var(--accent-teal)]/70">
-                      {suppCount} supplement{suppCount !== 1 ? 's' : ''}
-                    </span>
+      {hasChanges && <div className="lib-unsaved-bar" aria-label="Unsaved template changes">
+        <span><strong>Unsaved changes</strong> · {currentTemplate.program_name}, step {currentTemplate.step_number}</span>
+        <button className="lib-button lib-button--primary" onClick={handleSave} disabled={saving}><Save size={14} />{saving ? 'Saving…' : 'Save template'}</button>
+      </div>}
+      <div className="library-workspace">
+        {error && <div className="lib-error" role="alert"><AlertCircle size={17} /> {error}<button className="lib-button" onClick={fetchData}>Try again</button></div>}
+        <div className="lib-template-workspace">
+          <aside>
+            <nav className="lib-program-nav" aria-label="Protocol programs" data-testid="admin-templates-program-select">
+              <div className="lib-program-label">Programs</div>
+              {programNames.map(program => <button key={program} className="lib-program" aria-pressed={selectedProgram === program} onClick={() => { if (program !== selectedProgram) requestSelection({ program }); }}><span>{program}</span><span className="lib-program-count">{templatesForProgram(templates, program).length}</span></button>)}
+            </nav>
+            <p className="lib-template-hint">Choose a program, then a step. Each month defines the supplements used when starting a protocol.</p>
+          </aside>
+          <div className="lib-template-main">
+            {loading ? <div className="lib-panel lib-loading" role="status">Loading templates…</div> : error ? null : currentTemplate ? (
+              <>
+                <section className="lib-template-overview" aria-label="Template settings">
+                  <div className="lib-template-title">
+                    <div><h2>{currentTemplate.program_name} · Step {currentTemplate.step_number}</h2><p>{totalSupps} supplement entries · Updated {fmtDate(currentTemplate.updated_at)}</p></div>
+                    <div className="flex items-center gap-3"><span className={`lib-template-status ${hasChanges ? 'lib-template-status--dirty' : ''}`} role="status">{hasChanges ? <><span aria-hidden="true">●</span> Unsaved changes</> : <><Check size={14} /> Saved</>}</span><button className="lib-row-action lib-row-action--danger" onClick={() => setConfirmDelete(true)} aria-label="Delete this template"><Trash2 size={14} /></button></div>
                   </div>
-
-                  {suppCount === 0 ? (
-                    <div className="py-8 text-center text-[12.5px] text-ink-muted">No supplements yet</div>
-                  ) : (
-                    <>
-                    <div
-                      className="grid items-center px-5 h-8 hairline-b gap-3 text-[10px] font-semibold tracking-[0.09em] uppercase text-ink-subtle bg-[color:var(--surface-subtle)]"
-                      style={{ gridTemplateColumns: ROW_COLS }}
-                    >
-                      <span />
-                      <span>Times</span>
-                      <span>Supplement</span>
-                      <span className="text-center">Qty</span>
-                      <span className="text-center">Freq</span>
-                      <span>Dosage</span>
-                      <span>Instructions</span>
-                      <span className="text-center">Btls</span>
-                      <span className="text-right">Cost</span>
-                      <span />
+                  <div className="lib-template-settings">
+                    <div className="lib-field">
+                      <Label htmlFor="template-step">Protocol step</Label>
+                      <Select value={selectedId} onValueChange={(id) => { if (id !== selectedId) requestSelection({ program: selectedProgram, id }); }}>
+                        <SelectTrigger id="template-step" className="w-[210px] h-9 bg-white" data-testid="admin-templates-step-select"><SelectValue /></SelectTrigger>
+                        <SelectContent className="supp-theme">{programTemplates.map(template => <SelectItem key={template._id} value={template._id}>Step {template.step_number}{stepCounts[template.step_number] > 1 ? ` · ${fmtDateTime(template.created_at)}` : ''}</SelectItem>)}</SelectContent>
+                      </Select>
                     </div>
-                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={suppIds} strategy={verticalListSortingStrategy}>
-                    {(month.supplements || []).map((supp, idx) => {
-                      const upb = supp.units_per_bottle || 0;
-                      const daily = calculateDailyDosage(supp.quantity_per_dose, supp.frequency_per_day, supp.dose_schedule);
-                      const periodDays = month.month_number % 1 === 0.5 ? 14 : 30;
-                      const bottles = (daily > 0 && upb > 0) ? Math.ceil((daily * periodDays) / upb) : '—';
-                      const times = supp.times || ['AM'];
-                      const schedule = supp.dose_schedule?.length ? supp.dose_schedule : getDoseSchedule(supp);
-                      return (
-                        <SortableRow key={suppIds[idx]} id={suppIds[idx]}>
-                        <div
-                          className="grid items-center min-h-[44px] px-5 py-1.5 border-b border-[color:var(--hairline)] row-hover transition-colors group gap-3"
-                          style={{ gridTemplateColumns: ROW_COLS }}
-                        >
-                          <div className="flex items-center justify-center cursor-grab active:cursor-grabbing drag-handle">
-                            <GripVertical size={12} className="text-ink-faint group-hover:text-ink-subtle" />
-                          </div>
-                          <div className="flex gap-0.5 justify-start">
-                            {['AM', 'Aft', 'PM'].map((label, ti) => {
-                              const fullName = TIMES_ORDER[ti];
-                              const active = times.includes(fullName);
-                              return (
-                                <button
-                                  key={label}
-                                  type="button"
-                                  onClick={() => {
-                                    const nt = active
-                                      ? times.filter(t => t !== fullName)
-                                      : [...times, fullName].sort((a, b) => TIMES_ORDER.indexOf(a) - TIMES_ORDER.indexOf(b));
-                                    if (nt.length === 0) return;
-                                    updateTemplateSupp(month.month_number, idx, 'times', nt);
-                                  }}
-                                  className={`h-5 px-1.5 rounded text-[10px] font-semibold transition-colors ${
-                                    active
-                                      ? 'bg-[color:var(--accent-teal)] text-white'
-                                      : 'bg-[color:var(--surface-subtle)] text-ink-subtle hover:text-[color:var(--accent-teal)]'
-                                  }`}
-                                >
-                                  {label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-[13px] font-medium text-ink leading-tight break-words">{supp.supplement_name}</span>
-                            {supp.refrigerate && (
-                              <Snowflake size={11} className="text-[color:var(--accent-teal)] shrink-0" />
-                            )}
-                          </div>
-                          <div className="flex justify-center">
-                            {supp.dose_schedule?.length ? (
-                              <div className="flex flex-col gap-1 py-1">
-                                {schedule.map(dose => (
-                                  <label key={dose.time} className="flex items-center justify-between gap-1 text-[10px] text-ink-muted">
-                                    {dose.time === 'Afternoon' ? 'Aft' : dose.time}
-                                    <input type="number" min="0.01" step="any" value={dose.quantity}
-                                      aria-label={`${supp.supplement_name} ${dose.time} quantity`}
-                                      className="w-12 rounded border hairline px-1 text-[12px] text-ink"
-                                      onChange={event => updateTemplateSupp(month.month_number, idx, 'dose_schedule', schedule.map(item => item.time === dose.time ? { ...item, quantity: Number(event.target.value) } : item))} />
-                                  </label>
-                                ))}
-                              </div>
-                            ) : (
-                            <NumberStepper
-                              value={supp.quantity_per_dose}
-                              min={1}
-                              onChange={(v) => updateTemplateSupp(month.month_number, idx, 'quantity_per_dose', v)}
-                            />
-                            )}
-                          </div>
-                          <div className="flex justify-center">
-                            <NumberStepper
-                              value={supp.frequency_per_day}
-                              min={1}
-                              max={3}
-                              onChange={(v) => updateTemplateSupp(month.month_number, idx, 'frequency_per_day', v)}
-                            />
-                          </div>
-                          <div>
-                          <div
-                            contentEditable
-                            suppressContentEditableWarning
-                            className="text-[12px] text-ink-muted outline-none min-h-[18px] break-words cursor-text rounded px-1 -mx-1 leading-tight focus:bg-white focus:text-ink-3 focus:shadow-[var(--focus-subtle)]"
-                            onBlur={(e) => {
-                              const v = e.target.textContent;
-                              if (v !== (supp.dosage_display || '')) updateTemplateSupp(month.month_number, idx, 'dosage_display', v);
-                            }}
-                            dangerouslySetInnerHTML={{ __html: escapeHtml(supp.dosage_display || '') }}
-                          />
-                          {supp.dosage_error && <p role="alert" className="mt-1 text-[11px] text-red-600">{supp.dosage_error}</p>}
-                          </div>
-                          <div
-                            contentEditable
-                            suppressContentEditableWarning
-                            className="text-[12px] text-ink-muted outline-none min-h-[18px] break-words cursor-text rounded px-1 -mx-1 leading-tight focus:bg-white focus:text-ink-3 focus:shadow-[var(--focus-subtle)]"
-                            onBlur={(e) => {
-                              const v = e.target.textContent;
-                              if (v !== (supp.instructions || '')) updateTemplateSupp(month.month_number, idx, 'instructions', v);
-                            }}
-                            dangerouslySetInnerHTML={{ __html: escapeHtml(supp.instructions || '') }}
-                          />
-                          <span className="font-mono tabular-nums text-[12px] text-ink-3 text-center">{bottles}</span>
-                          <span className="font-mono tabular-nums text-[12px] font-semibold text-ink text-right">
-                            {formatCurrency(supp.cost_per_bottle)}
-                          </span>
-                          <button
-                            className="h-6 w-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-ink-subtle hover:text-red-600 hover:bg-red-50 transition-opacity"
-                            onClick={() => {
-                              setDeleteSupp({ monthNum: month.month_number, idx, name: supp.supplement_name });
-                              setDeleteFromAll(false);
-                            }}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                        </SortableRow>
-                      );
-                    })}
-                    </SortableContext>
-                    </DndContext>
-                    </>
-                  )}
-
-                  <div className="px-5 py-2.5 hairline-t bg-[color:var(--surface-hover)]">
-                    <MonthAddSupplement
-                      monthNum={month.month_number}
-                      supplements={supplements}
-                      onAdd={addTemplateSupp}
-                    />
+                    <div className="lib-field"><Label htmlFor="template-months">Default plan length</Label><Select value={String(editMonths)} onValueChange={value => setEditMonths(Number(value))}><SelectTrigger id="template-months" className="w-[150px] h-9 bg-white"><SelectValue /></SelectTrigger><SelectContent className="supp-theme">{monthOptions.map(count => <SelectItem key={count} value={String(count)}>{count === 0.5 ? '2 weeks' : `${count} month${count === 1 ? '' : 's'}`}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="lib-template-add">
+                      <Popover open={searchOpen} onOpenChange={setSearchOpen}>
+                        <PopoverTrigger asChild><button className="lib-button" disabled={editSupps.length === 0}><Plus size={14} /> Add to all months</button></PopoverTrigger>
+                        <PopoverContent className="supp-theme w-[420px] max-w-[calc(100vw-32px)] p-0" align="end">
+                          <Command shouldFilter={false}>
+                            <CommandInput placeholder="Search supplements or manufacturers…" value={searchQuery} onValueChange={setSearchQuery} />
+                            <CommandList><CommandEmpty>No matching supplements.</CommandEmpty><CommandGroup className="max-h-[300px] overflow-y-auto">{filteredSupps.slice(0, 30).map(supp => <CommandItem key={supp._id} value={supp._id} onSelect={() => { addToAllMonths(supp); setSearchOpen(false); setSearchQuery(''); }} className="flex items-center justify-between gap-4 py-3"><div><div className="text-[13px] font-medium">{supp.supplement_name}</div><div className="text-[12px] text-ink-muted">{supp.company}</div></div><span className="text-[12px] tabular-nums whitespace-nowrap">{formatCurrency(supp.cost_per_bottle)}</span></CommandItem>)}</CommandGroup></CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
+                </section>
+                <div className="lib-month-toolbar">
+                  <div><h3>Template months</h3><p>Choose a month to edit. New months start empty.</p></div>
+                  <button type="button" className="lib-button" onClick={addMonth} disabled={saving || editSupps.length >= 12}><Plus size={14} /> Add month</button>
                 </div>
-              );
-            })}
+                {editSupps.length > 0 && <div className="lib-month-tabs" role="tablist" aria-label="Template months">{editSupps.map((month, index) => <button type="button" key={month.month_number} id={`template-month-${month.month_number}`} role="tab" aria-selected={activeMonth?.month_number === month.month_number} aria-controls="template-active-month" tabIndex={activeMonth?.month_number === month.month_number ? 0 : -1} onKeyDown={event => handleMonthKeyDown(event, index)} onClick={() => setActiveMonthNumber(month.month_number)}><strong>{monthLabel(month.month_number)}</strong><span>{month.supplements?.length || 0} supplement{month.supplements?.length === 1 ? '' : 's'}</span></button>)}</div>}
+                {editSupps.length === 0 && <div className="lib-panel lib-empty"><Layers size={26} /><h3>No months in this template</h3><p>Add a month to start building its supplement schedule.</p></div>}
+                {(activeMonth ? [activeMonth] : []).map(month => {
+                  const suppCount = (month.supplements || []).length;
+                  const suppIds = (month.supplements || []).map((_, index) => `supp-${month.month_number}-${index}`);
+                  const handleDragEnd = ({ active, over }) => {
+                    if (!over || active.id === over.id) return;
+                    const oldIdx = suppIds.indexOf(active.id);
+                    const newIdx = suppIds.indexOf(over.id);
+                    if (oldIdx !== -1 && newIdx !== -1) reorderTemplateSupp(month.month_number, oldIdx, newIdx);
+                  };
+                  return (
+                    <section key={month.month_number} ref={monthPanelRef} id="template-active-month" className="lib-month" role="tabpanel" aria-label={monthLabel(month.month_number)}>
+                      <div className="lib-month-heading"><h3>{monthLabel(month.month_number)}</h3><span>{suppCount} supplement{suppCount !== 1 ? 's' : ''}</span></div>
+                      {suppCount === 0 ? <div className="lib-template-empty">Add the supplements for this month to begin.</div> : (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                          <SortableContext items={suppIds} strategy={verticalListSortingStrategy}>
+                            {(month.supplements || []).map((supp, idx) => {
+                              const upb = supp.units_per_bottle || 0;
+                              const daily = calculateDailyDosage(supp.quantity_per_dose, supp.frequency_per_day, supp.dose_schedule);
+                              const periodDays = month.month_number % 1 === 0.5 ? 14 : 30;
+                              const bottles = (daily > 0 && upb > 0) ? Math.ceil((daily * periodDays) / upb) : '—';
+                              const times = supp.times || ['AM'];
+                              const schedule = supp.dose_schedule?.length ? supp.dose_schedule : getDoseSchedule(supp);
+                              return <SortableRow key={suppIds[idx]} id={suppIds[idx]}>{handleProps => (
+                                <div className="lib-prescription">
+                                  <div className="lib-prescription-heading">
+                                    <button {...handleProps} className="lib-drag-handle" aria-label={`Reorder ${supp.supplement_name}`}><GripVertical size={16} /></button>
+                                    <div className="lib-prescription-name"><h4>{supp.supplement_name}</h4><span>{supp.company || 'No manufacturer'}{supp.refrigerate && <span className="lib-refrigerate"><Snowflake size={12} /> Refrigerate</span>}</span></div>
+                                    <div className="lib-prescription-cost"><strong>{formatCurrency(supp.cost_per_bottle)} <span>/ bottle</span></strong><span>{bottles} bottle{bottles !== 1 ? 's' : ''} / {periodDays === 14 ? '2 weeks' : 'month'}</span></div>
+                                    <button className="lib-row-action lib-row-action--danger" aria-label={`Remove ${supp.supplement_name}`} onClick={() => { setDeleteSupp({ monthNum: month.month_number, idx, name: supp.supplement_name }); setDeleteFromAll(false); }}><Trash2 size={14} /></button>
+                                  </div>
+                                  <div className="lib-prescription-fields">
+                                    <div className="lib-dose-settings">
+                                      <div className="lib-dose-controls">
+                                        <div className="lib-field"><span className="lib-field-label">{supp.dose_schedule?.length ? 'Quantity by time' : 'Quantity per dose'}</span>{supp.dose_schedule?.length ? <div className="lib-dose-schedule">{schedule.map(dose => <label key={dose.time}>{dose.time === 'Afternoon' ? 'Aft' : dose.time}<input type="number" min="0.01" step="any" value={dose.quantity} aria-label={`${supp.supplement_name} ${dose.time} quantity`} onChange={event => updateTemplateSupp(month.month_number, idx, 'dose_schedule', schedule.map(item => item.time === dose.time ? { ...item, quantity: Number(event.target.value) } : item))} /></label>)}</div> : <NumberStepper label={`${supp.supplement_name} quantity`} value={supp.quantity_per_dose} min={1} onChange={value => updateTemplateSupp(month.month_number, idx, 'quantity_per_dose', value)} />}</div>
+                                        <div className="lib-field"><span className="lib-field-label">Doses / day</span><NumberStepper label={`${supp.supplement_name} daily doses`} value={supp.frequency_per_day} min={1} max={3} onChange={value => updateTemplateSupp(month.month_number, idx, 'frequency_per_day', value)} /></div>
+                                      </div>
+                                      <div className="lib-time-options" role="group" aria-label={`Schedule for ${supp.supplement_name}`}>{['AM', 'Aft', 'PM'].map((label, index) => { const fullName = TIMES_ORDER[index]; const active = times.includes(fullName); return <button key={label} type="button" className="lib-time-option" aria-label={fullName} aria-pressed={active} onClick={() => { const nextTimes = active ? times.filter(time => time !== fullName) : [...times, fullName].sort((a, b) => TIMES_ORDER.indexOf(a) - TIMES_ORDER.indexOf(b)); if (nextTimes.length > 0) updateTemplateSupp(month.month_number, idx, 'times', nextTimes); }}>{label}</button>; })}</div>
+                                    </div>
+                                    <TemplateTextField id={`template-dose-${month.month_number}-${idx}`} label="Dosage text" value={supp.dosage_display} placeholder="e.g. 2 caps, twice daily" error={supp.dosage_error} onCommit={value => updateTemplateSupp(month.month_number, idx, 'dosage_display', value)} />
+                                    <TemplateTextField id={`template-instructions-${month.month_number}-${idx}`} label="Patient instructions" value={supp.instructions} placeholder="e.g. Take with food" onCommit={value => updateTemplateSupp(month.month_number, idx, 'instructions', value)} />
+                                  </div>
+                                </div>
+                              )}</SortableRow>;
+                            })}
+                          </SortableContext>
+                        </DndContext>
+                      )}
+                      <div className="lib-month-add"><MonthAddSupplement monthNum={month.month_number} supplements={supplements} onAdd={addTemplateSupp} /></div>
+                    </section>
+                  );
+                })}
+              </>
+            ) : (
+              <div className="lib-panel lib-empty"><Layers size={28} strokeWidth={1.4} /><h2>No templates for {selectedProgram || 'this program'}</h2><p>Create a step with a default duration, then add its monthly supplements.</p><button className="lib-button lib-button--primary" onClick={() => requestSelection({ create: true })}><Plus size={15} /> Create template</button></div>
+            )}
           </div>
-        ) : (
-          <div className="rounded-lg border hairline border-dashed surface flex flex-col items-center justify-center py-16">
-            <Layers size={28} strokeWidth={1.4} className="text-ink-faint mb-2.5" />
-            <p className="text-[13px] font-medium text-ink">No template found</p>
-            <p className="text-[12px] text-ink-muted mt-1">Select a program and step above, or create a new template.</p>
-          </div>
-        )}
+        </div>
       </div>
+
+      <ConfirmDialog open={!!pendingSelection} onOpenChange={() => setPendingSelection(null)} title="Discard unsaved changes?" description="Your edits to this template have not been saved. Discard them to continue." confirmLabel="Discard changes" destructive onConfirm={() => { if (pendingSelection) applySelection(pendingSelection); }} />
 
       {/* Create template dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="max-w-[440px] p-0 gap-0 overflow-hidden rounded-xl border hairline shadow-[var(--shadow-lg)]">
+        <DialogContent style={{ '--dialog-width': '480px' }} className="supp-theme lib-dialog max-w-[480px] p-0 gap-0 border hairline">
           <DialogHeader className="px-6 pt-6 pb-4 space-y-1">
             <DialogTitle className="text-[15px] font-semibold tracking-[-0.01em] text-ink">
               New protocol template
@@ -636,8 +513,9 @@ export default function TemplatesPage() {
           </DialogHeader>
           <div className="px-6 pb-5 grid gap-3.5">
             <div className="space-y-1.5">
-              <Label className="text-[12px] font-medium text-ink-3">Program name <span className="text-red-600">*</span></Label>
+              <Label htmlFor="new-template-program" className="text-[13px] font-medium text-ink-3">Program name <span className="text-red-600">*</span></Label>
               <Input
+                id="new-template-program"
                 value={newTemplate.program_name}
                 onChange={(e) => setNewTemplate({ ...newTemplate, program_name: e.target.value })}
                 className="h-9 text-[13px]"
@@ -647,24 +525,26 @@ export default function TemplatesPage() {
             </div>
             <div className="grid grid-cols-2 gap-3.5">
               <div className="space-y-1.5">
-                <Label className="text-[12px] font-medium text-ink-3">Step</Label>
+                <Label htmlFor="new-template-step" className="text-[13px] font-medium text-ink-3">Step</Label>
                 <Input
                   type="number"
                   min={1}
+                  id="new-template-step"
                   value={newTemplate.step_number}
                   onChange={(e) => setNewTemplate({ ...newTemplate, step_number: parseInt(e.target.value) || 1 })}
-                  className="h-9 text-[13px] font-mono tabular-nums"
+                  className="h-9 text-[13px] tabular-nums"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[12px] font-medium text-ink-3">Default months</Label>
+                <Label htmlFor="new-template-months" className="text-[13px] font-medium text-ink-3">Default months</Label>
                 <Input
                   type="number"
                   min={0.5}
                   step={0.5}
+                  id="new-template-months"
                   value={newTemplate.default_months}
                   onChange={(e) => setNewTemplate({ ...newTemplate, default_months: parseFloat(e.target.value) || 1 })}
-                  className="h-9 text-[13px] font-mono tabular-nums"
+                  className="h-9 text-[13px] tabular-nums"
                 />
               </div>
             </div>
@@ -672,14 +552,14 @@ export default function TemplatesPage() {
           <DialogFooter className="px-6 py-4 bg-[color:var(--surface-hover)] hairline-t gap-2">
             <button
               onClick={() => setAddOpen(false)}
-              className="h-9 px-4 rounded-md text-[13px] font-medium border hairline bg-white hover:bg-[color:var(--surface-subtle)] text-ink-3 hover:text-ink"
+              className="lib-button"
             >
               Cancel
             </button>
             <button
               onClick={handleCreate}
               disabled={creating}
-              className="h-9 px-4 rounded-md text-[13px] font-semibold bg-[color:var(--accent-teal)] hover:bg-[color:var(--accent-teal-hover)] text-white disabled:opacity-60"
+              className="lib-button lib-button--primary"
             >
               {creating ? 'Creating…' : 'Create'}
             </button>
@@ -709,7 +589,7 @@ export default function TemplatesPage() {
               type="checkbox"
               checked={deleteFromAll}
               onChange={(e) => setDeleteFromAll(e.target.checked)}
-              className="w-3.5 h-3.5 rounded border-[color:var(--hairline-strong)] text-[color:var(--accent-teal)] focus:ring-[color:var(--accent-teal)]"
+              className="w-4 h-4 accent-black"
             />
             <span className="text-[12.5px] text-ink-3">Remove from all months</span>
           </label>
