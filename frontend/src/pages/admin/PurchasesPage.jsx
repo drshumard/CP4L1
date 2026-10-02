@@ -142,8 +142,8 @@ function PurchaseSheet({ purchase, onClose, onSend, canManage }) {
                 )}
             </section>
 
-            {p.status === 'fulfilled' && (
-              {canManage && <button type="button" className={`${s.primaryButton} ${s.fullWidthButton}`} onClick={() => onSend(p)}><Send size={16} />Send to automations</button>}
+            {p.status === 'fulfilled' && canManage && (
+              <button type="button" className={`${s.primaryButton} ${s.fullWidthButton}`} onClick={() => onSend(p)}><Send size={16} />Send to automations</button>
             )}
           </>
         )}
